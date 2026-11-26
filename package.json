@@ -10,6 +10,7 @@
     "test:engine": "tsx scripts/verify-engine.ts"
   },
   "dependencies": {
+    "@google/genai": "^3.6.1",
     "@pkmn/img": "^0.3.5",
     "@pkmn/sets": "^8.0.0",
     "@pkmn/sim": "^0.11.0",

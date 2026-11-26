@@ -1,10 +1,79 @@
 export type ScreenView =
   | 'home'
   | 'chapters'
+  | 'versus'
   | 'vn'
   | 'teambuilder'
   | 'battle'
   | 'epilogue';
+
+export type AIProviderKind = 'gemini' | 'ollama' | 'offline';
+
+export interface AISettings {
+  provider: AIProviderKind;
+  geminiApiKey: string;
+  geminiModel: string;
+  ollamaBaseUrl: string;
+  ollamaModel: string;
+  /** Feature Flag: false (dormant) by default. Enables Stateless LLM opponent when configured. */
+  enableLlmOpponent: boolean;
+}
+
+export interface SavedVersusTeam {
+  id: string;
+  formatId: SupportedFormatId;
+  prompt: string;
+  normalizedPrompt: string;
+  teamName: string;
+  strategySummary: string;
+  paste: string;
+  species: string[];
+  source: 'gemini' | 'ollama' | 'offline-demo' | 'manual';
+  createdAt: string;
+}
+
+export interface LiveCoachAdvice {
+  source: 'llm' | 'heuristic';
+  modelLabel: string;
+  bestPlay: string;
+  safeAlternative: string;
+  keyThreat: string;
+  reasoning: string;
+  winChanceEstimate: number;
+}
+
+export type MoveAnnotationGrade =
+  | 'brilliant'
+  | 'great'
+  | 'good'
+  | 'inaccuracy'
+  | 'mistake'
+  | 'blunder';
+
+export interface KeyTurnReview {
+  turn: number;
+  grade: MoveAnnotationGrade;
+  symbol: '!!' | '!' | '✓' | '?!' | '?' | '??';
+  headline: string;
+  whatHappened: string;
+  betterLine: string;
+}
+
+export interface PostGameReview {
+  source: 'llm' | 'heuristic';
+  modelLabel: string;
+  playerAccuracy: number;
+  summaryVerdict: string;
+  counts: {
+    brilliant: number;
+    good: number;
+    inaccuracy: number;
+    mistake: number;
+    blunder: number;
+  };
+  keyTurns: KeyTurnReview[];
+  improvements: string[];
+}
 
 export type BattleFormat = 'singles' | 'doubles';
 
@@ -114,6 +183,10 @@ export interface ResolvedBattleConfig {
   openTeamsheet?: boolean;
   /** Optional preferred Showdown `team ...` order for Rival AI during Team Preview (e.g. 'team 5631' for Yuta). */
   preferredRivalTeamOrder?: string;
+  /** Controls who pilots Player 2: 'ai' (default) or 'human' (Local Hotseat 1v1). */
+  p2Control?: 'ai' | 'human';
+  /** Marks a custom AI Teambuilder / Versus match (exits back to Versus Mode). */
+  isVersusMatch?: boolean;
   playerName: string;
   playerCharId: CharacterId;
   rivalName: string;
@@ -351,6 +424,16 @@ export interface BattleSnapshot {
   pendingSlots: PendingDecisionSlot[];
   isForceSwitch: boolean;
   requestSeq: number;
+  /** Hotseat P1 vs P2 fields (populated when config.p2Control === 'human'). */
+  p2Control: 'ai' | 'human';
+  p2HumanParty: PartyPokemonState[];
+  p2PendingSlots: PendingDecisionSlot[];
+  p2IsForceSwitch: boolean;
+  p2TeamPreview: TeamPreviewState | null;
+  p2RequestSeq: number;
+  p1Waiting: boolean;
+  p2Waiting: boolean;
+  activeRivalController: 'heuristic' | 'llm' | 'human';
   log: BattleLogEntry[];
   winner: 'p1' | 'p2' | 'tie' | null;
   lastCue: BattleAnimationCue | null;

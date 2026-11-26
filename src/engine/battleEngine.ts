@@ -1,6 +1,7 @@
 import { BattleStreams, Dex, Teams, toID } from '@pkmn/sim';
 import type {
   ActiveMoveOption,
+  AISettings,
   BattleAnimationCue,
   BattleFormat,
   BattleLogEntry,
@@ -13,7 +14,11 @@ import type {
   SpeedRange,
   TeamPreviewState,
 } from '../types/game';
-import { chooseRivalAction, type ShowdownRequest } from './tacticalAI';
+import {
+  createRivalBattleController,
+  type RivalBattleController,
+  type ShowdownRequest,
+} from './tacticalAI';
 
 /* ================= Pure Tactical Helpers (Dex & Formulas) ================= */
 
@@ -252,6 +257,7 @@ export class ShowdownBattleController {
     null;
   private listener: (snapshot: BattleSnapshot) => void;
   private config: ResolvedBattleConfig;
+  private rivalController: RivalBattleController;
   private state: BattleSnapshot;
   private logSeq = 0;
   private cueSeq = 0;
@@ -259,6 +265,12 @@ export class ShowdownBattleController {
   private destroyed = false;
   private puzzleConditionsApplied = false;
   private triggeredRuleIds = new Set<string>();
+  private p1PreviewPokes: Array<{
+    species: string;
+    level: number;
+    gender: string;
+    types: string[];
+  }> = [];
   private rivalPreviewPokes: Array<{
     species: string;
     level: number;
@@ -269,12 +281,20 @@ export class ShowdownBattleController {
 
   constructor(
     config: ResolvedBattleConfig,
-    onUpdate: (snapshot: BattleSnapshot) => void
+    onUpdate: (snapshot: BattleSnapshot) => void,
+    aiSettings?: AISettings
   ) {
     this.config = config;
     this.listener = onUpdate;
+    this.rivalController = createRivalBattleController(aiSettings);
     const activeCount = config.format === 'doubles' ? 2 : 1;
-    const defaultLevel = config.formatId === 'gen9vgc2024regg' ? 50 : 100;
+    const defaultLevel =
+      config.formatId === 'gen9vgc2024regg'
+        ? 50
+        : config.formatId === 'gen9lc'
+          ? 5
+          : 100;
+    const p2Control = config.p2Control ?? 'ai';
 
     this.state = {
       status: 'initializing',
@@ -321,6 +341,16 @@ export class ShowdownBattleController {
       pendingSlots: [],
       isForceSwitch: false,
       requestSeq: 0,
+      p2Control,
+      p2HumanParty: [],
+      p2PendingSlots: [],
+      p2IsForceSwitch: false,
+      p2TeamPreview: null,
+      p2RequestSeq: 0,
+      p1Waiting: false,
+      p2Waiting: false,
+      activeRivalController:
+        p2Control === 'human' ? 'human' : this.rivalController.kind,
       log: [],
       winner: null,
       lastCue: null,
@@ -409,6 +439,31 @@ export class ShowdownBattleController {
         pokemon: this.cloneMon(s.pokemon),
         moves: [...s.moves],
       })),
+      p2HumanParty: this.state.p2HumanParty.map((m) => this.cloneMon(m)),
+      p2PendingSlots: this.state.p2PendingSlots.map((s) => ({
+        ...s,
+        pokemon: this.cloneMon(s.pokemon),
+        moves: [...s.moves],
+      })),
+      p2TeamPreview: this.state.p2TeamPreview
+        ? {
+            ...this.state.p2TeamPreview,
+            playerRoster: this.state.p2TeamPreview.playerRoster.map((m) =>
+              this.cloneMon(m)
+            ),
+            rivalRoster: this.state.p2TeamPreview.rivalRoster.map((r) => ({
+              ...r,
+              types: [...r.types],
+              openSheet: r.openSheet
+                ? {
+                    ...r.openSheet,
+                    moves: [...r.openSheet.moves],
+                    types: [...r.openSheet.types],
+                  }
+                : undefined,
+            })),
+          }
+        : null,
       log: [...this.state.log],
       triggeredScriptIds: [...this.state.triggeredScriptIds],
       activeTaunt: this.state.activeTaunt
@@ -787,17 +842,72 @@ export class ShowdownBattleController {
     }
 
     this.state.teamPreview = null;
-    this.state.status = 'resolving';
+    this.state.p1Waiting = true;
+    this.syncCompositeStatus();
     this.emit();
     await this.streams.p1.write(cmd);
   }
 
+  public async submitP2TeamOrder(selectedSlots: number[]): Promise<void> {
+    if (!this.streams || this.destroyed || !this.state.p2TeamPreview) return;
+    const tp = this.state.p2TeamPreview;
+    let cmd = 'default';
+
+    if (tp.mode === 'pick-1' && selectedSlots.length >= 1) {
+      cmd = `team ${selectedSlots[0]}`;
+    } else if (tp.mode === 'pick-4' && selectedSlots.length >= 4) {
+      cmd = `team ${selectedSlots.slice(0, 4).join('')}`;
+    } else if (tp.mode === 'lead-1' && selectedSlots.length >= 1) {
+      const lead = selectedSlots[0];
+      const total = tp.playerRoster.length;
+      const rest: number[] = [];
+      for (let i = 1; i <= total; i++) {
+        if (i !== lead) rest.push(i);
+      }
+      cmd = `team ${lead}${rest.join('')}`;
+    }
+
+    this.state.p2TeamPreview = null;
+    this.state.p2Waiting = true;
+    this.syncCompositeStatus();
+    this.emit();
+    await this.streams.p2.write(cmd);
+  }
+
   public async submitPlayerChoice(command: string): Promise<void> {
     if (!this.streams || this.destroyed || this.state.status === 'ended') return;
-    this.state.status = 'resolving';
     this.state.pendingSlots = [];
+    this.state.p1Waiting = true;
+    this.syncCompositeStatus();
     this.emit();
     await this.streams.p1.write(command);
+  }
+
+  public async submitP2Choice(command: string): Promise<void> {
+    if (!this.streams || this.destroyed || this.state.status === 'ended') return;
+    this.state.p2PendingSlots = [];
+    this.state.p2Waiting = true;
+    this.syncCompositeStatus();
+    this.emit();
+    await this.streams.p2.write(command);
+  }
+
+  private isEnded(): boolean {
+    return this.state.status === 'ended';
+  }
+
+  private syncCompositeStatus(): void {
+    if (this.state.status === 'ended') return;
+    if (this.state.teamPreview || this.state.p2TeamPreview) {
+      this.state.status = 'team-preview';
+    } else if (
+      this.state.pendingSlots.length > 0 ||
+      this.state.p2PendingSlots.length > 0
+    ) {
+      this.state.status = 'awaiting-choice';
+    } else {
+      this.state.status = 'resolving';
+    }
   }
 
   public destroy(): void {
@@ -863,6 +973,25 @@ export class ShowdownBattleController {
       for await (const chunk of stream) {
         if (this.destroyed) break;
         for (const line of chunk.split('\n')) {
+          if (this.state.p2Control === 'human') {
+            if (line.startsWith('|request|')) {
+              const rawJson = line.slice('|request|'.length).trim();
+              if (!rawJson) continue;
+              const req = JSON.parse(rawJson) as ShowdownRequest;
+              this.handleHumanP2Request(req);
+            } else if (line.startsWith('|error|')) {
+              const errMsg = line.slice('|error|'.length).trim();
+              this.pushLog('system', `Aviso (${this.config.rivalName}): ${errMsg}`);
+              if (this.state.status !== 'ended') {
+                this.state.p2Waiting = false;
+                this.state.p2RequestSeq += 1;
+                this.syncCompositeStatus();
+              }
+              this.emit();
+            }
+            continue;
+          }
+
           if (line.startsWith('|error|')) {
             // Failsafe: if Showdown ever rejects an AI command, fall back to 'default' so battles never stall
             if (this.streams && !this.destroyed && this.state.status !== 'ended') {
@@ -879,7 +1008,7 @@ export class ShowdownBattleController {
             continue;
           }
 
-          const decision = chooseRivalAction(req, {
+          const decision = await this.rivalController.chooseAction(req, {
             format: this.config.format,
             foeActiveSpecies: this.state.p1.active.map((m) =>
               m && !m.fainted ? m.species : null
@@ -887,14 +1016,21 @@ export class ShowdownBattleController {
             foeActiveStatus: this.state.p1.active.map((m) =>
               m && !m.fainted ? m.status || null : null
             ),
+            foeActiveHpPercent: this.state.p1.active.map((m) =>
+              m ? m.hpPercent : null
+            ),
             foeSideConditions: this.state.p1.sideConditions,
+            selfSideConditions: this.state.p2.sideConditions,
+            weather: this.state.weather,
+            terrain: this.state.terrain,
+            trickRoomTurnsLeft: this.state.trickRoomTurnsLeft,
             turn: Math.max(1, this.state.turn),
             scriptedRules: this.config.scriptedEnemyRules ?? [],
             triggeredRuleIds: this.triggeredRuleIds,
             preferredTeamPreviewOrder: this.config.preferredRivalTeamOrder,
           });
 
-          if (decision && this.streams) {
+          if (decision && this.streams && !this.destroyed && !this.isEnded()) {
             if (decision.triggeredRules.length > 0) {
               for (const rule of decision.triggeredRules) {
                 if (!this.state.triggeredScriptIds.includes(rule.id)) {
@@ -916,6 +1052,12 @@ export class ShowdownBattleController {
                 }
               }
               this.emit();
+            } else if (decision.llmNote) {
+              this.pushLog(
+                'script',
+                `🧠 [Entrenador LLM · Turno ${Math.max(1, this.state.turn)}] ${decision.llmNote}`
+              );
+              this.emit();
             }
             await this.streams.p2.write(decision.command);
           }
@@ -926,17 +1068,18 @@ export class ShowdownBattleController {
     }
   }
 
-  private syncPlayerSideFromRequest(req: ShowdownRequest): void {
-    const sideState = this.state.p1;
+  private parseRequestParty(
+    req: ShowdownRequest,
+    sideKey: 'p1' | 'p2',
+    existingParty: PartyPokemonState[]
+  ): PartyPokemonState[] {
     const reqParty = req.side?.pokemon ?? [];
-    if (reqParty.length === 0) return;
-
     const existingByIdent = new Map<string, PartyPokemonState>();
-    for (const old of sideState.party) {
+    for (const old of existingParty) {
       existingByIdent.set(old.ident, old);
     }
 
-    const updatedParty: PartyPokemonState[] = reqParty.map((mon, idx) => {
+    return reqParty.map((mon, idx) => {
       const cond = parseCondition(mon.condition);
       const det = parseDetails(mon.details);
       const speciesData = Dex.species.get(det.species);
@@ -947,6 +1090,7 @@ export class ShowdownBattleController {
       const terastallized = prev?.terastallized ?? null;
 
       const usePrevHp =
+        sideKey === 'p1' &&
         this.puzzleConditionsApplied &&
         this.state.turn <= 1 &&
         prev &&
@@ -995,9 +1139,190 @@ export class ShowdownBattleController {
         volatiles: mon.active ? prev?.volatiles ?? [] : [],
         isBossAce: false,
       };
-      this.refreshSpeedRange('p1', stateMon);
+      this.refreshSpeedRange(sideKey, stateMon);
       return stateMon;
     });
+  }
+
+  private buildPendingSlotsFromRequest(
+    req: ShowdownRequest,
+    party: PartyPokemonState[]
+  ): { isForceSwitch: boolean; pending: PendingDecisionSlot[]; autoPassCmd: string | null } {
+    const pending: PendingDecisionSlot[] = [];
+
+    if (req.forceSwitch) {
+      const aliveBenchCount = party.filter((p) => !p.active && !p.fainted).length;
+      if (aliveBenchCount === 0) {
+        return {
+          isForceSwitch: false,
+          pending: [],
+          autoPassCmd: req.forceSwitch.map(() => 'pass').join(', '),
+        };
+      }
+      req.forceSwitch.forEach((mustSwitch, activeIndex) => {
+        const mon = party[activeIndex];
+        if (!mon) return;
+        pending.push({
+          activeIndex,
+          pokemon: mon,
+          moves: [],
+          trapped: false,
+          canMegaEvo: false,
+          canTerastallize: false,
+          forceSwitch: mustSwitch,
+          pass: !mustSwitch,
+        });
+      });
+      return { isForceSwitch: true, pending, autoPassCmd: null };
+    }
+
+    if (req.active) {
+      req.active.forEach((slot, activeIndex) => {
+        const mon = party[activeIndex];
+        if (!mon) return;
+        if (!slot || mon.fainted) {
+          pending.push({
+            activeIndex,
+            pokemon: mon,
+            moves: [],
+            trapped: false,
+            canMegaEvo: false,
+            canTerastallize: false,
+            forceSwitch: false,
+            pass: true,
+          });
+          return;
+        }
+
+        const moves: ActiveMoveOption[] = slot.moves.map((m, idx) => {
+          const data = Dex.moves.get(m.id || m.move);
+          return {
+            index: idx + 1,
+            id: m.id,
+            name: m.move || data.name,
+            pp: m.pp ?? data.pp ?? 1,
+            maxpp: m.maxpp ?? data.pp ?? 1,
+            target: m.target || data.target || 'normal',
+            disabled: Boolean(m.disabled),
+            type: data.type || 'Normal',
+            category:
+              (data.category as ActiveMoveOption['category']) || 'Physical',
+            basePower: data.basePower || 0,
+            accuracy: data.accuracy ?? true,
+            priority: data.priority ?? 0,
+            shortDesc: data.shortDesc || data.desc || '',
+          };
+        });
+
+        pending.push({
+          activeIndex,
+          pokemon: mon,
+          moves,
+          trapped: Boolean(slot.trapped),
+          canMegaEvo: Boolean(slot.canMegaEvo),
+          canTerastallize: slot.canTerastallize || false,
+          forceSwitch: false,
+          pass: false,
+        });
+      });
+      return { isForceSwitch: false, pending, autoPassCmd: null };
+    }
+
+    return { isForceSwitch: false, pending: [], autoPassCmd: null };
+  }
+
+  private handleHumanP2Request(req: ShowdownRequest): void {
+    const updatedP2 = this.parseRequestParty(req, 'p2', this.state.p2HumanParty);
+    if (updatedP2.length > 0) {
+      this.state.p2HumanParty = updatedP2;
+    }
+
+    if (req.teamPreview) {
+      if (this.config.interactiveTeamPreview) {
+        const mode: TeamPreviewState['mode'] =
+          req.maxChosenTeamSize === 1
+            ? 'pick-1'
+            : req.maxChosenTeamSize === 4
+              ? 'pick-4'
+              : 'lead-1';
+        const pickCount = mode === 'pick-4' ? 4 : 1;
+        const rawOpp =
+          this.p1PreviewPokes.length > 0
+            ? this.p1PreviewPokes
+            : (Teams.import(this.config.playerShowdownPaste) ?? []).map((s) => {
+                const sp = Dex.species.get(s.species);
+                return {
+                  species: sp.exists ? sp.name : s.species,
+                  level:
+                    s.level ||
+                    (this.config.formatId === 'gen9vgc2024regg'
+                      ? 50
+                      : this.config.formatId === 'gen9lc'
+                        ? 5
+                        : 100),
+                  gender: s.gender || '',
+                  types: sp.types ? [...sp.types] : ['Normal'],
+                };
+              });
+
+        this.state.p2TeamPreview = {
+          active: true,
+          mode,
+          pickCount,
+          playerRoster: this.state.p2HumanParty.map((m) => this.cloneMon(m)),
+          rivalRoster: rawOpp.map((r, idx) => ({
+            ...r,
+            openSheet: this.state.openTeamsheet.enabled
+              ? this.state.openTeamsheet.player[idx] ??
+                this.state.openTeamsheet.player.find(
+                  (os) => toID(os.species) === toID(r.species)
+                )
+              : undefined,
+          })),
+        };
+        this.state.p2Waiting = false;
+        this.state.p2RequestSeq += 1;
+        this.syncCompositeStatus();
+        this.emit();
+      } else {
+        void this.streams?.p2.write('default');
+      }
+      return;
+    }
+
+    this.state.p2TeamPreview = null;
+
+    if (req.wait || this.state.status === 'ended') {
+      this.state.p2PendingSlots = [];
+      this.state.p2Waiting = true;
+      this.syncCompositeStatus();
+      this.emit();
+      return;
+    }
+
+    const built = this.buildPendingSlotsFromRequest(req, this.state.p2HumanParty);
+    if (built.autoPassCmd) {
+      this.state.p2IsForceSwitch = false;
+      this.state.p2PendingSlots = [];
+      this.state.p2Waiting = true;
+      this.syncCompositeStatus();
+      this.emit();
+      void this.streams?.p2.write(built.autoPassCmd);
+      return;
+    }
+
+    this.state.p2IsForceSwitch = built.isForceSwitch;
+    this.state.p2PendingSlots = built.pending;
+    this.state.p2Waiting = built.pending.length === 0;
+    this.state.p2RequestSeq += 1;
+    this.syncCompositeStatus();
+    this.emit();
+  }
+
+  private syncPlayerSideFromRequest(req: ShowdownRequest): void {
+    const sideState = this.state.p1;
+    const updatedParty = this.parseRequestParty(req, 'p1', sideState.party);
+    if (updatedParty.length === 0) return;
 
     sideState.party = updatedParty;
 
@@ -1061,8 +1386,9 @@ export class ShowdownBattleController {
     if (req.teamPreview) {
       if (this.config.interactiveTeamPreview) {
         this.state.teamPreview = this.buildTeamPreviewState(req);
-        this.state.status = 'team-preview';
+        this.state.p1Waiting = false;
         this.state.requestSeq += 1;
+        this.syncCompositeStatus();
         this.emit();
       } else {
         void this.streams?.p1.write('default');
@@ -1074,106 +1400,29 @@ export class ShowdownBattleController {
 
     if (req.wait || this.state.status === 'ended') {
       this.state.pendingSlots = [];
+      this.state.p1Waiting = true;
+      this.syncCompositeStatus();
       this.emit();
       return;
     }
 
-    const pending: PendingDecisionSlot[] = [];
-
-    if (req.forceSwitch) {
-      const aliveBenchCount = this.state.p1.party.filter(
-        (p) => !p.active && !p.fainted
-      ).length;
-
-      if (aliveBenchCount === 0) {
-        // No bench Pokemon left to switch in: auto-pass all slots so Showdown resolves immediately
-        const autoPassCmd = req.forceSwitch.map(() => 'pass').join(', ');
-        this.state.isForceSwitch = false;
-        this.state.pendingSlots = [];
-        this.state.status = 'resolving';
-        this.emit();
-        void this.streams?.p1.write(autoPassCmd);
-        return;
-      }
-
-      req.forceSwitch.forEach((mustSwitch, activeIndex) => {
-        const mon = this.state.p1.party[activeIndex];
-        if (!mon) return;
-        pending.push({
-          activeIndex,
-          pokemon: mon,
-          moves: [],
-          trapped: false,
-          canMegaEvo: false,
-          canTerastallize: false,
-          forceSwitch: mustSwitch,
-          pass: !mustSwitch,
-        });
-      });
-      this.state.isForceSwitch = true;
-      this.state.pendingSlots = pending;
-      this.state.status = 'awaiting-choice';
-      this.state.requestSeq += 1;
-      this.emit();
-      return;
-    }
-
-    if (req.active) {
-      req.active.forEach((slot, activeIndex) => {
-        const mon = this.state.p1.party[activeIndex];
-        if (!mon) return;
-        if (!slot || mon.fainted) {
-          pending.push({
-            activeIndex,
-            pokemon: mon,
-            moves: [],
-            trapped: false,
-            canMegaEvo: false,
-            canTerastallize: false,
-            forceSwitch: false,
-            pass: true,
-          });
-          return;
-        }
-
-        const moves: ActiveMoveOption[] = slot.moves.map((m, idx) => {
-          const data = Dex.moves.get(m.id || m.move);
-          return {
-            index: idx + 1,
-            id: m.id,
-            name: m.move || data.name,
-            pp: m.pp ?? data.pp ?? 1,
-            maxpp: m.maxpp ?? data.pp ?? 1,
-            target: m.target || data.target || 'normal',
-            disabled: Boolean(m.disabled),
-            type: data.type || 'Normal',
-            category:
-              (data.category as ActiveMoveOption['category']) || 'Physical',
-            basePower: data.basePower || 0,
-            accuracy: data.accuracy ?? true,
-            priority: data.priority ?? 0,
-            shortDesc: data.shortDesc || data.desc || '',
-          };
-        });
-
-        pending.push({
-          activeIndex,
-          pokemon: mon,
-          moves,
-          trapped: Boolean(slot.trapped),
-          canMegaEvo: Boolean(slot.canMegaEvo),
-          canTerastallize: slot.canTerastallize || false,
-          forceSwitch: false,
-          pass: false,
-        });
-      });
-
+    const built = this.buildPendingSlotsFromRequest(req, this.state.p1.party);
+    if (built.autoPassCmd) {
       this.state.isForceSwitch = false;
-      this.state.pendingSlots = pending;
-      this.state.status = 'awaiting-choice';
-      this.state.requestSeq += 1;
+      this.state.pendingSlots = [];
+      this.state.p1Waiting = true;
+      this.syncCompositeStatus();
       this.emit();
+      void this.streams?.p1.write(built.autoPassCmd);
+      return;
     }
+
+    this.state.isForceSwitch = built.isForceSwitch;
+    this.state.pendingSlots = built.pending;
+    this.state.p1Waiting = built.pending.length === 0;
+    this.state.requestSeq += 1;
+    this.syncCompositeStatus();
+    this.emit();
   }
 
   private handleProtocolLine(line: string): void {
@@ -1182,22 +1431,29 @@ export class ShowdownBattleController {
 
     switch (cmd) {
       case 'clearpoke': {
+        this.p1PreviewPokes = [];
         this.rivalPreviewPokes = [];
         break;
       }
 
       case 'poke': {
-        if (parts[2] === 'p2') {
+        if (parts[2] === 'p1' || parts[2] === 'p2') {
           const det = parseDetails(parts[3] ?? '');
           const sp = Dex.species.get(det.species);
-          this.rivalPreviewPokes.push({
+          const item = {
             species: sp.exists ? sp.name : det.species,
             level:
               det.level ||
-              (this.config.formatId === 'gen9vgc2024regg' ? 50 : 100),
+              (this.config.formatId === 'gen9vgc2024regg'
+                ? 50
+                : this.config.formatId === 'gen9lc'
+                  ? 5
+                  : 100),
             gender: det.gender,
             types: sp.types ? [...sp.types] : ['Normal'],
-          });
+          };
+          if (parts[2] === 'p1') this.p1PreviewPokes.push(item);
+          else this.rivalPreviewPokes.push(item);
         }
         break;
       }
@@ -1830,6 +2086,9 @@ export class ShowdownBattleController {
           toID(winnerName) === toID(this.config.playerName) ? 'p1' : 'p2';
         this.state.status = 'ended';
         this.state.pendingSlots = [];
+        this.state.p2PendingSlots = [];
+        this.state.teamPreview = null;
+        this.state.p2TeamPreview = null;
         this.pushLog('win', `🏆 ¡${winnerName} ganó el combate!`);
         break;
       }
@@ -1838,6 +2097,9 @@ export class ShowdownBattleController {
         this.state.winner = 'tie';
         this.state.status = 'ended';
         this.state.pendingSlots = [];
+        this.state.p2PendingSlots = [];
+        this.state.teamPreview = null;
+        this.state.p2TeamPreview = null;
         this.pushLog('win', 'El combate terminó en empate.');
         break;
       }

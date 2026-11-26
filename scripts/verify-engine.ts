@@ -15,6 +15,16 @@ import {
   computeSpeedRange,
   ShowdownBattleController,
 } from '../src/engine/battleEngine';
+import { getDefaultAISettings } from '../src/engine/aiProvider';
+import {
+  generateValidatedTeam,
+  getVersusFormatSpec,
+  sanitizeRawMembersToSets,
+  validatePasteForFormat,
+  VERSUS_FORMATS,
+} from '../src/engine/aiTeambuilder';
+import { askLiveCoach, generatePostGameReview } from '../src/engine/battleCoach';
+import { createRivalBattleController } from '../src/engine/tacticalAI';
 import type { BattleSnapshot } from '../src/types/game';
 
 interface MatchRunResult {
@@ -441,7 +451,122 @@ async function main() {
   strictCtrl.destroy();
   await sp.catch(() => {});
 
-  console.log('\nALL 7 CHAPTERS, TEAM VALIDATORS, INTERACTIVE TEAM PREVIEWS & ENGINE TESTS PASSED!');
+  console.log('\n=== 8. Modo Versus AI Teambuilder (All 7 Formats TeamValidator + Sanitizer) ===');
+  const defaultAI = getDefaultAISettings();
+  if (defaultAI.enableLlmOpponent !== false) {
+    throw new Error('Feature flag enableLlmOpponent MUST be false (dormant) by default!');
+  }
+  const defaultCtrl = createRivalBattleController(defaultAI);
+  if (defaultCtrl.kind !== 'heuristic') {
+    throw new Error(`Expected dormant default controller=heuristic, got ${defaultCtrl.kind}`);
+  }
+  const enabledCtrl = createRivalBattleController({
+    ...defaultAI,
+    provider: 'ollama',
+    enableLlmOpponent: true,
+  });
+  if (enabledCtrl.kind !== 'llm') {
+    throw new Error(`Expected enabled LLM controller=llm, got ${enabledCtrl.kind}`);
+  }
+
+  // Test Dex EV/Ability/Level sanitizer
+  const sanitized = sanitizeRawMembersToSets(
+    [
+      {
+        species: 'Pelipper',
+        item: 'Focus Sash',
+        ability: 'HallucinatedAbility',
+        nature: 'Modest',
+        evs: { hp: 252, spa: 252, spe: 252 }, // intentionally > 508!
+        moves: ['Weather Ball', 'Hurricane', 'FakeMoveXYZ', 'Protect'],
+      },
+    ],
+    getVersusFormatSpec('gen9vgc2024regg')
+  );
+  const totalEv = Object.values(sanitized[0].evs).reduce((a, b) => a + b, 0);
+  if (totalEv > 508 || sanitized[0].level !== 50 || sanitized[0].ability === 'HallucinatedAbility') {
+    throw new Error(`Sanitizer failed: totalEv=${totalEv}, level=${sanitized[0].level}, ability=${sanitized[0].ability}`);
+  }
+
+  for (const fmt of VERSUS_FORMATS) {
+    const gen = await generateValidatedTeam({
+      formatId: fmt.id,
+      prompt: `Equipo competitivo de prueba para ${fmt.name}`,
+      settings: { ...defaultAI, provider: 'offline' },
+      bypassCache: true,
+    });
+    const check = validatePasteForFormat(fmt.id, gen.team.paste);
+    if (!check.valid) {
+      throw new Error(`Versus preset for ${fmt.id} failed TeamValidator: ${check.errors.join('; ')}`);
+    }
+  }
+  console.log(`  OK: All ${VERSUS_FORMATS.length} Versus formats TeamValidator-clean + Feature Flag dormant verified`);
+
+  console.log('\n=== 9. Local Hotseat (P1 vs P2 Human) + On-Demand Live Coach + Post-Game Review ===');
+  const hotseatConfig = {
+    ...duelConfig,
+    p2Control: 'human' as const,
+    isVersusMatch: true,
+    playerName: 'Jugador 1',
+    rivalName: 'Jugador 2',
+  };
+  let coachChecked = false;
+  const hotseatSnap = await new Promise<BattleSnapshot>((resP, rejP) => {
+    let settled = false;
+    let lastP1Seq = -1;
+    let lastP2Seq = -1;
+    const ctrl = new ShowdownBattleController(hotseatConfig, (snap) => {
+      if (settled) return;
+      if (snap.status === 'ended') {
+        settled = true;
+        ctrl.destroy();
+        resP(snap);
+        return;
+      }
+      if (snap.teamPreview && snap.requestSeq !== lastP1Seq) {
+        lastP1Seq = snap.requestSeq;
+        void ctrl.submitTeamOrder([1]);
+      }
+      if (snap.p2TeamPreview && snap.p2RequestSeq !== lastP2Seq) {
+        lastP2Seq = snap.p2RequestSeq;
+        void ctrl.submitP2TeamOrder([1]);
+      }
+      if (snap.pendingSlots.length > 0 && snap.requestSeq !== lastP1Seq) {
+        lastP1Seq = snap.requestSeq;
+        if (!coachChecked) {
+          coachChecked = true;
+          void askLiveCoach(snap, { ...defaultAI, provider: 'offline' }).then((adv) => {
+            if (!adv.bestPlay || adv.winChanceEstimate <= 0) {
+              rejP(new Error('Live Coach returned empty advice!'));
+            }
+          });
+        }
+        void ctrl.submitPlayerChoice('move 1');
+      }
+      if (snap.p2PendingSlots.length > 0 && snap.p2RequestSeq !== lastP2Seq) {
+        lastP2Seq = snap.p2RequestSeq;
+        void ctrl.submitP2Choice('move 1');
+      }
+    });
+    ctrl.start().catch((e) => {
+      if (!settled) {
+        settled = true;
+        rejP(e);
+      }
+    });
+  });
+  const postReview = await generatePostGameReview(hotseatSnap, hotseatConfig, {
+    ...defaultAI,
+    provider: 'offline',
+  });
+  if (hotseatSnap.status !== 'ended' || !coachChecked || postReview.keyTurns.length === 0) {
+    throw new Error('Hotseat or Coach/Post-Game Review check failed!');
+  }
+  console.log(
+    `  OK: Hotseat P1 vs P2 ended (winner=${hotseatSnap.winner}, turns=${hotseatSnap.turn}), Live Coach OK, Game Review accuracy=${postReview.playerAccuracy}%`
+  );
+
+  console.log('\nALL 7 CHAPTERS + VERSUS TEAMBUILDER + HOTSEAT + COACH + ENGINE TESTS PASSED!');
 }
 
 main().catch((err) => {

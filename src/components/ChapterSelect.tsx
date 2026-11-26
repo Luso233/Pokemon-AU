@@ -12,6 +12,7 @@ import {
   Swords,
   Trophy,
   Users,
+  Wand2,
 } from 'lucide-react';
 import { CHAPTERS } from '../data/chapters';
 import { getTypeBadgeClass } from '../engine/pokemonVisuals';
@@ -24,6 +25,7 @@ import { PokemonIcon, PokemonSprite } from './PokemonSprite';
 
 interface ChapterSelectProps {
   onBackHome: () => void;
+  onOpenVersus: () => void;
   onSelectChapter: (chapter: ChapterDefinition) => void;
   progress: Record<string, ChapterProgress>;
 }
@@ -116,6 +118,7 @@ function getAccentStyles(accent: string) {
 
 export const ChapterSelect: React.FC<ChapterSelectProps> = ({
   onBackHome,
+  onOpenVersus,
   onSelectChapter,
   progress,
 }) => {
@@ -163,11 +166,15 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
             </div>
           </div>
 
-          <p className="max-w-sm text-xs leading-relaxed text-slate-400">
-            Cada capítulo es un <em>showcase</em> de un formato real en{' '}
-            <code className="text-sky-300">@pkmn/sim</code> con narrativa{' '}
-            <code className="text-amber-300">.ink</code> y Teambuilder dinámico.
-          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={onOpenVersus}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-rose-400/45 bg-rose-500/15 px-3.5 py-2 text-xs font-bold text-rose-200 transition hover:bg-rose-500/25 cursor-pointer"
+            >
+              <Wand2 className="h-4 w-4" />
+              Modo Versus (AI Teambuilder)
+            </button>
+          </div>
         </div>
 
         {/* Category Filter Bar */}

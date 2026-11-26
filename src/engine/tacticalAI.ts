@@ -1,5 +1,10 @@
 import { Dex, toID } from '@pkmn/sim';
-import type { BattleFormat, ScriptedEnemyRule } from '../types/game';
+import type {
+  AISettings,
+  BattleFormat,
+  ScriptedEnemyRule,
+} from '../types/game';
+import { callStructuredLLM, isLiveLLMConfigured } from './aiProvider';
 
 interface ShowdownRequestMove {
   move: string;
@@ -46,7 +51,12 @@ export interface OpponentContext {
   format: BattleFormat;
   foeActiveSpecies: (string | null)[];
   foeActiveStatus: (string | null)[];
+  foeActiveHpPercent?: (number | null)[];
   foeSideConditions: string[];
+  selfSideConditions?: string[];
+  weather?: string;
+  terrain?: string;
+  trickRoomTurnsLeft?: number | null;
   turn: number;
   scriptedRules: ScriptedEnemyRule[];
   triggeredRuleIds: Set<string>;
@@ -56,6 +66,15 @@ export interface OpponentContext {
 export interface RivalActionDecision {
   command: string;
   triggeredRules: ScriptedEnemyRule[];
+  llmNote?: string;
+}
+
+export interface RivalBattleController {
+  readonly kind: 'heuristic' | 'llm';
+  chooseAction(
+    request: ShowdownRequest,
+    ctx: OpponentContext
+  ): Promise<RivalActionDecision | null>;
 }
 
 function isFainted(condition: string): boolean {
@@ -369,4 +388,262 @@ export function chooseRivalAction(
   }
 
   return { command: 'default', triggeredRules: [] };
+}
+
+/* ================= Pluggable Battle Controllers (Heuristic Default vs Dormant Stateless LLM) ================= */
+
+export class HeuristicBattleController implements RivalBattleController {
+  public readonly kind = 'heuristic' as const;
+
+  public async chooseAction(
+    request: ShowdownRequest,
+    ctx: OpponentContext
+  ): Promise<RivalActionDecision | null> {
+    return chooseRivalAction(request, ctx);
+  }
+}
+
+interface LegalSlotOption {
+  index: number;
+  command: string;
+  label: string;
+}
+
+function enumerateLegalCommandsForSlot(
+  activeSlot: ShowdownRequestActive,
+  slotIdx: number,
+  party: ShowdownRequestSidePokemon[],
+  ctx: OpponentContext
+): LegalSlotOption[] {
+  const options: LegalSlotOption[] = [];
+  const aliveFoeSlots: number[] = [];
+  ctx.foeActiveSpecies.forEach((sp, i) => {
+    if (sp) aliveFoeSlots.push(i);
+  });
+  if (aliveFoeSlots.length === 0) aliveFoeSlots.push(0);
+
+  activeSlot.moves.forEach((mv, idx) => {
+    if (mv.disabled) return;
+    const moveData = Dex.moves.get(mv.id || mv.move);
+    const targetType = mv.target || moveData.target || 'normal';
+    const needsFoe =
+      ctx.format === 'doubles' &&
+      (targetType === 'normal' ||
+        targetType === 'any' ||
+        targetType === 'adjacentFoe');
+    const needsAlly = ctx.format === 'doubles' && targetType === 'adjacentAlly';
+
+    if (needsAlly) {
+      const allySlot = slotIdx === 0 ? 1 : 0;
+      const allyMon = party[allySlot];
+      if (allyMon && !isFainted(allyMon.condition)) {
+        options.push({
+          index: options.length,
+          command: `move ${idx + 1} -${allySlot + 1}`,
+          label: `${mv.move} -> aliado ${parseSpeciesFromDetails(allyMon.details)}`,
+        });
+      }
+      return;
+    }
+
+    if (needsFoe) {
+      for (const fi of aliveFoeSlots) {
+        options.push({
+          index: options.length,
+          command: `move ${idx + 1} +${fi + 1}`,
+          label: `${mv.move} (${moveData.type}) -> ${ctx.foeActiveSpecies[fi] ?? `Foe ${fi + 1}`}`,
+        });
+      }
+      return;
+    }
+
+    options.push({
+      index: options.length,
+      command: `move ${idx + 1}`,
+      label: `${mv.move} (${moveData.type})`,
+    });
+  });
+
+  if (!activeSlot.trapped) {
+    party.forEach((p, idx) => {
+      if (!p.active && !isFainted(p.condition)) {
+        const sp = parseSpeciesFromDetails(p.details);
+        options.push({
+          index: options.length,
+          command: `switch ${idx + 1}`,
+          label: `Switch -> ${sp} (${Math.round(parseHpRatio(p.condition) * 100)}% HP)`,
+        });
+      }
+    });
+  }
+
+  return options;
+}
+
+const LLM_TURN_CHOICE_SCHEMA = {
+  type: 'object',
+  properties: {
+    slotOptionIndices: {
+      type: 'array',
+      items: { type: 'integer' },
+    },
+    rationale: { type: 'string' },
+  },
+  required: ['slotOptionIndices', 'rationale'],
+};
+
+/**
+ * Stateless Compact-Board LLM Controller (~300-500 tokens/turn).
+ * Activated ONLY when `aiSettings.enableLlmOpponent === true` and a live LLM is configured.
+ * Always falls back cleanly to HeuristicBattleController on timeout/error/TeamPreview/ForceSwitch.
+ */
+export class LLMBattleController implements RivalBattleController {
+  public readonly kind = 'llm' as const;
+  private readonly fallback = new HeuristicBattleController();
+  private readonly settings: AISettings;
+
+  constructor(settings: AISettings) {
+    this.settings = settings;
+  }
+
+  public async chooseAction(
+    request: ShowdownRequest,
+    ctx: OpponentContext
+  ): Promise<RivalActionDecision | null> {
+    if (request.wait) return null;
+
+    // Team preview & force-switch stay instantaneous & deterministic (0 wasted tokens)
+    if (request.teamPreview || request.forceSwitch || !request.active) {
+      return this.fallback.chooseAction(request, ctx);
+    }
+
+    // If a scripted boss turn applies, honor the narrative script first!
+    if (ctx.scriptedRules.length > 0) {
+      const probeTriggered = new Set(ctx.triggeredRuleIds);
+      const heuristicDecision = chooseRivalAction(request, {
+        ...ctx,
+        triggeredRuleIds: probeTriggered,
+      });
+      if (heuristicDecision && heuristicDecision.triggeredRules.length > 0) {
+        for (const r of heuristicDecision.triggeredRules) {
+          ctx.triggeredRuleIds.add(r.id);
+        }
+        return heuristicDecision;
+      }
+    }
+
+    const party = request.side?.pokemon ?? [];
+    const perSlotOptions: Array<{
+      slotIdx: number;
+      pokemon: string;
+      hpPercent: number;
+      options: LegalSlotOption[];
+    }> = [];
+
+    for (let slotIdx = 0; slotIdx < request.active.length; slotIdx++) {
+      const activeSlot = request.active[slotIdx];
+      const selfMon = party[slotIdx];
+      if (!activeSlot || !selfMon || isFainted(selfMon.condition)) {
+        perSlotOptions.push({
+          slotIdx,
+          pokemon: 'FAINTED',
+          hpPercent: 0,
+          options: [],
+        });
+        continue;
+      }
+      perSlotOptions.push({
+        slotIdx,
+        pokemon: parseSpeciesFromDetails(selfMon.details),
+        hpPercent: Math.round(parseHpRatio(selfMon.condition) * 100),
+        options: enumerateLegalCommandsForSlot(activeSlot, slotIdx, party, ctx),
+      });
+    }
+
+    const compactBoard = {
+      turn: ctx.turn,
+      format: ctx.format,
+      field: {
+        weather: ctx.weather || 'none',
+        terrain: ctx.terrain || 'none',
+        trickRoom: ctx.trickRoomTurnsLeft ?? 0,
+        foeSide: ctx.foeSideConditions,
+        mySide: ctx.selfSideConditions ?? [],
+      },
+      foeActive: ctx.foeActiveSpecies.map((sp, i) => ({
+        slot: i + 1,
+        species: sp ?? 'empty',
+        hpPercent: ctx.foeActiveHpPercent?.[i] ?? null,
+        status: ctx.foeActiveStatus[i] ?? 'none',
+      })),
+      myActiveSlots: perSlotOptions.map((s) => ({
+        slot: s.slotIdx + 1,
+        species: s.pokemon,
+        hpPercent: s.hpPercent,
+        legalOptions: s.options.map((o) => `${o.index}: ${o.label}`),
+      })),
+    };
+
+    try {
+      const llmRes = await callStructuredLLM<{
+        slotOptionIndices: number[];
+        rationale: string;
+      }>({
+        settings: this.settings,
+        systemInstruction:
+          'You are an elite competitive Pokemon Showdown AI opponent. Given the compact current board state JSON, choose the optimal legalOption index for each active slot (use -1 for FAINTED slots). Do not pick the same switch target for two slots. Keep rationale under 12 words in Spanish.',
+        userPrompt: JSON.stringify(compactBoard),
+        jsonSchema: LLM_TURN_CHOICE_SCHEMA,
+        temperature: 0.25,
+        timeoutMs: 12000,
+      });
+
+      const indices = llmRes.data.slotOptionIndices ?? [];
+      const usedSwitches = new Set<string>();
+      const cmds: string[] = [];
+
+      for (let i = 0; i < perSlotOptions.length; i++) {
+        const slotInfo = perSlotOptions[i];
+        if (slotInfo.options.length === 0) {
+          cmds.push('pass');
+          continue;
+        }
+        const chosenIdx = Number(indices[i]);
+        let picked = slotInfo.options.find((o) => o.index === chosenIdx);
+        if (
+          !picked ||
+          (picked.command.startsWith('switch ') &&
+            usedSwitches.has(picked.command))
+        ) {
+          picked =
+            slotInfo.options.find(
+              (o) =>
+                !o.command.startsWith('switch ') || !usedSwitches.has(o.command)
+            ) ?? slotInfo.options[0];
+        }
+        if (picked.command.startsWith('switch ')) {
+          usedSwitches.add(picked.command);
+        }
+        cmds.push(picked.command);
+      }
+
+      return {
+        command: cmds.join(', '),
+        triggeredRules: [],
+        llmNote: llmRes.data.rationale?.trim() || undefined,
+      };
+    } catch {
+      // Seamless fallback to local heuristic so battles never stall
+      return this.fallback.chooseAction(request, ctx);
+    }
+  }
+}
+
+export function createRivalBattleController(
+  aiSettings?: AISettings
+): RivalBattleController {
+  if (aiSettings?.enableLlmOpponent && isLiveLLMConfigured(aiSettings)) {
+    return new LLMBattleController(aiSettings);
+  }
+  return new HeuristicBattleController();
 }

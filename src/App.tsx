@@ -1,12 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { CHAPTERS } from './data/chapters';
+import { AISettingsModal } from './components/AISettingsModal';
 import { BattleArena } from './components/BattleArena';
 import { ChapterSelect } from './components/ChapterSelect';
 import { EpilogueView } from './components/EpilogueView';
 import { HomePage } from './components/HomePage';
 import { TeambuilderBriefing } from './components/TeambuilderBriefing';
+import { VersusModeView } from './components/VersusModeView';
 import { VisualNovelView } from './components/VisualNovelView';
+import { loadAISettings, saveAISettings } from './engine/aiProvider';
 import type {
+  AISettings,
   BattleSnapshot,
   ChapterDefinition,
   ChapterProgress,
@@ -39,6 +43,10 @@ export default function App() {
   }>({ won: false, snapshot: null });
   const [progress, setProgress] =
     useState<Record<string, ChapterProgress>>(loadProgress);
+  const [aiSettings, setAiSettings] = useState<AISettings>(() =>
+    loadAISettings()
+  );
+  const [aiModalOpen, setAiModalOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -47,6 +55,11 @@ export default function App() {
       // ignore storage errors
     }
   }, [progress]);
+
+  const handleSaveAISettings = (next: AISettings) => {
+    setAiSettings(next);
+    saveAISettings(next);
+  };
 
   const startChapter = (chapter: ChapterDefinition) => {
     setActiveChapter(chapter);
@@ -67,88 +80,116 @@ export default function App() {
 
   const handleBattleComplete = (won: boolean, snapshot: BattleSnapshot) => {
     setBattleOutcome({ won, snapshot });
-    setProgress((prev) => {
-      const existing = prev[activeChapter.id] ?? {
-        completed: false,
-        victories: 0,
-      };
-      return {
-        ...prev,
-        [activeChapter.id]: {
-          completed: existing.completed || won,
-          victories: existing.victories + (won ? 1 : 0),
-          lastOutcome: won ? 'win' : 'loss',
-          lastFlags: resolvedConfig?.flags,
-        },
-      };
-    });
+    if (!resolvedConfig?.isVersusMatch) {
+      setProgress((prev) => {
+        const existing = prev[activeChapter.id] ?? {
+          completed: false,
+          victories: 0,
+        };
+        return {
+          ...prev,
+          [activeChapter.id]: {
+            completed: existing.completed || won,
+            victories: existing.victories + (won ? 1 : 0),
+            lastOutcome: won ? 'win' : 'loss',
+            lastFlags: resolvedConfig?.flags,
+          },
+        };
+      });
+    }
     setScreen('epilogue');
   };
 
+  let view: React.ReactNode = null;
+
   if (screen === 'home') {
-    return (
+    view = (
       <HomePage
         onOpenChapters={() => setScreen('chapters')}
+        onOpenVersus={() => setScreen('versus')}
+        onOpenAISettings={() => setAiModalOpen(true)}
         onQuickStartMainChapter={() => startChapter(CHAPTERS[0])}
         progress={progress}
+        aiSettings={aiSettings}
       />
     );
-  }
-
-  if (screen === 'chapters') {
-    return (
+  } else if (screen === 'chapters') {
+    view = (
       <ChapterSelect
         onBackHome={() => setScreen('home')}
+        onOpenVersus={() => setScreen('versus')}
         onSelectChapter={startChapter}
         progress={progress}
       />
     );
-  }
-
-  if (screen === 'vn') {
-    return (
+  } else if (screen === 'versus') {
+    view = (
+      <VersusModeView
+        aiSettings={aiSettings}
+        onOpenAISettings={() => setAiModalOpen(true)}
+        onBackHome={() => setScreen('home')}
+        onLaunchBattle={handleLaunchBattle}
+      />
+    );
+  } else if (screen === 'vn') {
+    view = (
       <VisualNovelView
         chapter={activeChapter}
         onExitToChapters={() => setScreen('chapters')}
         onFinishStory={handleFinishVN}
       />
     );
-  }
-
-  if (screen === 'teambuilder' && resolvedConfig) {
-    return (
+  } else if (screen === 'teambuilder' && resolvedConfig) {
+    view = (
       <TeambuilderBriefing
         config={resolvedConfig}
         onReplayVN={() => setScreen('vn')}
         onLaunchBattle={handleLaunchBattle}
       />
     );
-  }
-
-  if (screen === 'battle' && resolvedConfig) {
-    return (
+  } else if (screen === 'battle' && resolvedConfig) {
+    view = (
       <BattleArena
         config={resolvedConfig}
-        onExitToChapters={() => setScreen('chapters')}
+        aiSettings={aiSettings}
+        onOpenAISettings={() => setAiModalOpen(true)}
+        onExitToChapters={() =>
+          setScreen(resolvedConfig.isVersusMatch ? 'versus' : 'chapters')
+        }
         onBattleComplete={handleBattleComplete}
       />
     );
-  }
-
-  if (screen === 'epilogue' && resolvedConfig) {
-    return (
+  } else if (screen === 'epilogue' && resolvedConfig) {
+    view = (
       <EpilogueView
         chapter={activeChapter}
         config={resolvedConfig}
         won={battleOutcome.won}
         battleSummary={battleOutcome.snapshot}
-        onReplayChapter={() => startChapter(activeChapter)}
+        aiSettings={aiSettings}
+        onOpenAISettings={() => setAiModalOpen(true)}
+        onReplayChapter={() =>
+          resolvedConfig.isVersusMatch
+            ? setScreen('versus')
+            : startChapter(activeChapter)
+        }
         onRetryBattle={() => setScreen('battle')}
         onOpenChapters={() => setScreen('chapters')}
+        onOpenVersus={() => setScreen('versus')}
         onBackHome={() => setScreen('home')}
       />
     );
   }
 
-  return null;
+  return (
+    <>
+      {view}
+      <AISettingsModal
+        open={aiModalOpen}
+        settings={aiSettings}
+        onSave={handleSaveAISettings}
+        onClose={() => setAiModalOpen(false)}
+      />
+    </>
+  );
 }

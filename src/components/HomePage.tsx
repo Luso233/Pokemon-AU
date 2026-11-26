@@ -5,23 +5,32 @@ import {
   Crown,
   GitBranch,
   Play,
+  Settings2,
   Shield,
   Sparkles,
   Swords,
+  Wand2,
 } from 'lucide-react';
+import { getActiveProviderLabel } from '../engine/aiProvider';
 import { CharacterPortrait } from './CharacterPortrait';
-import type { ChapterProgress } from '../types/game';
+import type { AISettings, ChapterProgress } from '../types/game';
 
 interface HomePageProps {
   onOpenChapters: () => void;
+  onOpenVersus: () => void;
+  onOpenAISettings: () => void;
   onQuickStartMainChapter: () => void;
   progress: Record<string, ChapterProgress>;
+  aiSettings: AISettings;
 }
 
 export const HomePage: React.FC<HomePageProps> = ({
   onOpenChapters,
+  onOpenVersus,
+  onOpenAISettings,
   onQuickStartMainChapter,
   progress,
+  aiSettings,
 }) => {
   const completedCount = Object.values(progress).filter(
     (p) => p.completed
@@ -60,14 +69,29 @@ export const HomePage: React.FC<HomePageProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           {completedCount > 0 && (
-            <span className="hidden items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300 sm:inline-flex">
+            <span className="hidden items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300 md:inline-flex">
               <Sparkles className="h-3.5 w-3.5" />
               {completedCount} capítulo{completedCount > 1 ? 's' : ''} completado
               {completedCount > 1 ? 's' : ''}
             </span>
           )}
+          <button
+            onClick={onOpenAISettings}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-sky-400/35 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-200 transition hover:bg-sky-500/20 cursor-pointer"
+          >
+            <Settings2 className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{getActiveProviderLabel(aiSettings)}</span>
+            <span className="sm:hidden">IA</span>
+          </button>
+          <button
+            onClick={onOpenVersus}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-rose-400/40 bg-rose-500/15 px-3.5 py-2 text-xs font-bold text-rose-200 transition hover:bg-rose-500/25 cursor-pointer"
+          >
+            <Wand2 className="h-3.5 w-3.5" />
+            Modo Versus
+          </button>
           <button
             onClick={onOpenChapters}
             className="rounded-xl border border-slate-700/80 bg-slate-900/70 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-amber-400/50 hover:text-amber-200 cursor-pointer"
@@ -106,13 +130,21 @@ export const HomePage: React.FC<HomePageProps> = ({
               para engañarla.
             </p>
 
-            <div className="mt-8 flex flex-wrap items-center gap-4">
+            <div className="mt-8 flex flex-wrap items-center gap-3">
               <button
                 onClick={onQuickStartMainChapter}
                 className="group inline-flex items-center gap-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 px-6 py-3.5 text-sm font-extrabold text-slate-950 shadow-xl shadow-amber-500/20 transition hover:brightness-110 active:scale-[0.98] cursor-pointer"
               >
                 <Play className="h-4 w-4 fill-current" />
                 Jugar Cap. 01: Cacería en Wyndon
+              </button>
+
+              <button
+                onClick={onOpenVersus}
+                className="inline-flex items-center gap-2 rounded-2xl border border-rose-400/50 bg-gradient-to-r from-rose-500/20 to-amber-500/15 px-5 py-3.5 text-sm font-bold text-rose-100 backdrop-blur transition hover:border-rose-300 hover:bg-rose-500/30 cursor-pointer"
+              >
+                <Wand2 className="h-4 w-4 text-rose-300" />
+                Modo Versus (AI Teambuilder)
               </button>
 
               <button

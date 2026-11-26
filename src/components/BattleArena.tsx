@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
+  Brain,
   Check,
   ChevronRight,
   ClipboardList,
@@ -11,12 +12,17 @@ import {
   Eye,
   EyeOff,
   Flame,
+  Loader2,
+  Lock,
   RefreshCw,
+  Settings2,
   Sparkles,
   Swords,
   Trophy,
+  Users,
   X,
 } from 'lucide-react';
+import { askLiveCoach } from '../engine/battleCoach';
 import {
   formatNeedsTarget,
   ShowdownBattleController,
@@ -27,7 +33,9 @@ import {
 } from '../engine/pokemonVisuals';
 import type {
   ActiveMoveOption,
+  AISettings,
   BattleSnapshot,
+  LiveCoachAdvice,
   PartyPokemonState,
   ResolvedBattleConfig,
 } from '../types/game';
@@ -45,6 +53,8 @@ import { SceneBackdrop } from './SceneBackdrop';
 
 interface BattleArenaProps {
   config: ResolvedBattleConfig;
+  aiSettings: AISettings;
+  onOpenAISettings: () => void;
   onExitToChapters: () => void;
   onBattleComplete: (won: boolean, snapshot: BattleSnapshot) => void;
 }
@@ -112,6 +122,8 @@ const UnrevealedPokeballSvg: React.FC<{ className?: string }> = ({
 
 export const BattleArena: React.FC<BattleArenaProps> = ({
   config,
+  aiSettings,
+  onOpenAISettings,
   onExitToChapters,
   onBattleComplete,
 }) => {
@@ -124,6 +136,13 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
   const [showPasteModal, setShowPasteModal] = useState(false);
   const [showTeamsheetModal, setShowTeamsheetModal] = useState(false);
   const [revealRivalPasteInModal, setRevealRivalPasteInModal] = useState(false);
+
+  // On-Demand Chess.com-style Live Coach state
+  const [coachAdvice, setCoachAdvice] = useState<LiveCoachAdvice | null>(null);
+  const [coachLoading, setCoachLoading] = useState(false);
+
+  // Hotseat local privacy curtain unlock key
+  const [unlockedHotseatKey, setUnlockedHotseatKey] = useState<string>('');
 
   // Interactive Team Preview selection state (1-based slot numbers)
   const [previewSelected, setPreviewSelected] = useState<number[]>([]);
@@ -143,6 +162,9 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
   const startBattle = () => {
     controllerRef.current?.destroy();
     setError(null);
+    setCoachAdvice(null);
+    setCoachLoading(false);
+    setUnlockedHotseatKey('');
     setPreviewSelected([]);
     setSlotCursor(0);
     setQueuedCommands([]);
@@ -151,9 +173,13 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
     setWantTera(false);
     setPendingTargetMove(null);
 
-    const ctrl = new ShowdownBattleController(config, (nextSnap) => {
-      setSnapshot(nextSnap);
-    });
+    const ctrl = new ShowdownBattleController(
+      config,
+      (nextSnap) => {
+        setSnapshot(nextSnap);
+      },
+      aiSettings
+    );
     controllerRef.current = ctrl;
     ctrl.start().catch((err) => {
       setError(err instanceof Error ? err.message : String(err));
@@ -168,25 +194,97 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config]);
 
-  const requestKey = useMemo(() => {
-    if (!snapshot) return '';
-    return `${snapshot.requestSeq}-${snapshot.turn}-${snapshot.status}-${snapshot.isForceSwitch}-${snapshot.pendingSlots.length}`;
+  // Determine active human-controlled side (always 'p1' vs AI; switches between 'p1' and 'p2' in Hotseat)
+  const activeSide: 'p1' | 'p2' = useMemo(() => {
+    if (!snapshot || snapshot.p2Control !== 'human') return 'p1';
+    if (snapshot.status === 'team-preview') {
+      if (snapshot.teamPreview) return 'p1';
+      if (snapshot.p2TeamPreview) return 'p2';
+      return 'p1';
+    }
+    if (snapshot.pendingSlots.length > 0) return 'p1';
+    if (snapshot.p2PendingSlots.length > 0) return 'p2';
+    return 'p1';
   }, [snapshot]);
 
+  const activePendingSlots = useMemo(() => {
+    if (!snapshot) return [];
+    return activeSide === 'p2' ? snapshot.p2PendingSlots : snapshot.pendingSlots;
+  }, [snapshot, activeSide]);
+
+  const activeIsForceSwitch = snapshot
+    ? activeSide === 'p2'
+      ? snapshot.p2IsForceSwitch
+      : snapshot.isForceSwitch
+    : false;
+
+  const activeTeamPreview = snapshot
+    ? activeSide === 'p2'
+      ? snapshot.p2TeamPreview
+      : snapshot.teamPreview
+    : null;
+
+  const activeParty = useMemo(() => {
+    if (!snapshot) return [];
+    return activeSide === 'p2' ? snapshot.p2HumanParty : snapshot.p1.party;
+  }, [snapshot, activeSide]);
+
+  const activeFoes = useMemo(() => {
+    if (!snapshot) return [];
+    return activeSide === 'p2' ? snapshot.p1.active : snapshot.p2.active;
+  }, [snapshot, activeSide]);
+
+  const activeReqSeq = snapshot
+    ? activeSide === 'p2'
+      ? snapshot.p2RequestSeq
+      : snapshot.requestSeq
+    : 0;
+
+  const requestKey = useMemo(() => {
+    if (!snapshot) return '';
+    return `${activeSide}-${activeReqSeq}-${snapshot.turn}-${snapshot.status}-${activeIsForceSwitch}-${activePendingSlots.length}`;
+  }, [
+    snapshot,
+    activeSide,
+    activeReqSeq,
+    activeIsForceSwitch,
+    activePendingSlots.length,
+  ]);
+
+  const hotseatGateKey = useMemo(() => {
+    if (!snapshot || snapshot.p2Control !== 'human') return '';
+    if (snapshot.status === 'team-preview' && activeTeamPreview) {
+      return `tp-${activeSide}-${activeReqSeq}`;
+    }
+    if (snapshot.status === 'awaiting-choice' && activePendingSlots.length > 0) {
+      return `turn-${snapshot.turn}-${activeSide}-${activeReqSeq}`;
+    }
+    return '';
+  }, [
+    snapshot,
+    activeSide,
+    activeReqSeq,
+    activeTeamPreview,
+    activePendingSlots.length,
+  ]);
+
+  const isHotseatLocked =
+    Boolean(hotseatGateKey) && unlockedHotseatKey !== hotseatGateKey;
+
   useEffect(() => {
+    setCoachAdvice(null);
+    setCoachLoading(false);
+    setPreviewSelected([]);
     if (!snapshot || snapshot.status !== 'awaiting-choice') return;
     let idx = 0;
     const autoCmds: string[] = [];
-    while (
-      idx < snapshot.pendingSlots.length &&
-      snapshot.pendingSlots[idx].pass
-    ) {
+    while (idx < activePendingSlots.length && activePendingSlots[idx].pass) {
       autoCmds.push('pass');
       idx++;
     }
     if (
-      snapshot.pendingSlots.length > 0 &&
-      idx >= snapshot.pendingSlots.length &&
+      activePendingSlots.length > 0 &&
+      idx >= activePendingSlots.length &&
       autoCmds.length > 0
     ) {
       setSlotCursor(0);
@@ -195,7 +293,11 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
       setTeraQueuedInTurn(false);
       setWantTera(false);
       setPendingTargetMove(null);
-      void controllerRef.current?.submitPlayerChoice(autoCmds.join(', '));
+      if (activeSide === 'p2') {
+        void controllerRef.current?.submitP2Choice(autoCmds.join(', '));
+      } else {
+        void controllerRef.current?.submitPlayerChoice(autoCmds.join(', '));
+      }
       return;
     }
     setSlotCursor(idx);
@@ -215,6 +317,17 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
     }
   }, [snapshot?.log.length]);
 
+  const handleAskCoach = async () => {
+    if (!snapshot || coachLoading) return;
+    setCoachLoading(true);
+    try {
+      const advice = await askLiveCoach(snapshot, aiSettings);
+      setCoachAdvice(advice);
+    } finally {
+      setCoachLoading(false);
+    }
+  };
+
   const commitSlotCommand = (
     cmd: string,
     switchSlotUsed?: number,
@@ -228,18 +341,18 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
         : reservedSwitchSlots;
     const nextTeraQueued = teraQueuedInTurn || usedTera;
 
-    // Count how many unreserved, non-active, alive bench Pokémon remain after this pick.
+    // Count unreserved, non-active, alive bench Pokémon remaining after this pick.
     // Crucial for Doubles double-KO (`forceSwitch: [true, true]`) with only 1 bench Pokémon left:
     // once that last Pokémon is chosen for Slot 1, Slot 2 MUST automatically append `pass` (`switch N, pass`)!
-    const remainingBenchCount = snapshot.p1.party.filter(
+    const remainingBenchCount = activeParty.filter(
       (p) => !p.active && !p.fainted && !nextReserved.includes(p.slotIndex)
     ).length;
 
     let nextIdx = slotCursor + 1;
     while (
-      nextIdx < snapshot.pendingSlots.length &&
-      (snapshot.pendingSlots[nextIdx].pass ||
-        (snapshot.isForceSwitch && remainingBenchCount === 0))
+      nextIdx < activePendingSlots.length &&
+      (activePendingSlots[nextIdx].pass ||
+        (activeIsForceSwitch && remainingBenchCount === 0))
     ) {
       nextCmds.push('pass');
       nextIdx++;
@@ -248,12 +361,16 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
     setPendingTargetMove(null);
     setWantTera(false);
 
-    if (nextIdx >= snapshot.pendingSlots.length) {
+    if (nextIdx >= activePendingSlots.length) {
       setQueuedCommands([]);
       setReservedSwitchSlots([]);
       setTeraQueuedInTurn(false);
       setSlotCursor(0);
-      void controllerRef.current.submitPlayerChoice(nextCmds.join(', '));
+      if (activeSide === 'p2') {
+        void controllerRef.current.submitP2Choice(nextCmds.join(', '));
+      } else {
+        void controllerRef.current.submitPlayerChoice(nextCmds.join(', '));
+      }
     } else {
       setQueuedCommands(nextCmds);
       setReservedSwitchSlots(nextReserved);
@@ -274,7 +391,7 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
     }
 
     if (targetMode === 'ally') {
-      const activeIdx = snapshot.pendingSlots[slotCursor]?.activeIndex ?? 0;
+      const activeIdx = activePendingSlots[slotCursor]?.activeIndex ?? 0;
       const allyIdx = activeIdx === 0 ? 1 : 0;
       commitSlotCommand(
         `move ${move.index} -${allyIdx + 1}${teraSuffix}`,
@@ -284,7 +401,7 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
       return;
     }
 
-    const aliveFoes = snapshot.p2.active
+    const aliveFoes = activeFoes
       .map((m, idx) => ({ m, idx }))
       .filter(({ m }) => m && !m.fainted);
 
@@ -308,8 +425,8 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
     let firstInteractive = 0;
     const leadingPasses: string[] = [];
     while (
-      firstInteractive < snapshot.pendingSlots.length &&
-      snapshot.pendingSlots[firstInteractive].pass
+      firstInteractive < activePendingSlots.length &&
+      activePendingSlots[firstInteractive].pass
     ) {
       leadingPasses.push('pass');
       firstInteractive++;
@@ -361,25 +478,29 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
     );
   }
 
-  const currentSlot = snapshot.pendingSlots[slotCursor] ?? null;
-  const availableSwitches = snapshot.p1.party.filter(
+  const currentSlot = activePendingSlots[slotCursor] ?? null;
+  const availableSwitches = activeParty.filter(
     (p) => !p.active && !p.fainted && !reservedSwitchSlots.includes(p.slotIndex)
   );
-  const canUndoSlot = snapshot.pendingSlots
+  const canUndoSlot = activePendingSlots
     .slice(0, slotCursor)
     .some((s) => !s.pass);
-  const remainingForceSwitchSlots = snapshot.isForceSwitch
-    ? snapshot.pendingSlots
+  const remainingForceSwitchSlots = activeIsForceSwitch
+    ? activePendingSlots
         .slice(slotCursor)
         .filter((s) => s.forceSwitch && !s.pass).length
     : 0;
   const canPassForceSwitch =
-    snapshot.isForceSwitch &&
+    activeIsForceSwitch &&
     (availableSwitches.length === 0 ||
       remainingForceSwitchSlots > availableSwitches.length);
   const canTeraNow = Boolean(currentSlot?.canTerastallize) && !teraQueuedInTurn;
   const aliveP1 = snapshot.p1.party.filter((p) => !p.fainted).length;
   const aliveP2 = Math.max(0, snapshot.totalP2 - snapshot.koCountP2);
+  const activeTrainerName =
+    activeSide === 'p2' ? config.rivalName : config.playerName;
+  const opponentTrainerName =
+    activeSide === 'p2' ? config.playerName : config.rivalName;
 
   const renderActiveSprite = (
     mon: PartyPokemonState | null,
@@ -738,6 +859,36 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
           </ActionInfoTooltip>
 
           <ActionInfoTooltip
+            title="Configuración de IA & Coach"
+            badge={
+              snapshot.activeRivalController === 'human'
+                ? 'Hotseat'
+                : snapshot.activeRivalController === 'llm'
+                  ? 'LLM Activo'
+                  : '0 tokens'
+            }
+            description="Configura Gemini u Ollama para el Coach en vivo, el Game Review o el Feature Flag del entrenador LLM."
+          >
+            <button
+              onClick={onOpenAISettings}
+              className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-semibold transition cursor-pointer ${
+                snapshot.activeRivalController === 'llm'
+                  ? 'border-violet-400/50 bg-violet-500/20 text-violet-200'
+                  : 'border-slate-700 bg-slate-900 text-slate-300 hover:border-amber-400/50 hover:text-white'
+              }`}
+            >
+              <Settings2 className="h-3.5 w-3.5" />
+              <span className="hidden lg:inline">
+                {snapshot.activeRivalController === 'human'
+                  ? 'Hotseat'
+                  : snapshot.activeRivalController === 'llm'
+                    ? 'IA LLM'
+                    : 'IA'}
+              </span>
+            </button>
+          </ActionInfoTooltip>
+
+          <ActionInfoTooltip
             title="Reiniciar Combate"
             description="Reinicia la partida desde el Team Preview o Turno 1 con los mismos equipos."
           >
@@ -755,174 +906,207 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
       <div className="flex min-h-0 flex-1 flex-row overflow-hidden">
         {/* LEFT COLUMN */}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-hidden p-2.5">
-          {snapshot.status === 'team-preview' && snapshot.teamPreview ? (
-            /* ================= INTERACTIVE TEAM PREVIEW OVERLAY (1v1 / VGC / Monotype) ================= */
+          {snapshot.status === 'team-preview' && activeTeamPreview ? (
+            /* ================= INTERACTIVE TEAM PREVIEW OVERLAY (1v1 / VGC / Monotype / Versus) ================= */
             <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-amber-400/35 bg-slate-950 shadow-2xl">
               <SceneBackdrop theme={config.arenaTheme} className="opacity-55" />
 
-              <div className="relative z-10 flex min-h-0 flex-1 flex-col justify-between overflow-y-auto p-4">
-                <div>
-                  <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3">
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-300">
-                        TEAM PREVIEW INTERACTIVO · {snapshot.formatLabel}
-                      </p>
-                      <h2 className="font-display text-lg font-extrabold text-white sm:text-xl">
-                        {snapshot.teamPreview.mode === 'pick-1'
-                          ? 'Elige 1 de tus 3 Pokémon (Duelo 1v1 sin cambios)'
-                          : snapshot.teamPreview.mode === 'pick-4'
-                            ? 'Elige 4 de tus 6 Pokémon (1–2 Líderes, 3–4 Banca)'
-                            : 'Elige tu Pokémon Líder (Lead 1 de 6)'}
-                      </h2>
+              {isHotseatLocked ? (
+                <div className="relative z-10 flex flex-1 flex-col items-center justify-center p-6 text-center">
+                  <div className="max-w-md rounded-3xl border border-amber-400/40 bg-slate-950/90 p-7 shadow-2xl backdrop-blur-xl">
+                    <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-400/40 bg-amber-500/15 text-amber-300">
+                      <Lock className="h-6 w-6" />
                     </div>
-
-                    {snapshot.openTeamsheet.enabled && (
-                      <button
-                        onClick={() => setShowTeamsheetModal(true)}
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-sky-400/50 bg-sky-500/20 px-3.5 py-2 text-xs font-bold text-sky-100 hover:bg-sky-500/30 cursor-pointer"
-                      >
-                        <ClipboardList className="h-4 w-4" />
-                        Ver Open Teamsheet Completo
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Rival Preview Row */}
-                  <div className="mb-4">
-                    <p className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-rose-300">
-                      <Swords className="h-3.5 w-3.5" />
-                      Equipo de {config.rivalName} (
-                      {snapshot.teamPreview.rivalRoster.length} Pokémon)
+                    <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-300">
+                      HOTSEAT LOCAL · TEAM PREVIEW PRIVADO
                     </p>
-                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-                      {snapshot.teamPreview.rivalRoster.map((rMon, idx) => (
-                        <div
-                          key={`tp-rival-${rMon.species}-${idx}`}
-                          className="flex flex-col items-center rounded-2xl border border-rose-400/25 bg-slate-950/85 p-2 text-center backdrop-blur"
-                        >
-                          <PokemonSprite
-                            species={rMon.species}
-                            side="p2"
-                            className="h-14 w-14"
-                          />
-                          <p className="mt-1 w-full truncate text-[11px] font-bold text-white">
-                            {rMon.species}
-                          </p>
-                          <div className="mt-0.5 flex flex-wrap justify-center gap-0.5">
-                            {rMon.types.map((t) => (
-                              <span
-                                key={t}
-                                className={`rounded border px-1 text-[8px] font-bold uppercase ${getTypeBadgeClass(t)}`}
-                              >
-                                {t}
-                              </span>
-                            ))}
-                          </div>
-                          {rMon.openSheet && (
-                            <p className="mt-1 w-full truncate text-[9px] text-amber-200/90">
-                              @ {rMon.openSheet.item}
-                            </p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+                    <h2 className="font-display mt-1 text-xl font-extrabold text-white">
+                      Turno de {activeTrainerName}
+                    </h2>
+                    <p className="mt-2 text-xs leading-relaxed text-slate-300">
+                      Asegúrate de que <strong>{opponentTrainerName}</strong> no esté mirando la pantalla antes de elegir tu equipo.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setUnlockedHotseatKey(hotseatGateKey)}
+                      className="mt-5 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 px-6 py-2.5 text-xs font-extrabold text-slate-950 shadow-lg hover:brightness-110 cursor-pointer"
+                    >
+                      <Users className="h-4 w-4" />
+                      Estoy listo — Ver Team Preview de {activeTrainerName}
+                    </button>
                   </div>
-
-                  {/* Player Selectable Row */}
+                </div>
+              ) : (
+                <div className="relative z-10 flex min-h-0 flex-1 flex-col justify-between overflow-y-auto p-4">
                   <div>
-                    <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-amber-300">
-                      Selecciona en orden ({previewSelected.length} /{' '}
-                      {snapshot.teamPreview.pickCount}) — pasa el mouse para ver
-                      sets exactos
-                    </p>
-                    <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-6">
-                      {snapshot.teamPreview.playerRoster.map((pMon) => {
-                        const orderIdx = previewSelected.indexOf(pMon.slotIndex);
-                        const isSelected = orderIdx !== -1;
-                        const roleTag =
-                          snapshot.teamPreview?.mode === 'pick-4'
-                            ? orderIdx < 2
-                              ? `LÍDER ${orderIdx + 1}`
-                              : `BANCA ${orderIdx - 1}`
-                            : snapshot.teamPreview?.mode === 'pick-1'
-                              ? 'ELEGIDO'
-                              : 'LÍDER';
+                    <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-300">
+                          TEAM PREVIEW INTERACTIVO · {snapshot.formatLabel}
+                          {snapshot.p2Control === 'human'
+                            ? ` · TURNO DE ${activeTrainerName.toUpperCase()}`
+                            : ''}
+                        </p>
+                        <h2 className="font-display text-lg font-extrabold text-white sm:text-xl">
+                          {activeTeamPreview.mode === 'pick-1'
+                            ? 'Elige 1 de tus 3 Pokémon (Duelo 1v1 sin cambios)'
+                            : activeTeamPreview.mode === 'pick-4'
+                              ? 'Elige 4 de tus 6 Pokémon (1–2 Líderes, 3–4 Banca)'
+                              : 'Elige tu Pokémon Líder (Lead 1 de 6)'}
+                        </h2>
+                      </div>
 
-                        return (
-                          <PokemonTooltip
-                            key={pMon.ident}
-                            mon={pMon}
-                            side="p1"
-                            placement="top"
+                      {snapshot.openTeamsheet.enabled && (
+                        <button
+                          onClick={() => setShowTeamsheetModal(true)}
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-sky-400/50 bg-sky-500/20 px-3.5 py-2 text-xs font-bold text-sky-100 hover:bg-sky-500/30 cursor-pointer"
+                        >
+                          <ClipboardList className="h-4 w-4" />
+                          Ver Open Teamsheet Completo
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Rival Preview Row */}
+                    <div className="mb-4">
+                      <p className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-rose-300">
+                        <Swords className="h-3.5 w-3.5" />
+                        Equipo de {opponentTrainerName} (
+                        {activeTeamPreview.rivalRoster.length} Pokémon)
+                      </p>
+                      <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+                        {activeTeamPreview.rivalRoster.map((rMon, idx) => (
+                          <div
+                            key={`tp-rival-${rMon.species}-${idx}`}
+                            className="flex flex-col items-center rounded-2xl border border-rose-400/25 bg-slate-950/85 p-2 text-center backdrop-blur"
                           >
-                            <button
-                              type="button"
-                              onClick={() =>
-                                togglePreviewSlot(
-                                  pMon.slotIndex,
-                                  snapshot.teamPreview!.pickCount
-                                )
-                              }
-                              className={`relative flex w-full flex-col items-center rounded-2xl border p-2.5 text-center transition cursor-pointer ${
-                                isSelected
-                                  ? 'border-amber-400 bg-amber-500/20 ring-2 ring-amber-400/50 shadow-lg shadow-amber-500/15'
-                                  : 'border-slate-700/80 bg-slate-900/85 hover:border-amber-400/50'
-                              }`}
+                            <PokemonSprite
+                              species={rMon.species}
+                              side="p2"
+                              className="h-14 w-14"
+                            />
+                            <p className="mt-1 w-full truncate text-[11px] font-bold text-white">
+                              {rMon.species}
+                            </p>
+                            <div className="mt-0.5 flex flex-wrap justify-center gap-0.5">
+                              {rMon.types.map((t) => (
+                                <span
+                                  key={t}
+                                  className={`rounded border px-1 text-[8px] font-bold uppercase ${getTypeBadgeClass(t)}`}
+                                >
+                                  {t}
+                                </span>
+                              ))}
+                            </div>
+                            {rMon.openSheet && (
+                              <p className="mt-1 w-full truncate text-[9px] text-amber-200/90">
+                                @ {rMon.openSheet.item}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Player Selectable Row */}
+                    <div>
+                      <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-amber-300">
+                        {activeTrainerName}: selecciona en orden ({previewSelected.length} /{' '}
+                        {activeTeamPreview.pickCount}) — pasa el mouse para ver sets exactos
+                      </p>
+                      <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-6">
+                        {activeTeamPreview.playerRoster.map((pMon) => {
+                          const orderIdx = previewSelected.indexOf(pMon.slotIndex);
+                          const isSelected = orderIdx !== -1;
+                          const roleTag =
+                            activeTeamPreview.mode === 'pick-4'
+                              ? orderIdx < 2
+                                ? `LÍDER ${orderIdx + 1}`
+                                : `BANCA ${orderIdx - 1}`
+                              : activeTeamPreview.mode === 'pick-1'
+                                ? 'ELEGIDO'
+                                : 'LÍDER';
+
+                          return (
+                            <PokemonTooltip
+                              key={pMon.ident}
+                              mon={pMon}
+                              side="p1"
+                              placement="top"
                             >
-                              {isSelected && (
-                                <span className="absolute -top-2 right-1.5 rounded-full bg-amber-400 px-2 py-0.5 text-[9px] font-extrabold text-slate-950 shadow">
-                                  {roleTag}
-                                </span>
-                              )}
-                              <PokemonSprite
-                                species={pMon.species}
-                                side="p2"
-                                className="h-14 w-14"
-                              />
-                              <p className="mt-1 w-full truncate text-[11px] font-extrabold text-white">
-                                {pMon.species}
-                              </p>
-                              <p className="w-full truncate text-[9px] text-amber-200/85">
-                                @ {pMon.item || 'Sin obj.'}
-                              </p>
-                              {pMon.teraType && (
-                                <span className="mt-1 rounded bg-cyan-500/15 px-1.5 text-[8px] font-bold text-cyan-200">
-                                  ✦ Tera {pMon.teraType}
-                                </span>
-                              )}
-                            </button>
-                          </PokemonTooltip>
-                        );
-                      })}
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  togglePreviewSlot(
+                                    pMon.slotIndex,
+                                    activeTeamPreview.pickCount
+                                  )
+                                }
+                                className={`relative flex w-full flex-col items-center rounded-2xl border p-2.5 text-center transition cursor-pointer ${
+                                  isSelected
+                                    ? 'border-amber-400 bg-amber-500/20 ring-2 ring-amber-400/50 shadow-lg shadow-amber-500/15'
+                                    : 'border-slate-700/80 bg-slate-900/85 hover:border-amber-400/50'
+                                }`}
+                              >
+                                {isSelected && (
+                                  <span className="absolute -top-2 right-1.5 rounded-full bg-amber-400 px-2 py-0.5 text-[9px] font-extrabold text-slate-950 shadow">
+                                    {roleTag}
+                                  </span>
+                                )}
+                                <PokemonSprite
+                                  species={pMon.species}
+                                  side="p2"
+                                  className="h-14 w-14"
+                                />
+                                <p className="mt-1 w-full truncate text-[11px] font-extrabold text-white">
+                                  {pMon.species}
+                                </p>
+                                <p className="w-full truncate text-[9px] text-amber-200/85">
+                                  @ {pMon.item || 'Sin obj.'}
+                                </p>
+                                {pMon.teraType && (
+                                  <span className="mt-1 rounded bg-cyan-500/15 px-1.5 text-[8px] font-bold text-cyan-200">
+                                    ✦ Tera {pMon.teraType}
+                                  </span>
+                                )}
+                              </button>
+                            </PokemonTooltip>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Team Preview Confirmation Footer */}
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3">
-                  <button
-                    type="button"
-                    onClick={() => setPreviewSelected([])}
-                    className="rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-2 text-xs font-semibold text-slate-300 hover:text-white cursor-pointer"
-                  >
-                    Limpiar selección
-                  </button>
+                  {/* Team Preview Confirmation Footer */}
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewSelected([])}
+                      className="rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-2 text-xs font-semibold text-slate-300 hover:text-white cursor-pointer"
+                    >
+                      Limpiar selección
+                    </button>
 
-                  <button
-                    type="button"
-                    disabled={
-                      previewSelected.length !== snapshot.teamPreview.pickCount
-                    }
-                    onClick={() =>
-                      void controllerRef.current?.submitTeamOrder(previewSelected)
-                    }
-                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 px-6 py-2.5 text-xs font-extrabold text-slate-950 shadow-xl shadow-amber-500/25 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
-                  >
-                    <Check className="h-4 w-4" />
-                    Confirmar Selección e Iniciar Combate
-                  </button>
+                    <button
+                      type="button"
+                      disabled={
+                        previewSelected.length !== activeTeamPreview.pickCount
+                      }
+                      onClick={() => {
+                        if (activeSide === 'p2') {
+                          void controllerRef.current?.submitP2TeamOrder(previewSelected);
+                        } else {
+                          void controllerRef.current?.submitTeamOrder(previewSelected);
+                        }
+                      }}
+                      className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 px-6 py-2.5 text-xs font-extrabold text-slate-950 shadow-xl shadow-amber-500/25 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+                    >
+                      <Check className="h-4 w-4" />
+                      Confirmar Selección ({activeTrainerName})
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           ) : (
             /* ================= SWITCH-STYLE LIVE BATTLE ARENA ================= */
@@ -1001,6 +1185,8 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                               type="button"
                               onClick={() => {
                                 const canQuickSwitch =
+                                  activeSide === 'p1' &&
+                                  !isHotseatLocked &&
                                   snapshot.status === 'awaiting-choice' &&
                                   currentSlot &&
                                   !currentSlot.trapped &&
@@ -1153,6 +1339,44 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                 </div>
               )}
 
+              {/* 2b. COMPACT ON-DEMAND CHESS.COM-STYLE LIVE COACH STRIP */}
+              {coachAdvice && (
+                <div className="animate-fade-in-up flex shrink-0 items-start justify-between gap-3 rounded-xl border border-sky-400/45 bg-gradient-to-r from-sky-950/90 via-slate-950/95 to-slate-950/95 px-3 py-2 text-[11px] shadow-lg">
+                  <div className="min-w-0 flex-1 space-y-0.5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="inline-flex items-center gap-1 font-extrabold text-sky-300">
+                        <Brain className="h-3.5 w-3.5" />
+                        Coach Táctico
+                      </span>
+                      <span className="rounded bg-sky-500/20 px-1.5 py-0.2 text-[9px] font-bold text-sky-200">
+                        {coachAdvice.modelLabel}
+                      </span>
+                      <span className="font-mono-code rounded bg-emerald-500/15 px-1.5 py-0.2 text-[9px] font-bold text-emerald-300">
+                        Win% ~{coachAdvice.winChanceEstimate}%
+                      </span>
+                    </div>
+                    <p className="text-white">
+                      <strong className="text-amber-300">Mejor jugada:</strong>{' '}
+                      {coachAdvice.bestPlay}{' '}
+                      <span className="text-slate-400">
+                        · Alternativa: {coachAdvice.safeAlternative}
+                      </span>
+                    </p>
+                    <p className="text-[10px] text-slate-300">
+                      <strong className="text-rose-300">Amenaza:</strong>{' '}
+                      {coachAdvice.keyThreat} — {coachAdvice.reasoning}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCoachAdvice(null)}
+                    className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-white cursor-pointer"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
+
               {/* 3. ALWAYS-VISIBLE PLAYER ACTION DECK */}
               <div className="shrink-0 rounded-2xl border border-slate-800 bg-slate-950/95 p-2.5 shadow-xl">
                 {snapshot.status === 'ended' ? (
@@ -1169,9 +1393,15 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                       </div>
                       <div>
                         <h2 className="font-display text-base font-bold text-white">
-                          {snapshot.winner === 'p1'
-                            ? '¡Victoria de la Corona!'
-                            : 'Derrota en Combate'}
+                          {snapshot.p2Control === 'human'
+                            ? `¡Victoria de ${
+                                snapshot.winner === 'p1'
+                                  ? config.playerName
+                                  : config.rivalName
+                              }!`
+                            : snapshot.winner === 'p1'
+                              ? '¡Victoria de la Corona!'
+                              : 'Derrota en Combate'}
                         </h2>
                         <p className="text-xs text-slate-400">
                           {snapshot.turn} turno{snapshot.turn === 1 ? '' : 's'} ·{' '}
@@ -1193,15 +1423,41 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                         }
                         className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 px-5 py-2 text-xs font-extrabold text-slate-950 shadow-lg shadow-amber-500/25 hover:brightness-110 cursor-pointer"
                       >
-                        <Sparkles className="h-3.5 w-3.5" />
-                        Continuar al Epílogo
+                        <Brain className="h-3.5 w-3.5" />
+                        Epílogo & Game Review
                         <ChevronRight className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   </div>
                 ) : snapshot.status !== 'awaiting-choice' || !currentSlot ? (
                   <div className="flex h-24 items-center justify-center text-xs text-slate-400">
-                    Resolviendo turno en @pkmn/sim...
+                    {snapshot.activeRivalController === 'llm'
+                      ? 'Esperando decisión del Entrenador LLM y resolviendo turno...'
+                      : 'Resolviendo turno en @pkmn/sim...'}
+                  </div>
+                ) : isHotseatLocked ? (
+                  <div className="flex flex-wrap items-center justify-between gap-3 py-2.5">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-amber-400/40 bg-amber-500/15 text-amber-300">
+                        <Lock className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-extrabold text-amber-300">
+                          HOTSEAT LOCAL · TURNO DE {activeTrainerName.toUpperCase()}
+                        </p>
+                        <p className="text-[11px] text-slate-400">
+                          Asegúrate de que {opponentTrainerName} no vea la pantalla antes de revelar tus movimientos.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setUnlockedHotseatKey(hotseatGateKey)}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 px-5 py-2.5 text-xs font-extrabold text-slate-950 shadow-lg hover:brightness-110 cursor-pointer"
+                    >
+                      <Users className="h-4 w-4" />
+                      Mostrar Mano de {activeTrainerName}
+                    </button>
                   </div>
                 ) : pendingTargetMove ? (
                   <div>
@@ -1226,13 +1482,13 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                       </button>
                     </div>
                     <div className="grid grid-cols-2 gap-2.5">
-                      {snapshot.p2.active.map((foe, idx) => {
+                      {activeFoes.map((foe, idx) => {
                         if (!foe || foe.fainted) return null;
                         return (
                           <PokemonTooltip
                             key={foe.ident}
                             mon={foe}
-                            side="p2"
+                            side={activeSide === 'p2' ? 'p1' : 'p2'}
                             placement="top"
                           >
                             <button
@@ -1353,6 +1609,11 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                           className="scale-75"
                         />
                         <span className="text-xs font-bold text-white">
+                          {snapshot.p2Control === 'human' && (
+                            <span className="mr-1.5 rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-extrabold text-amber-300">
+                              {activeTrainerName}
+                            </span>
+                          )}
                           ¿Qué hará{' '}
                           <span className="text-amber-300">
                             {currentSlot.pokemon.name}
@@ -1365,12 +1626,34 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                         {snapshot.format === 'doubles' && (
                           <span className="rounded border border-amber-400/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-200">
                             Slot {currentSlot.activeIndex + 1}/
-                            {snapshot.pendingSlots.length}
+                            {activePendingSlots.length}
                           </span>
                         )}
                       </div>
 
                       <div className="flex items-center gap-2">
+                        {snapshot.p2Control !== 'human' && (
+                          <ActionInfoTooltip
+                            title="¿Qué haría el Coach?"
+                            badge="Bajo demanda"
+                            description="Envía solo la foto compacta de este turno (~350 tokens en LLM o 0 en modo offline) para recibir una recomendación táctica estilo Chess.com."
+                            placement="top"
+                          >
+                            <button
+                              type="button"
+                              disabled={coachLoading}
+                              onClick={() => void handleAskCoach()}
+                              className="inline-flex items-center gap-1 rounded-lg border border-sky-400/45 bg-sky-500/15 px-2.5 py-1 text-[11px] font-bold text-sky-200 transition hover:bg-sky-500/25 disabled:opacity-50 cursor-pointer"
+                            >
+                              {coachLoading ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Brain className="h-3 w-3" />
+                              )}
+                              <span>¿Qué haría el Coach?</span>
+                            </button>
+                          </ActionInfoTooltip>
+                        )}
                         {canTeraNow &&
                           typeof currentSlot.canTerastallize === 'string' && (
                             <ActionInfoTooltip
@@ -1459,7 +1742,7 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                             : 'Sin banca disponible (formato 1v1 o solo activos)'}
                         </span>
                       ) : (
-                        snapshot.p1.party.map((mon) => {
+                        activeParty.map((mon) => {
                           const canSwitch =
                             !currentSlot.trapped &&
                             !mon.active &&
