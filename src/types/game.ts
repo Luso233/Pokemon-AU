@@ -8,12 +8,22 @@ export type ScreenView =
 
 export type BattleFormat = 'singles' | 'doubles';
 
-export type CharacterId = 'prince' | 'assassin';
+export type SupportedFormatId =
+  | 'gen9doublescustomgame'
+  | 'gen9customgame'
+  | 'gen91v1'
+  | 'gen9monotype'
+  | 'gen9lc'
+  | (string & {});
+
+export type CharacterId = 'prince' | 'assassin' | 'champion';
 
 export type SceneBackdropId =
   | 'wyndon-alleys'
   | 'clocktower-ruins'
   | 'aqueduct-tunnels'
+  | 'sunlit-courtyard'
+  | 'royal-training-ground'
   | 'royal-pond'
   | 'banquet-hall';
 
@@ -32,54 +42,68 @@ export interface DecisionTraceItem {
 }
 
 export interface RivalIntelConfig {
-  /** Number of rival Pokémon species visible in the pre-battle briefing (decreases in harder chapters). */
   visibleSpeciesCount: number;
-  /** Total Pokémon count on rival's team. */
   totalSlots: number;
-  /** Human-readable intelligence grade badge. */
   intelLabel: string;
-  /** Flavor note explaining why intel is full, partial, or minimal. */
   intelNote: string;
-  /** Standard level cap for this chapter/context. */
   levelCap: number;
-  /** Whether the rival fields a Boss Ace that breaks the level cap. */
   hasBossAce: boolean;
-  /** Non-spoiler tactical warning about the Boss Ace level cap breaker. */
   bossAceWarning?: string;
-  /** Optional tactical hint exposing one of the enemy's scripted AI tendencies (earned from VN choices). */
   aiScriptHint?: string;
 }
 
-/**
- * Declarative scripted enemy AI rule for specific turns, matchups, or HP thresholds.
- * Enables puzzle-like tactical battles where players can read and bait/trick the AI.
- */
+export type BoostStatKey =
+  | 'atk'
+  | 'def'
+  | 'spa'
+  | 'spd'
+  | 'spe'
+  | 'accuracy'
+  | 'evasion';
+
+export type BoostsTable = Partial<Record<BoostStatKey, number>>;
+
+export interface PuzzlePokemonModifier {
+  side: 'p1' | 'p2';
+  /** Active slot ('0', '1', 'slot:1', 'slot:2') or species/nickname (e.g. 'Sableye', 'Metagross-Mega', 'Volcarona'). */
+  slotOrSpecies: string;
+  hpPercent?: number;
+  boosts?: BoostsTable;
+  status?: string;
+  volatiles?: string[];
+  preMega?: boolean;
+}
+
+export interface PuzzleConditions {
+  weather?: 'sunnyday' | 'raindance' | 'sandstorm' | 'snow';
+  terrain?:
+    | 'grassyterrain'
+    | 'electricterrain'
+    | 'mistyterrain'
+    | 'psychicterrain';
+  sideConditions?: { p1?: string[]; p2?: string[] };
+  pokemonModifiers?: PuzzlePokemonModifier[];
+}
+
 export interface ScriptedEnemyRule {
   id: string;
-  /** Human-readable tactical summary of the scripted rule. */
   description: string;
-  /** In-battle dialogue taunt shown when the antagonist executes this scripted move. */
   tauntLine?: string;
-  /** Match exact turn number (1-based). Omit to check on any turn. */
   turn?: number;
-  /** Match rival active Pokémon species (e.g. 'Grafaiai', 'Kingambit', 'Rillaboom'). */
   actorSpecies?: string;
-  /** Conditional trigger evaluated against live battle state. */
   condition?: 'always' | 'hpBelow60' | 'playerHasScreens' | 'playerHasSpecies';
-  /** Species required on player's active field when condition === 'playerHasSpecies'. */
   requiredPlayerSpecies?: string;
-  /** Exact move ID to force (e.g. 'taunt', 'fakeout', 'brickbreak', 'suckerpunch', 'encore'). */
   forceMoveId: string;
-  /** Doubles target hint: 'species:Gardevoir' | 'slot:1' | 'slot:2' | 'auto'. */
   targetSpec?: string;
-  /** If true, this scripted rule triggers at most once per battle. */
   once?: boolean;
 }
 
 export interface ResolvedBattleConfig {
   chapterId: string;
   format: BattleFormat;
-  formatId: string; // e.g. 'gen9doublescustomgame'
+  formatId: SupportedFormatId;
+  /** Friendly format label displayed in the top battle bar (e.g. "Puzzle 3v3 Dobles", "Little Cup Nv. 5"). */
+  formatLabel?: string;
   playerName: string;
   playerCharId: CharacterId;
   rivalName: string;
@@ -91,6 +115,7 @@ export interface ResolvedBattleConfig {
   playerShowdownPaste: string;
   rivalShowdownPaste: string;
   rivalIntel: RivalIntelConfig;
+  puzzleConditions?: PuzzleConditions;
   scriptedEnemyRules: ScriptedEnemyRule[];
   traces: DecisionTraceItem[];
   flags: StoryFlags;
@@ -103,6 +128,8 @@ export interface ChapterDefinition {
   subtitle: string;
   tag: string;
   format: BattleFormat;
+  formatId: SupportedFormatId;
+  formatLabel: string;
   difficulty: string;
   description: string;
   accentColor: string;
@@ -130,7 +157,7 @@ export interface ChapterProgress {
 /* ================= Battle Engine State Types ================= */
 
 export interface ActiveMoveOption {
-  index: number; // 1-based for Showdown choice command (`move 1`)
+  index: number;
   id: string;
   name: string;
   pp: number;
@@ -162,7 +189,7 @@ export interface SpeedRange {
 }
 
 export interface PartyPokemonState {
-  slotIndex: number; // 1-based for Showdown `switch N`
+  slotIndex: number;
   ident: string;
   name: string;
   species: string;
@@ -188,7 +215,6 @@ export interface PartyPokemonState {
     spe: number;
   };
   boosts: Record<string, number>;
-  /* --- Fog of War & Tactical Intel Fields --- */
   revealed: boolean;
   revealedAbility: string | null;
   possibleAbilities: string[];
@@ -223,6 +249,7 @@ export interface BattleLogEntry {
     | 'switch'
     | 'weather'
     | 'script'
+    | 'puzzle'
     | 'system'
     | 'win';
   text: string;
@@ -261,10 +288,13 @@ export interface EnemyTauntBanner {
 export interface BattleSnapshot {
   status: 'initializing' | 'awaiting-choice' | 'resolving' | 'ended';
   format: BattleFormat;
+  formatId: SupportedFormatId;
+  formatLabel: string;
   turn: number;
   weather: string;
   terrain: string;
   levelCap: number;
+  puzzleApplied: boolean;
   p1: FieldSideState;
   p2: FieldSideState;
   pendingSlots: PendingDecisionSlot[];

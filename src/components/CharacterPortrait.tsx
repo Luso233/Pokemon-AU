@@ -28,6 +28,14 @@ export const CHARACTER_META: Record<
     accentBorder: 'border-rose-500/55',
     accentGlow: 'drop-shadow-[0_12px_24px_rgba(244,63,94,0.28)]',
   },
+  champion: {
+    name: 'La Campeona',
+    role: 'Soberana Invicta de Galar',
+    spriteUrl: '/characters/champion_sprite.png',
+    bustUrl: '/characters/champion_bust.png',
+    accentBorder: 'border-purple-400/55',
+    accentGlow: 'drop-shadow-[0_12px_24px_rgba(192,132,252,0.28)]',
+  },
 };
 
 interface CharacterPortraitProps {

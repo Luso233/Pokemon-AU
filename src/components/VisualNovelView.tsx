@@ -114,9 +114,12 @@ export const VisualNovelView: React.FC<VisualNovelViewProps> = ({
   const activeSpeakerBust =
     line?.speaker === 'Príncipe Heredero'
       ? 'prince'
-      : line?.speaker === 'Asesino Carmesí' || line?.speaker === 'Sicario de la Corte'
-        ? 'assassin'
-        : null;
+      : line?.speaker === 'La Campeona'
+        ? 'champion'
+        : line?.speaker === 'Asesino Carmesí' ||
+            line?.speaker === 'Sicario de la Corte'
+          ? 'assassin'
+          : null;
 
   return (
     <div className="relative flex min-h-screen flex-col justify-between overflow-hidden bg-slate-950 text-slate-100">
@@ -328,12 +331,14 @@ export const VisualNovelView: React.FC<VisualNovelViewProps> = ({
                   className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-1 text-xs font-bold uppercase tracking-wider ${
                     line?.speaker === 'Príncipe Heredero'
                       ? 'border border-amber-400/40 bg-amber-500/20 text-amber-200'
-                      : line?.speaker === 'Asesino Carmesí' ||
-                          line?.speaker === 'Sicario de la Corte'
-                        ? 'border border-rose-400/40 bg-rose-500/20 text-rose-200'
-                        : line?.speaker === 'Sistema Táctico'
-                          ? 'border border-sky-400/40 bg-sky-500/20 text-sky-200'
-                          : 'border border-slate-700 bg-slate-800/90 text-slate-200'
+                      : line?.speaker === 'La Campeona'
+                        ? 'border border-purple-400/45 bg-purple-500/20 text-purple-200'
+                        : line?.speaker === 'Asesino Carmesí' ||
+                            line?.speaker === 'Sicario de la Corte'
+                          ? 'border border-rose-400/40 bg-rose-500/20 text-rose-200'
+                          : line?.speaker === 'Sistema Táctico'
+                            ? 'border border-sky-400/40 bg-sky-500/20 text-sky-200'
+                            : 'border border-slate-700 bg-slate-800/90 text-slate-200'
                   }`}
                 >
                   {line?.speaker ?? 'Narrador'}

@@ -31,7 +31,7 @@ export interface VNFrameState {
 
 function parseCharId(val: string): CharacterId | null {
   const low = val.toLowerCase();
-  if (low === 'prince' || low === 'assassin') return low;
+  if (low === 'prince' || low === 'assassin' || low === 'champion') return low;
   return null;
 }
 
@@ -163,7 +163,7 @@ export class InkVNRunner {
         this.lastActiveSide = parsed.side;
       } else if (parsed.char === 'prince') {
         this.lastActiveSide = 'left';
-      } else if (parsed.char === 'assassin') {
+      } else if (parsed.char === 'assassin' || parsed.char === 'champion') {
         this.lastActiveSide = 'right';
       }
 

@@ -197,7 +197,8 @@ export function chooseRivalAction(
         if (rule.turn != null && rule.turn !== ctx.turn) continue;
         if (
           rule.actorSpecies &&
-          toID(selfSpeciesName) !== toID(rule.actorSpecies)
+          toID(selfSpeciesName) !== toID(rule.actorSpecies) &&
+          toID(selfSpecies.baseSpecies) !== toID(rule.actorSpecies)
         ) {
           continue;
         }

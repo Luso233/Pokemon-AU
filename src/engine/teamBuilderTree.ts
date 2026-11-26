@@ -563,6 +563,7 @@ export function resolveChapter1ChaseBattle(
     chapterId: 'ch1-wyndon-chase',
     format: 'doubles',
     formatId: 'gen9doublescustomgame',
+    formatLabel: '6v6 Dobles · Tera',
     playerName: 'Príncipe Heredero',
     playerCharId: 'prince',
     rivalName: 'Asesino Carmesí',
@@ -822,6 +823,7 @@ export function resolveChapter2BanquetBattle(
     chapterId: 'ch2-banquet-ambush',
     format: 'doubles',
     formatId: 'gen9doublescustomgame',
+    formatLabel: 'Dobles 2v2 · ≤400 BST',
     playerName: 'Príncipe Heredero',
     playerCharId: 'prince',
     rivalName: 'Sicario de la Corte',
@@ -847,6 +849,456 @@ export function resolveChapter2BanquetBattle(
         'Amenaza Ace clasificada: el sicario reserva un Pokémon oculto Nv. 104.',
       aiScriptHint:
         'Smeargle y Sableye abren con un guion de Fake Out + Will-O-Wisp sobre tu Slot 1 en Turno 1.',
+    },
+    scriptedEnemyRules,
+    traces,
+    flags,
+  };
+}
+
+/* ===================== Puzzle 01: La Trampa del Sol (3v3 Dobles con PuzzleConditions) ===================== */
+
+export function resolvePuzzle1SunTrapBattle(
+  flags: StoryFlags
+): ResolvedBattleConfig {
+  const showHint = String(flags.puzzle_hint ?? 'show') !== 'hide';
+
+  const playerBlocks: ShowdownSetBlock[] = [
+    {
+      species: 'Inkay',
+      item: 'Focus Sash',
+      ability: 'Contrary',
+      level: 100,
+      evs: '252 HP / 4 Def / 252 SpD',
+      nature: 'Sassy',
+      moves: ['Topsy-Turvy', 'Trick Room', 'Foul Play', 'Protect'],
+    },
+    {
+      species: 'Sableye',
+      item: 'Sitrus Berry',
+      ability: 'Prankster',
+      level: 100,
+      evs: '252 HP / 252 Def / 4 SpD',
+      nature: 'Impish',
+      moves: ['Fake Out', 'Foul Play', 'Quash', 'Protect'],
+    },
+    {
+      species: 'Ditto',
+      item: 'Choice Scarf',
+      ability: 'Imposter',
+      level: 100,
+      evs: '252 HP / 4 Def / 252 Spe',
+      nature: 'Jolly',
+      moves: ['Transform'],
+    },
+  ];
+
+  const rivalBlocks: ShowdownSetBlock[] = [
+    {
+      species: 'Metagross-Mega',
+      ability: 'Tough Claws',
+      level: 100,
+      evs: '252 Atk / 4 Def / 252 Spe',
+      nature: 'Jolly',
+      moves: ['Meteor Mash', 'Bullet Punch', 'Ice Punch', 'Protect'],
+    },
+    {
+      species: 'Volcarona',
+      item: 'Heavy-Duty Boots',
+      ability: 'Flame Body',
+      level: 100,
+      evs: '4 HP / 252 SpA / 252 Spe',
+      nature: 'Timid',
+      ivs: '0 Atk',
+      moves: ['Heat Wave', 'Bug Buzz', 'Giga Drain', 'Protect'],
+    },
+    {
+      species: 'Garchomp',
+      item: 'Life Orb',
+      ability: 'Rough Skin',
+      level: 100,
+      evs: '252 Atk / 4 Def / 252 Spe',
+      nature: 'Jolly',
+      moves: ['Dragon Claw', 'Earthquake', 'Rock Slide', 'Protect'],
+    },
+  ];
+
+  const scriptedEnemyRules: ScriptedEnemyRule[] = [
+    {
+      id: 'puzzle1-t1-volcarona-heatwave',
+      turn: 1,
+      actorSpecies: 'Volcarona',
+      forceMoveId: 'heatwave',
+      once: true,
+      description: 'Turno 1 scripteado: Volcarona (+2 SpA/+2 Spe bajo Sol) usa Heat Wave.',
+      tauntLine: '«¡El sol quema todo! ¡Volcarona, arrasa el campo con Onda Ígnea!»',
+    },
+    {
+      id: 'puzzle1-t1-metagross-mash',
+      turn: 1,
+      actorSpecies: 'Metagross-Mega',
+      forceMoveId: 'meteormash',
+      targetSpec: 'species:Inkay',
+      once: true,
+      description: 'Turno 1 scripteado: Mega Metagross (+2 Atk/+1 Spe) lanza Meteor Mash sobre Inkay.',
+      tauntLine: '«Eliminen a ese pequeño calamar primero. ¡Mega Metagross, Puño Meteoro a Inkay!»',
+    },
+    {
+      id: 'puzzle1-t2-metagross-bp',
+      turn: 2,
+      actorSpecies: 'Metagross-Mega',
+      forceMoveId: 'bulletpunch',
+      targetSpec: 'species:Inkay',
+      once: true,
+      description: 'Turno 2 scripteado: Mega Metagross remata a Inkay con Bullet Punch.',
+      tauntLine: '«¿Sigues de pie por tu Banda Focus? ¡Mega Metagross, Puño Bala a Inkay!»',
+    },
+    {
+      id: 'puzzle1-t2-volcarona-heatwave',
+      turn: 2,
+      actorSpecies: 'Volcarona',
+      forceMoveId: 'heatwave',
+      once: true,
+      description: 'Turno 2 scripteado: Volcarona repite Heat Wave bajo el Sol Intenso.',
+      tauntLine: '«¡No hay escapatoria del calor! ¡Otra Onda Ígnea, Volcarona!»',
+    },
+    {
+      id: 'puzzle1-t3-garchomp-eq',
+      turn: 3,
+      actorSpecies: 'Garchomp',
+      forceMoveId: 'earthquake',
+      once: true,
+      description: 'Turno 3 scripteado: Garchomp entra presionando con Earthquake.',
+      tauntLine: '«¡Terminemos este acertijo con Terremoto!»',
+    },
+  ];
+
+  const traces: DecisionTraceItem[] = [
+    {
+      id: 'pz1-field',
+      category: 'rival-team',
+      choiceLabel: 'Condiciones de Arena Pre-Combate',
+      flagKey: 'puzzle_field',
+      flagValue: 'sun+tw+sr',
+      effectTitle: 'Sol Intenso + Viento Afín (Rival) + Trampa Rocas (Aliado)',
+      effectDetail:
+        'Comienzas en desventaja masiva: Sableye inicia herido al 65% PS y las rocas castigan cualquier cambio.',
+    },
+    {
+      id: 'pz1-boosts',
+      category: 'rival-team',
+      choiceLabel: 'Amenazas Pre-Boosteadas',
+      flagKey: 'puzzle_boosts',
+      flagValue: 'mega+quiver',
+      effectTitle: 'Mega Metagross (+2 Atk/+1 Spe) & Volcarona (+2 SpA/+2 SpD/+2 Spe)',
+      effectDetail:
+        'Ambas amenazas rivales ya están potenciadas desde el Turno 1. Fuerza bruta no basta: usa Topsy-Turvy, Fake Out, Foul Play y Ditto.',
+    },
+    {
+      id: 'pz1-ai',
+      category: 'ai-script',
+      choiceLabel: showHint ? 'Analizar patrón del Puzzle' : 'Modo Puzzle Puro',
+      flagKey: 'puzzle_hint',
+      flagValue: showHint ? 'show' : 'hide',
+      effectTitle: 'Turnos 1 y 2 100% Scripteados',
+      effectDetail: showHint
+        ? 'T1: Volcarona Heat Wave + Metagross Meteor Mash a Inkay. T2: Metagross Bullet Punch a Inkay + Volcarona Heat Wave.'
+        : 'Ocultaste la pista táctica. Lee el comportamiento enemigo en vivo.',
+    },
+  ];
+
+  return {
+    chapterId: 'puzzle-01-sun-trap',
+    format: 'doubles',
+    formatId: 'gen9doublescustomgame',
+    formatLabel: 'Puzzle 3v3 Dobles',
+    playerName: 'Príncipe Heredero',
+    playerCharId: 'prince',
+    rivalName: 'Asesino Carmesí',
+    rivalTitle: 'Prueba Táctica · La Trampa del Sol',
+    rivalCharId: 'assassin',
+    arenaTheme: 'sunlit-courtyard',
+    playerTeamSummary: 'Inkay (Focus Sash), Sableye (65% PS), Ditto (Choice Scarf)',
+    rivalTeamSummary: 'Mega Metagross (+2/+1), Volcarona (+2/+2/+2), Garchomp',
+    playerShowdownPaste: buildShowdownPaste(playerBlocks),
+    rivalShowdownPaste: buildShowdownPaste(rivalBlocks),
+    rivalIntel: {
+      visibleSpeciesCount: 3,
+      totalSlots: 3,
+      intelLabel: 'Puzzle Táctico · 3/3 Especies',
+      intelNote:
+        'En los Puzzles Tácticos conoces las especies en campo y las condiciones iniciales para diseñar la jugada perfecta.',
+      levelCap: 100,
+      hasBossAce: false,
+      aiScriptHint: showHint
+        ? 'Guion confirmado — T1: Volcarona usa Heat Wave y Mega Metagross usa Meteor Mash a Inkay. T2: Mega Metagross usa Bullet Punch a Inkay y Volcarona usa Heat Wave.'
+        : 'IA scripteada activa en Turnos 1 y 2 (pistas ocultas por tu elección).',
+    },
+    puzzleConditions: {
+      weather: 'sunnyday',
+      sideConditions: {
+        p1: ['stealthrock'],
+        p2: ['tailwind'],
+      },
+      pokemonModifiers: [
+        {
+          side: 'p2',
+          slotOrSpecies: 'Metagross-Mega',
+          preMega: true,
+          boosts: { atk: 2, spe: 1 },
+        },
+        {
+          side: 'p2',
+          slotOrSpecies: 'Volcarona',
+          boosts: { spa: 2, spd: 2, spe: 2 },
+        },
+        {
+          side: 'p1',
+          slotOrSpecies: 'Sableye',
+          hpPercent: 65,
+        },
+      ],
+    },
+    scriptedEnemyRules,
+    traces,
+    flags,
+  };
+}
+
+/* ===================== Flashback Little Cup: Príncipe 6 años (Nv. 5) vs La Campeona (Nv. 6–7) ===================== */
+
+export function resolveChampionLittleCupBattle(
+  flags: StoryFlags
+): ResolvedBattleConfig {
+  const leadChoice = String(flags.lc_lead ?? 'larvesta');
+
+  let princeBlocks: ShowdownSetBlock[] = [
+    {
+      species: 'Larvesta',
+      item: 'Eviolite',
+      ability: 'Flame Body',
+      level: 5,
+      evs: '76 HP / 236 Def / 156 SpD / 36 Spe',
+      nature: 'Impish',
+      moves: ['Flare Blitz', 'U-turn', 'Will-O-Wisp', 'Morning Sun'],
+    },
+    {
+      species: 'Growlithe',
+      item: 'Eviolite',
+      ability: 'Intimidate',
+      level: 5,
+      evs: '236 HP / 156 Def / 116 SpD',
+      nature: 'Impish',
+      moves: ['Flare Blitz', 'Crunch', 'Will-O-Wisp', 'Morning Sun'],
+    },
+    {
+      species: 'Rookidee',
+      item: 'Eviolite',
+      ability: 'Keen Eye',
+      level: 5,
+      evs: '196 HP / 156 Def / 156 SpD',
+      nature: 'Careful',
+      moves: ['Brave Bird', 'Bulk Up', 'Roost', 'Taunt'],
+    },
+    {
+      species: 'Larvitar',
+      item: 'Berry Juice',
+      ability: 'Guts',
+      level: 5,
+      evs: '36 HP / 244 Atk / 36 Def / 196 Spe',
+      nature: 'Jolly',
+      moves: ['Dragon Dance', 'Rock Blast', 'Earthquake', 'Crunch'],
+    },
+    {
+      species: 'Gible',
+      item: 'Choice Scarf',
+      ability: 'Rough Skin',
+      level: 5,
+      evs: '196 Atk / 36 Def / 36 SpD / 236 Spe',
+      nature: 'Jolly',
+      moves: ['Outrage', 'Earthquake', 'Rock Slide', 'Iron Head'],
+    },
+    {
+      species: 'Ralts',
+      item: 'Focus Sash',
+      ability: 'Trace',
+      level: 5,
+      evs: '36 HP / 236 SpA / 236 Spe',
+      nature: 'Timid',
+      moves: ['Psyshock', 'Shadow Sneak', 'Will-O-Wisp', 'Destiny Bond'],
+    },
+  ];
+
+  // Move chosen lead to slot 1
+  if (leadChoice === 'larvitar' || leadChoice === 'rookidee') {
+    const targetName = leadChoice === 'larvitar' ? 'Larvitar' : 'Rookidee';
+    const picked = princeBlocks.find((m) => m.species === targetName)!;
+    princeBlocks = [
+      picked,
+      ...princeBlocks.filter((m) => m.species !== targetName),
+    ];
+  }
+
+  const championBlocks: ShowdownSetBlock[] = [
+    {
+      species: 'Onix',
+      item: 'Berry Juice',
+      ability: 'Sturdy',
+      level: 6,
+      evs: '76 HP / 236 Atk / 196 Spe',
+      nature: 'Jolly',
+      moves: ['Stealth Rock', 'Rock Blast', 'Earthquake', 'Taunt'],
+    },
+    {
+      species: 'Mienfoo',
+      item: 'Eviolite',
+      ability: 'Regenerator',
+      level: 6,
+      evs: '156 Def / 116 SpD / 236 Spe',
+      nature: 'Jolly',
+      moves: ['Fake Out', 'High Jump Kick', 'Knock Off', 'U-turn'],
+    },
+    {
+      species: 'Foongus',
+      item: 'Eviolite',
+      ability: 'Regenerator',
+      level: 6,
+      evs: '124 HP / 156 Def / 156 SpD / 72 Spe',
+      nature: 'Bold',
+      ivs: '0 Atk',
+      moves: ['Spore', 'Giga Drain', 'Sludge Bomb', 'Clear Smog'],
+    },
+    {
+      species: 'Gastly',
+      item: 'Life Orb',
+      ability: 'Levitate',
+      level: 6,
+      evs: '36 Def / 196 SpA / 76 SpD / 196 Spe',
+      nature: 'Timid',
+      ivs: '0 Atk',
+      moves: ['Shadow Ball', 'Sludge Bomb', 'Dazzling Gleam', 'Energy Ball'],
+    },
+    {
+      species: 'Pawniard',
+      item: 'Eviolite',
+      ability: 'Defiant',
+      level: 6,
+      evs: '156 Atk / 36 Def / 116 SpD / 196 Spe',
+      nature: 'Jolly',
+      moves: ['Swords Dance', 'Knock Off', 'Iron Head', 'Sucker Punch'],
+    },
+    {
+      nickname: 'Vullaby ★',
+      species: 'Vullaby',
+      item: 'Eviolite',
+      ability: 'Overcoat',
+      level: 7,
+      evs: '116 HP / 76 Atk / 76 Def / 236 Spe',
+      nature: 'Jolly',
+      moves: ['Brave Bird', 'Knock Off', 'Roost', 'Defog'],
+    },
+  ];
+
+  const scriptedEnemyRules: ScriptedEnemyRule[] = [
+    {
+      id: 'lc-t1-onix-sr',
+      turn: 1,
+      actorSpecies: 'Onix',
+      forceMoveId: 'stealthrock',
+      once: true,
+      description: 'Turno 1 scripteado: Onix Nv. 6 abre colocando Stealth Rock para romper Bandas Focus.',
+      tauntLine: '«Primera lección de Little Cup, pequeño: controla el terreno. ¡Onix, Trampa Rocas!»',
+    },
+    {
+      id: 'lc-t2-onix-rockblast',
+      turn: 2,
+      actorSpecies: 'Onix',
+      forceMoveId: 'rockblast',
+      once: true,
+      description: 'Turno 2 scripteado: Onix presiona con Rock Blast.',
+      tauntLine: '«Ahora veamos si sabes aguantar la presión. ¡Onix, Pedrada!»',
+    },
+    {
+      id: 'lc-mienfoo-fakeout',
+      actorSpecies: 'Mienfoo',
+      forceMoveId: 'fakeout',
+      once: true,
+      description: 'Entrada scripteada: Mienfoo Nv. 6 siempre abre con Fake Out al pisar el campo.',
+      tauntLine: '«Nunca descuides la prioridad. ¡Mienfoo, Sorpresa!»',
+    },
+  ];
+
+  const traces: DecisionTraceItem[] = [
+    {
+      id: 'lc-lead-trace',
+      category: 'player-roster',
+      choiceLabel:
+        leadChoice === 'larvitar'
+          ? 'Abrir con Larvitar'
+          : leadChoice === 'rookidee'
+            ? 'Abrir con Rookidee'
+            : 'Abrir con Larvesta',
+      flagKey: 'lc_lead',
+      flagValue: leadChoice,
+      effectTitle: `Lead elegido: ${
+        leadChoice === 'larvitar'
+          ? 'Larvitar (Rock Blast vs Sturdy)'
+          : leadChoice === 'rookidee'
+            ? 'Rookidee (Taunt vs Stealth Rock)'
+            : 'Larvesta (Flame Body)'
+      }`,
+      effectDetail:
+        'Reordena tu equipo Nivel 5 para enfrentar a Onix Nv. 6 desde el Turno 1.',
+    },
+    {
+      id: 'lc-cap-trace',
+      category: 'rival-team',
+      choiceLabel: 'Regla de Flashback (gen9customgame)',
+      flagKey: 'lc_cap',
+      flagValue: '5-vs-6/7',
+      effectTitle: 'Cap Little Cup roto: Nv. 5 vs Nv. 6–7',
+      effectDetail:
+        'La Campeona usa 5 Pokémon Nv. 6 S-Tier y a su As Vullaby ★ Nv. 7. Guarda la Focus Sash de Ralts para Destiny Bond o busca un Dragon Dance con Larvitar.',
+    },
+    {
+      id: 'lc-ai-trace',
+      category: 'ai-script',
+      choiceLabel: 'Lección de La Campeona',
+      flagKey: 'lc_script',
+      flagValue: 'onix-t1-sr',
+      effectTitle: 'IA Scripteada: Onix abre con Stealth Rock en T1',
+      effectDetail:
+        'Puedes frenar las rocas con Rookidee (Taunt) o castigar a Onix con Larvitar (Rock Blast) antes de que entre Vullaby ★.',
+    },
+  ];
+
+  return {
+    chapterId: 'flashback-lc-champion',
+    format: 'singles',
+    formatId: 'gen9customgame',
+    formatLabel: 'Little Cup Nv. 5 vs Nv. 6–7',
+    playerName: 'Príncipe (6 años)',
+    playerCharId: 'prince',
+    rivalName: 'La Campeona',
+    rivalTitle: 'Meta S-Tier Little Cup · Nv. 6–7',
+    rivalCharId: 'champion',
+    arenaTheme: 'royal-training-ground',
+    playerTeamSummary: 'Crías Nv. 5 (Larvesta, Growlithe, Rookidee, Larvitar, Gible, Ralts)',
+    rivalTeamSummary: 'Inteligencia parcial: 3/6 especies (Nv. 6 y Ace Nv. 7)',
+    playerShowdownPaste: buildShowdownPaste(princeBlocks),
+    rivalShowdownPaste: buildShowdownPaste(championBlocks),
+    rivalIntel: {
+      visibleSpeciesCount: 3,
+      totalSlots: 6,
+      intelLabel: 'Flashback LC · 3/6 Especies',
+      intelNote:
+        'Corriendo en gen9customgame para permitir que La Campeona rompa el cap Nv. 5 de Little Cup con su escuadrón Nv. 6 y su As Nv. 7.',
+      levelCap: 5,
+      hasBossAce: true,
+      bossAceWarning:
+        'Jefe Final Little Cup: el equipo de La Campeona está en Nv. 6 y su As (Vullaby ★) rompe el límite llegando al Nivel 7.',
+      aiScriptHint:
+        'Turno 1 scripteado: Onix siempre coloca Trampa Rocas. Evita activar Defiant de Pawniard con Growlithe y conserva a Ralts con Focus Sash + Destiny Bond para Vullaby Nv. 7.',
     },
     scriptedEnemyRules,
     traces,

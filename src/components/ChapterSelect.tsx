@@ -65,32 +65,50 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
         <div className="grid gap-6">
           {CHAPTERS.map((chapter) => {
             const prog = progress[chapter.id];
-            const isAmber = chapter.accentColor === 'amber';
+            const accentStyles =
+              chapter.accentColor === 'orange'
+                ? {
+                    card: 'border-orange-500/35 hover:border-orange-400/65 hover:shadow-xl hover:shadow-orange-500/10',
+                    badge: 'bg-orange-500/20 text-orange-200 border border-orange-400/35',
+                    btn: 'bg-gradient-to-r from-orange-500 to-amber-500 text-slate-950 shadow-lg shadow-orange-500/20 hover:brightness-110',
+                  }
+                : chapter.accentColor === 'purple'
+                  ? {
+                      card: 'border-purple-500/35 hover:border-purple-400/65 hover:shadow-xl hover:shadow-purple-500/10',
+                      badge: 'bg-purple-500/20 text-purple-200 border border-purple-400/35',
+                      btn: 'bg-gradient-to-r from-purple-500 to-fuchsia-500 text-white shadow-lg shadow-purple-500/20 hover:brightness-110',
+                    }
+                  : chapter.accentColor === 'indigo'
+                    ? {
+                        card: 'border-indigo-500/30 hover:border-indigo-400/60 hover:shadow-xl hover:shadow-indigo-500/10',
+                        badge: 'bg-indigo-500/20 text-indigo-200 border border-indigo-400/30',
+                        btn: 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-lg shadow-indigo-500/20 hover:brightness-110',
+                      }
+                    : {
+                        card: 'border-amber-500/30 hover:border-amber-400/60 hover:shadow-xl hover:shadow-amber-500/10',
+                        badge: 'bg-amber-500/20 text-amber-200 border border-amber-400/30',
+                        btn: 'bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 shadow-lg shadow-amber-500/20 hover:brightness-110',
+                      };
 
             return (
               <div
                 key={chapter.id}
-                className={`group relative overflow-hidden rounded-3xl border bg-slate-900/75 p-6 backdrop-blur transition-all duration-200 hover:-translate-y-0.5 ${
-                  isAmber
-                    ? 'border-amber-500/30 hover:border-amber-400/60 hover:shadow-xl hover:shadow-amber-500/10'
-                    : 'border-indigo-500/30 hover:border-indigo-400/60 hover:shadow-xl hover:shadow-indigo-500/10'
-                }`}
+                className={`group relative overflow-hidden rounded-3xl border bg-slate-900/75 p-6 backdrop-blur transition-all duration-200 hover:-translate-y-0.5 ${accentStyles.card}`}
               >
                 <div className="grid items-center gap-6 md:grid-cols-12">
                   {/* Left Text */}
                   <div className="md:col-span-8">
                     <div className="mb-3 flex flex-wrap items-center gap-2">
                       <span
-                        className={`rounded-lg px-2.5 py-1 text-[11px] font-bold tracking-wider ${
-                          isAmber
-                            ? 'bg-amber-500/20 text-amber-200 border border-amber-400/30'
-                            : 'bg-indigo-500/20 text-indigo-200 border border-indigo-400/30'
-                        }`}
+                        className={`rounded-lg px-2.5 py-1 text-[11px] font-bold tracking-wider ${accentStyles.badge}`}
                       >
                         {chapter.number}
                       </span>
                       <span className="rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-1 text-[11px] font-semibold text-slate-300">
-                        {chapter.tag}
+                        {chapter.formatLabel}
+                      </span>
+                      <span className="font-mono-code rounded-lg border border-slate-800 bg-slate-950 px-2 py-1 text-[10px] text-slate-400">
+                        {chapter.formatId}
                       </span>
                       {prog?.completed && (
                         <span className="inline-flex items-center gap-1 rounded-lg border border-emerald-400/30 bg-emerald-500/15 px-2.5 py-1 text-[11px] font-semibold text-emerald-300">
@@ -146,11 +164,7 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
 
                     <button
                       onClick={() => onSelectChapter(chapter)}
-                      className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition active:scale-[0.98] cursor-pointer ${
-                        isAmber
-                          ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 shadow-lg shadow-amber-500/20 hover:brightness-110'
-                          : 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-lg shadow-indigo-500/20 hover:brightness-110'
-                      }`}
+                      className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition active:scale-[0.98] cursor-pointer ${accentStyles.btn}`}
                     >
                       <Play className="h-4 w-4 fill-current" />
                       Iniciar Capítulo

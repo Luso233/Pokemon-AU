@@ -10,6 +10,50 @@ export const SceneBackdrop: React.FC<SceneBackdropProps> = ({
   theme,
   className = '',
 }) => {
+  if (theme === 'sunlit-courtyard') {
+    return (
+      <div
+        className={`pointer-events-none absolute inset-0 overflow-hidden ${className}`}
+      >
+        <div className="absolute inset-0 bg-gradient-to-b from-[#2a1205] via-[#1c0c0a] to-[#08070d]" />
+        <div className="absolute -top-20 left-1/2 h-80 w-[44rem] -translate-x-1/2 rounded-full bg-amber-500/25 blur-[110px]" />
+        <div className="absolute bottom-0 right-1/4 h-72 w-96 rounded-full bg-orange-600/20 blur-[100px]" />
+        <svg
+          className="absolute inset-0 h-full w-full opacity-25"
+          viewBox="0 0 1200 600"
+          preserveAspectRatio="none"
+        >
+          <circle cx="600" cy="90" r="95" fill="#fbbf24" fillOpacity="0.25" />
+          <circle cx="600" cy="90" r="145" fill="none" stroke="#f97316" strokeOpacity="0.35" strokeWidth="2" />
+          <ellipse cx="600" cy="480" rx="460" ry="44" fill="none" stroke="#fbbf24" strokeOpacity="0.35" strokeWidth="2" />
+          <line x1="0" y1="440" x2="1200" y2="440" stroke="#f59e0b" strokeOpacity="0.22" />
+        </svg>
+      </div>
+    );
+  }
+
+  if (theme === 'royal-training-ground') {
+    return (
+      <div
+        className={`pointer-events-none absolute inset-0 overflow-hidden ${className}`}
+      >
+        <div className="absolute inset-0 bg-gradient-to-b from-[#170e29] via-[#1b1433] to-[#090915]" />
+        <div className="absolute -top-24 left-1/3 h-80 w-[42rem] -translate-x-1/2 rounded-full bg-amber-400/18 blur-[110px]" />
+        <div className="absolute bottom-0 right-1/4 h-72 w-96 rounded-full bg-purple-500/20 blur-[100px]" />
+        <svg
+          className="absolute inset-0 h-full w-full opacity-25"
+          viewBox="0 0 1200 600"
+          preserveAspectRatio="none"
+        >
+          <path d="M80 460 L80 180 Q240 80 400 180 L400 460" fill="none" stroke="#fbbf24" strokeOpacity="0.3" strokeWidth="2.5" />
+          <path d="M800 460 L800 180 Q960 80 1120 180 L1120 460" fill="none" stroke="#c084fc" strokeOpacity="0.3" strokeWidth="2.5" />
+          <ellipse cx="600" cy="490" rx="430" ry="42" fill="none" stroke="#fbbf24" strokeOpacity="0.35" strokeWidth="2" />
+          <line x1="600" y1="448" x2="600" y2="532" stroke="#c084fc" strokeOpacity="0.25" strokeWidth="2" />
+        </svg>
+      </div>
+    );
+  }
+
   if (theme === 'wyndon-alleys') {
     return (
       <div

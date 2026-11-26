@@ -1,4 +1,4 @@
-import { BattleStreams, Dex, Teams } from '@pkmn/sim';
+import { BattleStreams, Dex, Teams, toID } from '@pkmn/sim';
 import type {
   ActiveMoveOption,
   BattleAnimationCue,
@@ -7,12 +7,29 @@ import type {
   BattleSnapshot,
   PartyPokemonState,
   PendingDecisionSlot,
+  PuzzlePokemonModifier,
   ResolvedBattleConfig,
   SpeedRange,
 } from '../types/game';
 import { chooseRivalAction, type ShowdownRequest } from './tacticalAI';
 
 /* ================= Pure Tactical Helpers (Dex & Formulas) ================= */
+
+export function getFormatDisplayLabel(
+  formatId: string,
+  format: BattleFormat,
+  customLabel?: string
+): string {
+  if (customLabel) return customLabel;
+  const map: Record<string, string> = {
+    gen9doublescustomgame: 'Dobles 2v2',
+    gen9customgame: 'Individuales',
+    gen91v1: '1v1 Duelo de Honor',
+    gen9monotype: 'Monotype',
+    gen9lc: 'Little Cup Nv. 5',
+  };
+  return map[formatId] ?? (format === 'doubles' ? 'Dobles 2v2' : 'Individuales');
+}
 
 export function getStageMultiplier(stage: number): number {
   const clamped = Math.max(-6, Math.min(6, Math.trunc(stage)));
@@ -87,10 +104,18 @@ function parseCondition(condition: string): {
   hpPercent: number;
   status: string;
   fainted: boolean;
+  isExact: boolean;
 } {
   const clean = (condition || '').trim();
   if (!clean || clean === '0 fnt' || clean.endsWith(' fnt')) {
-    return { hp: 0, maxhp: 100, hpPercent: 0, status: '', fainted: true };
+    return {
+      hp: 0,
+      maxhp: 100,
+      hpPercent: 0,
+      status: '',
+      fainted: true,
+      isExact: false,
+    };
   }
   const [hpPart, statusPart = ''] = clean.split(' ');
   const [curStr, maxStr = '100'] = hpPart.split('/');
@@ -103,6 +128,7 @@ function parseCondition(condition: string): {
     hpPercent,
     status: statusPart.trim(),
     fainted: hp <= 0,
+    isExact: maxhp !== 100,
   };
 }
 
@@ -148,9 +174,14 @@ function cleanEffectName(raw: string): string {
 function weatherLabel(id: string): string {
   const map: Record<string, string> = {
     Sandstorm: 'Tormenta de Arena',
+    sandstorm: 'Tormenta de Arena',
     RainDance: 'Lluvia',
+    raindance: 'Lluvia',
     SunnyDay: 'Sol Intenso',
+    sunnyday: 'Sol Intenso',
     Snow: 'Nieve',
+    snow: 'Nieve',
+    Snowscape: 'Nieve',
     Hail: 'Granizo',
     DeltaStream: 'Ráfaga Delta',
     DesolateLand: 'Tierra del Ocaso',
@@ -163,9 +194,13 @@ function weatherLabel(id: string): string {
 function terrainLabel(id: string): string {
   const map: Record<string, string> = {
     'Grassy Terrain': 'Campo de Hierba',
+    grassyterrain: 'Campo de Hierba',
     'Electric Terrain': 'Campo Eléctrico',
+    electricterrain: 'Campo Eléctrico',
     'Psychic Terrain': 'Campo Psíquico',
+    psychicterrain: 'Campo Psíquico',
     'Misty Terrain': 'Campo de Niebla',
+    mistyterrain: 'Campo de Niebla',
   };
   return map[id] ?? id;
 }
@@ -189,6 +224,8 @@ function sideHasTailwind(sideConditions: string[]): boolean {
 /* ================= Battle Controller ================= */
 
 export class ShowdownBattleController {
+  private battleStreamRef: InstanceType<typeof BattleStreams.BattleStream> | null =
+    null;
   private streams: ReturnType<typeof BattleStreams.getPlayerStreams> | null =
     null;
   private listener: (snapshot: BattleSnapshot) => void;
@@ -198,6 +235,7 @@ export class ShowdownBattleController {
   private cueSeq = 0;
   private tauntSeq = 0;
   private destroyed = false;
+  private puzzleConditionsApplied = false;
   private triggeredRuleIds = new Set<string>();
   private lastAttackSource: { side: 'p1' | 'p2'; slot: number } | null = null;
 
@@ -212,10 +250,17 @@ export class ShowdownBattleController {
     this.state = {
       status: 'initializing',
       format: config.format,
+      formatId: config.formatId,
+      formatLabel: getFormatDisplayLabel(
+        config.formatId,
+        config.format,
+        config.formatLabel
+      ),
       turn: 0,
       weather: '',
       terrain: '',
       levelCap: config.rivalIntel?.levelCap ?? 100,
+      puzzleApplied: false,
       p1: {
         playerName: config.playerName,
         active: Array(activeCount).fill(null),
@@ -410,6 +455,164 @@ export class ShowdownBattleController {
     }
   }
 
+  /**
+   * Injects PuzzleConditions directly into @pkmn/sim's live Battle instance
+   * right after Turn 0 deployment so Weather, Terrain, Side Conditions,
+   * HP damage, Boosts, Statuses, Volatiles, and pre-Mega states take effect
+   * inside the real Showdown math AND update the UI state immediately.
+   */
+  private applyPuzzleConditionsIfNeeded(): void {
+    if (this.puzzleConditionsApplied) return;
+    const puzzle = this.config.puzzleConditions;
+    const battle = this.battleStreamRef?.battle;
+    if (!puzzle || !battle) return;
+
+    this.puzzleConditionsApplied = true;
+    const sourceMon =
+      battle.p2.active[0] ?? battle.p1.active[0] ?? battle.p2.pokemon[0];
+
+    this.pushLog(
+      'puzzle',
+      '🧩 Condiciones iniciales del Puzzle aplicadas al campo.'
+    );
+
+    if (puzzle.weather && sourceMon) {
+      battle.field.setWeather(puzzle.weather, sourceMon);
+    }
+
+    if (puzzle.terrain && sourceMon) {
+      battle.field.setTerrain(puzzle.terrain, sourceMon);
+    }
+
+    if (puzzle.sideConditions?.p1 && sourceMon) {
+      for (const cond of puzzle.sideConditions.p1) {
+        battle.p1.addSideCondition(cond, sourceMon);
+      }
+    }
+
+    if (puzzle.sideConditions?.p2 && sourceMon) {
+      for (const cond of puzzle.sideConditions.p2) {
+        battle.p2.addSideCondition(cond, sourceMon);
+      }
+    }
+
+    if (puzzle.pokemonModifiers) {
+      for (const mod of puzzle.pokemonModifiers) {
+        this.applySinglePokemonModifier(battle, mod, sourceMon);
+      }
+    }
+
+    // Sentinel marks exact point when all puzzle protocol events have been parsed into state
+    battle.add('-message', '__PUZZLE_READY__');
+    battle.sendUpdates();
+  }
+
+  private applySinglePokemonModifier(
+    battle: NonNullable<InstanceType<typeof BattleStreams.BattleStream>['battle']>,
+    mod: PuzzlePokemonModifier,
+    fallbackSource: NonNullable<
+      InstanceType<typeof BattleStreams.BattleStream>['battle']
+    >['p1']['pokemon'][number]
+  ): void {
+    const side = mod.side === 'p1' ? battle.p1 : battle.p2;
+    const selector = mod.slotOrSpecies.trim();
+    let targetMon = null;
+
+    if (selector === '0' || selector === 'slot:1') {
+      targetMon = side.active[0] ?? side.pokemon[0];
+    } else if (selector === '1' || selector === 'slot:2') {
+      targetMon = side.active[1] ?? side.pokemon[1];
+    } else {
+      const wantedId = toID(selector);
+      targetMon =
+        side.active.find(
+          (p) =>
+            p &&
+            (toID(p.species.name) === wantedId ||
+              toID(p.baseSpecies.name) === wantedId ||
+              toID(p.name) === wantedId)
+        ) ??
+        side.pokemon.find(
+          (p) =>
+            toID(p.species.name) === wantedId ||
+            toID(p.baseSpecies.name) === wantedId ||
+            toID(p.name) === wantedId
+        ) ??
+        null;
+    }
+
+    if (!targetMon) return;
+
+    // 1. Pre-Mega evolution from Turn 1
+    if (mod.preMega && !targetMon.species.isMega) {
+      const megaSpecies = Dex.species.get(`${targetMon.baseSpecies.name}-Mega`);
+      if (megaSpecies.exists) {
+        targetMon.formeChange(megaSpecies, null, true);
+        if (megaSpecies.abilities[0]) {
+          targetMon.setAbility(
+            megaSpecies.abilities[0],
+            fallbackSource,
+            null,
+            false,
+            true
+          );
+        }
+        battle.add(
+          '-mega',
+          targetMon,
+          targetMon.baseSpecies.name,
+          megaSpecies.requiredItem || 'Mega Stone'
+        );
+      }
+    }
+
+    // 2. Starting HP percentage (e.g. Sableye injured to 65% in VN)
+    if (typeof mod.hpPercent === 'number' && mod.hpPercent > 0 && mod.hpPercent < 100) {
+      const targetHp = Math.max(
+        1,
+        Math.floor((targetMon.maxhp * mod.hpPercent) / 100)
+      );
+      targetMon.sethp(targetHp);
+      battle.add('-damage', targetMon, targetMon.getHealth, '[from] Puzzle');
+
+      // Immediately reflect exact HP in p1 snapshot state & pendingSlots too
+      if (mod.side === 'p1') {
+        const pct = Math.round((targetMon.hp / targetMon.maxhp) * 100);
+        for (const m of [...this.state.p1.party, ...this.state.p1.active]) {
+          if (m && toID(m.species) === toID(targetMon.species.name)) {
+            m.hp = targetMon.hp;
+            m.maxhp = targetMon.maxhp;
+            m.hpPercent = pct;
+          }
+        }
+        for (const slot of this.state.pendingSlots) {
+          if (toID(slot.pokemon.species) === toID(targetMon.species.name)) {
+            slot.pokemon.hp = targetMon.hp;
+            slot.pokemon.maxhp = targetMon.maxhp;
+            slot.pokemon.hpPercent = pct;
+          }
+        }
+      }
+    }
+
+    // 3. Starting Stat Boosts / Unboosts
+    if (mod.boosts && Object.keys(mod.boosts).length > 0) {
+      battle.boost(mod.boosts, targetMon, targetMon, null, false, true);
+    }
+
+    // 4. Starting Status Condition (brn, par, psn, tox, slp, frz)
+    if (mod.status) {
+      targetMon.setStatus(mod.status, fallbackSource);
+    }
+
+    // 5. Starting Volatiles (aquaring, ingrain, focusenergy, etc.)
+    if (mod.volatiles) {
+      for (const vol of mod.volatiles) {
+        targetMon.addVolatile(vol, targetMon);
+      }
+    }
+  }
+
   public async start(): Promise<void> {
     const p1Sets = Teams.import(this.config.playerShowdownPaste);
     const p2Sets = Teams.import(this.config.rivalShowdownPaste);
@@ -431,12 +634,11 @@ export class ShowdownBattleController {
     this.state.totalP2 = p2Sets.length;
     this.pushLog(
       'system',
-      `Simulador @pkmn/sim iniciado (${
-        this.config.format === 'doubles' ? 'Dobles 2v2' : 'Individuales'
-      } · ${this.config.formatId}).`
+      `Simulador @pkmn/sim iniciado (${this.state.formatLabel} · ${this.config.formatId}).`
     );
 
     const battleStream = new BattleStreams.BattleStream();
+    this.battleStreamRef = battleStream;
     const streams = BattleStreams.getPlayerStreams(battleStream);
     this.streams = streams;
 
@@ -475,6 +677,7 @@ export class ShowdownBattleController {
       }
     }
     this.streams = null;
+    this.battleStreamRef = null;
   }
 
   private async consumeOmniscient(stream: AsyncIterable<string>): Promise<void> {
@@ -521,10 +724,6 @@ export class ShowdownBattleController {
     }
   }
 
-  /**
-   * Consumes P2's private request stream ONLY to drive the Scripted + Tactical AI.
-   * NEVER leaks private rival info into `this.state.p2`!
-   */
   private async consumeRivalStream(stream: AsyncIterable<string>): Promise<void> {
     try {
       for await (const chunk of stream) {
@@ -561,7 +760,7 @@ export class ShowdownBattleController {
                 }
                 this.pushLog(
                   'script',
-                  `⚡ [Patrón del Asesino · Turno ${Math.max(1, this.state.turn)}] ${rule.description}`
+                  `⚡ [Patrón Scripteado · Turno ${Math.max(1, this.state.turn)}] ${rule.description}`
                 );
                 if (rule.tauntLine) {
                   this.state.activeTaunt = {
@@ -605,6 +804,14 @@ export class ShowdownBattleController {
       const prev = existingByIdent.get(mon.ident);
       const terastallized = prev?.terastallized ?? null;
 
+      // Preserve puzzle-modified exact HP if Turn 1 request arrived slightly before puzzle hook
+      const usePrevHp =
+        this.puzzleConditionsApplied &&
+        this.state.turn <= 1 &&
+        prev &&
+        prev.hp < cond.hp &&
+        prev.maxhp === cond.maxhp;
+
       const stateMon: PartyPokemonState = {
         slotIndex: idx + 1,
         ident: mon.ident,
@@ -612,10 +819,10 @@ export class ShowdownBattleController {
         species: det.species,
         level: det.level,
         gender: det.gender,
-        hp: cond.hp,
-        maxhp: cond.maxhp,
-        hpPercent: cond.hpPercent,
-        status: cond.status,
+        hp: usePrevHp ? prev.hp : cond.hp,
+        maxhp: usePrevHp ? prev.maxhp : cond.maxhp,
+        hpPercent: usePrevHp ? prev.hpPercent : cond.hpPercent,
+        status: cond.status || (usePrevHp ? prev.status : ''),
         fainted: cond.fainted,
         active: mon.active,
         item: mon.item || '',
@@ -775,6 +982,10 @@ export class ShowdownBattleController {
       case 'turn': {
         this.state.turn = Number(parts[2]) || this.state.turn + 1;
         this.pushLog('turn', `Turn ${this.state.turn}`);
+        // Apply PuzzleConditions automatically right as Turn 1 starts!
+        if (this.state.turn === 1 && this.config.puzzleConditions) {
+          this.applyPuzzleConditionsIfNeeded();
+        }
         break;
       }
 
@@ -862,6 +1073,36 @@ export class ShowdownBattleController {
         break;
       }
 
+      case '-mega':
+      case 'detailschange': {
+        const { side, slotIndex, name } = parseSlotFromIdent(parts[2] ?? '');
+        const newSpeciesName =
+          cmd === '-mega'
+            ? `${parts[3]}-Mega`
+            : parseDetails(parts[3] ?? '').species;
+        const sp = Dex.species.get(newSpeciesName);
+        if (sp.exists) {
+          const { activeMon, partyMon } = this.getTargetMons(side, slotIndex, name);
+          for (const m of [activeMon, partyMon]) {
+            if (!m) continue;
+            m.species = sp.name;
+            m.types = [...sp.types];
+            m.possibleAbilities = getPossibleAbilities(sp.name);
+            if (sp.abilities[0] && cmd === '-mega') {
+              m.revealedAbility = sp.abilities[0];
+            }
+            this.refreshSpeedRange(side, m);
+          }
+          if (cmd === '-mega') {
+            this.pushLog(
+              'ability',
+              `✦ ${name} ya está Megaevolucionado en ${sp.name}!`
+            );
+          }
+        }
+        break;
+      }
+
       case '-terastallize': {
         const { side, slotIndex, name } = parseSlotFromIdent(parts[2] ?? '');
         const teraType = parts[3] ?? '';
@@ -926,7 +1167,7 @@ export class ShowdownBattleController {
           m.hpPercent = cond.hpPercent;
           m.status = cond.status;
           m.fainted = cond.fainted;
-          if (side === 'p2') {
+          if (side === 'p2' || cond.isExact) {
             m.hp = cond.hp;
             m.maxhp = cond.maxhp;
           }
@@ -1075,6 +1316,22 @@ export class ShowdownBattleController {
         break;
       }
 
+      case '-invertboost': {
+        const { side, slotIndex, name } = parseSlotFromIdent(parts[2] ?? '');
+        const { activeMon, partyMon } = this.getTargetMons(side, slotIndex, name);
+        const updated = new Set<PartyPokemonState>();
+        for (const m of [activeMon, partyMon]) {
+          if (!m || updated.has(m)) continue;
+          updated.add(m);
+          for (const key of Object.keys(m.boosts)) {
+            m.boosts[key] = -m.boosts[key];
+          }
+          this.refreshSpeedRange(side, m);
+        }
+        this.pushLog('boost', `🔄 ¡Se invirtieron todos los cambios de stats de ${name}!`);
+        break;
+      }
+
       case '-setboost': {
         const { side, slotIndex, name } = parseSlotFromIdent(parts[2] ?? '');
         const stat = parts[3] ?? '';
@@ -1145,6 +1402,8 @@ export class ShowdownBattleController {
         this.inspectTagsForReveals(undefined, parts.slice(3));
         if (field.includes('Terrain')) {
           this.state.terrain = terrainLabel(field);
+        } else if (field.includes('Trick Room')) {
+          this.state.terrain = 'Espacio Raro (Trick Room)';
         }
         this.pushLog('weather', `Campo activo: ${terrainLabel(field)}.`);
         break;
@@ -1152,7 +1411,7 @@ export class ShowdownBattleController {
 
       case '-fieldend': {
         const field = cleanEffectName(parts[2] ?? '');
-        if (field.includes('Terrain')) {
+        if (field.includes('Terrain') || field.includes('Trick Room')) {
           this.state.terrain = '';
         }
         this.pushLog('weather', `Terminó ${terrainLabel(field)}.`);
@@ -1269,6 +1528,18 @@ export class ShowdownBattleController {
           ).length;
         }
         this.pushLog('faint', `¡${name} se debilitó!`);
+        break;
+      }
+
+      case '-message': {
+        const msg = parts[2] ?? '';
+        if (msg === '__PUZZLE_READY__') {
+          this.state.puzzleApplied = true;
+          this.refreshSideSpeeds('p1');
+          this.refreshSideSpeeds('p2');
+        } else if (msg) {
+          this.pushLog('system', msg);
+        }
         break;
       }
 

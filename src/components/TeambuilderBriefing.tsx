@@ -313,6 +313,57 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                 ))}
               </div>
 
+              {/* Puzzle Initial Conditions Preview */}
+              {config.puzzleConditions && (
+                <div className="mb-3.5 rounded-2xl border border-orange-400/35 bg-orange-500/10 p-3.5">
+                  <p className="text-xs font-bold text-orange-200">
+                    🧩 Condiciones Iniciales del Puzzle (inyectadas al Turno 1)
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-1.5 text-[10px]">
+                    {config.puzzleConditions.weather && (
+                      <span className="rounded border border-amber-400/40 bg-amber-500/20 px-2 py-0.5 font-semibold text-amber-200">
+                        Clima: {config.puzzleConditions.weather}
+                      </span>
+                    )}
+                    {config.puzzleConditions.terrain && (
+                      <span className="rounded border border-emerald-400/40 bg-emerald-500/20 px-2 py-0.5 font-semibold text-emerald-200">
+                        Campo: {config.puzzleConditions.terrain}
+                      </span>
+                    )}
+                    {config.puzzleConditions.sideConditions?.p1?.map((c) => (
+                      <span
+                        key={`p1-${c}`}
+                        className="rounded border border-sky-400/40 bg-sky-500/20 px-2 py-0.5 font-semibold text-sky-200"
+                      >
+                        Tu lado: {c}
+                      </span>
+                    ))}
+                    {config.puzzleConditions.sideConditions?.p2?.map((c) => (
+                      <span
+                        key={`p2-${c}`}
+                        className="rounded border border-rose-400/40 bg-rose-500/20 px-2 py-0.5 font-semibold text-rose-200"
+                      >
+                        Rival: {c}
+                      </span>
+                    ))}
+                    {config.puzzleConditions.pokemonModifiers?.map((m, idx) => (
+                      <span
+                        key={`mod-${idx}`}
+                        className="rounded border border-slate-700 bg-slate-900/90 px-2 py-0.5 font-semibold text-slate-200"
+                      >
+                        {m.slotOrSpecies}
+                        {m.hpPercent ? ` (${m.hpPercent}% PS)` : ''}
+                        {m.boosts
+                          ? ` [${Object.entries(m.boosts)
+                              .map(([k, v]) => `${(v ?? 0) > 0 ? `+${v}` : v} ${k}`)
+                              .join(', ')}]`
+                          : ''}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Scripted AI Pattern Intel */}
               {intel.aiScriptHint && (
                 <div className="mb-3.5 rounded-2xl border border-violet-400/30 bg-violet-500/10 p-3.5">
