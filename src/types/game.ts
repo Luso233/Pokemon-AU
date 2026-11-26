@@ -29,6 +29,23 @@ export interface DecisionTraceItem {
   effectDetail: string;
 }
 
+export interface RivalIntelConfig {
+  /** Number of rival Pokémon species visible in the pre-battle briefing (decreases in harder chapters). */
+  visibleSpeciesCount: number;
+  /** Total Pokémon count on rival's team. */
+  totalSlots: number;
+  /** Human-readable intelligence grade badge. */
+  intelLabel: string;
+  /** Flavor note explaining why intel is full, partial, or minimal. */
+  intelNote: string;
+  /** Standard level cap for this chapter/context. */
+  levelCap: number;
+  /** Whether the rival fields a Boss Ace that breaks the level cap. */
+  hasBossAce: boolean;
+  /** Non-spoiler tactical warning about the Boss Ace level cap breaker. */
+  bossAceWarning?: string;
+}
+
 export interface ResolvedBattleConfig {
   chapterId: string;
   format: BattleFormat;
@@ -41,6 +58,7 @@ export interface ResolvedBattleConfig {
   rivalTeamSummary: string;
   playerShowdownPaste: string;
   rivalShowdownPaste: string;
+  rivalIntel: RivalIntelConfig;
   traces: DecisionTraceItem[];
   flags: StoryFlags;
 }
@@ -90,7 +108,24 @@ export interface ActiveMoveOption {
   category: 'Physical' | 'Special' | 'Status';
   basePower: number;
   accuracy: number | true;
+  priority: number;
   shortDesc: string;
+}
+
+export interface RevealedMoveInfo {
+  id: string;
+  name: string;
+  type: string;
+  used: number;
+  maxPP: number;
+}
+
+export interface SpeedRange {
+  min: number;
+  max: number;
+  baseMin: number;
+  baseMax: number;
+  modifiers: string[];
 }
 
 export interface PartyPokemonState {
@@ -106,8 +141,11 @@ export interface PartyPokemonState {
   status: string; // '', 'brn', 'par', 'psn', 'tox', 'slp', 'frz'
   fainted: boolean;
   active: boolean;
+  /** Known exact item (p1 only). For p2, use revealedItem / consumedItem. */
   item: string;
+  /** Known exact ability (p1 only). For p2, use revealedAbility / possibleAbilities. */
   ability: string;
+  /** Known move IDs (p1 only). For p2, use revealedMoves. */
   moves: string[];
   types: string[];
   stats?: {
@@ -118,6 +156,16 @@ export interface PartyPokemonState {
     spe: number;
   };
   boosts: Record<string, number>;
+  /* --- Fog of War & Tactical Intel Fields --- */
+  revealed: boolean;
+  revealedAbility: string | null;
+  possibleAbilities: string[];
+  revealedItem: string | null;
+  consumedItem: string | null;
+  revealedMoves: Record<string, RevealedMoveInfo>;
+  volatiles: string[];
+  speedRange?: SpeedRange;
+  isBossAce?: boolean;
 }
 
 export interface FieldSideState {
@@ -130,7 +178,20 @@ export interface FieldSideState {
 export interface BattleLogEntry {
   id: number;
   turn: number;
-  kind: 'turn' | 'move' | 'damage' | 'effective' | 'status' | 'faint' | 'switch' | 'weather' | 'system' | 'win';
+  kind:
+    | 'turn'
+    | 'move'
+    | 'damage'
+    | 'effective'
+    | 'status'
+    | 'boost'
+    | 'ability'
+    | 'item'
+    | 'faint'
+    | 'switch'
+    | 'weather'
+    | 'system'
+    | 'win';
   text: string;
 }
 
@@ -161,6 +222,7 @@ export interface BattleSnapshot {
   turn: number;
   weather: string;
   terrain: string;
+  levelCap: number;
   p1: FieldSideState;
   p2: FieldSideState;
   pendingSlots: PendingDecisionSlot[];

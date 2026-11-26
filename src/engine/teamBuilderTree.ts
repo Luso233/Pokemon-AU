@@ -47,10 +47,14 @@ export function buildShowdownPaste(blocks: ShowdownSetBlock[]): string {
 
 /* ===================== Reusable Canonical Sets (from Galar AU Lore) ===================== */
 
-const ARCEUS_SETS: Record<string, { label: string; detail: string; block: ShowdownSetBlock }> = {
+const ARCEUS_SETS: Record<
+  string,
+  { label: string; detail: string; block: ShowdownSetBlock }
+> = {
   physical: {
     label: 'Arceus Físico (Extreme Killer)',
-    detail: '120 Atk priorizado: Adamant, 252 Atk / 252 Spe, Silk Scarf — Extreme Speed / Earthquake / Shadow Claw / Swords Dance.',
+    detail:
+      '120 Atk priorizado: Adamant, 252 Atk / 252 Spe, Silk Scarf — Extreme Speed / Earthquake / Shadow Claw / Swords Dance.',
     block: {
       species: 'Arceus',
       item: 'Silk Scarf',
@@ -63,7 +67,8 @@ const ARCEUS_SETS: Record<string, { label: string; detail: string; block: Showdo
   },
   special: {
     label: 'Arceus Especial (Calm Mind Judge)',
-    detail: '120 SpA priorizado: Modest, 252 SpA / 252 Spe, Life Orb — Judgment / Thunderbolt / Energy Ball / Calm Mind.',
+    detail:
+      '120 SpA priorizado: Modest, 252 SpA / 252 Spe, Life Orb — Judgment / Thunderbolt / Energy Ball / Calm Mind.',
     block: {
       species: 'Arceus',
       item: 'Life Orb',
@@ -76,7 +81,8 @@ const ARCEUS_SETS: Record<string, { label: string; detail: string; block: Showdo
   },
   electric: {
     label: 'Arceus-Electric (Placa Trueno)',
-    detail: 'Multitype Eléctrico con Zap Plate: Timid, 252 SpA / 252 Spe — Judgment eléctrico x2 vs Agua, Thunderbolt, Ice Beam, Recover.',
+    detail:
+      'Multitype Eléctrico con Zap Plate: Timid, 252 SpA / 252 Spe — Judgment eléctrico x2 vs Agua, Thunderbolt, Ice Beam, Recover.',
     block: {
       species: 'Arceus-Electric',
       item: 'Zap Plate',
@@ -157,7 +163,8 @@ export function resolveChapter0Battle(flags: StoryFlags): ResolvedBattleConfig {
       flagKey: 'player_companion',
       flagValue: companion,
       effectTitle: 'Equipo: Arceus + Arcanine',
-      effectDetail: 'Se inyecta a Arcanine (Intimidación, Equipo de Vida Diaria) en el slot 2 del Teambuilder.',
+      effectDetail:
+        'Se inyecta a Arcanine (Intimidación, Equipo de Vida Diaria) en el slot 2 del Teambuilder.',
     });
   } else if (companion === 'gallade') {
     playerBlocks.push(GALLADE_KNIGHT);
@@ -168,7 +175,8 @@ export function resolveChapter0Battle(flags: StoryFlags): ResolvedBattleConfig {
       flagKey: 'player_companion',
       flagValue: companion,
       effectTitle: 'Equipo: Arceus + Gallade',
-      effectDetail: 'Se inyecta a Gallade (Cortante, Equipo de Combate) en el slot 2 del Teambuilder.',
+      effectDetail:
+        'Se inyecta a Gallade (Cortante, Equipo de Combate) en el slot 2 del Teambuilder.',
     });
   } else {
     traces.push({
@@ -178,28 +186,36 @@ export function resolveChapter0Battle(flags: StoryFlags): ResolvedBattleConfig {
       flagKey: 'player_companion',
       flagValue: 'none',
       effectTitle: 'Equipo: Solo Arceus (1 Pokémon)',
-      effectDetail: 'Modo testing puro: tu único Pokémon es Arceus enfrentando a los 6 Magikarp.',
+      effectDetail:
+        'Modo testing puro: tu único Pokémon es Arceus enfrentando a los 6 Magikarp.',
     });
   }
 
-  // Node 3: Rival branch -> Ceremonial Lv.50 Splash Magikarps vs Provoked Lv.100 Dirty Magikarps
+  // Node 3: Rival branch -> Ceremonial vs Provoked (with Boss Ace breaking level cap!)
   const numerals = ['I', 'II', 'III', 'IV', 'V', 'VI'];
+  const levelCap = rivalStance === 'provoked' ? 100 : 50;
   let rivalBlocks: ShowdownSetBlock[];
 
   if (rivalStance === 'provoked') {
-    const dirtyLoadouts: Array<{ item: string; nature: string; evs: string; moves: string[] }> = [
-      { item: 'Focus Sash', nature: 'Jolly', evs: '252 Atk / 252 Spe', moves: ['Flail', 'Tackle', 'Splash'] },
-      { item: 'Choice Band', nature: 'Adamant', evs: '252 Atk / 252 Spe', moves: ['Tackle'] },
-      { item: 'Mystic Water', nature: 'Modest', evs: '252 SpA / 252 Spe', moves: ['Hydro Pump', 'Splash'] },
-      { item: 'Focus Sash', nature: 'Adamant', evs: '252 Atk / 252 Spe', moves: ['Flail', 'Bounce', 'Splash'] },
-      { item: 'Choice Scarf', nature: 'Jolly', evs: '252 Atk / 252 Spe', moves: ['Tackle', 'Flail'] },
-      { item: 'Leftovers', nature: 'Impish', evs: '252 HP / 252 Def', moves: ['Bounce', 'Tackle', 'Splash'] },
+    const dirtyLoadouts: Array<{
+      item: string;
+      nature: string;
+      evs: string;
+      level: number;
+      moves: string[];
+    }> = [
+      { item: 'Focus Sash', nature: 'Jolly', evs: '252 Atk / 252 Spe', level: 100, moves: ['Flail', 'Tackle', 'Splash'] },
+      { item: 'Choice Band', nature: 'Adamant', evs: '252 Atk / 252 Spe', level: 100, moves: ['Tackle'] },
+      { item: 'Mystic Water', nature: 'Modest', evs: '252 SpA / 252 Spe', level: 100, moves: ['Hydro Pump', 'Splash'] },
+      { item: 'Focus Sash', nature: 'Adamant', evs: '252 Atk / 252 Spe', level: 100, moves: ['Flail', 'Bounce', 'Splash'] },
+      { item: 'Choice Scarf', nature: 'Jolly', evs: '252 Atk / 252 Spe', level: 100, moves: ['Tackle', 'Flail'] },
+      // Boss Ace: Magikarp VI breaks the Lv.100 cap -> Lv.105!
+      { item: 'Leftovers', nature: 'Adamant', evs: '252 HP / 252 Atk / 4 Spe', level: 105, moves: ['Bounce', 'Flail', 'Hydro Pump', 'Splash'] },
     ];
     rivalBlocks = numerals.map((num, idx) => ({
-      nickname: `Magikarp ${num}`,
+      nickname: idx === 5 ? 'Magikarp VI ★' : `Magikarp ${num}`,
       species: 'Magikarp',
       ability: idx % 2 === 0 ? 'Swift Swim' : 'Rattled',
-      level: 100,
       ...dirtyLoadouts[idx],
     }));
     traces.push({
@@ -208,15 +224,17 @@ export function resolveChapter0Battle(flags: StoryFlags): ResolvedBattleConfig {
       choiceLabel: 'Humillar a Lord Vane en público',
       flagKey: 'rival_stance',
       flagValue: 'provoked',
-      effectTitle: 'Rival: 6 Magikarp Furiosos (Nv. 100)',
-      effectDetail: 'Focus Sash + Flail, Choice Band Tackle, Hydro Pump y Bounce. Lord Vane abandonó la etiqueta.',
+      effectTitle: 'Rival en estado Hostil (Sets Ocultos)',
+      effectDetail:
+        'Lord Vane abandonó la etiqueta y recurrió a equipamiento clandestino. Su Ace final rompe el límite de nivel del capítulo.',
     });
   } else {
-    rivalBlocks = numerals.map((num) => ({
-      nickname: `Magikarp ${num}`,
+    rivalBlocks = numerals.map((num, idx) => ({
+      nickname: idx === 5 ? 'Magikarp VI ★' : `Magikarp ${num}`,
       species: 'Magikarp',
       ability: 'Swift Swim',
-      level: 50,
+      // Ceremonial Ace slightly breaks the Lv.50 cap -> Lv.55
+      level: idx === 5 ? 55 : 50,
       evs: '4 HP',
       nature: 'Bashful',
       moves: ['Splash'],
@@ -227,8 +245,9 @@ export function resolveChapter0Battle(flags: StoryFlags): ResolvedBattleConfig {
       choiceLabel: 'Aceptar el duelo ceremonial',
       flagKey: 'rival_stance',
       flagValue: 'ceremonial',
-      effectTitle: 'Rival: 6 Magikarp Ceremoniales (Nv. 50)',
-      effectDetail: 'Seis Magikarp nivel 50 con Salpicadura (Splash) para probar un barrido 6-0 limpio.',
+      effectTitle: 'Rival bajo Protocolo Ceremonial (Sets Ocultos)',
+      effectDetail:
+        'Lord Vane mantiene su formación de corte. Los objetos, niveles y movimientos exactos solo se revelarán en combate.',
     });
   }
 
@@ -244,12 +263,22 @@ export function resolveChapter0Battle(flags: StoryFlags): ResolvedBattleConfig {
       companion === 'none'
         ? `${chosenArceus.label} (Solo 1v6)`
         : `${chosenArceus.label} + ${companion === 'arcanine' ? 'Arcanine' : 'Gallade'}`,
-    rivalTeamSummary:
-      rivalStance === 'provoked'
-        ? '6× Magikarp Nv. 100 (Focus Sash / Choice Band / Hydro Pump)'
-        : '6× Magikarp Nv. 50 (Salpicadura Ceremonial)',
+    rivalTeamSummary: '6 especies avistadas (sets, objetos y niveles ocultos)',
     playerShowdownPaste: buildShowdownPaste(playerBlocks),
     rivalShowdownPaste: buildShowdownPaste(rivalBlocks),
+    rivalIntel: {
+      visibleSpeciesCount: 6,
+      totalSlots: rivalBlocks.length,
+      intelLabel: 'Inteligencia de Corte · 6/6 Especies',
+      intelNote:
+        'Al ser un duelo público, la Guardia Real identificó las especies rivales, pero sus niveles, objetos, habilidades y movimientos permanecen ocultos hasta entrar en combate.',
+      levelCap,
+      hasBossAce: true,
+      bossAceWarning:
+        rivalStance === 'provoked'
+          ? 'Amenaza Ace detectada: Lord Vane está furioso; su último Pokémon rompe el límite de nivel del combate (+5 niveles sobre el cap).'
+          : 'Ace ceremonial detectado: el último Pokémon de Lord Vane supera ligeramente el límite ceremonial.',
+    },
     traces,
     flags,
   };
@@ -317,12 +346,14 @@ export function resolveChapter1Battle(flags: StoryFlags): ResolvedBattleConfig {
       flagKey: 'team_mode',
       flagValue: 'combat',
       effectTitle: 'Equipo de Combate del Heredero',
-      effectDetail: 'Despliegue de élite: Zacian-Crowned, Dragapult, Tyranitar y Gallade.',
+      effectDetail:
+        'Despliegue de élite: Zacian-Crowned, Dragapult, Tyranitar y Gallade.',
     });
     traces.push({
       id: 'ch1-set',
       category: 'player-set',
-      choiceLabel: mixedRole === 'special' ? 'Enfoque Especial' : 'Enfoque Físico',
+      choiceLabel:
+        mixedRole === 'special' ? 'Enfoque Especial' : 'Enfoque Físico',
       flagKey: 'mixed_role',
       flagValue: mixedRole,
       effectTitle:
@@ -373,12 +404,14 @@ export function resolveChapter1Battle(flags: StoryFlags): ResolvedBattleConfig {
       flagKey: 'team_mode',
       flagValue: 'daily',
       effectTitle: 'Equipo de Vida Diaria (Protección)',
-      effectDetail: 'Sobrevives la emboscada con Arcanine, Gardevoir, Milotic y Corviknight.',
+      effectDetail:
+        'Sobrevives la emboscada con Arcanine, Gardevoir, Milotic y Corviknight.',
     });
     traces.push({
       id: 'ch1-set',
       category: 'player-set',
-      choiceLabel: mixedRole === 'special' ? 'Enfoque Especial' : 'Enfoque Físico',
+      choiceLabel:
+        mixedRole === 'special' ? 'Enfoque Especial' : 'Enfoque Físico',
       flagKey: 'mixed_role',
       flagValue: mixedRole,
       effectTitle:
@@ -419,20 +452,24 @@ export function resolveChapter1Battle(flags: StoryFlags): ResolvedBattleConfig {
     nature: 'Timid',
     moves: ['Tailwind', 'Endeavor', 'Encore', 'Protect'],
   };
-  const clefairy: ShowdownSetBlock = {
+  // Boss Ace in Sabotage: Clefairy Lv.104 breaks the Lv.100 level cap!
+  const clefairyAce: ShowdownSetBlock = {
+    nickname: 'Clefairy ★',
     species: 'Clefairy',
     item: 'Eviolite',
     ability: 'Friend Guard',
-    level: 100,
+    level: 104,
     evs: '252 HP / 252 Def / 4 SpD',
     nature: 'Bold',
     moves: ['Follow Me', 'Helping Hand', 'Moonblast', 'Protect'],
   };
-  const ditto: ShowdownSetBlock = {
+  // Boss Ace in Mirror: Ditto Lv.104 (higher HP stat when transformed!)
+  const dittoAce: ShowdownSetBlock = {
+    nickname: 'Ditto ★',
     species: 'Ditto',
     item: 'Choice Scarf',
     ability: 'Imposter',
-    level: 100,
+    level: 104,
     evs: '252 HP / 4 Def / 252 Spe',
     nature: 'Jolly',
     moves: ['Transform'],
@@ -440,8 +477,8 @@ export function resolveChapter1Battle(flags: StoryFlags): ResolvedBattleConfig {
 
   const rivalBlocks =
     assassinPlan === 'mirror'
-      ? [ditto, smeargle, sableye, cottonee]
-      : [smeargle, sableye, cottonee, clefairy];
+      ? [smeargle, sableye, cottonee, dittoAce]
+      : [smeargle, sableye, cottonee, clefairyAce];
 
   traces.push({
     id: 'ch1-rival',
@@ -454,12 +491,12 @@ export function resolveChapter1Battle(flags: StoryFlags): ResolvedBattleConfig {
     flagValue: assassinPlan,
     effectTitle:
       assassinPlan === 'mirror'
-        ? 'Sicario ≤400 BST: Protocolo Espejo (Ditto Impostor)'
+        ? 'Sicario ≤400 BST: Protocolo Espejo Activado'
         : 'Sicario ≤400 BST: Escuadrón de Sabotaje',
     effectDetail:
       assassinPlan === 'mirror'
-        ? 'Incluye Ditto (288 BST) con Impostor + Pañuelo Elegido para copiar a tu Pokémon activo + Smeargle, Sableye y Cottonee.'
-        : 'Sets sucios de VGC Early Game: Smeargle (Espora/Señuelo), Sableye (Bromista), Cottonee (Viento Afín) y Clefairy (Compiescolta).',
+        ? 'Al exponer a los conspiradores, el sicario activó su Plan B encubierto. La inteligencia es parcial: solo sus dos líderes iniciales fueron avistados.'
+        : 'El sicario opera con niebla táctica: el Servicio Secreto solo logró identificar 2 de sus 4 especies antes del apagón.',
   });
 
   return {
@@ -474,12 +511,20 @@ export function resolveChapter1Battle(flags: StoryFlags): ResolvedBattleConfig {
       teamMode === 'combat'
         ? `Equipo de Combate (Zacian + Dragapult ${mixedRole === 'special' ? 'SpA' : 'Atk'} + Tyranitar + Gallade)`
         : `Equipo de Vida Diaria (Arcanine ${mixedRole === 'special' ? 'SpA' : 'Atk'} + Gardevoir + Milotic + Corviknight)`,
-    rivalTeamSummary:
-      assassinPlan === 'mirror'
-        ? 'Ditto (Impostor Scarf), Smeargle, Sableye, Cottonee'
-        : 'Smeargle, Sableye, Cottonee, Clefairy',
+    rivalTeamSummary: 'Inteligencia parcial: 2 de 4 especies avistadas',
     playerShowdownPaste: buildShowdownPaste(playerBlocks),
     rivalShowdownPaste: buildShowdownPaste(rivalBlocks),
+    rivalIntel: {
+      visibleSpeciesCount: 2,
+      totalSlots: rivalBlocks.length,
+      intelLabel: 'Inteligencia Parcial · 2/4 Especies',
+      intelNote:
+        'En capítulos avanzados y emboscadas encubiertas, la inteligencia del Servicio Secreto es limitada: solo conoces parte del equipo enemigo y nada de sus sets.',
+      levelCap: 100,
+      hasBossAce: true,
+      bossAceWarning:
+        'Amenaza Ace clasificada: el sicario reserva un Pokémon oculto que supera el límite Nv. 100 (+4 niveles sobre el cap).',
+    },
     traces,
     flags,
   };
