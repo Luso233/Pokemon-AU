@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-display: 'Cinzel', Georgia, serif;
+    --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: #070b14;
+    color: #f1f5f9;
+    overflow-x: hidden;
+  }
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-mono-code {
+  font-family: var(--font-mono);
+}
+
+@keyframes floatSlow {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes hitShake {
+  0%, 100% { transform: translateX(0); filter: brightness(1); }
+  20% { transform: translateX(-8px); filter: brightness(2.2) saturate(0.2); }
+  40% { transform: translateX(8px); filter: brightness(1.6); }
+  60% { transform: translateX(-5px); filter: brightness(1.9); }
+  80% { transform: translateX(5px); filter: brightness(1); }
+}
+
+@keyframes attackLungeRight {
+  0% { transform: translate(0, 0) scale(1); }
+  40% { transform: translate(24px, -10px) scale(1.08); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+
+@keyframes attackLungeLeft {
+  0% { transform: translate(0, 0) scale(1); }
+  40% { transform: translate(-24px, 10px) scale(1.08); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-float-slow {
+  animation: floatSlow 3.4s ease-in-out infinite;
+}
+
+.animate-hit-shake {
+  animation: hitShake 0.45s ease-in-out;
+}
+
+.animate-lunge-right {
+  animation: attackLungeRight 0.38s ease-out;
+}
+
+.animate-lunge-left {
+  animation: attackLungeLeft 0.38s ease-out;
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.28s ease-out forwards;
+}
+
+/* Pixel-crisp Pokemon sprites where appropriate */
+.pokemon-sprite {
+  image-rendering: auto;
+  filter: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.55));
+}
+
+/* Custom subtle scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.5);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.28);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(245, 158, 11, 0.5);
+}
