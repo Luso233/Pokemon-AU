@@ -502,6 +502,25 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
     });
   };
 
+  const effectiveRivalProfile = useMemo(
+    () =>
+      config.rivalProfile ?? {
+        name: config.rivalName,
+        title: config.rivalTitle || 'Entrenador Rival',
+        bio:
+          config.rivalTeamSummary ||
+          'Oponente competitivo en simulación de Crown of Galar.',
+        tacticalInsight:
+          config.rivalIntel?.aiScriptHint ||
+          config.rivalIntel?.intelNote ||
+          'Observa sus revelaciones de habilidades y objetos para anticipar su plan de juego.',
+        archetypeTag: config.isVersusMatch
+          ? 'Modo Versus · IA'
+          : `Formato: ${config.formatLabel ?? config.formatId}`,
+      },
+    [config]
+  );
+
   if (error) {
     return (
       <div className="flex h-screen max-h-screen flex-col items-center justify-center overflow-hidden bg-slate-950 p-6 text-center">
@@ -556,23 +575,6 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
     activeSide === 'p2' ? config.rivalName : config.playerName;
   const opponentTrainerName =
     activeSide === 'p2' ? config.playerName : config.rivalName;
-
-  const effectiveRivalProfile = useMemo(
-    () =>
-      config.rivalProfile ?? {
-        name: config.rivalName,
-        title: config.rivalTitle || 'Entrenador Rival',
-        bio: config.rivalTeamSummary || 'Oponente competitivo en simulación de Crown of Galar.',
-        tacticalInsight:
-          config.rivalIntel?.aiScriptHint ||
-          config.rivalIntel?.intelNote ||
-          'Observa sus revelaciones de habilidades y objetos para anticipar su plan de juego.',
-        archetypeTag: config.isVersusMatch
-          ? 'Modo Versus · IA'
-          : `Formato: ${config.formatLabel ?? config.formatId}`,
-      },
-    [config]
-  );
 
   const renderActiveSprite = (
     mon: PartyPokemonState | null,
