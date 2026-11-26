@@ -10,31 +10,132 @@ export const SceneBackdrop: React.FC<SceneBackdropProps> = ({
   theme,
   className = '',
 }) => {
+  if (theme === 'wyndon-alleys') {
+    return (
+      <div
+        className={`pointer-events-none absolute inset-0 overflow-hidden ${className}`}
+      >
+        <div className="absolute inset-0 bg-gradient-to-b from-[#060b18] via-[#0c162b] to-[#050811]" />
+        {/* Warm amber streetlamp glow & crimson menace on right */}
+        <div className="absolute top-12 left-1/4 h-72 w-72 rounded-full bg-amber-500/14 blur-[90px]" />
+        <div className="absolute bottom-10 right-1/5 h-80 w-80 rounded-full bg-rose-700/18 blur-[100px]" />
+        {/* Rainy alleyway silhouettes + rain streaks */}
+        <svg
+          className="absolute inset-0 h-full w-full opacity-30"
+          viewBox="0 0 1200 600"
+          preserveAspectRatio="none"
+        >
+          {/* Narrow alley walls converging */}
+          <polygon points="0,0 320,120 320,440 0,600" fill="#020617" opacity="0.85" />
+          <polygon points="1200,0 880,120 880,440 1200,600" fill="#020617" opacity="0.85" />
+          {/* Streetlamp posts */}
+          <line x1="250" y1="160" x2="250" y2="480" stroke="#fbbf24" strokeOpacity="0.35" strokeWidth="3" />
+          <circle cx="250" cy="160" r="14" fill="#fbbf24" fillOpacity="0.45" />
+          <line x1="950" y1="160" x2="950" y2="480" stroke="#fb7185" strokeOpacity="0.3" strokeWidth="3" />
+          <circle cx="950" cy="160" r="12" fill="#fb7185" fillOpacity="0.35" />
+          {/* Diagonal rain streaks */}
+          {Array.from({ length: 24 }).map((_, i) => (
+            <line
+              key={i}
+              x1={i * 55}
+              y1={0}
+              x2={i * 55 - 80}
+              y2={600}
+              stroke="#93c5fd"
+              strokeOpacity="0.16"
+              strokeWidth="1"
+            />
+          ))}
+          {/* Wet cobblestones */}
+          <line x1="0" y1="455" x2="1200" y2="455" stroke="#38bdf8" strokeOpacity="0.22" />
+          <line x1="0" y1="515" x2="1200" y2="515" stroke="#fbbf24" strokeOpacity="0.18" />
+        </svg>
+      </div>
+    );
+  }
+
+  if (theme === 'clocktower-ruins') {
+    return (
+      <div
+        className={`pointer-events-none absolute inset-0 overflow-hidden ${className}`}
+      >
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0b0c1e] via-[#131730] to-[#060913]" />
+        {/* Storm lightning & moonlit clockface */}
+        <div className="absolute -top-24 left-1/2 h-96 w-[44rem] -translate-x-1/2 rounded-full bg-amber-400/14 blur-[110px]" />
+        <div className="absolute bottom-0 right-0 h-80 w-96 rounded-full bg-rose-600/16 blur-[100px]" />
+        <div className="absolute bottom-0 left-0 h-72 w-96 rounded-full bg-sky-500/12 blur-[100px]" />
+        <svg
+          className="absolute inset-0 h-full w-full opacity-25"
+          viewBox="0 0 1200 600"
+          preserveAspectRatio="none"
+        >
+          {/* Clocktower giant face silhouette */}
+          <circle cx="600" cy="210" r="125" fill="none" stroke="#fbbf24" strokeOpacity="0.4" strokeWidth="3" />
+          <circle cx="600" cy="210" r="106" fill="none" stroke="#fbbf24" strokeOpacity="0.22" strokeWidth="1.5" />
+          <line x1="600" y1="210" x2="600" y2="128" stroke="#fbbf24" strokeOpacity="0.5" strokeWidth="4" />
+          <line x1="600" y1="210" x2="665" y2="230" stroke="#fbbf24" strokeOpacity="0.5" strokeWidth="3" />
+          {/* Ruined stone arches */}
+          <path d="M60 470 L60 220 Q180 120 300 220 L300 470" fill="none" stroke="#94a3b8" strokeOpacity="0.28" strokeWidth="3" />
+          <path d="M900 470 L900 220 Q1020 120 1140 220 L1140 470" fill="none" stroke="#94a3b8" strokeOpacity="0.28" strokeWidth="3" />
+          {/* Battle arena stone circle */}
+          <ellipse cx="600" cy="490" rx="440" ry="44" fill="none" stroke="#fbbf24" strokeOpacity="0.28" strokeWidth="2" />
+          <ellipse cx="600" cy="490" rx="280" ry="26" fill="none" stroke="#fb7185" strokeOpacity="0.2" strokeWidth="1.5" />
+        </svg>
+      </div>
+    );
+  }
+
+  if (theme === 'aqueduct-tunnels') {
+    return (
+      <div
+        className={`pointer-events-none absolute inset-0 overflow-hidden ${className}`}
+      >
+        <div className="absolute inset-0 bg-gradient-to-b from-[#05131f] via-[#092136] to-[#040d17]" />
+        <div className="absolute top-1/4 left-1/3 h-80 w-96 rounded-full bg-cyan-400/14 blur-[100px]" />
+        <div className="absolute bottom-0 right-1/4 h-72 w-96 rounded-full bg-emerald-500/12 blur-[100px]" />
+        <svg
+          className="absolute inset-0 h-full w-full opacity-25"
+          viewBox="0 0 1200 600"
+          preserveAspectRatio="none"
+        >
+          {[140, 340, 540].map((r, i) => (
+            <ellipse
+              key={i}
+              cx="600"
+              cy="340"
+              rx={r}
+              ry={r * 0.62}
+              fill="none"
+              stroke="#38bdf8"
+              strokeOpacity="0.28"
+              strokeWidth="2"
+            />
+          ))}
+          <line x1="0" y1="450" x2="1200" y2="450" stroke="#22d3ee" strokeOpacity="0.35" strokeWidth="2" />
+          <ellipse cx="420" cy="510" rx="180" ry="10" fill="none" stroke="#38bdf8" strokeOpacity="0.25" />
+          <ellipse cx="790" cy="535" rx="210" ry="12" fill="none" stroke="#34d399" strokeOpacity="0.22" />
+        </svg>
+      </div>
+    );
+  }
+
   if (theme === 'banquet-hall') {
     return (
       <div
         className={`pointer-events-none absolute inset-0 overflow-hidden ${className}`}
       >
         <div className="absolute inset-0 bg-gradient-to-b from-[#130b24] via-[#1c1030] to-[#080912]" />
-        {/* Dramatic violet smoke & crimson emergency glow */}
         <div className="absolute -top-24 left-1/2 h-80 w-[44rem] -translate-x-1/2 rounded-full bg-fuchsia-700/20 blur-3xl" />
         <div className="absolute bottom-0 right-0 h-72 w-96 rounded-full bg-rose-600/15 blur-3xl" />
         <div className="absolute bottom-0 left-0 h-64 w-96 rounded-full bg-indigo-500/15 blur-3xl" />
-        {/* Palace Arches Silhouette */}
         <svg
           className="absolute inset-0 h-full w-full opacity-20"
           viewBox="0 0 1200 600"
           preserveAspectRatio="none"
         >
-          <defs>
-            <linearGradient id="pillarGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#a855f7" stopOpacity="0.35" />
-              <stop offset="100%" stopColor="#0f172a" stopOpacity="0.9" />
-            </linearGradient>
-          </defs>
           {[80, 320, 560, 800, 1040].map((x) => (
             <g key={x}>
-              <rect x={x} y="60" width="52" height="540" fill="url(#pillarGrad)" />
+              <rect x={x} y="60" width="52" height="540" fill="#312e81" opacity="0.55" />
               <path
                 d={`M ${x + 52} 140 Q ${x + 146} 30 ${x + 240} 140`}
                 stroke="#f59e0b"
@@ -44,43 +145,18 @@ export const SceneBackdrop: React.FC<SceneBackdropProps> = ({
               />
             </g>
           ))}
-          {/* Floor perspective grid */}
           <line x1="0" y1="450" x2="1200" y2="450" stroke="#f59e0b" strokeOpacity="0.22" />
-          <line x1="0" y1="510" x2="1200" y2="510" stroke="#a855f7" strokeOpacity="0.18" />
         </svg>
       </div>
     );
   }
 
-  // Default: royal-pond (Wyndon Royal Gardens)
   return (
     <div
       className={`pointer-events-none absolute inset-0 overflow-hidden ${className}`}
     >
       <div className="absolute inset-0 bg-gradient-to-b from-[#0a1628] via-[#0f243d] to-[#06101c]" />
-      {/* Golden twilight sky glow */}
       <div className="absolute -top-20 left-1/3 h-80 w-[40rem] -translate-x-1/2 rounded-full bg-amber-400/15 blur-3xl" />
-      <div className="absolute top-1/4 right-1/4 h-72 w-96 rounded-full bg-sky-400/15 blur-3xl" />
-      <div className="absolute bottom-0 inset-x-0 h-1/3 bg-gradient-to-t from-sky-950/80 via-cyan-950/35 to-transparent" />
-
-      {/* Wyndon Castle skyline & water ripples */}
-      <svg
-        className="absolute inset-0 h-full w-full opacity-25"
-        viewBox="0 0 1200 600"
-        preserveAspectRatio="none"
-      >
-        {/* Distant royal spires */}
-        <path
-          d="M0 370 L120 370 L145 250 L170 370 L320 370 L355 180 L390 370 L530 370 L585 110 L640 370 L790 370 L825 210 L860 370 L1020 370 L1055 260 L1090 370 L1200 370 L1200 410 L0 410 Z"
-          fill="#020617"
-          opacity="0.7"
-        />
-        {/* Water reflections */}
-        <line x1="0" y1="410" x2="1200" y2="410" stroke="#38bdf8" strokeOpacity="0.35" strokeWidth="1.5" />
-        <ellipse cx="320" cy="485" rx="180" ry="12" fill="none" stroke="#38bdf8" strokeOpacity="0.22" />
-        <ellipse cx="860" cy="465" rx="210" ry="14" fill="none" stroke="#fbbf24" strokeOpacity="0.2" />
-        <ellipse cx="600" cy="540" rx="280" ry="16" fill="none" stroke="#38bdf8" strokeOpacity="0.16" />
-      </svg>
     </div>
   );
 };

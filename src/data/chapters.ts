@@ -1,101 +1,94 @@
-import chapter0Ink from '../stories/chapter0_testing.ink?raw';
-import chapter1Ink from '../stories/chapter1_banquet.ink?raw';
+import chapter1ChaseInk from '../stories/chapter1_chase.ink?raw';
+import chapter2BanquetInk from '../stories/chapter1_banquet.ink?raw';
 import {
-  resolveChapter0Battle,
-  resolveChapter1Battle,
+  resolveChapter1ChaseBattle,
+  resolveChapter2BanquetBattle,
 } from '../engine/teamBuilderTree';
 import type { ChapterDefinition, StoryFlags } from '../types/game';
 
 export const CHAPTERS: ChapterDefinition[] = [
   {
-    id: 'ch0-arceus-test',
-    number: 'CAPÍTULO 00',
-    title: 'El Juicio del Estanque Real',
-    subtitle: 'Arceus vs 6 Magikarp · Loop de Testing Completo',
-    tag: 'TESTING MVP · SINGLES',
-    format: 'singles',
-    difficulty: 'Prueba Táctica (1v6 / 2v6)',
+    id: 'ch1-wyndon-chase',
+    number: 'CAPÍTULO 01',
+    title: 'Cacería en los Callejones de Wyndon',
+    subtitle: 'El Príncipe Rubio vs. El Asesino Carmesí · 6v6 Dobles con IA Scripteada',
+    tag: 'HISTORIA PRINCIPAL · 6v6 DOBLES',
+    format: 'doubles',
+    difficulty: 'Táctico Counter (Editable por decisiones)',
     description:
-      'Lord Vane intenta ridiculizar a la Corona frente a la corte de Wyndon con seis Magikarp. Tus decisiones definen si Arceus (120 Atk / 120 SpA) adopta set Físico, Especial o Placa Trueno, si peleas solo o con escolta, y qué llevan los 6 Magikarp rivales.',
+      'Huyendo bajo la lluvia de Wyndon solo con tu Equipo de Vida Diaria, eres perseguido por un Asesino cuyo equipo 6v6 (Grafaiai, Kingambit, Slowking-Galar, Gholdengo, Heatran, Rillaboom) fue diseñado para destruir el tuyo. Tus 4 decisiones durante la persecución cambian leads, sabotean objetos, mejoran tus sets y exponen los turnos scripteados de su IA.',
     accentColor: 'amber',
-    featuredPokemon: ['Arceus', 'Magikarp'],
-    rivalPreview: 'Lord Vane · 6× Magikarp (Nv. 50 o Nv. 100)',
-    inkSource: chapter0Ink,
-    resolveBattleConfig: resolveChapter0Battle,
+    featuredPokemon: ['Arcanine', 'Gardevoir', 'Grafaiai', 'Kingambit'],
+    rivalPreview: 'Asesino Carmesí · Equipo Anti-Príncipe 6v6 (Niebla de Guerra)',
+    inkSource: chapter1ChaseInk,
+    resolveBattleConfig: resolveChapter1ChaseBattle,
     getEpilogue: (won: boolean, flags: StoryFlags) => {
-      const build = String(flags.arceus_build ?? 'physical');
-      const stance = String(flags.rival_stance ?? 'ceremonial');
+      const sabotage = String(flags.sabotage_plan ?? 'no_trap');
+      const mind = String(flags.mind_game ?? 'cold_silence');
       if (won) {
         return {
-          headline: 'Juicio Consumado en el Estanque Real',
-          subheadline: 'Los 6 Magikarp de Lord Vane han caído ante el poder de la Corona.',
-          badgeText: 'VICTORIA · 6/6 DERROTADOS',
+          headline: 'Supervivencia en la Torre del Reloj',
+          subheadline:
+            'El Asesino Carmesí retrocede entre la lluvia tras ver caer su estrategia counter.',
+          badgeText: 'VICTORIA · PERSECUCIÓN SUPERADA',
           paragraphs: [
-            `Un silencio absoluto recorre los jardines de Wyndon mientras el sexto Magikarp regresa a su Poké Ball. Tu configuración ${
-              build === 'physical'
-                ? 'Física (Extreme Killer)'
-                : build === 'special'
-                  ? 'Especial (Calm Mind & Judgment)'
-                  : 'Elemental (Arceus-Eléctrico con Placa Trueno)'
-            } ejecutó la sentencia sin titubeos.`,
-            stance === 'provoked'
-              ? 'Incluso con objetos ilegales de mercado negro y nivel 100, el sabotaje de Lord Vane quedó expuesto ante la prensa real. La facción de Tizonio y Dargo acaba de perder su primera jugada política.'
-              : 'Mantuviste la compostura real y despachaste la provocación ceremonial con elegancia quirúrgica. El Consejo de Galar toma nota: el heredero no es un adorno.',
-            'El loop completo (Novela Visual Ink → Árbol de Decisiones → Inyección al Teambuilder Showdown → Combate en @pkmn/sim → Epílogo) ha finalizado con éxito. Puedes rejugar el capítulo eligiendo otras ramas o probar el Combate Doble 2v2 del Capítulo 01.',
+            sabotage === 'no_trap'
+              ? '¡Hazaña táctica! Derrotaste al Asesino Carmesí sin sabotear ninguno de sus objetos y con su Ace Kingambit ★ rompiendo el límite de nivel.'
+              : 'Tus decisiones durante la persecución marcaron la diferencia: desarmaste un equipo diseñado específicamente para neutralizar tu escolta diaria.',
+            mind === 'cold_silence'
+              ? 'Incluso con su protocolo frío e implacable activo, lograste leer sus turnos scripteados y quebrar su formación.'
+              : 'Engañar a su IA leyendo sus patrones psicológicos te permitió darle la vuelta a una desventaja diseñada para ser letal.',
+            'El Asesino desaparece en la niebla con una última mirada: «Esto solo fue el aviso, Alteza. La próxima vez no traeré contención.» Puedes rejugar el capítulo tomando otras decisiones (o el reto puro sin sabotajes) para comparar la dificultad.',
           ],
         };
       }
       return {
-        headline: 'Escándalo en la Corte de Wyndon',
-        subheadline: 'Contra todo pronóstico, el escuadrón de Magikarp logró imponerse.',
-        badgeText: 'DERROTA · REINTENTAR',
+        headline: 'Acorralado bajo la Lluvia de Wyndon',
+        subheadline:
+          'El equipo counter del Asesino Carmesí logró neutralizar tu Equipo de Vida Diaria.',
+        badgeText: 'DERROTA · REAGRUPAR ESTRATEGIA',
         paragraphs: [
-          'Los titulares de mañana en Galar serán despiadados. Lord Vane sonríe incrédulo mientras los fotógrafos capturan la escena.',
-          'Puedes volver a intentar el combate directamente o rejugar las decisiones del capítulo para ajustar el set de Arceus y el equipo inyectado al Teambuilder.',
+          'El equipo del Asesino está construido pieza por pieza contra tus sets base: Taunt para Gardevoir, Defiant + Brick Break contra Arcanine/Pantallas, Psychic Noise contra Milotic y Good as Gold contra tus estados.',
+          'Prueba rejugar las decisiones de la persecución para sabotear sus objetos, activar Mental Herb en Gardevoir, cambiar tu lead en los acueductos o provocar su IA para engañar sus turnos scripteados.',
         ],
       };
     },
   },
   {
-    id: 'ch1-banquet-ambush',
-    number: 'CAPÍTULO 01',
+    id: 'ch2-banquet-ambush',
+    number: 'CAPÍTULO 02',
     title: 'Emboscada en la Cena de Estado',
-    subtitle: 'AU Monarquía de Galar · Combate Doble 2v2 (≤400 BST)',
-    tag: 'LORE GALAR · DOBLES 2v2',
+    subtitle: 'Bonus AU Galar · Combate Doble 2v2 (≤400 BST)',
+    tag: 'BONUS · DOBLES 2v2',
     format: 'doubles',
-    difficulty: 'Táctico Showdown (Early Game ≤400 BST)',
+    difficulty: 'Early Game ≤400 BST (Sets Showdown)',
     description:
-      'Apagón total en el Salón de Estado. Un sicario enviado por la rama secundaria ataca en formato Colosseum 2v2 sin grindeo. Decide entre tu Equipo de Vida Diaria o tu Equipo de Combate, elige el set físico/especial de tu atacante mixto y enfrenta sets sucios de Showdown.',
+      'Apagón en el Salón de Estado. Decide entre tu Equipo de Vida Diaria o desplegar el Código Corona (Zacian-Crowned + Dragapult físico/especial) contra un escuadrón sucio de Showdown ≤400 BST.',
     accentColor: 'indigo',
-    featuredPokemon: ['Zacian-Crowned', 'Arcanine', 'Smeargle'],
-    rivalPreview: 'Sicario ≤400 BST · Smeargle, Sableye, Cottonee, Ditto/Clefairy',
-    inkSource: chapter1Ink,
-    resolveBattleConfig: resolveChapter1Battle,
+    featuredPokemon: ['Zacian-Crowned', 'Dragapult', 'Smeargle'],
+    rivalPreview: 'Sicario ≤400 BST · Inteligencia parcial 2/4',
+    inkSource: chapter2BanquetInk,
+    resolveBattleConfig: resolveChapter2BanquetBattle,
     getEpilogue: (won: boolean, flags: StoryFlags) => {
       const mode = String(flags.team_mode ?? 'daily');
-      const plan = String(flags.assassin_plan ?? 'sabotage');
       if (won) {
         return {
           headline: 'La Corona Resiste el Atentado',
-          subheadline: 'El sicario es reducido antes de que caigan las puertas del salón.',
+          subheadline: 'El sicario cae antes de que cedan las puertas blindadas.',
           badgeText: 'VICTORIA · EMBOSCADA NEUTRALIZADA',
           paragraphs: [
             mode === 'combat'
-              ? 'El rugido de Zacian y el despliegue de tu Equipo de Combate recordaron a todos los embajadores extranjeros por qué ninguna potencia se atreve a desafiar a Galar.'
-              : 'Sin siquiera recurrir a tu equipo de guerra, tu Equipo de Vida Diaria demostró que la escolta cotidiana del heredero es una muralla impenetrable.',
-            plan === 'mirror'
-              ? 'El Ditto con Pañuelo Elegido fue capturado como prueba forense: el vínculo con Tizonio y Dargo ya no puede ocultarse.'
-              : 'Neutralizaste las tácticas sucias de Espora, Bromista y Viento Afín turno por turno. El conflicto político apenas comienza.',
+              ? 'Zacian y tu Equipo de Combate recordaron a los embajadores extranjeros por qué nadie desafía abiertamente a Galar.'
+              : 'Tu Equipo de Vida Diaria neutralizó el sabotaje sin siquiera abrir la armería real.',
           ],
         };
       }
       return {
         headline: 'Evacuación de Emergencia',
-        subheadline: 'El sicario logró romper tu formación en el Salón de Estado.',
-        badgeText: 'DERROTA · REAGRUPAR',
+        subheadline: 'El sicario rompió tu formación en el Salón de Estado.',
+        badgeText: 'DERROTA · REINTENTAR',
         paragraphs: [
-          'En formato Dobles estilo Colosseum, un solo turno mal calculado contra Espora, Viento Afín o Ditto Impostor puede costarte la partida.',
-          'Reintenta el combate o cambia tus decisiones narrativas para desplegar otra composición en el Teambuilder.',
+          'Un solo turno mal calculado contra Espora, Fuego Fatuo o Ditto Impostor cuesta la partida. Reintenta el combate o cambia tus decisiones.',
         ],
       };
     },

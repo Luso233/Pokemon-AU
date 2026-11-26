@@ -4,14 +4,13 @@ import {
   ChevronRight,
   CloudSun,
   Code2,
+  Cpu,
   Crown,
   Eye,
   EyeOff,
   Flame,
   RefreshCw,
-  Shield,
   Sparkles,
-  Swords,
   Trophy,
   X,
 } from 'lucide-react';
@@ -29,6 +28,7 @@ import type {
   PartyPokemonState,
   ResolvedBattleConfig,
 } from '../types/game';
+import { CharacterPortrait } from './CharacterPortrait';
 import { MoveTooltip } from './MoveTooltip';
 import { PokemonIcon, PokemonSprite } from './PokemonSprite';
 import { PokemonTooltip } from './PokemonTooltip';
@@ -71,14 +71,33 @@ const UnrevealedPokeballSvg: React.FC<{ className?: string }> = ({
   className = 'h-5 w-5',
 }) => (
   <svg viewBox="0 0 24 24" className={className} fill="none">
-    <circle cx="12" cy="12" r="9.5" stroke="#fb7185" strokeOpacity="0.55" strokeWidth="1.6" />
-    <path d="M2.6 12h18.8" stroke="#fb7185" strokeOpacity="0.55" strokeWidth="1.6" />
+    <circle
+      cx="12"
+      cy="12"
+      r="9.5"
+      stroke="#fb7185"
+      strokeOpacity="0.55"
+      strokeWidth="1.6"
+    />
+    <path
+      d="M2.6 12h18.8"
+      stroke="#fb7185"
+      strokeOpacity="0.55"
+      strokeWidth="1.6"
+    />
     <path
       d="M12 2.5A9.5 9.5 0 0 1 21.5 12h-6.2a3.3 3.3 0 0 0-6.6 0H2.5A9.5 9.5 0 0 1 12 2.5Z"
       fill="#be123c"
       fillOpacity="0.45"
     />
-    <circle cx="12" cy="12" r="2.7" fill="#0f172a" stroke="#fb7185" strokeWidth="1.5" />
+    <circle
+      cx="12"
+      cy="12"
+      r="2.7"
+      fill="#0f172a"
+      stroke="#fb7185"
+      strokeWidth="1.5"
+    />
   </svg>
 );
 
@@ -95,13 +114,16 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
   const [showPasteModal, setShowPasteModal] = useState(false);
   const [revealRivalPasteInModal, setRevealRivalPasteInModal] = useState(false);
 
-  // Multi-slot decision queue (handles both Singles 1-slot & Doubles 2-slot)
+  // Multi-slot decision queue + Terastallize toggle
   const [slotCursor, setSlotCursor] = useState(0);
   const [queuedCommands, setQueuedCommands] = useState<string[]>([]);
   const [reservedSwitchSlots, setReservedSwitchSlots] = useState<number[]>([]);
+  const [teraQueuedInTurn, setTeraQueuedInTurn] = useState(false);
+  const [wantTera, setWantTera] = useState(false);
   const [pendingTargetMove, setPendingTargetMove] = useState<{
     move: ActiveMoveOption;
     mode: 'foe' | 'ally';
+    tera: boolean;
   } | null>(null);
 
   const startBattle = () => {
@@ -110,6 +132,8 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
     setSlotCursor(0);
     setQueuedCommands([]);
     setReservedSwitchSlots([]);
+    setTeraQueuedInTurn(false);
+    setWantTera(false);
     setPendingTargetMove(null);
 
     const ctrl = new ShowdownBattleController(config, (nextSnap) => {
@@ -148,6 +172,8 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
     setSlotCursor(idx);
     setQueuedCommands(autoCmds);
     setReservedSwitchSlots([]);
+    setTeraQueuedInTurn(false);
+    setWantTera(false);
     setPendingTargetMove(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestKey]);
@@ -156,13 +182,18 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [snapshot?.log.length]);
 
-  const commitSlotCommand = (cmd: string, switchSlotUsed?: number) => {
+  const commitSlotCommand = (
+    cmd: string,
+    switchSlotUsed?: number,
+    usedTera = false
+  ) => {
     if (!snapshot || !controllerRef.current) return;
     const nextCmds = [...queuedCommands, cmd];
     const nextReserved =
       switchSlotUsed != null
         ? [...reservedSwitchSlots, switchSlotUsed]
         : reservedSwitchSlots;
+    const nextTeraQueued = teraQueuedInTurn || usedTera;
 
     let nextIdx = slotCursor + 1;
     while (
@@ -174,31 +205,41 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
     }
 
     setPendingTargetMove(null);
+    setWantTera(false);
 
     if (nextIdx >= snapshot.pendingSlots.length) {
       setQueuedCommands([]);
       setReservedSwitchSlots([]);
+      setTeraQueuedInTurn(false);
       setSlotCursor(0);
       void controllerRef.current.submitPlayerChoice(nextCmds.join(', '));
     } else {
       setQueuedCommands(nextCmds);
       setReservedSwitchSlots(nextReserved);
+      setTeraQueuedInTurn(nextTeraQueued);
       setSlotCursor(nextIdx);
     }
   };
 
   const handleMoveClick = (move: ActiveMoveOption) => {
     if (!snapshot) return;
+    const useTera = wantTera && !teraQueuedInTurn;
+    const teraSuffix = useTera ? ' terastallize' : '';
     const targetMode = formatNeedsTarget(snapshot.format, move.target);
+
     if (targetMode === 'none') {
-      commitSlotCommand(`move ${move.index}`);
+      commitSlotCommand(`move ${move.index}${teraSuffix}`, undefined, useTera);
       return;
     }
 
     if (targetMode === 'ally') {
       const activeIdx = snapshot.pendingSlots[slotCursor]?.activeIndex ?? 0;
       const allyIdx = activeIdx === 0 ? 1 : 0;
-      commitSlotCommand(`move ${move.index} -${allyIdx + 1}`);
+      commitSlotCommand(
+        `move ${move.index} -${allyIdx + 1}${teraSuffix}`,
+        undefined,
+        useTera
+      );
       return;
     }
 
@@ -207,15 +248,21 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
       .filter(({ m }) => m && !m.fainted);
 
     if (aliveFoes.length === 1) {
-      commitSlotCommand(`move ${move.index} +${aliveFoes[0].idx + 1}`);
+      commitSlotCommand(
+        `move ${move.index} +${aliveFoes[0].idx + 1}${teraSuffix}`,
+        undefined,
+        useTera
+      );
       return;
     }
 
-    setPendingTargetMove({ move, mode: 'foe' });
+    setPendingTargetMove({ move, mode: 'foe', tera: useTera });
   };
 
   const handleUndoDoubleSlot = () => {
     setPendingTargetMove(null);
+    setWantTera(false);
+    setTeraQueuedInTurn(false);
     if (slotCursor > 0 && queuedCommands.length > 0) {
       setSlotCursor(0);
       setQueuedCommands([]);
@@ -252,11 +299,8 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
   const availableSwitches = snapshot.p1.party.filter(
     (p) => !p.active && !p.fainted && !reservedSwitchSlots.includes(p.slotIndex)
   );
+  const canTeraNow = Boolean(currentSlot?.canTerastallize) && !teraQueuedInTurn;
 
-  /**
-   * Compact Showdown-style active Pokémon entity:
-   * Compact HP bar directly over the sprite + hoverable/focusable PokemonTooltip.
-   */
   const renderActiveFighter = (
     mon: PartyPokemonState | null,
     side: 'p1' | 'p2',
@@ -291,7 +335,6 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
             mon.fainted ? 'opacity-30 grayscale' : 'opacity-100'
           }`}
         >
-          {/* Floating Effectiveness / Crit Callout */}
           {showCallout && (
             <div
               key={cue.id}
@@ -307,10 +350,14 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
             </div>
           )}
 
-          {/* Compact Showdown-style HP Bar directly above sprite */}
+          {/* Compact Showdown HP Bar above sprite */}
           <div
             className={`w-44 rounded-xl border bg-slate-950/90 px-2.5 py-1.5 shadow-lg backdrop-blur-md transition group-hover:border-amber-400/70 sm:w-48 ${
-              side === 'p1' ? 'border-amber-400/35' : 'border-rose-400/35'
+              mon.terastallized
+                ? 'border-cyan-400/75 ring-1 ring-cyan-400/30'
+                : side === 'p1'
+                  ? 'border-amber-400/35'
+                  : 'border-rose-400/35'
             }`}
           >
             <div className="flex items-center justify-between gap-1 text-[11px]">
@@ -325,6 +372,11 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                     {mon.gender === 'M' ? '♂' : '♀'}
                   </span>
                 )}
+                {mon.terastallized && (
+                  <span className="rounded bg-cyan-500/25 px-1 text-[9px] font-extrabold text-cyan-200">
+                    ✦{mon.terastallized}
+                  </span>
+                )}
                 {mon.isBossAce && (
                   <Crown
                     className="h-3 w-3 shrink-0 text-amber-400"
@@ -337,7 +389,6 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
               </span>
             </div>
 
-            {/* Slim HP Bar + Percentage */}
             <div className="mt-1 flex items-center gap-1.5">
               <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-800 ring-1 ring-white/10">
                 <div
@@ -350,12 +401,13 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
               </span>
             </div>
 
-            {/* Compact Status + Boosts + Volatiles Strip */}
-            {(statusBadge || activeBoosts.length > 0 || mon.volatiles.length > 0) && (
+            {(statusBadge ||
+              activeBoosts.length > 0 ||
+              mon.volatiles.length > 0) && (
               <div className="mt-1 flex flex-wrap items-center gap-1">
                 {statusBadge && (
                   <span
-                    className={`rounded px-1 py-0.2 text-[9px] font-extrabold ${statusBadge.cls}`}
+                    className={`rounded px-1 text-[9px] font-extrabold ${statusBadge.cls}`}
                   >
                     {statusBadge.label}
                   </span>
@@ -363,7 +415,7 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                 {activeBoosts.slice(0, 3).map(([st, val]) => (
                   <span
                     key={st}
-                    className={`font-mono-code rounded px-1 py-0.2 text-[9px] font-bold ${
+                    className={`font-mono-code rounded px-1 text-[9px] font-bold ${
                       val > 0
                         ? 'bg-emerald-500/25 text-emerald-300'
                         : 'bg-rose-500/25 text-rose-300'
@@ -375,7 +427,7 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                 {mon.volatiles.slice(0, 2).map((vol) => (
                   <span
                     key={vol}
-                    className="rounded bg-violet-500/25 px-1 py-0.2 text-[9px] font-semibold text-violet-200"
+                    className="rounded bg-violet-500/25 px-1 text-[9px] font-semibold text-violet-200"
                   >
                     {vol}
                   </span>
@@ -384,7 +436,6 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
             )}
           </div>
 
-          {/* Animated Sprite */}
           <div
             key={`${mon.ident}-${isHit ? cue?.id : 'idle'}`}
             className={`mt-1 flex items-center justify-center ${
@@ -412,7 +463,6 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
     );
   };
 
-  // Pad sideline party slots to 6 (Showdown 2x3 visual symmetry)
   const playerTeamSlots = Array.from(
     { length: Math.max(6, snapshot.p1.party.length) },
     (_, i) => snapshot.p1.party[i] ?? null
@@ -452,9 +502,14 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
               {snapshot.weather}
             </span>
           )}
+          {snapshot.terrain && (
+            <span className="inline-flex items-center gap-1 rounded-lg border border-emerald-400/35 bg-emerald-500/15 px-2.5 py-1 text-xs font-semibold text-emerald-200">
+              {snapshot.terrain}
+            </span>
+          )}
         </div>
 
-        {/* Right HUD: Rival KO Counter + Showdown Paste + Restart */}
+        {/* Right HUD */}
         <div className="flex items-center gap-2">
           <div className="inline-flex items-center gap-1.5 rounded-xl border border-rose-400/35 bg-rose-500/15 px-3 py-1.5 text-xs font-bold text-rose-200">
             <Flame className="h-3.5 w-3.5 text-rose-400" />
@@ -482,25 +537,24 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
         </div>
       </header>
 
-      {/* Showdown 2-Column Workspace (~65% Left Arena+Actions | ~35% Right Full-Height Log) */}
+      {/* Showdown 2-Column Workspace */}
       <div className="grid flex-1 grid-cols-1 lg:min-h-0 lg:grid-cols-12">
-        {/* LEFT COLUMN (~65% = 8 cols): Arena Top + Action Panel Bottom */}
+        {/* LEFT COLUMN (~65% = 8 cols): Arena + Scripted Taunt + Action Console */}
         <div className="flex flex-col gap-3 p-3 sm:p-4 lg:col-span-8 lg:min-h-0 lg:overflow-y-auto">
           {/* 1. BATTLEFIELD STAGE */}
           <div className="relative overflow-hidden rounded-3xl border border-amber-400/25 bg-slate-950 shadow-2xl">
             <SceneBackdrop theme={config.arenaTheme} className="opacity-85" />
 
-            {/* Top Overlay: Floating Showdown "Turn N" Badge + Weather/Side Conditions */}
+            {/* Top Overlay */}
             <div className="relative z-20 flex flex-wrap items-center justify-between gap-2 px-3 pt-3 sm:px-4">
               <div className="font-display rounded-xl border border-amber-400/55 bg-slate-950/90 px-3.5 py-1 text-xs font-extrabold tracking-wider text-amber-200 shadow-lg backdrop-blur-md">
                 Turn {Math.max(1, snapshot.turn)}
               </div>
 
               <div className="flex flex-wrap items-center gap-1.5">
-                {snapshot.weather && (
-                  <span className="inline-flex items-center gap-1 rounded-lg border border-sky-400/40 bg-slate-950/85 px-2.5 py-0.5 text-[11px] font-semibold text-sky-200 backdrop-blur">
-                    <CloudSun className="h-3 w-3" />
-                    {snapshot.weather}
+                {snapshot.terrain && (
+                  <span className="rounded-lg border border-emerald-400/40 bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-200">
+                    {snapshot.terrain}
                   </span>
                 )}
                 {snapshot.p1.sideConditions.map((sc) => (
@@ -522,12 +576,16 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
               </div>
             </div>
 
-            {/* Main 3-Zone Arena: Left Player Sideline | Center Stage | Right Rival Sideline */}
-            <div className="relative z-10 flex min-h-[300px] items-stretch justify-between gap-2 px-2 pb-4 pt-2 sm:min-h-[345px] sm:px-4">
-              {/* LEFT SIDELINE: Player Team 6-slot mini-sprites */}
-              <div className="flex w-20 shrink-0 flex-col items-center justify-center rounded-2xl border border-amber-400/15 bg-slate-950/60 px-1.5 py-3 backdrop-blur-sm sm:w-24">
-                <div className="mb-1.5 flex h-8 w-8 items-center justify-center rounded-full border border-amber-400/40 bg-amber-500/15 text-amber-300">
-                  <Shield className="h-4 w-4" />
+            {/* 3-Zone Arena: Left Prince Sideline | Center Stage | Right Assassin Sideline */}
+            <div className="relative z-10 flex min-h-[305px] items-stretch justify-between gap-2 px-2 pb-4 pt-2 sm:min-h-[345px] sm:px-4">
+              {/* LEFT SIDELINE: Blonde Prince Portrait + 6 Team Icons */}
+              <div className="flex w-24 shrink-0 flex-col items-center justify-center rounded-2xl border border-amber-400/20 bg-slate-950/65 px-1.5 py-2.5 backdrop-blur-sm sm:w-28">
+                <div className="mb-1 h-20 w-20 overflow-hidden rounded-xl border border-amber-400/40 bg-gradient-to-b from-slate-900 to-slate-950 p-0.5 shadow-md">
+                  <CharacterPortrait
+                    charId={config.playerCharId}
+                    variant="bust"
+                    className="h-full w-full object-cover object-top"
+                  />
                 </div>
                 <p className="mb-2 max-w-full truncate text-[10px] font-bold text-amber-200">
                   {config.playerName}
@@ -566,9 +624,8 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                 </div>
               </div>
 
-              {/* CENTER FIELD: Showdown Diagonal Perspective (Rival Top-Right, Player Bottom-Left) */}
+              {/* CENTER FIELD */}
               <div className="relative flex flex-1 flex-col justify-between py-1">
-                {/* Rival Active Row (Top-Right) */}
                 <div className="flex flex-wrap items-start justify-end gap-2 pr-1 sm:gap-4 sm:pr-4">
                   {snapshot.p2.active.map((mon, idx) => (
                     <React.Fragment key={`p2-active-${idx}`}>
@@ -577,7 +634,6 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                   ))}
                 </div>
 
-                {/* Player Active Row (Bottom-Left) */}
                 <div className="mt-1 flex flex-wrap items-end justify-start gap-2 pl-1 sm:gap-4 sm:pl-4">
                   {snapshot.p1.active.map((mon, idx) => (
                     <React.Fragment key={`p1-active-${idx}`}>
@@ -587,10 +643,14 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                 </div>
               </div>
 
-              {/* RIGHT SIDELINE: Rival Team 6-slot Fog-of-War mini-sprites / Pokéballs */}
-              <div className="flex w-20 shrink-0 flex-col items-center justify-center rounded-2xl border border-rose-400/15 bg-slate-950/60 px-1.5 py-3 backdrop-blur-sm sm:w-24">
-                <div className="mb-1.5 flex h-8 w-8 items-center justify-center rounded-full border border-rose-400/40 bg-rose-500/15 text-rose-300">
-                  <Swords className="h-4 w-4" />
+              {/* RIGHT SIDELINE: Crimson Assassin Portrait + 6 Fog-of-War Slots */}
+              <div className="flex w-24 shrink-0 flex-col items-center justify-center rounded-2xl border border-rose-500/25 bg-slate-950/65 px-1.5 py-2.5 backdrop-blur-sm sm:w-28">
+                <div className="mb-1 h-20 w-20 overflow-hidden rounded-xl border border-rose-500/45 bg-gradient-to-b from-slate-900 to-slate-950 p-0.5 shadow-md">
+                  <CharacterPortrait
+                    charId={config.rivalCharId}
+                    variant="bust"
+                    className="h-full w-full object-cover object-top"
+                  />
                 </div>
                 <p className="mb-2 max-w-full truncate text-[10px] font-bold text-rose-200">
                   {config.rivalName}
@@ -645,7 +705,37 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
             </div>
           </div>
 
-          {/* 2. ACTION PANEL (DIRECTLY BELOW ARENA) */}
+          {/* 1.5 SCRIPTED AI DIALOGUE TAUNT STRIP (fires when enemy scripted turn rule activates!) */}
+          {snapshot.activeTaunt && (
+            <div
+              key={snapshot.activeTaunt.id}
+              className="animate-fade-in-up flex items-center gap-3 rounded-2xl border border-rose-500/40 bg-gradient-to-r from-rose-950/70 via-slate-950/95 to-slate-950/95 px-3.5 py-2.5 shadow-lg"
+            >
+              <div className="h-11 w-11 shrink-0 overflow-hidden rounded-xl border border-rose-500/50 bg-slate-900 p-0.5">
+                <CharacterPortrait
+                  charId={snapshot.activeTaunt.charId}
+                  variant="bust"
+                  className="h-full w-full object-cover object-top"
+                />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-rose-300">
+                    {snapshot.activeTaunt.speaker}
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded bg-violet-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-violet-200 border border-violet-400/30">
+                    <Cpu className="h-2.5 w-2.5" />
+                    Turno {snapshot.activeTaunt.turn} Scripteado
+                  </span>
+                </div>
+                <p className="mt-0.5 text-xs italic text-slate-100">
+                  {snapshot.activeTaunt.text}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* 2. ACTION PANEL */}
           <div className="rounded-3xl border border-slate-800 bg-slate-950/95 p-4 shadow-xl">
             {snapshot.status === 'ended' ? (
               <div className="flex flex-col items-center justify-center py-4 text-center">
@@ -693,14 +783,18 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                 Resolviendo turno en @pkmn/sim...
               </div>
             ) : pendingTargetMove ? (
-              /* Doubles Target Picker */
               <div>
                 <div className="mb-3 flex items-center justify-between">
                   <p className="text-sm font-bold text-amber-200">
                     Objetivo para{' '}
                     <span className="text-white">
                       {pendingTargetMove.move.name}
-                    </span>{' '}
+                    </span>
+                    {pendingTargetMove.tera && (
+                      <span className="ml-1.5 rounded bg-cyan-500/20 px-1.5 py-0.5 text-[10px] text-cyan-200">
+                        ✦ Tera
+                      </span>
+                    )}{' '}
                     ({currentSlot.pokemon.name})
                   </p>
                   <button
@@ -723,7 +817,11 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                         <button
                           onClick={() =>
                             commitSlotCommand(
-                              `move ${pendingTargetMove.move.index} +${idx + 1}`
+                              `move ${pendingTargetMove.move.index} +${idx + 1}${
+                                pendingTargetMove.tera ? ' terastallize' : ''
+                              }`,
+                              undefined,
+                              pendingTargetMove.tera
                             )
                           }
                           className="flex w-full items-center justify-between rounded-2xl border border-rose-400/40 bg-rose-500/10 p-3.5 text-left transition hover:border-rose-400 hover:bg-rose-500/20 cursor-pointer"
@@ -747,7 +845,6 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                 </div>
               </div>
             ) : currentSlot.forceSwitch ? (
-              /* Forced Switch Panel */
               <div>
                 <p className="mb-3 text-sm font-bold text-amber-300">
                   ¡{currentSlot.pokemon.name} se debilitó! Elige qué Pokémon entra
@@ -788,7 +885,6 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                 </div>
               </div>
             ) : (
-              /* Standard Showdown Attack + Switch Console */
               <div>
                 <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
@@ -824,9 +920,9 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                   )}
                 </div>
 
-                {/* Attack Row (Showdown 4-wide horizontal cards on desktop) */}
+                {/* Attack Row */}
                 <p className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-amber-300/80">
-                  Atacar (pasa el cursor para detalles tácticos)
+                  Atacar (hover para precisión, potencia y objetivo)
                 </p>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {currentSlot.moves.map((mv) => (
@@ -855,6 +951,31 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                     </MoveTooltip>
                   ))}
                 </div>
+
+                {/* Terastallize Toggle (Showdown-style centered button!) */}
+                {canTeraNow && typeof currentSlot.canTerastallize === 'string' && (
+                  <div className="mt-2.5 flex justify-center">
+                    <button
+                      type="button"
+                      onClick={() => setWantTera((v) => !v)}
+                      className={`inline-flex items-center gap-2 rounded-xl border px-4 py-1.5 text-xs font-bold transition cursor-pointer ${
+                        wantTera
+                          ? 'border-cyan-300 bg-cyan-500/25 text-cyan-100 shadow-lg shadow-cyan-500/20 ring-1 ring-cyan-300/60'
+                          : 'border-slate-700 bg-slate-900/90 text-slate-300 hover:border-cyan-400/60 hover:text-cyan-200'
+                      }`}
+                    >
+                      <Sparkles className="h-3.5 w-3.5 text-cyan-300" />
+                      <span>Teracristalizar</span>
+                      <span
+                        className={`rounded border px-1.5 py-0.5 text-[10px] uppercase ${getTypeBadgeClass(
+                          currentSlot.canTerastallize
+                        )}`}
+                      >
+                        {currentSlot.canTerastallize}
+                      </span>
+                    </button>
+                  </div>
+                )}
 
                 {/* Switch Row */}
                 <div className="mt-3 border-t border-slate-800/90 pt-2.5">
@@ -924,9 +1045,8 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
           </div>
         </div>
 
-        {/* RIGHT COLUMN (~35% = 4 cols): Full-Height Showdown-Style Battle Log */}
+        {/* RIGHT COLUMN (~35% = 4 cols): Full-Height Battle Log */}
         <aside className="flex min-h-[22rem] flex-col border-t border-amber-400/15 bg-[#080d1a] lg:col-span-4 lg:min-h-0 lg:border-l lg:border-t-0">
-          {/* Log Room Header */}
           <div className="shrink-0 border-b border-slate-800/90 bg-slate-950/90 px-4 py-3">
             <div className="flex items-center justify-between gap-2">
               <span className="font-display text-xs font-bold uppercase tracking-widest text-amber-300">
@@ -942,11 +1062,11 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
             </p>
             <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-slate-400">
               <EyeOff className="h-3 w-3 text-rose-400" />
-              Niebla de Guerra activa · pasa el mouse sobre sprites para datos
+              Niebla de Guerra + IA Scripteada ({config.scriptedEnemyRules.length}{' '}
+              reglas)
             </p>
           </div>
 
-          {/* Scrollable Log Body */}
           <div className="flex-1 space-y-1.5 overflow-y-auto px-4 py-3 text-xs">
             {snapshot.log.map((entry) => {
               if (entry.kind === 'turn') {
@@ -965,6 +1085,17 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                   <div
                     key={entry.id}
                     className="my-2 rounded-xl border border-amber-400/40 bg-amber-500/15 px-3 py-2 text-center text-xs font-extrabold text-amber-200"
+                  >
+                    {entry.text}
+                  </div>
+                );
+              }
+
+              if (entry.kind === 'script') {
+                return (
+                  <div
+                    key={entry.id}
+                    className="my-1 rounded-lg border border-violet-400/30 bg-violet-500/10 px-2.5 py-1.5 text-[11px] font-semibold text-violet-200"
                   >
                     {entry.text}
                   </div>
@@ -999,7 +1130,7 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
         </aside>
       </div>
 
-      {/* Showdown Paste Modal (Respects Fog of War unless explicitly toggled) */}
+      {/* Showdown Paste Modal */}
       {showPasteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
           <div className="w-full max-w-3xl rounded-3xl border border-amber-400/30 bg-slate-950 p-6 shadow-2xl">

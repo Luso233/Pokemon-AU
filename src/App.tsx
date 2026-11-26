@@ -89,7 +89,7 @@ export default function App() {
     return (
       <HomePage
         onOpenChapters={() => setScreen('chapters')}
-        onQuickStartTestChapter={() => startChapter(CHAPTERS[0])}
+        onQuickStartMainChapter={() => startChapter(CHAPTERS[0])}
         progress={progress}
       />
     );

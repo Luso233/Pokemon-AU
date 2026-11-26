@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { InkVNRunner, type VNFrameState } from '../engine/inkRunner';
 import type { ChapterDefinition, StoryFlags } from '../types/game';
+import { CharacterPortrait } from './CharacterPortrait';
 import { PokemonSprite } from './PokemonSprite';
 import { SceneBackdrop } from './SceneBackdrop';
 
@@ -55,7 +56,7 @@ export const VisualNovelView: React.FC<VisualNovelViewProps> = ({
     if (!fullText || typedLen >= fullText.length) return;
     const timer = window.setTimeout(() => {
       setTypedLen((prev) => Math.min(fullText.length, prev + 2));
-    }, 16);
+    }, 15);
     return () => window.clearTimeout(timer);
   }, [fullText, typedLen]);
 
@@ -77,7 +78,6 @@ export const VisualNovelView: React.FC<VisualNovelViewProps> = ({
     setFrame(runnerRef.current.choose(index));
   };
 
-  // Keyboard shortcuts: Space / Enter to advance, 1-3 for choices
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (showHistory) return;
@@ -107,15 +107,23 @@ export const VisualNovelView: React.FC<VisualNovelViewProps> = ({
 
   const line = frame.currentLine;
   const displayedText = fullText.slice(0, typedLen);
-  const bg = line?.bg ?? 'royal-pond';
-  const side = line?.side ?? 'left';
+  const bg = line?.bg ?? 'wyndon-alleys';
+  const activeSide = line?.activeSide ?? 'left';
+  const leftChar = line?.leftChar ?? null;
+  const rightChar = line?.rightChar ?? null;
+  const activeSpeakerBust =
+    line?.speaker === 'Príncipe Heredero'
+      ? 'prince'
+      : line?.speaker === 'Asesino Carmesí' || line?.speaker === 'Sicario de la Corte'
+        ? 'assassin'
+        : null;
 
   return (
     <div className="relative flex min-h-screen flex-col justify-between overflow-hidden bg-slate-950 text-slate-100">
       <SceneBackdrop theme={bg} />
 
       {/* Top HUD Bar */}
-      <header className="relative z-20 flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-slate-950/65 px-5 py-3.5 backdrop-blur-md">
+      <header className="relative z-20 flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-slate-950/75 px-5 py-3 backdrop-blur-md">
         <div className="flex items-center gap-3">
           <button
             onClick={onExitToChapters}
@@ -165,14 +173,14 @@ export const VisualNovelView: React.FC<VisualNovelViewProps> = ({
         </div>
       </header>
 
-      {/* Live Ink Variables Overlay Pill */}
+      {/* Live Ink Variables Overlay */}
       {showFlags && (
         <div className="relative z-20 mx-auto mt-3 w-full max-w-4xl px-5">
           <div className="rounded-2xl border border-sky-400/30 bg-slate-950/90 p-3.5 shadow-xl backdrop-blur-md">
             <div className="mb-2 flex items-center justify-between text-xs">
               <span className="inline-flex items-center gap-1.5 font-semibold text-sky-300">
                 <GitBranch className="h-3.5 w-3.5" />
-                Estado en vivo de variables Ink (alimentarán el Teambuilder)
+                Variables Ink en vivo (alimentan el Teambuilder y la IA Scripteada)
               </span>
               <span className="font-mono-code text-[11px] text-slate-400">
                 story.variablesState
@@ -185,7 +193,7 @@ export const VisualNovelView: React.FC<VisualNovelViewProps> = ({
                   className="font-mono-code rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1 text-xs text-slate-200"
                 >
                   <span className="text-sky-400">{k}</span> ={' '}
-                  <span className="text-amber-300">"{String(v)}"</span>
+                  <span className="text-amber-300">&quot;{String(v)}&quot;</span>
                 </span>
               ))}
             </div>
@@ -193,74 +201,88 @@ export const VisualNovelView: React.FC<VisualNovelViewProps> = ({
         </div>
       )}
 
-      {/* Stage Area (Sprites + Character Presence) */}
+      {/* Stage Area: Full-Body Character Portraits + Companion Pokémon */}
       <div
         onClick={() => {
           if (frame.choices.length === 0 || isTyping) {
             handleAdvance();
           }
         }}
-        className="relative z-10 mx-auto flex w-full max-w-5xl flex-1 items-end justify-between px-6 pb-4 pt-8 cursor-pointer"
+        className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 items-end justify-between px-4 pb-2 pt-6 sm:px-10 cursor-pointer"
       >
-        {/* Left Character/Pokemon Stage */}
+        {/* LEFT CHARACTER SLOT (Prince) */}
         <div
-          className={`flex flex-col items-center transition-all duration-300 ${
-            side === 'left'
-              ? 'scale-105 opacity-100'
-              : 'scale-90 opacity-40 blur-[0.4px]'
+          className={`relative flex items-end gap-2 transition-all duration-300 ${
+            activeSide === 'left'
+              ? 'z-20 scale-105 opacity-100 brightness-100'
+              : 'z-10 scale-95 opacity-55 brightness-75'
           }`}
         >
-          {line?.pokemon && side === 'left' && (
-            <div className="animate-fade-in-up flex flex-col items-center">
+          {leftChar && (
+            <CharacterPortrait
+              charId={leftChar}
+              variant="sprite"
+              className="h-[18rem] w-auto sm:h-[24rem]"
+            />
+          )}
+          {line?.pokemon && activeSide === 'left' && (
+            <div className="animate-fade-in-up mb-8 hidden flex-col items-center sm:flex">
               <PokemonSprite
                 species={line.pokemon}
                 side="p2"
-                className="h-40 w-40 sm:h-48 sm:w-48 animate-float-slow"
+                className="h-28 w-28 animate-float-slow"
               />
-              <span className="mt-2 rounded-full border border-amber-400/30 bg-slate-950/80 px-3 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-amber-200">
+              <span className="mt-1 rounded-full border border-amber-400/35 bg-slate-950/85 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-200">
                 {line.pokemon}
               </span>
             </div>
           )}
         </div>
 
-        {/* Right Character/Pokemon Stage */}
+        {/* RIGHT CHARACTER SLOT (Assassin) */}
         <div
-          className={`flex flex-col items-center transition-all duration-300 ${
-            side === 'right'
-              ? 'scale-105 opacity-100'
-              : 'scale-90 opacity-40 blur-[0.4px]'
+          className={`relative flex items-end gap-2 transition-all duration-300 ${
+            activeSide === 'right'
+              ? 'z-20 scale-105 opacity-100 brightness-100'
+              : 'z-10 scale-95 opacity-55 brightness-75'
           }`}
         >
-          {line?.pokemon && side === 'right' && (
-            <div className="animate-fade-in-up flex flex-col items-center">
+          {line?.pokemon && activeSide === 'right' && (
+            <div className="animate-fade-in-up mb-8 hidden flex-col items-center sm:flex">
               <PokemonSprite
                 species={line.pokemon}
                 side="p2"
-                className="h-40 w-40 sm:h-48 sm:w-48 animate-float-slow"
+                className="h-28 w-28 animate-float-slow"
               />
-              <span className="mt-2 rounded-full border border-rose-400/30 bg-slate-950/80 px-3 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-rose-200">
+              <span className="mt-1 rounded-full border border-rose-400/35 bg-slate-950/85 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-rose-200">
                 {line.pokemon}
               </span>
             </div>
+          )}
+          {rightChar && (
+            <CharacterPortrait
+              charId={rightChar}
+              variant="sprite"
+              className="h-[18rem] w-auto sm:h-[24rem]"
+            />
           )}
         </div>
       </div>
 
       {/* Choices + Dialogue Box */}
-      <div className="relative z-20 mx-auto w-full max-w-4xl px-4 pb-6 sm:px-6">
+      <div className="relative z-20 mx-auto w-full max-w-4xl px-4 pb-5 sm:px-6">
         {/* Branching Choices */}
         {!isTyping && frame.choices.length > 0 && (
-          <div className="animate-fade-in-up mb-4 space-y-2.5">
+          <div className="animate-fade-in-up mb-3.5 space-y-2">
             <div className="flex items-center gap-2 px-1 text-xs font-semibold uppercase tracking-wider text-amber-300">
               <GitBranch className="h-3.5 w-3.5" />
-              Tu decisión modificará el Teambuilder del combate
+              Decisión táctica — afectará los equipos y la IA del combate
             </div>
             {frame.choices.map((choice, idx) => (
               <button
                 key={choice.index}
                 onClick={() => handleChoice(choice.index)}
-                className="group flex w-full items-center justify-between gap-4 rounded-2xl border border-amber-400/35 bg-slate-950/90 px-5 py-3.5 text-left text-sm font-medium text-slate-100 shadow-lg backdrop-blur-md transition hover:border-amber-400 hover:bg-amber-500/15 hover:text-white active:scale-[0.99] cursor-pointer"
+                className="group flex w-full items-center justify-between gap-4 rounded-2xl border border-amber-400/35 bg-slate-950/92 px-5 py-3 text-left text-sm font-medium text-slate-100 shadow-lg backdrop-blur-md transition hover:border-amber-400 hover:bg-amber-500/15 hover:text-white active:scale-[0.99] cursor-pointer"
               >
                 <div className="flex items-center gap-3.5">
                   <span className="font-mono-code flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-amber-400/40 bg-amber-500/15 text-xs font-bold text-amber-300 group-hover:bg-amber-400 group-hover:text-slate-950">
@@ -281,45 +303,63 @@ export const VisualNovelView: React.FC<VisualNovelViewProps> = ({
               handleAdvance();
             }
           }}
-          className="relative rounded-3xl border border-amber-400/30 bg-slate-950/90 p-5 shadow-2xl shadow-black/70 backdrop-blur-xl sm:p-6 cursor-pointer"
+          className="relative rounded-3xl border border-amber-400/35 bg-slate-950/92 p-5 shadow-2xl shadow-black/80 backdrop-blur-xl sm:p-6 cursor-pointer"
         >
-          {/* Speaker nameplate */}
-          <div className="mb-2.5 flex items-center justify-between">
-            <span
-              className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-1 text-xs font-bold uppercase tracking-wider ${
-                line?.speaker === 'Príncipe Heredero'
-                  ? 'border border-amber-400/40 bg-amber-500/20 text-amber-200'
-                  : line?.speaker === 'Lord Vane' ||
-                      line?.speaker === 'Sicario de la Corte'
-                    ? 'border border-rose-400/40 bg-rose-500/20 text-rose-200'
-                    : line?.speaker === 'Sistema Táctico'
-                      ? 'border border-sky-400/40 bg-sky-500/20 text-sky-200'
-                      : 'border border-slate-700 bg-slate-800/90 text-slate-200'
-              }`}
-            >
-              {line?.speaker ?? 'Narrador'}
-            </span>
+          <div className="flex items-start gap-4">
+            {activeSpeakerBust && (
+              <div
+                className={`hidden h-16 w-16 shrink-0 overflow-hidden rounded-2xl border bg-slate-900/90 p-0.5 sm:flex ${
+                  activeSpeakerBust === 'prince'
+                    ? 'border-amber-400/50'
+                    : 'border-rose-500/50'
+                }`}
+              >
+                <CharacterPortrait
+                  charId={activeSpeakerBust}
+                  variant="bust"
+                  className="h-full w-full object-cover object-top"
+                />
+              </div>
+            )}
 
-            <span className="text-[11px] text-slate-400">
-              {isTyping
-                ? 'Clic o Espacio para completar'
-                : frame.choices.length > 0
-                  ? 'Elige una opción (1–3)'
-                  : frame.isEnded
-                    ? 'Fin de la escena narrativa'
-                    : 'Clic o Espacio para continuar ▼'}
-            </span>
+            <div className="min-w-0 flex-1">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <span
+                  className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-1 text-xs font-bold uppercase tracking-wider ${
+                    line?.speaker === 'Príncipe Heredero'
+                      ? 'border border-amber-400/40 bg-amber-500/20 text-amber-200'
+                      : line?.speaker === 'Asesino Carmesí' ||
+                          line?.speaker === 'Sicario de la Corte'
+                        ? 'border border-rose-400/40 bg-rose-500/20 text-rose-200'
+                        : line?.speaker === 'Sistema Táctico'
+                          ? 'border border-sky-400/40 bg-sky-500/20 text-sky-200'
+                          : 'border border-slate-700 bg-slate-800/90 text-slate-200'
+                  }`}
+                >
+                  {line?.speaker ?? 'Narrador'}
+                </span>
+
+                <span className="text-[11px] text-slate-400">
+                  {isTyping
+                    ? 'Clic o Espacio para completar'
+                    : frame.choices.length > 0
+                      ? 'Elige una opción (1–3)'
+                      : frame.isEnded
+                        ? 'Fin de la persecución'
+                        : 'Clic o Espacio para continuar ▼'}
+                </span>
+              </div>
+
+              <p className="min-h-[3.75rem] text-base leading-relaxed text-slate-100 sm:text-lg">
+                {displayedText}
+                {isTyping && (
+                  <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-amber-400 align-middle" />
+                )}
+              </p>
+            </div>
           </div>
 
-          {/* Dialogue text */}
-          <p className="min-h-[4.25rem] text-base leading-relaxed text-slate-100 sm:text-lg">
-            {displayedText}
-            {isTyping && (
-              <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-amber-400 align-middle" />
-            )}
-          </p>
-
-          {/* End of VN -> Proceed to Teambuilder */}
+          {/* End of VN -> Proceed to Teambuilder Briefing */}
           {!isTyping && frame.isEnded && (
             <div className="mt-4 flex justify-end border-t border-slate-800/80 pt-4">
               <button
@@ -330,7 +370,7 @@ export const VisualNovelView: React.FC<VisualNovelViewProps> = ({
                 className="inline-flex items-center gap-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 px-6 py-3 text-sm font-bold text-slate-950 shadow-xl shadow-amber-500/25 transition hover:brightness-110 active:scale-[0.98] cursor-pointer"
               >
                 <Sparkles className="h-4 w-4" />
-                Compilar Árbol de Decisiones → Teambuilder
+                Compilar Equipos e IA → Briefing Táctico
                 <ChevronRight className="h-4 w-4" />
               </button>
             </div>

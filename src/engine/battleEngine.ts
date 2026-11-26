@@ -39,10 +39,6 @@ export function getShowdownMaxPP(moveNameOrId: string): number {
   return Math.floor((mv.pp * 8) / 5);
 }
 
-/**
- * Computes Min–Max Speed range for a Pokémon at a given level using @pkmn/sim Dex baseStats,
- * dynamically adjusted by active Speed boosts, Paralysis (x0.5), and Tailwind (x2).
- */
 export function computeSpeedRange(
   speciesName: string,
   level: number,
@@ -54,9 +50,7 @@ export function computeSpeedRange(
   const baseSpe = sp?.baseStats?.spe ?? 50;
   const lvl = Math.max(1, level || 100);
 
-  // Min: 0 IV, 0 EV, hindering nature (0.9x)
   const baseMin = Math.floor((Math.floor((2 * baseSpe * lvl) / 100) + 5) * 0.9);
-  // Max: 31 IV, 252 EV (+63), boosting nature (1.1x)
   const baseMax = Math.floor(
     (Math.floor(((2 * baseSpe + 31 + 63) * lvl) / 100) + 5) * 1.1
   );
@@ -133,7 +127,7 @@ function parseDetails(details: string): {
 
 function parseSlotFromIdent(ident: string): {
   side: 'p1' | 'p2';
-  slotIndex: number; // 0 for a, 1 for b
+  slotIndex: number;
   name: string;
 } {
   const colonIdx = ident.indexOf(':');
@@ -166,6 +160,16 @@ function weatherLabel(id: string): string {
   return map[id] ?? id;
 }
 
+function terrainLabel(id: string): string {
+  const map: Record<string, string> = {
+    'Grassy Terrain': 'Campo de Hierba',
+    'Electric Terrain': 'Campo Eléctrico',
+    'Psychic Terrain': 'Campo Psíquico',
+    'Misty Terrain': 'Campo de Niebla',
+  };
+  return map[id] ?? id;
+}
+
 function statusSpanish(st: string): string {
   const map: Record<string, string> = {
     brn: 'quemado',
@@ -192,7 +196,9 @@ export class ShowdownBattleController {
   private state: BattleSnapshot;
   private logSeq = 0;
   private cueSeq = 0;
+  private tauntSeq = 0;
   private destroyed = false;
+  private triggeredRuleIds = new Set<string>();
   private lastAttackSource: { side: 'p1' | 'p2'; slot: number } | null = null;
 
   constructor(
@@ -227,6 +233,8 @@ export class ShowdownBattleController {
       log: [],
       winner: null,
       lastCue: null,
+      activeTaunt: null,
+      triggeredScriptIds: [],
       koCountP2: 0,
       totalP2: 0,
     };
@@ -277,6 +285,10 @@ export class ShowdownBattleController {
         moves: [...s.moves],
       })),
       log: [...this.state.log],
+      triggeredScriptIds: [...this.state.triggeredScriptIds],
+      activeTaunt: this.state.activeTaunt
+        ? { ...this.state.activeTaunt }
+        : null,
     };
   }
 
@@ -321,10 +333,6 @@ export class ShowdownBattleController {
     }
   }
 
-  /**
-   * Finds the matching party object for a given side & active slot / nickname,
-   * ensuring active and party stay in sync.
-   */
   private getTargetMons(
     side: 'p1' | 'p2',
     slotIndex: number,
@@ -333,9 +341,7 @@ export class ShowdownBattleController {
     const activeMon = this.state[side].active[slotIndex] ?? null;
     const partyMon =
       this.state[side].party.find(
-        (p) =>
-          (activeMon && p.ident === activeMon.ident) ||
-          p.name === name
+        (p) => (activeMon && p.ident === activeMon.ident) || p.name === name
       ) ?? null;
     return { activeMon, partyMon };
   }
@@ -376,11 +382,6 @@ export class ShowdownBattleController {
     apply(partyMon);
   }
 
-  /**
-   * Scans extra Showdown protocol tags like `[from] ability: Rough Skin`,
-   * `[from] item: Leftovers`, `[of] p2a: Magikarp I` so passive activations
-   * also reveal rival abilities/items accurately under Fog of War!
-   */
   private inspectTagsForReveals(
     defaultIdent: string | undefined,
     extraParts: string[]
@@ -427,7 +428,6 @@ export class ShowdownBattleController {
     const p1Packed = Teams.pack(p1Sets);
     const p2Packed = Teams.pack(p2Sets);
 
-    // Only the total team size is public before battle; species/items/abilities remain in Fog of War!
     this.state.totalP2 = p2Sets.length;
     this.pushLog(
       'system',
@@ -522,8 +522,8 @@ export class ShowdownBattleController {
   }
 
   /**
-   * Consumes P2's private request stream ONLY to drive the Rival AI.
-   * NEVER leaks private rival info (hidden items/abilities/unrevealed party) into `this.state.p2`!
+   * Consumes P2's private request stream ONLY to drive the Scripted + Tactical AI.
+   * NEVER leaks private rival info into `this.state.p2`!
    */
   private async consumeRivalStream(stream: AsyncIterable<string>): Promise<void> {
     try {
@@ -539,7 +539,7 @@ export class ShowdownBattleController {
             continue;
           }
 
-          const cmd = chooseRivalAction(req, {
+          const decision = chooseRivalAction(req, {
             format: this.config.format,
             foeActiveSpecies: this.state.p1.active.map((m) =>
               m && !m.fainted ? m.species : null
@@ -547,10 +547,36 @@ export class ShowdownBattleController {
             foeActiveStatus: this.state.p1.active.map((m) =>
               m && !m.fainted ? m.status || null : null
             ),
-            turn: this.state.turn,
+            foeSideConditions: this.state.p1.sideConditions,
+            turn: Math.max(1, this.state.turn),
+            scriptedRules: this.config.scriptedEnemyRules ?? [],
+            triggeredRuleIds: this.triggeredRuleIds,
           });
-          if (cmd && this.streams) {
-            await this.streams.p2.write(cmd);
+
+          if (decision && this.streams) {
+            if (decision.triggeredRules.length > 0) {
+              for (const rule of decision.triggeredRules) {
+                if (!this.state.triggeredScriptIds.includes(rule.id)) {
+                  this.state.triggeredScriptIds.push(rule.id);
+                }
+                this.pushLog(
+                  'script',
+                  `⚡ [Patrón del Asesino · Turno ${Math.max(1, this.state.turn)}] ${rule.description}`
+                );
+                if (rule.tauntLine) {
+                  this.state.activeTaunt = {
+                    id: ++this.tauntSeq,
+                    turn: Math.max(1, this.state.turn),
+                    speaker: this.config.rivalName,
+                    charId: this.config.rivalCharId,
+                    text: rule.tauntLine,
+                    ruleDescription: rule.description,
+                  };
+                }
+              }
+              this.emit();
+            }
+            await this.streams.p2.write(decision.command);
           }
         }
       }
@@ -559,9 +585,6 @@ export class ShowdownBattleController {
     }
   }
 
-  /**
-   * Syncs P1 (Player's own team) exact info from P1's request stream.
-   */
   private syncPlayerSideFromRequest(req: ShowdownRequest): void {
     const sideState = this.state.p1;
     const reqParty = req.side?.pokemon ?? [];
@@ -580,6 +603,7 @@ export class ShowdownBattleController {
         ? mon.ident.split(':').slice(1).join(':').trim()
         : det.species;
       const prev = existingByIdent.get(mon.ident);
+      const terastallized = prev?.terastallized ?? null;
 
       const stateMon: PartyPokemonState = {
         slotIndex: idx + 1,
@@ -597,7 +621,13 @@ export class ShowdownBattleController {
         item: mon.item || '',
         ability: mon.baseAbility || '',
         moves: mon.moves || [],
-        types: speciesData.types ? [...speciesData.types] : ['Normal'],
+        types: terastallized
+          ? [terastallized]
+          : speciesData.types
+            ? [...speciesData.types]
+            : ['Normal'],
+        teraType: mon.teraType || prev?.teraType,
+        terastallized,
         stats: mon.stats
           ? {
               atk: mon.stats.atk ?? 0,
@@ -701,7 +731,8 @@ export class ShowdownBattleController {
             target: m.target || data.target || 'normal',
             disabled: Boolean(m.disabled),
             type: data.type || 'Normal',
-            category: (data.category as ActiveMoveOption['category']) || 'Physical',
+            category:
+              (data.category as ActiveMoveOption['category']) || 'Physical',
             basePower: data.basePower || 0,
             accuracy: data.accuracy ?? true,
             priority: data.priority ?? 0,
@@ -715,7 +746,7 @@ export class ShowdownBattleController {
           moves,
           trapped: Boolean(slot.trapped),
           canMegaEvo: Boolean(slot.canMegaEvo),
-          canTerastallize: false,
+          canTerastallize: slot.canTerastallize || false,
           forceSwitch: false,
           pass: false,
         });
@@ -756,7 +787,6 @@ export class ShowdownBattleController {
         const speciesData = Dex.species.get(det.species);
         const sideState = this.state[side];
 
-        // Clear active/boosts/volatiles on the mon leaving this slot
         const prevInSlot = sideState.active[slotIndex];
         if (prevInSlot) {
           prevInSlot.active = false;
@@ -786,6 +816,7 @@ export class ShowdownBattleController {
             ability: '',
             moves: [],
             types: speciesData.types ? [...speciesData.types] : ['Normal'],
+            terastallized: null,
             boosts: {},
             revealed: true,
             revealedAbility: null,
@@ -808,7 +839,11 @@ export class ShowdownBattleController {
           existing.revealed = true;
           existing.boosts = {};
           existing.volatiles = [];
-          existing.types = speciesData.types ? [...speciesData.types] : existing.types;
+          existing.types = existing.terastallized
+            ? [existing.terastallized]
+            : speciesData.types
+              ? [...speciesData.types]
+              : existing.types;
           existing.possibleAbilities = getPossibleAbilities(det.species);
           existing.isBossAce = side === 'p2' && det.level > this.state.levelCap;
         }
@@ -827,6 +862,24 @@ export class ShowdownBattleController {
         break;
       }
 
+      case '-terastallize': {
+        const { side, slotIndex, name } = parseSlotFromIdent(parts[2] ?? '');
+        const teraType = parts[3] ?? '';
+        if (teraType) {
+          const { activeMon, partyMon } = this.getTargetMons(side, slotIndex, name);
+          for (const m of [activeMon, partyMon]) {
+            if (!m) continue;
+            m.terastallized = teraType;
+            m.types = [teraType];
+          }
+          this.pushLog(
+            'ability',
+            `✦ ${name} se teracristalizó a tipo ${teraType}!`
+          );
+        }
+        break;
+      }
+
       case 'move': {
         const { side, slotIndex, name } = parseSlotFromIdent(parts[2] ?? '');
         const moveName = parts[3] ?? 'Movimiento';
@@ -837,7 +890,6 @@ export class ShowdownBattleController {
         this.emitCue({ attackerSide: side, attackerSlot: slotIndex });
         this.pushLog('move', `${name} usó ${moveName}!`);
 
-        // Track revealed moves + PP count (ignore Struggle or sub-calls like Sleep Talk)
         const moveData = Dex.moves.get(moveName);
         if (!isFromSubMove && moveData.id !== 'struggle') {
           const { activeMon, partyMon } = this.getTargetMons(side, slotIndex, name);
@@ -969,6 +1021,12 @@ export class ShowdownBattleController {
         break;
       }
 
+      case '-fail': {
+        const { name } = parseSlotFromIdent(parts[2] ?? '');
+        this.pushLog('status', `¡Pero falló (${name})!`);
+        break;
+      }
+
       case '-status': {
         const { side, slotIndex, name } = parseSlotFromIdent(parts[2] ?? '');
         const st = parts[3] ?? '';
@@ -1082,6 +1140,25 @@ export class ShowdownBattleController {
         break;
       }
 
+      case '-fieldstart': {
+        const field = cleanEffectName(parts[2] ?? '');
+        this.inspectTagsForReveals(undefined, parts.slice(3));
+        if (field.includes('Terrain')) {
+          this.state.terrain = terrainLabel(field);
+        }
+        this.pushLog('weather', `Campo activo: ${terrainLabel(field)}.`);
+        break;
+      }
+
+      case '-fieldend': {
+        const field = cleanEffectName(parts[2] ?? '');
+        if (field.includes('Terrain')) {
+          this.state.terrain = '';
+        }
+        this.pushLog('weather', `Terminó ${terrainLabel(field)}.`);
+        break;
+      }
+
       case '-weather': {
         const w = parts[2] ?? '';
         this.inspectTagsForReveals(undefined, parts.slice(3));
@@ -1110,16 +1187,17 @@ export class ShowdownBattleController {
           (c) => c !== condName
         );
         this.refreshSideSpeeds(side);
-        this.pushLog('status', `Terminó ${condName} en el lado de ${this.state[side].playerName}.`);
+        this.pushLog(
+          'status',
+          `Terminó ${condName} en el lado de ${this.state[side].playerName}.`
+        );
         break;
       }
 
       case '-activate': {
         const effect = cleanEffectName(parts[3] ?? '');
         this.inspectTagsForReveals(parts[2], parts.slice(3));
-        if (effect.includes('Splash')) {
-          this.pushLog('status', '¡Pero no tuvo ningún efecto!');
-        } else if (effect) {
+        if (effect) {
           const { side, slotIndex, name } = parseSlotFromIdent(parts[2] ?? '');
           if (parts[3]?.toLowerCase().startsWith('item:')) {
             this.recordItemReveal(side, slotIndex, name, effect, false);

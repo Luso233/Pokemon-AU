@@ -1,37 +1,39 @@
 import React from 'react';
 import {
   BookOpen,
+  Cpu,
   Crown,
   GitBranch,
   Play,
   Shield,
   Sparkles,
   Swords,
-  Zap,
 } from 'lucide-react';
-import { PokemonSprite } from './PokemonSprite';
+import { CharacterPortrait } from './CharacterPortrait';
 import type { ChapterProgress } from '../types/game';
 
 interface HomePageProps {
   onOpenChapters: () => void;
-  onQuickStartTestChapter: () => void;
+  onQuickStartMainChapter: () => void;
   progress: Record<string, ChapterProgress>;
 }
 
 export const HomePage: React.FC<HomePageProps> = ({
   onOpenChapters,
-  onQuickStartTestChapter,
+  onQuickStartMainChapter,
   progress,
 }) => {
-  const completedCount = Object.values(progress).filter((p) => p.completed).length;
+  const completedCount = Object.values(progress).filter(
+    (p) => p.completed
+  ).length;
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#060a14] text-slate-100">
-      {/* Ambient royal background */}
+      {/* Ambient royal dark-gold & crimson backdrop */}
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute -top-40 left-1/2 h-[34rem] w-[52rem] -translate-x-1/2 rounded-full bg-amber-500/12 blur-[120px]" />
-        <div className="absolute bottom-0 left-0 h-96 w-96 rounded-full bg-indigo-600/15 blur-[110px]" />
-        <div className="absolute bottom-0 right-0 h-96 w-96 rounded-full bg-sky-500/12 blur-[110px]" />
+        <div className="absolute bottom-0 left-0 h-96 w-96 rounded-full bg-sky-600/14 blur-[110px]" />
+        <div className="absolute bottom-0 right-0 h-96 w-96 rounded-full bg-rose-600/16 blur-[110px]" />
         <div
           className="absolute inset-0 opacity-[0.04]"
           style={{
@@ -42,7 +44,7 @@ export const HomePage: React.FC<HomePageProps> = ({
         />
       </div>
 
-      {/* Top Navigation Bar */}
+      {/* Top Navigation */}
       <header className="relative z-10 mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-amber-400/40 bg-amber-500/10 text-amber-300 shadow-lg shadow-amber-500/10">
@@ -53,7 +55,7 @@ export const HomePage: React.FC<HomePageProps> = ({
               CROWN OF GALAR
             </p>
             <p className="text-[11px] text-slate-400">
-              Visual Novel + Pokémon Showdown Engine
+              Novela Visual Política + Simulador Táctico 6v6 Dobles
             </p>
           </div>
         </div>
@@ -76,161 +78,155 @@ export const HomePage: React.FC<HomePageProps> = ({
       </header>
 
       {/* Main Hero */}
-      <main className="relative z-10 mx-auto max-w-6xl px-6 pb-20 pt-8 sm:pt-12">
-        <div className="grid items-center gap-12 lg:grid-cols-12">
+      <main className="relative z-10 mx-auto max-w-6xl px-6 pb-20 pt-6 sm:pt-10">
+        <div className="grid items-center gap-10 lg:grid-cols-12">
           {/* Left Copy & CTAs */}
-          <div className="lg:col-span-7">
+          <div className="lg:col-span-6">
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-500/10 px-3.5 py-1.5 text-xs font-medium text-amber-200">
               <Sparkles className="h-3.5 w-3.5 text-amber-400" />
-              Prototipo Jugable · InkJS + @pkmn/sim 100% en Navegador
+              InkJS · Niebla de Guerra · IA Scripteada por Turno · @pkmn/sim
             </div>
 
-            <h1 className="font-display text-4xl font-extrabold leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl">
-              Novela Visual Política &{' '}
-              <span className="bg-gradient-to-r from-amber-200 via-amber-400 to-yellow-200 bg-clip-text text-transparent">
-                Combate Táctico
+            <h1 className="font-display text-4xl font-extrabold leading-tight tracking-tight text-white sm:text-5xl">
+              Cacería por la{' '}
+              <span className="bg-gradient-to-r from-amber-200 via-amber-400 to-rose-300 bg-clip-text text-transparent">
+                Corona de Galar
               </span>
             </h1>
 
-            <p className="mt-5 max-w-2xl text-base leading-relaxed text-slate-300 sm:text-lg">
-              Sin rutas de hierba ni grindeo. Cada decisión en los diálogos atraviesa
-              un <strong className="text-amber-200">árbol de decisiones</strong> que
-              compila e inyecta texto real de{' '}
-              <strong className="text-sky-300">Pokémon Showdown Teambuilder</strong>{' '}
-              — modificando tu equipo, el set físico/especial de tus Pokémon y lo que
-              llevará tu rival.
+            <p className="mt-5 text-base leading-relaxed text-slate-300">
+              Acorralado bajo la lluvia de Wyndon solo con tu{' '}
+              <strong className="text-amber-200">Equipo de Vida Diaria</strong>,
+              enfrentas a un Asesino con un equipo 6v6 construido pieza por pieza
+              para hacerte counter. Tus decisiones durante la persecución
+              alteran leads, sabotean objetos, mejoran tus sets y exponen{' '}
+              <strong className="text-rose-300">
+                turnos scripteados de la IA
+              </strong>{' '}
+              para engañarla.
             </p>
 
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <button
-                onClick={onOpenChapters}
-                className="group inline-flex items-center gap-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 px-6 py-3.5 text-sm font-bold text-slate-950 shadow-xl shadow-amber-500/20 transition hover:brightness-110 active:scale-[0.98] cursor-pointer"
+                onClick={onQuickStartMainChapter}
+                className="group inline-flex items-center gap-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 px-6 py-3.5 text-sm font-extrabold text-slate-950 shadow-xl shadow-amber-500/20 transition hover:brightness-110 active:scale-[0.98] cursor-pointer"
               >
-                <BookOpen className="h-4 w-4" />
-                Seleccionar Capítulo
+                <Play className="h-4 w-4 fill-current" />
+                Jugar Cap. 01: Cacería en Wyndon
               </button>
 
               <button
-                onClick={onQuickStartTestChapter}
-                className="inline-flex items-center gap-2.5 rounded-2xl border border-sky-400/40 bg-sky-500/10 px-5 py-3.5 text-sm font-semibold text-sky-200 backdrop-blur transition hover:border-sky-300/70 hover:bg-sky-500/20 active:scale-[0.98] cursor-pointer"
+                onClick={onOpenChapters}
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-700 bg-slate-900/80 px-5 py-3.5 text-sm font-semibold text-slate-200 backdrop-blur transition hover:border-amber-400/50 hover:text-amber-200 cursor-pointer"
               >
-                <Zap className="h-4 w-4 text-sky-400" />
-                Test Rápido: Arceus vs 6 Magikarp
-                <Play className="h-3.5 w-3.5 fill-current" />
+                <BookOpen className="h-4 w-4" />
+                Selector de Capítulos
               </button>
             </div>
 
-            {/* Architecture Loop Pipeline */}
-            <div className="mt-10 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl border border-slate-800/90 bg-slate-900/60 p-4 backdrop-blur">
-                <div className="mb-2 flex items-center gap-2 text-amber-300">
-                  <BookOpen className="h-4 w-4" />
-                  <span className="text-xs font-bold uppercase tracking-wider">
-                    1. Guion Ink
-                  </span>
-                </div>
-                <p className="text-xs leading-relaxed text-slate-400">
-                  Diálogos y elecciones escritos en archivos{' '}
-                  <code className="text-slate-200">.ink</code> (estándar profesional
-                  headless compatible con React).
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-slate-800/90 bg-slate-900/60 p-4 backdrop-blur">
-                <div className="mb-2 flex items-center gap-2 text-sky-300">
+            {/* 3-Pillar Architecture Highlights */}
+            <div className="mt-9 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-2xl border border-slate-800/90 bg-slate-900/60 p-3.5">
+                <div className="mb-1.5 flex items-center gap-1.5 text-amber-300">
                   <GitBranch className="h-4 w-4" />
-                  <span className="text-xs font-bold uppercase tracking-wider">
-                    2. Teambuilder
+                  <span className="text-[11px] font-bold uppercase tracking-wider">
+                    Persecución Ink
                   </span>
                 </div>
                 <p className="text-xs leading-relaxed text-slate-400">
-                  El árbol lee las variables Ink e inyecta texto Showdown Paste para tu
-                  equipo, tus sets mixtos y el rival.
+                  4 decisiones tácticas que suavizan el matchup counter o te dejan
+                  en modo desafío puro.
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-slate-800/90 bg-slate-900/60 p-4 backdrop-blur">
-                <div className="mb-2 flex items-center gap-2 text-rose-300">
-                  <Swords className="h-4 w-4" />
-                  <span className="text-xs font-bold uppercase tracking-wider">
-                    3. @pkmn/sim
+              <div className="rounded-2xl border border-slate-800/90 bg-slate-900/60 p-3.5">
+                <div className="mb-1.5 flex items-center gap-1.5 text-rose-300">
+                  <Cpu className="h-4 w-4" />
+                  <span className="text-[11px] font-bold uppercase tracking-wider">
+                    IA Scripteada
                   </span>
                 </div>
                 <p className="text-xs leading-relaxed text-slate-400">
-                  Combates reales con fórmulas exactas de Showdown (Singles y Dobles
-                  2v2) e IA táctica local.
+                  Reglas por turno y HP para baitear Mofa, Fake Out, Brick Break o
+                  Sucker Punch.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-800/90 bg-slate-900/60 p-3.5">
+                <div className="mb-1.5 flex items-center gap-1.5 text-sky-300">
+                  <Swords className="h-4 w-4" />
+                  <span className="text-[11px] font-bold uppercase tracking-wider">
+                    6v6 Dobles + Tera
+                  </span>
+                </div>
+                <p className="text-xs leading-relaxed text-slate-400">
+                  Teracristalización, Fog of War estilo Showdown, rangos de
+                  velocidad y tooltips.
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Right Visual Showcase Card */}
-          <div className="lg:col-span-5">
-            <div className="relative overflow-hidden rounded-3xl border border-amber-400/25 bg-gradient-to-b from-slate-900/90 via-slate-950/95 to-slate-950 p-6 shadow-2xl shadow-black/60">
-              <div className="absolute -right-12 -top-12 h-44 w-44 rounded-full bg-amber-400/15 blur-3xl" />
-              <div className="absolute -bottom-12 -left-12 h-44 w-44 rounded-full bg-sky-500/15 blur-3xl" />
+          {/* Right Character Face-Off Card (Prince vs Assassin!) */}
+          <div className="lg:col-span-6">
+            <div className="relative overflow-hidden rounded-3xl border border-amber-400/25 bg-gradient-to-b from-slate-900/90 via-slate-950/95 to-slate-950 p-5 shadow-2xl shadow-black/70">
+              <div className="absolute -left-10 top-10 h-52 w-52 rounded-full bg-amber-400/15 blur-3xl" />
+              <div className="absolute -right-10 top-10 h-52 w-52 rounded-full bg-rose-600/20 blur-3xl" />
 
-              <div className="relative flex items-center justify-between border-b border-slate-800/80 pb-4">
+              <div className="relative flex items-center justify-between border-b border-slate-800/80 pb-3">
                 <div className="flex items-center gap-2">
                   <Shield className="h-4 w-4 text-amber-400" />
                   <span className="text-xs font-bold uppercase tracking-widest text-amber-200">
-                    Escenario de Prueba Activo
+                    Protagonista vs. Antagonista
                   </span>
                 </div>
-                <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-300">
-                  Cap. 00 & 01 Listos
+                <span className="rounded-full border border-rose-400/30 bg-rose-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-rose-200">
+                  6v6 Dobles · Tera Activo
                 </span>
               </div>
 
-              {/* Sprites Showcase */}
-              <div className="relative my-6 flex items-center justify-around rounded-2xl border border-slate-800/80 bg-slate-950/70 px-4 py-8">
-                <div className="flex flex-col items-center">
-                  <PokemonSprite
-                    species="Arceus"
-                    side="p2"
-                    className="h-28 w-28 animate-float-slow"
+              {/* Character Sprites Face-Off */}
+              <div className="relative my-4 grid grid-cols-11 items-end rounded-2xl border border-slate-800/90 bg-gradient-to-b from-[#0b1326] to-[#050811] px-3 pt-4 pb-3">
+                {/* Prince */}
+                <div className="col-span-5 flex flex-col items-center">
+                  <CharacterPortrait
+                    charId="prince"
+                    variant="sprite"
+                    className="h-60 w-auto sm:h-72"
                   />
-                  <span className="mt-2 rounded-lg border border-amber-400/30 bg-amber-500/10 px-2.5 py-0.5 text-xs font-bold text-amber-200">
-                    Arceus · 120 Atk / 120 SpA
-                  </span>
-                  <span className="mt-1 text-[11px] text-slate-400">
-                    Set dinámico según decisión
+                  <div className="mt-2 w-full rounded-xl border border-amber-400/35 bg-amber-500/10 px-2.5 py-1.5 text-center">
+                    <p className="font-display text-xs font-bold text-amber-200">
+                      Príncipe Heredero
+                    </p>
+                    <p className="text-[10px] text-slate-400">
+                      Arcanine · Gardevoir · Milotic · Corviknight · Sylveon · Rotom
+                    </p>
+                  </div>
+                </div>
+
+                {/* VS Divider */}
+                <div className="col-span-1 flex flex-col items-center justify-center self-center">
+                  <span className="font-display text-lg font-black text-amber-400">
+                    VS
                   </span>
                 </div>
 
-                <div className="font-display text-xl font-black text-amber-400/80">
-                  VS
-                </div>
-
-                <div className="flex flex-col items-center">
-                  <PokemonSprite
-                    species="Magikarp"
-                    side="p2"
-                    className="h-24 w-24 animate-float-slow"
+                {/* Assassin */}
+                <div className="col-span-5 flex flex-col items-center">
+                  <CharacterPortrait
+                    charId="assassin"
+                    variant="sprite"
+                    className="h-60 w-auto sm:h-72"
                   />
-                  <span className="mt-2 rounded-lg border border-sky-400/30 bg-sky-500/10 px-2.5 py-0.5 text-xs font-bold text-sky-200">
-                    6× Magikarp
-                  </span>
-                  <span className="mt-1 text-[11px] text-slate-400">
-                    Nv. 50 o Nv. 100 según diálogo
-                  </span>
+                  <div className="mt-2 w-full rounded-xl border border-rose-500/35 bg-rose-500/10 px-2.5 py-1.5 text-center">
+                    <p className="font-display text-xs font-bold text-rose-200">
+                      Asesino Carmesí
+                    </p>
+                    <p className="text-[10px] text-slate-400">
+                      Equipo Anti-Príncipe 6v6 (Oculto bajo Fog of War)
+                    </p>
+                  </div>
                 </div>
-              </div>
-
-              {/* Preview of Showdown injection */}
-              <div className="rounded-xl border border-slate-800 bg-black/50 p-3.5">
-                <div className="mb-1.5 flex items-center justify-between text-[11px] text-slate-400">
-                  <span className="font-mono-code text-amber-300/90">
-                    teambuilder_output.showdown
-                  </span>
-                  <span>Inyección automática</span>
-                </div>
-                <pre className="font-mono-code overflow-x-auto text-[11px] leading-relaxed text-slate-300">
-{`Arceus @ Silk Scarf | Life Orb | Zap Plate
-Ability: Multitype · Level: 100
-EVs: 252 Atk o 252 SpA (según tu elección)
-- Extreme Speed / Judgment / Swords Dance`}
-                </pre>
               </div>
             </div>
           </div>

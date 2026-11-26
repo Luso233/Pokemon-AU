@@ -8,12 +8,14 @@ export type ScreenView =
 
 export type BattleFormat = 'singles' | 'doubles';
 
+export type CharacterId = 'prince' | 'assassin';
+
 export type SceneBackdropId =
+  | 'wyndon-alleys'
+  | 'clocktower-ruins'
+  | 'aqueduct-tunnels'
   | 'royal-pond'
-  | 'wyndon-throne'
-  | 'banquet-hall'
-  | 'palace-courtyard'
-  | 'dark-corridor';
+  | 'banquet-hall';
 
 export interface StoryFlags {
   [key: string]: string | number | boolean;
@@ -21,7 +23,7 @@ export interface StoryFlags {
 
 export interface DecisionTraceItem {
   id: string;
-  category: 'player-roster' | 'player-set' | 'rival-team' | 'format';
+  category: 'player-roster' | 'player-set' | 'rival-team' | 'ai-script';
   choiceLabel: string;
   flagKey: string;
   flagValue: string;
@@ -44,21 +46,52 @@ export interface RivalIntelConfig {
   hasBossAce: boolean;
   /** Non-spoiler tactical warning about the Boss Ace level cap breaker. */
   bossAceWarning?: string;
+  /** Optional tactical hint exposing one of the enemy's scripted AI tendencies (earned from VN choices). */
+  aiScriptHint?: string;
+}
+
+/**
+ * Declarative scripted enemy AI rule for specific turns, matchups, or HP thresholds.
+ * Enables puzzle-like tactical battles where players can read and bait/trick the AI.
+ */
+export interface ScriptedEnemyRule {
+  id: string;
+  /** Human-readable tactical summary of the scripted rule. */
+  description: string;
+  /** In-battle dialogue taunt shown when the antagonist executes this scripted move. */
+  tauntLine?: string;
+  /** Match exact turn number (1-based). Omit to check on any turn. */
+  turn?: number;
+  /** Match rival active Pokémon species (e.g. 'Grafaiai', 'Kingambit', 'Rillaboom'). */
+  actorSpecies?: string;
+  /** Conditional trigger evaluated against live battle state. */
+  condition?: 'always' | 'hpBelow60' | 'playerHasScreens' | 'playerHasSpecies';
+  /** Species required on player's active field when condition === 'playerHasSpecies'. */
+  requiredPlayerSpecies?: string;
+  /** Exact move ID to force (e.g. 'taunt', 'fakeout', 'brickbreak', 'suckerpunch', 'encore'). */
+  forceMoveId: string;
+  /** Doubles target hint: 'species:Gardevoir' | 'slot:1' | 'slot:2' | 'auto'. */
+  targetSpec?: string;
+  /** If true, this scripted rule triggers at most once per battle. */
+  once?: boolean;
 }
 
 export interface ResolvedBattleConfig {
   chapterId: string;
   format: BattleFormat;
-  formatId: string; // e.g. 'gen9customgame' | 'gen9doublescustomgame'
+  formatId: string; // e.g. 'gen9doublescustomgame'
   playerName: string;
+  playerCharId: CharacterId;
   rivalName: string;
   rivalTitle: string;
+  rivalCharId: CharacterId;
   arenaTheme: SceneBackdropId;
   playerTeamSummary: string;
   rivalTeamSummary: string;
   playerShowdownPaste: string;
   rivalShowdownPaste: string;
   rivalIntel: RivalIntelConfig;
+  scriptedEnemyRules: ScriptedEnemyRule[];
   traces: DecisionTraceItem[];
   flags: StoryFlags;
 }
@@ -138,16 +171,15 @@ export interface PartyPokemonState {
   hp: number;
   maxhp: number;
   hpPercent: number;
-  status: string; // '', 'brn', 'par', 'psn', 'tox', 'slp', 'frz'
+  status: string;
   fainted: boolean;
   active: boolean;
-  /** Known exact item (p1 only). For p2, use revealedItem / consumedItem. */
   item: string;
-  /** Known exact ability (p1 only). For p2, use revealedAbility / possibleAbilities. */
   ability: string;
-  /** Known move IDs (p1 only). For p2, use revealedMoves. */
   moves: string[];
   types: string[];
+  teraType?: string;
+  terastallized: string | null;
   stats?: {
     atk: number;
     def: number;
@@ -190,13 +222,14 @@ export interface BattleLogEntry {
     | 'faint'
     | 'switch'
     | 'weather'
+    | 'script'
     | 'system'
     | 'win';
   text: string;
 }
 
 export interface PendingDecisionSlot {
-  activeIndex: number; // 0 for singles or left slot, 1 for right slot in doubles
+  activeIndex: number;
   pokemon: PartyPokemonState;
   moves: ActiveMoveOption[];
   trapped: boolean;
@@ -216,6 +249,15 @@ export interface BattleAnimationCue {
   calloutTone?: 'super' | 'resist' | 'crit' | 'immune' | 'status';
 }
 
+export interface EnemyTauntBanner {
+  id: number;
+  turn: number;
+  speaker: string;
+  charId: CharacterId;
+  text: string;
+  ruleDescription: string;
+}
+
 export interface BattleSnapshot {
   status: 'initializing' | 'awaiting-choice' | 'resolving' | 'ended';
   format: BattleFormat;
@@ -230,6 +272,8 @@ export interface BattleSnapshot {
   log: BattleLogEntry[];
   winner: 'p1' | 'p2' | 'tie' | null;
   lastCue: BattleAnimationCue | null;
+  activeTaunt: EnemyTauntBanner | null;
+  triggeredScriptIds: string[];
   koCountP2: number;
   totalP2: number;
 }

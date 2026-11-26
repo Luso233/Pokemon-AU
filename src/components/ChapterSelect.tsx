@@ -124,7 +124,7 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
                       </span>
                       <span className="inline-flex items-center gap-1.5">
                         <GitBranch className="h-3.5 w-3.5 text-amber-400" />
-                        3 decisiones ramificadas
+                        Decisiones ramificadas + IA Scripteada
                       </span>
                     </div>
                   </div>

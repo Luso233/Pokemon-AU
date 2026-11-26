@@ -100,6 +100,15 @@ export const PokemonTooltip: React.FC<PokemonTooltipProps> = ({
                   {t}
                 </span>
               ))}
+              {mon.terastallized ? (
+                <span className="rounded border border-cyan-300/60 bg-cyan-500/20 px-1.5 py-0.5 text-[9px] font-extrabold text-cyan-200">
+                  ✦ TERA {mon.terastallized.toUpperCase()}
+                </span>
+              ) : side === 'p1' && mon.teraType ? (
+                <span className="rounded border border-slate-700 bg-slate-900 px-1.5 py-0.5 text-[9px] font-semibold text-slate-300">
+                  Tera: {mon.teraType}
+                </span>
+              ) : null}
               {statusBadge && (
                 <span
                   className={`rounded px-1.5 py-0.5 text-[9px] font-extrabold ${statusBadge.cls}`}

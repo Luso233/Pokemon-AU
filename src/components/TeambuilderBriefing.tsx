@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   CheckCircle2,
   Code2,
+  Cpu,
   Crown,
   Edit3,
   Eye,
@@ -12,10 +13,10 @@ import {
   GitBranch,
   HelpCircle,
   RotateCcw,
-  Shield,
   Swords,
 } from 'lucide-react';
 import type { ResolvedBattleConfig } from '../types/game';
+import { CharacterPortrait } from './CharacterPortrait';
 import { PokemonIcon } from './PokemonSprite';
 
 interface TeambuilderBriefingProps {
@@ -73,7 +74,7 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
     <div className="min-h-screen bg-[#060a14] text-slate-100">
       <div className="mx-auto max-w-6xl px-5 py-8">
         {/* Header */}
-        <div className="mb-8 flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-6">
+        <div className="mb-7 flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-5">
           <div className="flex items-center gap-4">
             <button
               onClick={onReplayVN}
@@ -85,7 +86,7 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
             <div>
               <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.2em] text-sky-400">
                 <GitBranch className="h-3.5 w-3.5" />
-                Árbol de Decisiones → Inyección Teambuilder Showdown
+                Árbol de Decisiones → Teambuilder & IA Scripteada
               </p>
               <h1 className="font-display text-2xl font-bold text-white sm:text-3xl">
                 Briefing Táctico Pre-Combate
@@ -119,26 +120,30 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
         </div>
 
         {/* Decision Tree Traces */}
-        <section className="mb-8">
+        <section className="mb-7">
           <h2 className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-amber-300">
             <GitBranch className="h-4 w-4" />
-            Ramas Evaluadas desde Ink
+            Impacto de tus Decisiones en la Persecución
           </h2>
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-3.5 md:grid-cols-2 lg:grid-cols-4">
             {config.traces.map((trace) => {
               const badgeColor =
                 trace.category === 'player-set'
                   ? 'border-amber-400/35 bg-amber-500/15 text-amber-200'
                   : trace.category === 'player-roster'
                     ? 'border-sky-400/35 bg-sky-500/15 text-sky-200'
-                    : 'border-rose-400/35 bg-rose-500/15 text-rose-200';
+                    : trace.category === 'ai-script'
+                      ? 'border-violet-400/35 bg-violet-500/15 text-violet-200'
+                      : 'border-rose-400/35 bg-rose-500/15 text-rose-200';
 
               const catLabel =
                 trace.category === 'player-set'
-                  ? 'Set (Atk vs SpA)'
+                  ? 'Sets Príncipe'
                   : trace.category === 'player-roster'
-                    ? 'Tu Equipo'
-                    : 'Inteligencia Rival';
+                    ? 'Tu Orden/Lead'
+                    : trace.category === 'ai-script'
+                      ? 'IA Scripteada'
+                      : 'Sabotaje / Rival';
 
               return (
                 <div
@@ -151,15 +156,14 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                     >
                       {catLabel}
                     </span>
-                    <span className="font-mono-code text-[11px] text-slate-400">
-                      {trace.flagKey}="{trace.flagValue}"
+                    <span className="font-mono-code truncate text-[10px] text-slate-500">
+                      {trace.flagValue}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-400">
-                    Decisión:{' '}
-                    <span className="text-slate-200">{trace.choiceLabel}</span>
+                  <p className="text-[11px] text-slate-400">
+                    {trace.choiceLabel}
                   </p>
-                  <p className="mt-2 text-sm font-bold text-white">
+                  <p className="mt-1.5 text-sm font-bold text-white">
                     {trace.effectTitle}
                   </p>
                   <p className="mt-1 text-xs leading-relaxed text-slate-400">
@@ -172,37 +176,47 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
         </section>
 
         {/* Side-by-Side: Player Teambuilder vs Rival Fog-of-War Intel */}
-        <section className="mb-8 grid gap-6 lg:grid-cols-2">
-          {/* Player Team (Full Visibility & Editable Paste) */}
+        <section className="mb-7 grid gap-6 lg:grid-cols-2">
+          {/* Player Team */}
           <div className="rounded-3xl border border-amber-400/25 bg-slate-900/75 p-5">
             <div className="mb-3 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Shield className="h-4 w-4 text-amber-400" />
-                <h3 className="font-display text-lg font-bold text-white">
-                  {config.playerName}
-                </h3>
+              <div className="flex items-center gap-3">
+                <div className="h-11 w-11 overflow-hidden rounded-xl border border-amber-400/45 bg-slate-950 p-0.5">
+                  <CharacterPortrait
+                    charId={config.playerCharId}
+                    variant="bust"
+                    className="h-full w-full object-cover object-top"
+                  />
+                </div>
+                <div>
+                  <h3 className="font-display text-lg font-bold text-white">
+                    {config.playerName}
+                  </h3>
+                  <p className="text-[11px] text-amber-300/80">
+                    Equipo de Vida Diaria · Tera habilitado
+                  </p>
+                </div>
               </div>
               <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-semibold text-emerald-300">
                 <CheckCircle2 className="h-3.5 w-3.5" />
-                {parsedPlayer.length} Pokémon listos
+                {parsedPlayer.length} listos
               </span>
             </div>
 
-            <div className="mb-4 flex flex-wrap gap-2">
+            <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
               {parsedPlayer.map((set, i) => (
                 <div
                   key={`${set.species}-${i}`}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700/80 bg-slate-950/90 px-2.5 py-1 text-xs"
+                  className="flex items-center gap-1.5 rounded-xl border border-slate-700/80 bg-slate-950/90 px-2.5 py-1.5 text-xs"
                 >
-                  <PokemonIcon species={set.species} />
-                  <div>
-                    <p className="font-semibold text-white">
-                      {set.name && set.name !== set.species
-                        ? `${set.name} (${set.species})`
-                        : set.species}
+                  <PokemonIcon species={set.species} className="scale-90" />
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-white">
+                      {set.species}
                     </p>
-                    <p className="text-[10px] text-amber-300/80">
-                      Nv.{set.level ?? 100} · {set.item || 'Sin objeto'}
+                    <p className="truncate text-[10px] text-amber-300/80">
+                      {i < 2 ? 'Lead · ' : ''}
+                      {set.item || 'Sin obj.'}
                     </p>
                   </div>
                 </div>
@@ -229,15 +243,26 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
             />
           </div>
 
-          {/* Rival Team (Fog of War Intel — Species Only / Partial Roster!) */}
+          {/* Rival Team (Fog of War Intel + Scripted AI Intel) */}
           <div className="flex flex-col justify-between rounded-3xl border border-rose-400/25 bg-slate-900/75 p-5">
             <div>
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <Swords className="h-4 w-4 text-rose-400" />
-                  <h3 className="font-display text-lg font-bold text-white">
-                    {config.rivalName}
-                  </h3>
+                <div className="flex items-center gap-3">
+                  <div className="h-11 w-11 overflow-hidden rounded-xl border border-rose-500/45 bg-slate-950 p-0.5">
+                    <CharacterPortrait
+                      charId={config.rivalCharId}
+                      variant="bust"
+                      className="h-full w-full object-cover object-top"
+                    />
+                  </div>
+                  <div>
+                    <h3 className="font-display text-lg font-bold text-white">
+                      {config.rivalName}
+                    </h3>
+                    <p className="text-[11px] text-rose-300/80">
+                      {config.rivalTitle}
+                    </p>
+                  </div>
                 </div>
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-400/30 bg-rose-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-rose-200">
                   <EyeOff className="h-3 w-3" />
@@ -249,14 +274,14 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                 {intel.intelNote}
               </p>
 
-              {/* Species-Only Intel Grid (NO level, NO item, NO moveset!) */}
+              {/* Species-Only Intel Grid */}
               <div className="mb-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
                 {parsedRival.slice(0, visibleCount).map((set, i) => (
                   <div
                     key={`visible-rival-${set.species}-${i}`}
-                    className="flex items-center gap-2 rounded-2xl border border-slate-700/80 bg-slate-950/90 px-3 py-2.5"
+                    className="flex items-center gap-2 rounded-2xl border border-slate-700/80 bg-slate-950/90 px-2.5 py-2"
                   >
-                    <PokemonIcon species={set.species} />
+                    <PokemonIcon species={set.species} className="scale-90" />
                     <div className="min-w-0">
                       <p className="truncate text-xs font-bold text-white">
                         {set.species}
@@ -271,7 +296,7 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                 {Array.from({ length: hiddenCount }).map((_, idx) => (
                   <div
                     key={`hidden-rival-${idx}`}
-                    className="flex items-center gap-2.5 rounded-2xl border border-dashed border-rose-500/30 bg-slate-950/60 px-3 py-2.5"
+                    className="flex items-center gap-2 rounded-2xl border border-dashed border-rose-500/30 bg-slate-950/60 px-2.5 py-2"
                   >
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-rose-400/30 bg-rose-950/50 text-rose-300/70">
                       <HelpCircle className="h-4 w-4" />
@@ -288,14 +313,29 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                 ))}
               </div>
 
-              {/* Boss Ace / Level Cap Warning */}
+              {/* Scripted AI Pattern Intel */}
+              {intel.aiScriptHint && (
+                <div className="mb-3.5 rounded-2xl border border-violet-400/30 bg-violet-500/10 p-3.5">
+                  <div className="flex items-center gap-2 text-xs font-bold text-violet-200">
+                    <Cpu className="h-4 w-4 text-violet-400" />
+                    <span>
+                      Perfil de IA Scripteada ({config.scriptedEnemyRules.length}{' '}
+                      reglas activas)
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs leading-relaxed text-violet-100/85">
+                    {intel.aiScriptHint}
+                  </p>
+                </div>
+              )}
+
+              {/* Boss Ace Warning */}
               {intel.hasBossAce && (
-                <div className="mb-4 rounded-2xl border border-amber-400/30 bg-amber-500/10 p-3.5">
+                <div className="mb-3.5 rounded-2xl border border-amber-400/30 bg-amber-500/10 p-3.5">
                   <div className="flex items-center gap-2 text-xs font-bold text-amber-200">
                     <Crown className="h-4 w-4 text-amber-400" />
                     <span>
-                      Alerta de Ace · Límite estándar del capítulo: Nv.{' '}
-                      {intel.levelCap}
+                      Alerta de Ace · Cap estándar: Nv. {intel.levelCap}
                     </span>
                   </div>
                   {intel.bossAceWarning && (
@@ -306,7 +346,7 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                 </div>
               )}
 
-              {/* Optional Collapsible Debug Drawer for Rival Paste */}
+              {/* Optional Collapsible Debug Drawer */}
               {showRivalDebugPaste && (
                 <div className="mt-3">
                   <div className="mb-1.5 flex items-center justify-between text-[11px] text-rose-300">
