@@ -270,21 +270,23 @@ async function main() {
     `  OK: TeamValidator clean (Steel vs Dark), Lead Heatran verified, turns=${resMono.turn}`
   );
 
-  console.log('\n=== 6. ARCHIVO VGC: Final Mundial 2024 Luca vs Yuta (gen9vgc2024regg · Pick 4 of 6) ===');
+  console.log('\n=== 6. ARCHIVO VGC: Final Mundial 2024 Luca vs Yuta (Both Sides + Double-KO ForceSwitch + Defeat) ===');
   const vgcInk = readFileSync(resolve('src/stories/archive_vgc2024.ink'), 'utf8');
-  const vRunner = new InkVNRunner(vgcInk);
-  let vFrame = vRunner.step();
+
+  // 6a. Play as Luca Ceribelli (choice 0 -> Luca, choice 0 -> Game 1 Yuta)
+  const vRunnerLuca = new InkVNRunner(vgcInk);
+  let vFrame = vRunnerLuca.step();
   while (!vFrame.isEnded) {
-    if (vFrame.canContinue) vFrame = vRunner.step();
-    else if (vFrame.choices.length > 0) vFrame = vRunner.choose(0); // Game 1
+    if (vFrame.canContinue) vFrame = vRunnerLuca.step();
+    else if (vFrame.choices.length > 0) vFrame = vRunnerLuca.choose(0);
   }
   const vgcConfig = resolveVgcWorlds2024Battle(vFrame.flags);
   assertValidTeam('gen9vgc2024regg', 'VGC Luca Ceribelli', vgcConfig.playerShowdownPaste);
   assertValidTeam('gen9vgc2024regg', 'VGC Yuta Ishigaki', vgcConfig.rivalShowdownPaste);
   const { finalSnap: resVgc, previewSnap: pvVgc, turn1Snap: t1Vgc } =
-    await runFullSimMatch('VGC Worlds 2024 Luca vs Yuta', vgcConfig, {
+    await runFullSimMatch('VGC Worlds 2024 as Luca', vgcConfig, {
       maxTurns: 60,
-      teamPreviewPick: [1, 2, 3, 4], // Miraidon + Whimsicott lead, Urshifu + Ogerpon back!
+      teamPreviewPick: [1, 2, 3, 4],
       testTeraTurn1: true,
     });
   if (pvVgc?.teamPreview?.mode !== 'pick-4' || pvVgc.openTeamsheet.rival.length !== 6) {
@@ -298,7 +300,129 @@ async function main() {
     throw new Error(`Expected Miraidon Hadron Engine Electric Terrain (5t), got ${t1Vgc?.terrain} (${t1Vgc?.terrainTurnsLeft}t)`);
   }
   console.log(
-    `  OK: TeamValidator clean, Pick 4/6 + Open Teamsheets (6+6), Yuta Lead=[${yutaLeads}], Terrain=${t1Vgc.terrain} (${t1Vgc.terrainTurnsLeft}t), Scripted=[${resVgc.triggeredScriptIds.join(', ')}], turns=${resVgc.turn}`
+    `  OK (as Luca): TeamValidator clean, Yuta Lead=[${yutaLeads}], Scripted=[${resVgc.triggeredScriptIds.join(', ')}], turns=${resVgc.turn}`
+  );
+
+  // 6b. Play as Yuta Ishigaki (choice 1 -> Yuta, choice 0 -> Game 1 Luca)
+  const vRunnerYuta = new InkVNRunner(vgcInk);
+  let yFrame = vRunnerYuta.step();
+  let yChoiceStep = 0;
+  while (!yFrame.isEnded) {
+    if (yFrame.canContinue) yFrame = vRunnerYuta.step();
+    else if (yFrame.choices.length > 0) {
+      yFrame = vRunnerYuta.choose(yChoiceStep === 0 ? 1 : 0);
+      yChoiceStep++;
+    }
+  }
+  const vgcYutaConfig = resolveVgcWorlds2024Battle(yFrame.flags);
+  if (vgcYutaConfig.playerName !== 'Yuta Ishigaki' || vgcYutaConfig.rivalName !== 'Luca Ceribelli') {
+    throw new Error(`Expected Yuta vs Luca swap, got ${vgcYutaConfig.playerName} vs ${vgcYutaConfig.rivalName}`);
+  }
+  assertValidTeam('gen9vgc2024regg', 'VGC Yuta as P1', vgcYutaConfig.playerShowdownPaste);
+  assertValidTeam('gen9vgc2024regg', 'VGC Luca as P2', vgcYutaConfig.rivalShowdownPaste);
+  const { finalSnap: resVgcYuta, turn1Snap: t1VgcYuta } =
+    await runFullSimMatch('VGC Worlds 2024 as Yuta', vgcYutaConfig, {
+      maxTurns: 60,
+      teamPreviewPick: [5, 6, 3, 1], // Iron Valiant + Landorus lead, Pelipper + Calyrex-Ice back!
+    });
+  const lucaLeads = t1VgcYuta?.p2.active.map((m) => m?.species).join(' + ');
+  if (lucaLeads !== 'Whimsicott + Miraidon') {
+    throw new Error(`Expected Luca Worlds lead Whimsicott + Miraidon, got ${lucaLeads}`);
+  }
+  if (!resVgcYuta.triggeredScriptIds.includes('vgc-luca-t1-tailwind')) {
+    throw new Error(`Expected Luca Turn 1 Tailwind scripted rule, got [${resVgcYuta.triggeredScriptIds.join(', ')}]`);
+  }
+  console.log(
+    `  OK (as Yuta): TeamValidator clean, Luca Lead=[${lucaLeads}], Scripted=[${resVgcYuta.triggeredScriptIds.join(', ')}], turns=${resVgcYuta.turn}`
+  );
+
+  // 6c. Regression test: VGC Doubles simultaneous Double-KO forceSwitch with ONLY 1 bench mon left (`switch N, pass`) + Defeat recognition
+  // Turn 1: Snom survives Glacial Lance on Focus Sash (1 HP), Sunkern faints -> Caterpie replaces Sunkern (1 bench mon left: Weedle)
+  // Turn 2: Glacial Lance double-KOs Snom + Caterpie -> forceSwitch: [true, true] with ONLY 1 bench mon (Weedle) -> must send `switch 4, pass`!
+  // Turn 3: Glacial Lance KOs Weedle -> status='ended', winner='p2'!
+  const weakDefeatConfig = {
+    ...vgcConfig,
+    preferredRivalTeamOrder: 'team 1356',
+    scriptedEnemyRules: [
+      {
+        id: 'test-calyrex-lance',
+        actorSpecies: 'Calyrex-Ice',
+        forceMoveId: 'glaciallance',
+        description: 'Force Glacial Lance every turn for double-KO regression',
+      },
+      {
+        id: 'test-pelipper-wg',
+        actorSpecies: 'Pelipper',
+        forceMoveId: 'wideguard',
+        description: 'Pelipper uses Wide Guard so Snom survives T1 on Focus Sash',
+      },
+    ],
+    playerShowdownPaste: [
+      'Sunkern\nAbility: Chlorophyll\nLevel: 50\n- Splash',
+      'Snom @ Focus Sash\nAbility: Shield Dust\nLevel: 50\n- Struggle Bug',
+      'Caterpie\nAbility: Shield Dust\nLevel: 50\n- String Shot',
+      'Weedle\nAbility: Shield Dust\nLevel: 50\n- String Shot',
+      'Wurmple\nAbility: Shield Dust\nLevel: 50\n- String Shot',
+      'Blipbug\nAbility: Swarm\nLevel: 50\n- Struggle Bug',
+    ].join('\n\n'),
+  };
+  let observedDoubleKoWithOneBench = false;
+  const defeatSnap = await new Promise<BattleSnapshot>((resP, rejP) => {
+    let settled = false;
+    let lastReqSeq = -1;
+    const ctrl = new ShowdownBattleController(weakDefeatConfig, (snap) => {
+      if (settled) return;
+      if (snap.status === 'ended') {
+        settled = true;
+        ctrl.destroy();
+        resP(snap);
+        return;
+      }
+      if (snap.status === 'team-preview' && snap.requestSeq !== lastReqSeq) {
+        lastReqSeq = snap.requestSeq;
+        void ctrl.submitTeamOrder([1, 2, 3, 4]);
+        return;
+      }
+      if (snap.status === 'awaiting-choice' && snap.requestSeq !== lastReqSeq) {
+        lastReqSeq = snap.requestSeq;
+        if (snap.isForceSwitch) {
+          const needCount = snap.pendingSlots.filter((s) => s.forceSwitch && !s.pass).length;
+          const avail = snap.p1.party.filter((p) => !p.active && !p.fainted);
+          if (needCount === 2 && avail.length === 1) {
+            observedDoubleKoWithOneBench = true;
+          }
+          // Mirror BattleArena's exact commitSlotCommand logic: auto-pass once bench is exhausted
+          const used = new Set<number>();
+          const cmds = snap.pendingSlots.map((slot) => {
+            if (!slot.forceSwitch || slot.pass) return 'pass';
+            const pick = avail.find((p) => !used.has(p.slotIndex));
+            if (!pick) return 'pass';
+            used.add(pick.slotIndex);
+            return `switch ${pick.slotIndex}`;
+          });
+          void ctrl.submitPlayerChoice(cmds.join(', '));
+          return;
+        }
+        const cmds = snap.pendingSlots.map((slot) =>
+          slot.pass ? 'pass' : 'move 1'
+        );
+        void ctrl.submitPlayerChoice(cmds.join(', '));
+      }
+    });
+    ctrl.start().catch((e) => {
+      if (!settled) {
+        settled = true;
+        rejP(e);
+      }
+    });
+  });
+  if (!observedDoubleKoWithOneBench || defeatSnap.status !== 'ended' || defeatSnap.winner !== 'p2') {
+    throw new Error(
+      `Expected double-KO-with-1-bench + clean p2 defeat, got observed=${observedDoubleKoWithOneBench}, status=${defeatSnap.status}, winner=${defeatSnap.winner}`
+    );
+  }
+  console.log(
+    `  OK (Double-KO + 1 Bench -> Defeat Regression): observedDoubleKoWithOneBench=${observedDoubleKoWithOneBench}, status=${defeatSnap.status}, winner=${defeatSnap.winner}, turns=${defeatSnap.turn}`
   );
 
   console.log('\n=== 7. Chapter 02 Bonus + Speed Calc + StrictMode Teardown ===');

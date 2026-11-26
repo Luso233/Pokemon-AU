@@ -320,6 +320,7 @@ export class ShowdownBattleController {
       },
       pendingSlots: [],
       isForceSwitch: false,
+      requestSeq: 0,
       log: [],
       winner: null,
       lastCue: null,
@@ -846,6 +847,7 @@ export class ShowdownBattleController {
             this.pushLog('system', `Aviso del motor: ${errMsg}`);
             if (this.state.status !== 'ended') {
               this.state.status = 'awaiting-choice';
+              this.state.requestSeq += 1;
             }
             this.emit();
           }
@@ -1060,6 +1062,7 @@ export class ShowdownBattleController {
       if (this.config.interactiveTeamPreview) {
         this.state.teamPreview = this.buildTeamPreviewState(req);
         this.state.status = 'team-preview';
+        this.state.requestSeq += 1;
         this.emit();
       } else {
         void this.streams?.p1.write('default');
@@ -1078,6 +1081,21 @@ export class ShowdownBattleController {
     const pending: PendingDecisionSlot[] = [];
 
     if (req.forceSwitch) {
+      const aliveBenchCount = this.state.p1.party.filter(
+        (p) => !p.active && !p.fainted
+      ).length;
+
+      if (aliveBenchCount === 0) {
+        // No bench Pokemon left to switch in: auto-pass all slots so Showdown resolves immediately
+        const autoPassCmd = req.forceSwitch.map(() => 'pass').join(', ');
+        this.state.isForceSwitch = false;
+        this.state.pendingSlots = [];
+        this.state.status = 'resolving';
+        this.emit();
+        void this.streams?.p1.write(autoPassCmd);
+        return;
+      }
+
       req.forceSwitch.forEach((mustSwitch, activeIndex) => {
         const mon = this.state.p1.party[activeIndex];
         if (!mon) return;
@@ -1095,6 +1113,7 @@ export class ShowdownBattleController {
       this.state.isForceSwitch = true;
       this.state.pendingSlots = pending;
       this.state.status = 'awaiting-choice';
+      this.state.requestSeq += 1;
       this.emit();
       return;
     }
@@ -1152,6 +1171,7 @@ export class ShowdownBattleController {
       this.state.isForceSwitch = false;
       this.state.pendingSlots = pending;
       this.state.status = 'awaiting-choice';
+      this.state.requestSeq += 1;
       this.emit();
     }
   }
@@ -1807,7 +1827,7 @@ export class ShowdownBattleController {
       case 'win': {
         const winnerName = parts[2] ?? '';
         this.state.winner =
-          winnerName === this.config.playerName ? 'p1' : 'p2';
+          toID(winnerName) === toID(this.config.playerName) ? 'p1' : 'p2';
         this.state.status = 'ended';
         this.state.pendingSlots = [];
         this.pushLog('win', `🏆 ¡${winnerName} ganó el combate!`);

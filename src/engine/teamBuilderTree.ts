@@ -1699,7 +1699,9 @@ export function resolveChapter2MonotypeBattle(
 export function resolveVgcWorlds2024Battle(
   flags: StoryFlags
 ): ResolvedBattleConfig {
-  const yutaPlan = String(flags.yuta_plan ?? 'game1');
+  const selectedPlayer =
+    String(flags.selected_player ?? 'luca') === 'yuta' ? 'yuta' : 'luca';
+  const rivalPlan = String(flags.rival_plan ?? flags.yuta_plan ?? 'game1');
 
   const lucaBlocks: ShowdownSetBlock[] = [
     {
@@ -1833,48 +1835,108 @@ export function resolveVgcWorlds2024Battle(
     },
   ];
 
-  // Yuta opens Iron Valiant (5) + Landorus (6), with Pelipper (3) or Amoonguss (4) + Calyrex-Ice (1) in back!
-  const yutaTeamOrder = yutaPlan === 'game2' ? 'team 5641' : 'team 5631';
+  const isPlayingAsYuta = selectedPlayer === 'yuta';
 
-  const scriptedEnemyRules: ScriptedEnemyRule[] = [
-    {
-      id: 'vgc-t1-valiant-spiritbreak',
-      turn: 1,
-      actorSpecies: 'Iron Valiant',
-      forceMoveId: 'spiritbreak',
-      targetSpec: 'species:Miraidon',
-      once: true,
-      description: 'Final Mundial T1: Iron Valiant presiona con Spirit Break para bajar el SpA de Miraidon.',
-      tauntLine: '«¡Presión directa sobre Miraidon! ¡Iron Valiant, Choque Anímico!»',
-    },
-    {
-      id: 'vgc-t1-landorus-sandsear',
-      turn: 1,
-      actorSpecies: 'Landorus',
-      forceMoveId: 'sandsearstorm',
-      once: true,
-      description: 'Final Mundial T1: Landorus Choice Scarf presiona en área con Sandsear Storm.',
-      tauntLine: '«¡Control total del centro! ¡Landorus, Simún de Arena!»',
-    },
-    {
-      id: 'vgc-calyrex-tr',
-      actorSpecies: 'Calyrex-Ice',
-      forceMoveId: 'trickroom',
-      once: true,
-      description: 'Mid-game Mundial: Calyrex-Ice intenta invertir velocidades con Trick Room.',
-      tauntLine: '«Es hora de invertir el ritmo de la final. ¡Calyrex, Espacio Raro!»',
-    },
-    {
-      id: 'vgc-pelipper-wideguard',
-      actorSpecies: 'Pelipper',
-      condition: 'playerHasSpecies',
-      requiredPlayerSpecies: 'Miraidon',
-      forceMoveId: 'helpinghand',
-      once: true,
-      description: 'Sinergia Mundial: Pelipper potencia a su compañero con Helping Hand bajo Lluvia.',
-      tauntLine: '«¡Lluvia y Refuerzo de Pelipper para asegurar el KO!»',
-    },
-  ];
+  // When playing as Luca -> Rival is Yuta (Iron Valiant + Landorus lead, Pelipper/Amoonguss + Calyrex-Ice back)
+  // When playing as Yuta -> Rival is Luca (Whimsicott + Miraidon lead, Iron Hands + Farigiraf OR Urshifu-R + Ogerpon-H back)
+  const preferredRivalTeamOrder = isPlayingAsYuta
+    ? rivalPlan === 'game2'
+      ? 'team 2134'
+      : 'team 2156'
+    : rivalPlan === 'game2'
+      ? 'team 5641'
+      : 'team 5631';
+
+  const scriptedEnemyRules: ScriptedEnemyRule[] = isPlayingAsYuta
+    ? [
+        {
+          id: 'vgc-luca-t1-tailwind',
+          turn: 1,
+          actorSpecies: 'Whimsicott',
+          forceMoveId: 'tailwind',
+          once: true,
+          description:
+            'Final Mundial T1: Whimsicott (Prankster) asegura velocidad con Tailwind para Miraidon.',
+          tauntLine: '«¡Control del ritmo desde el inicio! ¡Whimsicott, Viento Afín!»',
+        },
+        {
+          id: 'vgc-luca-t1-gleam',
+          turn: 1,
+          actorSpecies: 'Miraidon',
+          forceMoveId: 'dazzlinggleam',
+          once: true,
+          description:
+            'Final Mundial T1: Miraidon Choice Specs presiona a ambos rivales con Dazzling Gleam.',
+          tauntLine: '«¡Presión en área con Gafas Elección! ¡Miraidon, Brillo Mágico!»',
+        },
+        {
+          id: 'vgc-luca-hands-fakeout',
+          actorSpecies: 'Iron Hands',
+          forceMoveId: 'fakeout',
+          targetSpec: 'species:Calyrex-Ice',
+          once: true,
+          description:
+            'Entrada de Iron Hands: intenta frenar el Espacio Raro rival con Fake Out.',
+          tauntLine: '«¡No tan rápido con ese Espacio Raro! ¡Ferropalmas, Sorpresa!»',
+        },
+        {
+          id: 'vgc-luca-farigiraf-hh',
+          actorSpecies: 'Farigiraf',
+          forceMoveId: 'helpinghand',
+          once: true,
+          description:
+            'Sinergia Mundial: Farigiraf potencia el ataque de su compañero con Helping Hand.',
+          tauntLine: '«¡Refuerzo de Farigiraf para cerrar el turno!»',
+        },
+      ]
+    : [
+        {
+          id: 'vgc-t1-valiant-spiritbreak',
+          turn: 1,
+          actorSpecies: 'Iron Valiant',
+          forceMoveId: 'spiritbreak',
+          targetSpec: 'species:Miraidon',
+          once: true,
+          description:
+            'Final Mundial T1: Iron Valiant presiona con Spirit Break para bajar el SpA de Miraidon.',
+          tauntLine:
+            '«¡Presión directa sobre Miraidon! ¡Iron Valiant, Choque Anímico!»',
+        },
+        {
+          id: 'vgc-t1-landorus-sandsear',
+          turn: 1,
+          actorSpecies: 'Landorus',
+          forceMoveId: 'sandsearstorm',
+          once: true,
+          description:
+            'Final Mundial T1: Landorus Choice Scarf presiona en área con Sandsear Storm.',
+          tauntLine: '«¡Control total del centro! ¡Landorus, Simún de Arena!»',
+        },
+        {
+          id: 'vgc-calyrex-tr',
+          actorSpecies: 'Calyrex-Ice',
+          forceMoveId: 'trickroom',
+          once: true,
+          description:
+            'Mid-game Mundial: Calyrex-Ice intenta invertir velocidades con Trick Room.',
+          tauntLine:
+            '«Es hora de invertir el ritmo de la final. ¡Calyrex, Espacio Raro!»',
+        },
+        {
+          id: 'vgc-pelipper-wideguard',
+          actorSpecies: 'Pelipper',
+          condition: 'playerHasSpecies',
+          requiredPlayerSpecies: 'Miraidon',
+          forceMoveId: 'helpinghand',
+          once: true,
+          description:
+            'Sinergia Mundial: Pelipper potencia a su compañero con Helping Hand bajo Lluvia.',
+          tauntLine: '«¡Lluvia y Refuerzo de Pelipper para asegurar el KO!»',
+        },
+      ];
+
+  const playerName = isPlayingAsYuta ? 'Yuta Ishigaki' : 'Luca Ceribelli';
+  const rivalName = isPlayingAsYuta ? 'Luca Ceribelli' : 'Yuta Ishigaki';
 
   return {
     chapterId: 'archive-vgc-2024',
@@ -1883,17 +1945,25 @@ export function resolveVgcWorlds2024Battle(
     formatLabel: 'VGC Reg G · Dobles 4v4 Nv. 50',
     interactiveTeamPreview: true,
     openTeamsheet: true,
-    preferredRivalTeamOrder: yutaTeamOrder,
-    playerName: 'Luca Ceribelli',
-    playerCharId: 'prince',
-    rivalName: 'Yuta Ishigaki',
+    preferredRivalTeamOrder,
+    playerName,
+    playerCharId: isPlayingAsYuta ? 'champion' : 'prince',
+    rivalName,
     rivalTitle: 'Final Mundial VGC 2024 · Honolulu',
-    rivalCharId: 'champion',
+    rivalCharId: isPlayingAsYuta ? 'prince' : 'champion',
     arenaTheme: 'vgc-worlds-stage',
-    playerTeamSummary: 'Luca Ceribelli (Miraidon, Whimsicott, Urshifu-R, Ogerpon-H, Iron Hands, Farigiraf)',
-    rivalTeamSummary: 'Yuta Ishigaki (Calyrex-Ice, Urshifu-R, Pelipper, Amoonguss, Iron Valiant, Landorus)',
-    playerShowdownPaste: buildShowdownPaste(lucaBlocks),
-    rivalShowdownPaste: buildShowdownPaste(yutaBlocks),
+    playerTeamSummary: isPlayingAsYuta
+      ? 'Yuta Ishigaki (Calyrex-Ice, Urshifu-R, Pelipper, Amoonguss, Iron Valiant, Landorus)'
+      : 'Luca Ceribelli (Miraidon, Whimsicott, Urshifu-R, Ogerpon-H, Iron Hands, Farigiraf)',
+    rivalTeamSummary: isPlayingAsYuta
+      ? 'Luca Ceribelli (Miraidon, Whimsicott, Urshifu-R, Ogerpon-H, Iron Hands, Farigiraf)'
+      : 'Yuta Ishigaki (Calyrex-Ice, Urshifu-R, Pelipper, Amoonguss, Iron Valiant, Landorus)',
+    playerShowdownPaste: buildShowdownPaste(
+      isPlayingAsYuta ? yutaBlocks : lucaBlocks
+    ),
+    rivalShowdownPaste: buildShowdownPaste(
+      isPlayingAsYuta ? lucaBlocks : yutaBlocks
+    ),
     rivalIntel: {
       visibleSpeciesCount: 6,
       totalSlots: 6,
@@ -1902,35 +1972,49 @@ export function resolveVgcWorlds2024Battle(
         'Reglamento oficial de Campeonato Mundial: ambos equipos tienen Open Teamsheets visibles (objetos, habilidades, teratipos y movimientos). Elige 4 de 6 en Team Preview.',
       levelCap: 50,
       hasBossAce: false,
-      aiScriptHint:
-        yutaPlan === 'game2'
+      aiScriptHint: isPlayingAsYuta
+        ? rivalPlan === 'game2'
+          ? 'Plan Juego 2: Luca abre con Whimsicott (Tailwind) + Miraidon (Dazzling Gleam) y reserva Urshifu-R + Ogerpon-H.'
+          : 'Plan Juego 1: Luca abre con Whimsicott (Tailwind) + Miraidon (Dazzling Gleam) y reserva Iron Hands + Farigiraf.'
+        : rivalPlan === 'game2'
           ? 'Plan Juego 2: Yuta abre con Iron Valiant + Landorus y reserva Amoonguss + Calyrex-Ice (Espacio Raro).'
           : 'Plan Juego 1: Yuta abre con Iron Valiant + Landorus y reserva Pelipper (Lluvia) + Calyrex-Ice (Espacio Raro).',
     },
     scriptedEnemyRules,
     traces: [
       {
-        id: 'vgc-plan',
-        category: 'ai-script',
-        choiceLabel:
-          yutaPlan === 'game2'
-            ? 'Simulación Juego 2 (Amoonguss + Calyrex-Ice)'
-            : 'Simulación Juego 1 (Pelipper + Calyrex-Ice)',
-        flagKey: 'yuta_plan',
-        flagValue: yutaPlan,
-        effectTitle: 'Apertura oficial de Yuta Ishigaki',
-        effectDetail:
-          'Iron Valiant + Landorus en Turno 1, con pivote mid-game hacia Calyrex-Ice (Trick Room).',
+        id: 'vgc-side',
+        category: 'player-roster',
+        choiceLabel: isPlayingAsYuta
+          ? 'Bando elegido: Yuta Ishigaki'
+          : 'Bando elegido: Luca Ceribelli',
+        flagKey: 'selected_player',
+        flagValue: selectedPlayer,
+        effectTitle: isPlayingAsYuta
+          ? 'Piloteas el núcleo de Calyrex-Ice (Japón)'
+          : 'Piloteas el núcleo de Miraidon (Italia)',
+        effectDetail: isPlayingAsYuta
+          ? 'Controlas a Calyrex-Ice, Iron Valiant, Landorus, Pelipper, Amoonguss y Urshifu-R frente a la IA de Luca.'
+          : 'Controlas a Miraidon, Whimsicott, Urshifu-R, Ogerpon-H, Iron Hands y Farigiraf frente a la IA de Yuta.',
       },
       {
-        id: 'vgc-rules',
-        category: 'player-roster',
-        choiceLabel: 'gen9vgc2024regg (Bring 6, Pick 4)',
-        flagKey: 'format',
-        flagValue: 'gen9vgc2024regg',
-        effectTitle: 'Open Teamsheets + Nivel 50 + Tera Activo',
-        effectDetail:
-          'Equipos verificados 100% legales con los EVs/IVs exactos de la Final Mundial 2024.',
+        id: 'vgc-plan',
+        category: 'ai-script',
+        choiceLabel: isPlayingAsYuta
+          ? rivalPlan === 'game2'
+            ? 'Plan Rival Juego 2 (Urshifu-R + Ogerpon-H)'
+            : 'Plan Rival Juego 1 (Iron Hands + Farigiraf)'
+          : rivalPlan === 'game2'
+            ? 'Plan Rival Juego 2 (Amoonguss + Calyrex-Ice)'
+            : 'Plan Rival Juego 1 (Pelipper + Calyrex-Ice)',
+        flagKey: 'rival_plan',
+        flagValue: rivalPlan,
+        effectTitle: isPlayingAsYuta
+          ? 'Apertura oficial de Luca Ceribelli'
+          : 'Apertura oficial de Yuta Ishigaki',
+        effectDetail: isPlayingAsYuta
+          ? 'Whimsicott + Miraidon en Turno 1 con Viento Afín y Brillo Mágico.'
+          : 'Iron Valiant + Landorus en Turno 1, con pivote mid-game hacia Calyrex-Ice (Trick Room).',
       },
     ],
     flags,

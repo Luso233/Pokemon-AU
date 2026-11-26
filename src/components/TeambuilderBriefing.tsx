@@ -220,7 +220,7 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                     {config.playerName}
                   </h3>
                   <p className="text-[11px] text-amber-300/80">
-                    Equipo de Vida Diaria · Tera habilitado
+                    {config.playerTeamSummary}
                   </p>
                 </div>
               </div>

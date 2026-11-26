@@ -170,7 +170,7 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
 
   const requestKey = useMemo(() => {
     if (!snapshot) return '';
-    return `${snapshot.turn}-${snapshot.status}-${snapshot.isForceSwitch}-${snapshot.pendingSlots.length}`;
+    return `${snapshot.requestSeq}-${snapshot.turn}-${snapshot.status}-${snapshot.isForceSwitch}-${snapshot.pendingSlots.length}`;
   }, [snapshot]);
 
   useEffect(() => {
@@ -183,6 +183,20 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
     ) {
       autoCmds.push('pass');
       idx++;
+    }
+    if (
+      snapshot.pendingSlots.length > 0 &&
+      idx >= snapshot.pendingSlots.length &&
+      autoCmds.length > 0
+    ) {
+      setSlotCursor(0);
+      setQueuedCommands([]);
+      setReservedSwitchSlots([]);
+      setTeraQueuedInTurn(false);
+      setWantTera(false);
+      setPendingTargetMove(null);
+      void controllerRef.current?.submitPlayerChoice(autoCmds.join(', '));
+      return;
     }
     setSlotCursor(idx);
     setQueuedCommands(autoCmds);
@@ -214,10 +228,18 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
         : reservedSwitchSlots;
     const nextTeraQueued = teraQueuedInTurn || usedTera;
 
+    // Count how many unreserved, non-active, alive bench Pokémon remain after this pick.
+    // Crucial for Doubles double-KO (`forceSwitch: [true, true]`) with only 1 bench Pokémon left:
+    // once that last Pokémon is chosen for Slot 1, Slot 2 MUST automatically append `pass` (`switch N, pass`)!
+    const remainingBenchCount = snapshot.p1.party.filter(
+      (p) => !p.active && !p.fainted && !nextReserved.includes(p.slotIndex)
+    ).length;
+
     let nextIdx = slotCursor + 1;
     while (
       nextIdx < snapshot.pendingSlots.length &&
-      snapshot.pendingSlots[nextIdx].pass
+      (snapshot.pendingSlots[nextIdx].pass ||
+        (snapshot.isForceSwitch && remainingBenchCount === 0))
     ) {
       nextCmds.push('pass');
       nextIdx++;
@@ -282,9 +304,19 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
     setPendingTargetMove(null);
     setWantTera(false);
     setTeraQueuedInTurn(false);
-    if (slotCursor > 0 && queuedCommands.length > 0) {
-      setSlotCursor(0);
-      setQueuedCommands([]);
+    if (!snapshot) return;
+    let firstInteractive = 0;
+    const leadingPasses: string[] = [];
+    while (
+      firstInteractive < snapshot.pendingSlots.length &&
+      snapshot.pendingSlots[firstInteractive].pass
+    ) {
+      leadingPasses.push('pass');
+      firstInteractive++;
+    }
+    if (slotCursor > firstInteractive) {
+      setSlotCursor(firstInteractive);
+      setQueuedCommands(leadingPasses);
       setReservedSwitchSlots([]);
     }
   };
@@ -333,6 +365,18 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
   const availableSwitches = snapshot.p1.party.filter(
     (p) => !p.active && !p.fainted && !reservedSwitchSlots.includes(p.slotIndex)
   );
+  const canUndoSlot = snapshot.pendingSlots
+    .slice(0, slotCursor)
+    .some((s) => !s.pass);
+  const remainingForceSwitchSlots = snapshot.isForceSwitch
+    ? snapshot.pendingSlots
+        .slice(slotCursor)
+        .filter((s) => s.forceSwitch && !s.pass).length
+    : 0;
+  const canPassForceSwitch =
+    snapshot.isForceSwitch &&
+    (availableSwitches.length === 0 ||
+      remainingForceSwitchSlots > availableSwitches.length);
   const canTeraNow = Boolean(currentSlot?.canTerastallize) && !teraQueuedInTurn;
   const aliveP1 = snapshot.p1.party.filter((p) => !p.fainted).length;
   const aliveP2 = Math.max(0, snapshot.totalP2 - snapshot.koCountP2);
@@ -1226,9 +1270,24 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                   </div>
                 ) : currentSlot.forceSwitch ? (
                   <div>
-                    <p className="mb-2 text-xs font-bold text-amber-300">
-                      ¡{currentSlot.pokemon.name} se debilitó! Elige reemplazo:
-                    </p>
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs font-bold text-amber-300">
+                        ¡{currentSlot.pokemon.name} se debilitó! Elige reemplazo
+                        {snapshot.format === 'doubles'
+                          ? ` (Slot ${currentSlot.activeIndex + 1}/${snapshot.pendingSlots.length})`
+                          : ''}
+                        :
+                      </p>
+                      {canUndoSlot && (
+                        <button
+                          type="button"
+                          onClick={handleUndoDoubleSlot}
+                          className="rounded-lg border border-slate-700 px-2 py-0.5 text-[11px] text-slate-300 hover:text-white cursor-pointer"
+                        >
+                          ← Slot 1
+                        </button>
+                      )}
+                    </div>
                     <div className="flex flex-wrap gap-2">
                       {availableSwitches.map((mon) => (
                         <PokemonTooltip
@@ -1261,6 +1320,28 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                           </button>
                         </PokemonTooltip>
                       ))}
+
+                      {canPassForceSwitch && (
+                        <ActionInfoTooltip
+                          title="Dejar Slot Vacío (Pass)"
+                          description={
+                            availableSwitches.length === 0
+                              ? 'Ya no quedan más Pokémon disponibles en banca para este espacio.'
+                              : 'Deja este espacio vacío para enviar tu último Pokémon al otro slot.'
+                          }
+                          placement="top"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => commitSlotCommand('pass')}
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-amber-400/45 bg-amber-500/15 px-3 py-1.5 text-xs font-bold text-amber-200 transition hover:bg-amber-500/25 cursor-pointer"
+                          >
+                            {availableSwitches.length === 0
+                              ? 'Continuar (Sin reemplazo)'
+                              : 'Dejar vacío (Pass)'}
+                          </button>
+                        </ActionInfoTooltip>
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -1320,7 +1401,7 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                             </ActionInfoTooltip>
                           )}
 
-                        {slotCursor > 0 && (
+                        {canUndoSlot && (
                           <ActionInfoTooltip
                             title="Deshacer Slot 1"
                             description="Cancela la orden elegida para tu primer Pokémon en este turno Doble."

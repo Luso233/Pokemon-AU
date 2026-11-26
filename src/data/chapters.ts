@@ -282,38 +282,42 @@ export const CHAPTERS: ChapterDefinition[] = [
     category: 'showcases',
     number: 'ARCHIVO VGC',
     title: 'Final Mundial 2024: Luca vs. Yuta',
-    subtitle: 'Simulación del Archivo Real · VGC Reg G Dobles 4v4 Nv. 50 con Open Teamsheets',
+    subtitle: 'Elige bando (Luca Ceribelli o Yuta Ishigaki) · VGC Reg G Dobles 4v4 Nv. 50',
     tag: 'WORLDS 2024 · VGC REG G',
     format: 'doubles',
     formatId: 'gen9vgc2024regg',
     formatLabel: 'VGC Reg G · Dobles 4v4 Nv. 50',
     difficulty: 'Masters Finals · Bring 6, Pick 4',
     description:
-      'Revive la gran final del Mundial 2024 en Honolulu al mando del equipo exacto de Luca Ceribelli (Miraidon, Whimsicott, Urshifu-R, Ogerpon-Hearthflame, Iron Hands, Farigiraf) contra la IA de Yuta Ishigaki (Calyrex-Ice, Pelipper, Amoonguss, Iron Valiant, Landorus) con Open Teamsheets completos.',
+      'Revive la gran final del Mundial 2024 en Honolulu eligiendo al inicio si juegas como Luca Ceribelli (Miraidon, Whimsicott, Urshifu-R, Ogerpon-H, Iron Hands, Farigiraf) o como Yuta Ishigaki (Calyrex-Ice, Pelipper, Amoonguss, Iron Valiant, Landorus, Urshifu-R), con Open Teamsheets completos e IA scripteada.',
     accentColor: 'sky',
     featuredPokemon: ['Miraidon', 'Urshifu-Rapid-Strike', 'Calyrex-Ice', 'Iron Valiant'],
-    rivalPreview: 'Yuta Ishigaki · Calyrex-Ice, Iron Valiant, Landorus, Pelipper (Open Sheet)',
+    rivalPreview: 'Bando elegible: Luca (Miraidon) vs. Yuta (Calyrex-Ice) · Open Sheet',
     inkSource: archiveVgc2024Ink,
     resolveBattleConfig: resolveVgcWorlds2024Battle,
-    getEpilogue: (won: boolean) => {
+    getEpilogue: (won: boolean, flags: StoryFlags) => {
+      const asYuta = String(flags.selected_player ?? 'luca') === 'yuta';
+      const playerLabel = asYuta ? 'Yuta Ishigaki (Calyrex-Ice)' : 'Luca Ceribelli (Miraidon)';
+      const rivalLabel = asYuta ? 'Luca Ceribelli (Miraidon)' : 'Yuta Ishigaki (Calyrex-Ice)';
+
       if (won) {
         return {
           headline: '¡Campeón del Archivo Mundial VGC!',
-          subheadline:
-            'El equipo de Miraidon de Luca Ceribelli se impuso sobre el núcleo de Calyrex-Ice de Yuta Ishigaki.',
-          badgeText: 'VICTORIA · MASTERS FINALS VGC',
+          subheadline: `${playerLabel} se impuso sobre ${rivalLabel} en la simulación de Honolulu.`,
+          badgeText: asYuta ? 'VICTORIA · TEAM YUTA VGC' : 'VICTORIA · TEAM LUCA VGC',
           paragraphs: [
-            'La Campeona asiente impresionada frente al holograma del estadio: «Dominar Bring 6 Pick 4, Open Teamsheets, Campo Eléctrico y Teracristalización a este nivel te prepara para cualquier guerra en Galar.»',
+            'La Campeona asiente impresionada frente al holograma del estadio: «Dominar Bring 6 Pick 4, Open Teamsheets, control de velocidad y Teracristalización a este nivel te prepara para cualquier guerra en Galar.»',
           ],
         };
       }
       return {
-        headline: 'Victoria para Yuta Ishigaki en la Simulación',
-        subheadline:
-          'La presión de Iron Valiant, Landorus y Espacio Raro de Calyrex-Ice controló la final.',
+        headline: `Victoria para ${rivalLabel}`,
+        subheadline: asYuta
+          ? 'El Viento Afín de Whimsicott y la presión de Miraidon controlaron el tablero.'
+          : 'La presión de Iron Valiant, Landorus y Espacio Raro de Calyrex-Ice controló la final.',
         badgeText: 'DERROTA · REINTENTAR FINAL',
         paragraphs: [
-          'Abre el Open Teamsheet antes de elegir tus 4 Pokémon en el Team Preview para planificar cómo responder al Choque Anímico de Iron Valiant y el Espacio Raro de Calyrex-Ice.',
+          'Abre el Open Teamsheet antes de elegir tus 4 Pokémon en el Team Preview o prueba cambiar de bando en la escena inicial para estudiar el enfrentamiento desde ambos lados.',
         ],
       };
     },

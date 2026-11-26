@@ -350,6 +350,7 @@ export interface BattleSnapshot {
   p2: FieldSideState;
   pendingSlots: PendingDecisionSlot[];
   isForceSwitch: boolean;
+  requestSeq: number;
   log: BattleLogEntry[];
   winner: 'p1' | 'p2' | 'tie' | null;
   lastCue: BattleAnimationCue | null;
