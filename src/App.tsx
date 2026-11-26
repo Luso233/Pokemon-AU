@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { User } from 'firebase/auth';
 import { CHAPTERS } from './data/chapters';
+import { buildRivalProfileFromNpc, getNpcDefinition } from './data/npcProfiles';
 import { AccountModal } from './components/AccountModal';
 import { AISettingsModal } from './components/AISettingsModal';
 import { ArcadeView } from './components/ArcadeView';
@@ -171,9 +172,15 @@ export default function App() {
   const handleFinishVN = (flags: StoryFlags) => {
     setSuspendedInkState(null);
     const rawConfig = activeChapter.resolveBattleConfig(flags);
+    const npcDef = getNpcDefinition(rawConfig.rivalCharId);
     const config: ResolvedBattleConfig = {
       ...rawConfig,
-      rivalProfile: rawConfig.rivalProfile ?? activeChapter.rivalProfile,
+      rivalProfile: buildRivalProfileFromNpc(
+        rawConfig.rivalCharId,
+        rawConfig.rivalProfile ?? activeChapter.rivalProfile
+      ),
+      npcPersonality: rawConfig.npcPersonality ?? npcDef.personality,
+      npcDialogues: rawConfig.npcDialogues ?? npcDef.dialogues,
     };
     setResolvedConfig(config);
     setScreen('teambuilder');
@@ -188,9 +195,15 @@ export default function App() {
           req.persist ? persistedPartyState ?? undefined : undefined
         )
       : activeChapter.resolveBattleConfig(req.flags);
+    const npcDef = getNpcDefinition(rawConfig.rivalCharId);
     const config: ResolvedBattleConfig = {
       ...rawConfig,
-      rivalProfile: rawConfig.rivalProfile ?? activeChapter.rivalProfile,
+      rivalProfile: buildRivalProfileFromNpc(
+        rawConfig.rivalCharId,
+        rawConfig.rivalProfile ?? activeChapter.rivalProfile
+      ),
+      npcPersonality: rawConfig.npcPersonality ?? npcDef.personality,
+      npcDialogues: rawConfig.npcDialogues ?? npcDef.dialogues,
     };
     if (!req.persist) {
       recordChapterAttempt(activeChapter.id);
@@ -201,11 +214,21 @@ export default function App() {
   };
 
   const handleLaunchBattle = (finalConfig: ResolvedBattleConfig) => {
+    const npcDef = getNpcDefinition(finalConfig.rivalCharId);
     const hydrated: ResolvedBattleConfig = {
       ...finalConfig,
-      rivalProfile:
-        finalConfig.rivalProfile ??
-        (finalConfig.isVersusMatch ? undefined : activeChapter.rivalProfile),
+      rivalProfile: finalConfig.isVersusMatch
+        ? finalConfig.rivalProfile
+        : buildRivalProfileFromNpc(
+            finalConfig.rivalCharId,
+            finalConfig.rivalProfile ?? activeChapter.rivalProfile
+          ),
+      npcPersonality: finalConfig.isVersusMatch
+        ? finalConfig.npcPersonality
+        : finalConfig.npcPersonality ?? npcDef.personality,
+      npcDialogues: finalConfig.isVersusMatch
+        ? finalConfig.npcDialogues
+        : finalConfig.npcDialogues ?? npcDef.dialogues,
     };
     if (!hydrated.isVersusMatch) {
       recordChapterAttempt(activeChapter.id);

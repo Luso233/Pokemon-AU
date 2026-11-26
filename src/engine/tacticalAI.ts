@@ -2,6 +2,7 @@ import { Dex, toID } from '@pkmn/sim';
 import type {
   AISettings,
   BattleFormat,
+  NpcAiPersonality,
   ScriptedEnemyRule,
 } from '../types/game';
 import { callStructuredLLM, isLiveLLMConfigured } from './aiProvider';
@@ -65,6 +66,7 @@ export interface OpponentContext {
   triggeredRuleIds: Set<string>;
   preferredTeamPreviewOrder?: string;
   reserveAsLastAceSpecies?: string;
+  npcPersonality?: NpcAiPersonality;
 }
 
 export interface RivalActionDecision {
@@ -318,6 +320,11 @@ export function chooseRivalAction(
 
     const isMulti = ctx.format === 'doubles' || ctx.format === 'triples';
     let megaUsedThisTurn = false;
+    let teraUsedThisTurn = false;
+    const pers = ctx.npcPersonality;
+    const aggrWeight = pers ? 0.72 + pers.aggression * 0.56 : 1;
+    const disruptWeight = pers ? 0.65 + pers.disruptionBias * 0.7 : 1;
+    const protectWeight = pers ? 0.6 + pers.protectBias * 0.8 : 1;
 
     for (let slotIdx = 0; slotIdx < request.active.length; slotIdx++) {
       const activeSlot = request.active[slotIdx];
@@ -405,8 +412,14 @@ export function chooseRivalAction(
             reachable
           );
         }
-        matchedCommand = `move ${forced.slot}${suffix}${wantMegaSuffix}`;
+        const wantTeraSuffix =
+          Boolean(rule.forceTera && activeSlot.canTerastallize) &&
+          !teraUsedThisTurn
+            ? ' terastallize'
+            : '';
+        matchedCommand = `move ${forced.slot}${suffix}${wantMegaSuffix}${wantTeraSuffix}`;
         if (wantMegaSuffix) megaUsedThisTurn = true;
+        if (wantTeraSuffix) teraUsedThisTurn = true;
         ctx.triggeredRuleIds.add(rule.id);
         triggeredRules.push(rule);
         break;
@@ -462,40 +475,47 @@ export function chooseRivalAction(
 
         if (moveData.category === 'Status') {
           let score = 20;
-          if (mv.id === 'taunt') score = ctx.turn <= 2 ? 105 : 35;
-          else if (mv.id === 'encore') score = ctx.turn > 1 ? 85 : 15;
-          else if (mv.id === 'darkvoid') {
+          if (mv.id === 'taunt') score = (ctx.turn <= 2 ? 105 : 35) * disruptWeight;
+          else if (mv.id === 'encore') score = (ctx.turn > 1 ? 88 : 15) * disruptWeight;
+          else if (mv.id === 'revivalblessing') {
+            const hasFaintedAlly = party.some((p) => isFainted(p.condition));
+            score = hasFaintedAlly ? 152 * disruptWeight : 4;
+          } else if (mv.id === 'destinybond') {
+            score = (parseHpRatio(selfMon.condition) < 0.5 ? 128 : 48) * protectWeight;
+          } else if (mv.id === 'darkvoid') {
             const hasUnstatused = aliveFoeSlots.some((fi) => !ctx.foeActiveStatus[fi]);
-            score = hasUnstatused ? 145 : 5;
+            score = hasUnstatused ? 145 * disruptWeight : 5;
           } else if (mv.id === 'spore' || mv.id === 'sleeppowder') {
             const hasUnstatused = aliveFoeSlots.some((fi) => !ctx.foeActiveStatus[fi]);
-            score = hasUnstatused ? 135 : 5;
-          } else if (mv.id === 'tailwind') score = ctx.turn <= 2 ? 120 : 20;
-          else if (mv.id === 'followme') score = isMulti ? 102 : 5;
-          else if (mv.id === 'quash') score = isMulti ? 94 : 5;
-          else if (mv.id === 'partingshot') score = 78;
+            score = hasUnstatused ? 135 * disruptWeight : 5;
+          } else if (mv.id === 'tailwind') score = (ctx.turn <= 2 ? 120 : 20) * disruptWeight;
+          else if (mv.id === 'followme') score = (isMulti ? 102 : 5) * disruptWeight;
+          else if (mv.id === 'quash') score = (isMulti ? 94 : 5) * disruptWeight;
+          else if (mv.id === 'partingshot') score = 78 * disruptWeight;
           else if (mv.id === 'reflect') {
             const hasReflect = (ctx.selfSideConditions ?? []).some((c) =>
               c.toLowerCase().includes('reflect')
             );
-            score = hasReflect ? 5 : 108;
+            score = hasReflect ? 5 : 108 * protectWeight;
           } else if (mv.id === 'lightscreen') {
             const hasLS = (ctx.selfSideConditions ?? []).some((c) =>
               c.toLowerCase().includes('light screen')
             );
-            score = hasLS ? 5 : 108;
-          } else if (mv.id === 'wideguard') score = isMulti && ctx.turn % 2 === 1 ? 55 : 12;
-          else if (mv.id === 'willowisp' || mv.id === 'thunderwave' || mv.id === 'stunspore') {
+            score = hasLS ? 5 : 108 * protectWeight;
+          } else if (mv.id === 'wideguard') {
+            score = (isMulti && ctx.turn % 2 === 1 ? 55 : 12) * protectWeight;
+          } else if (mv.id === 'willowisp' || mv.id === 'thunderwave' || mv.id === 'stunspore') {
             const hasUnstatused = aliveFoeSlots.some((fi) => !ctx.foeActiveStatus[fi]);
-            score = hasUnstatused ? 100 : 10;
-          } else if (mv.id === 'protect') score = ctx.turn % 3 === 0 ? 50 : 12;
-          else if (
+            score = hasUnstatused ? 100 * disruptWeight : 10;
+          } else if (mv.id === 'protect') {
+            score = (ctx.turn % 3 === 0 ? 52 : 14) * protectWeight;
+          } else if (
             mv.id === 'recover' ||
             mv.id === 'softboiled' ||
             mv.id === 'rest' ||
             mv.id === 'lunarblessing'
           ) {
-            score = parseHpRatio(selfMon.condition) < 0.6 ? 120 : 15;
+            score = (parseHpRatio(selfMon.condition) < 0.6 ? 120 : 15) * protectWeight;
           } else if (mv.id === 'psychup') {
             const maxFoePos = Math.max(
               0,
@@ -507,7 +527,7 @@ export function chooseRivalAction(
           } else if (mv.id === 'lunardance') {
             score = 5;
           } else if (mv.id === 'swordsdance' || mv.id === 'nastyplot') {
-            score = parseHpRatio(selfMon.condition) > 0.7 ? 92 : 12;
+            score = parseHpRatio(selfMon.condition) > 0.7 ? 92 * aggrWeight : 12;
           }
           score += Math.random() * 12;
 
@@ -538,9 +558,11 @@ export function chooseRivalAction(
             ? 102
             : mv.id === 'crushgrip'
               ? 110
-              : mv.id === 'endeavor' || mv.id === 'flail'
-                ? 90
-                : 40);
+              : mv.id === 'counter' || mv.id === 'mirrorcoat'
+                ? 96
+                : mv.id === 'endeavor' || mv.id === 'flail'
+                  ? 90
+                  : 40);
         const stab = selfSpecies.types.includes(moveData.type) ? 1.5 : 1;
 
         if (needsFoeTarget) {
@@ -556,7 +578,7 @@ export function chooseRivalAction(
               ? Dex.species.get(foeSpeciesName).types
               : ['Normal'];
             const mult = calcTypeMultiplier(moveData.type, foeTypes);
-            let score = bp * stab * mult;
+            let score = bp * stab * mult * aggrWeight;
             if (mv.id === 'fakeout' && ctx.turn === 1) score += 95;
             if (
               mv.id === 'brickbreak' &&

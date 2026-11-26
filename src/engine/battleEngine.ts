@@ -1,4 +1,5 @@
 import { BattleStreams, Dex, Teams, toID } from '@pkmn/sim';
+import { getNpcDefinition } from '../data/npcProfiles';
 import type {
   ActiveMoveOption,
   AISettings,
@@ -6,6 +7,7 @@ import type {
   BattleFormat,
   BattleLogEntry,
   BattleSnapshot,
+  NpcBattleDialogues,
   OpenTeamsheetEntry,
   PartyPokemonState,
   PendingDecisionSlot,
@@ -280,6 +282,8 @@ export class ShowdownBattleController {
   private emptySlotsCleared = false;
   private turn1RequestsSeen = 0;
   private triggeredRuleIds = new Set<string>();
+  private firedDialogueEvents = new Set<string>();
+  private lastTauntTurn = -1;
   private p1HappinessBySpecies = new Map<string, number>();
   private p2HappinessBySpecies = new Map<string, number>();
   private p1ShinySpecies = new Set<string>();
@@ -1214,6 +1218,9 @@ export class ShowdownBattleController {
             triggeredRuleIds: this.triggeredRuleIds,
             preferredTeamPreviewOrder: this.config.preferredRivalTeamOrder,
             reserveAsLastAceSpecies: this.config.reserveAsLastAceSpecies,
+            npcPersonality:
+              this.config.npcPersonality ??
+              getNpcDefinition(this.config.rivalCharId).personality,
           });
 
           if (decision && this.streams && !this.destroyed && !this.isEnded()) {
@@ -1227,6 +1234,7 @@ export class ShowdownBattleController {
                   `⚡ [Patrón Scripteado · Turno ${Math.max(1, this.state.turn)}] ${rule.description}`
                 );
                 if (rule.tauntLine) {
+                  this.lastTauntTurn = Math.max(1, this.state.turn);
                   this.state.activeTaunt = {
                     id: ++this.tauntSeq,
                     turn: Math.max(1, this.state.turn),
@@ -1665,6 +1673,35 @@ export class ShowdownBattleController {
     this.emit();
   }
 
+  private emitNpcDialogue(
+    eventKey: keyof NpcBattleDialogues,
+    label: string,
+    forceOverride = false
+  ): void {
+    if (this.config.p2Control === 'human' || this.config.isVersusMatch) return;
+    if (this.firedDialogueEvents.has(eventKey)) return;
+    const bank =
+      this.config.npcDialogues ??
+      getNpcDefinition(this.config.rivalCharId).dialogues;
+    const pool = bank?.[eventKey];
+    if (!pool || pool.length === 0) return;
+
+    const curTurn = Math.max(1, this.state.turn);
+    if (!forceOverride && this.lastTauntTurn === curTurn) return;
+
+    const line = pool[Math.floor(Math.random() * pool.length)];
+    this.firedDialogueEvents.add(eventKey);
+    this.lastTauntTurn = curTurn;
+    this.state.activeTaunt = {
+      id: ++this.tauntSeq,
+      turn: curTurn,
+      speaker: this.config.rivalName,
+      charId: this.config.rivalCharId,
+      text: line,
+      ruleDescription: label,
+    };
+  }
+
   private handleProtocolLine(line: string): void {
     const parts = line.split('|');
     const cmd = parts[1];
@@ -1724,6 +1761,7 @@ export class ShowdownBattleController {
         this.pushLog('turn', `Turn ${this.state.turn}`);
         if (this.state.turn === 1) {
           this.applyInitialBattleOverridesIfNeeded();
+          this.emitNpcDialogue('onBattleStart', 'Inicio del duelo');
         }
         break;
       }
@@ -1860,6 +1898,14 @@ export class ShowdownBattleController {
             name !== det.species ? ` (${det.species})` : ''
           } Nv.${det.level}${aceTag}.`
         );
+        if (side === 'p2') {
+          const isReservedAce =
+            this.config.reserveAsLastAceSpecies &&
+            toID(det.species) === toID(this.config.reserveAsLastAceSpecies);
+          if (existing.isBossAce || isReservedAce) {
+            this.emitNpcDialogue('onAceEntry', 'Entrada del As', true);
+          }
+        }
         break;
       }
 
@@ -2004,6 +2050,9 @@ export class ShowdownBattleController {
               `${name} perdió ${delta}% de PS${fromTag} (${cond.hpPercent}% restante).`
             );
           }
+          if (side === 'p2' && cond.hpPercent > 0 && cond.hpPercent <= 35) {
+            this.emitNpcDialogue('onLowHp', 'Rival acorralado');
+          }
         } else {
           const fromPart = extra.find((e) => e.startsWith('[from] '));
           const fromTag = fromPart
@@ -2026,6 +2075,9 @@ export class ShowdownBattleController {
           calloutTone: 'super',
         });
         this.pushLog('effective', '¡Es súper eficaz!');
+        if (side === 'p2') {
+          this.emitNpcDialogue('onSuperEffective', 'Impacto decisivo');
+        }
         break;
       }
 
@@ -2391,6 +2443,11 @@ export class ShowdownBattleController {
           this.state.koCountP2 = this.state.p2.party.filter(
             (p) => p.fainted
           ).length;
+          if (this.state.koCountP2 === 1) {
+            this.emitNpcDialogue('onFirstFoeKO', 'Primera baja rival');
+          }
+        } else {
+          this.emitNpcDialogue('onPlayerFaint', 'Baja aliada');
         }
         this.pushLog('faint', `¡${name} se debilitó!`);
         break;
@@ -2431,6 +2488,11 @@ export class ShowdownBattleController {
           );
         }
         this.pushLog('win', `🏆 ¡${winnerName} ganó el combate!`);
+        this.emitNpcDialogue(
+          this.state.winner === 'p1' ? 'onDefeat' : 'onVictory',
+          this.state.winner === 'p1' ? 'Derrota rival' : 'Victoria rival',
+          true
+        );
         break;
       }
 

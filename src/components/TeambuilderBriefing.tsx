@@ -10,8 +10,10 @@ import {
   ClipboardList,
   Code2,
   Coins,
+  Dices,
   Eye,
   EyeOff,
+  Flame,
   HelpCircle,
   Lock,
   RotateCcw,
@@ -22,6 +24,11 @@ import {
   Wrench,
 } from 'lucide-react';
 import { CURRENCY_SHORT } from '../data/economyCatalog';
+import {
+  applyNpcRunModifiers,
+  getNpcDefinition,
+  getVariantsForChapterNpc,
+} from '../data/npcProfiles';
 import {
   getFormatGeneration,
   getLegalLearnsetForSpecies,
@@ -36,6 +43,7 @@ import {
 } from '../engine/playerProfile';
 import { getTypeBadgeClass } from '../engine/pokemonVisuals';
 import type {
+  BattleDifficultyMode,
   OpenTeamsheetEntry,
   PlayerSaveProfile,
   ResolvedBattleConfig,
@@ -115,6 +123,21 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
   const [showRivalDebugPaste, setShowRivalDebugPaste] = useState(false);
   const [rivalPaste, setRivalPaste] = useState(config.rivalShowdownPaste);
   const [showTeamsheet, setShowTeamsheet] = useState(false);
+  const [difficultyMode, setDifficultyMode] = useState<BattleDifficultyMode>(
+    config.difficultyMode ?? 'kaizo'
+  );
+  const [selectedVariantId, setSelectedVariantId] = useState<string>(
+    config.selectedVariantId ?? 'canonical'
+  );
+
+  const npcDef = useMemo(
+    () => getNpcDefinition(config.rivalCharId),
+    [config.rivalCharId]
+  );
+  const npcVariants = useMemo(
+    () => getVariantsForChapterNpc(config.rivalCharId, config.chapterId),
+    [config.rivalCharId, config.chapterId]
+  );
 
   const ownedShinyCharms = profile.inventory.shinyCharms;
 
@@ -298,11 +321,20 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
 
   const handleStart = () => {
     if (!isValid) return;
-    onLaunchBattle({
+    const baseWithPlayer: ResolvedBattleConfig = {
       ...config,
       playerShowdownPaste: effectivePlayerPaste,
-      rivalShowdownPaste: rivalPaste,
-    });
+      rivalShowdownPaste:
+        showRivalDebugPaste && rivalPaste !== config.rivalShowdownPaste
+          ? rivalPaste
+          : config.rivalShowdownPaste,
+    };
+    const finalWithNpc = applyNpcRunModifiers(
+      baseWithPlayer,
+      difficultyMode,
+      selectedVariantId
+    );
+    onLaunchBattle(finalWithNpc);
   };
 
   const activeSpeciesKey = activeSet ? getSpeciesKey(activeSet.species) : '';
@@ -948,10 +980,85 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
               </div>
 
               {config.rivalProfile && (
-                <p className="mb-4 rounded-xl border border-slate-800 bg-slate-950/75 px-3.5 py-2.5 text-xs leading-relaxed text-slate-300">
+                <p className="mb-3 rounded-xl border border-slate-800 bg-slate-950/75 px-3.5 py-2.5 text-xs leading-relaxed text-slate-300">
                   {config.rivalProfile.bio}
                 </p>
               )}
+
+              {/* NPC Personality Directives & Difficulty / Variant Run Selector */}
+              <div className="mb-4 space-y-2.5 rounded-2xl border border-violet-400/25 bg-violet-950/20 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-violet-200">
+                    Estilo: {npcDef.personality.styleName}
+                  </span>
+                  {npcDef.socialLink?.romanceable && (
+                    <span className="rounded bg-fuchsia-500/20 px-1.5 py-0.5 text-[9px] font-bold text-fuchsia-200">
+                      Rival Clave
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] leading-relaxed text-violet-100/80">
+                  {npcDef.personality.directiveSummary}
+                </p>
+
+                {/* Difficulty Selector */}
+                <div className="border-t border-white/10 pt-2">
+                  <p className="mb-1.5 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-amber-200">
+                    <Flame className="h-3 w-3 text-amber-400" />
+                    Dificultad del Rival
+                  </p>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {(
+                      [
+                        { id: 'standard', label: 'Estándar' },
+                        { id: 'kaizo', label: 'Kaizo' },
+                        { id: 'nightmare', label: 'Pesadilla' },
+                      ] as const
+                    ).map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setDifficultyMode(opt.id)}
+                        className={`rounded-lg border px-2 py-1 text-[10px] font-bold transition cursor-pointer ${
+                          difficultyMode === opt.id
+                            ? opt.id === 'nightmare'
+                              ? 'border-rose-400 bg-rose-500/25 text-rose-100'
+                              : opt.id === 'kaizo'
+                                ? 'border-amber-400 bg-amber-500/25 text-amber-100'
+                                : 'border-emerald-400 bg-emerald-500/20 text-emerald-100'
+                            : 'border-slate-800 bg-slate-950/80 text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Variant / Random Run Selector when NPC has multiple teams */}
+                {npcVariants.length > 1 && (
+                  <div className="border-t border-white/10 pt-2">
+                    <p className="mb-1.5 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-sky-200">
+                      <Dices className="h-3 w-3 text-sky-400" />
+                      Variante de Equipo (Run)
+                    </p>
+                    <select
+                      value={selectedVariantId}
+                      onChange={(e) => setSelectedVariantId(e.target.value)}
+                      className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-[11px] font-semibold text-slate-100 focus:border-sky-400 focus:outline-none"
+                    >
+                      {npcVariants.map((v) => (
+                        <option key={v.id} value={v.id}>
+                          {v.label}
+                        </option>
+                      ))}
+                      <option value="random">
+                        🎲 Sorpresa (Aleatorio en esta Run)
+                      </option>
+                    </select>
+                  </div>
+                )}
+              </div>
 
               {/* Fog of War Silhouettes */}
               <div className="mb-4">

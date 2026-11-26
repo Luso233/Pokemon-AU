@@ -740,93 +740,129 @@ export function resolveChapter2BanquetBattle(
   const smeargle: ShowdownSetBlock = {
     species: 'Smeargle',
     item: 'Focus Sash',
-    ability: 'Own Tempo',
+    ability: 'Prankster',
     level: 100,
     evs: '252 HP / 4 Def / 252 Spe',
     nature: 'Jolly',
-    moves: ['Spore', 'Follow Me', 'Fake Out', 'Endeavor'],
+    moves: ['Spore', 'Follow Me', 'Revival Blessing', 'Fake Out'],
   };
-  const sableye: ShowdownSetBlock = {
-    species: 'Sableye',
-    item: 'Sitrus Berry',
-    ability: 'Prankster',
+  const shedinja: ShowdownSetBlock = {
+    species: 'Shedinja',
+    item: 'Air Balloon',
+    ability: 'Wonder Guard',
+    level: 100,
+    teraType: 'Electric',
+    evs: '252 Atk / 252 Spe',
+    nature: 'Adamant',
+    moves: ['Shadow Sneak', 'Will-O-Wisp', 'Endeavor', 'Protect'],
+  };
+  const sableyeMega: ShowdownSetBlock = {
+    species: 'Sableye-Mega',
+    item: 'Leftovers',
+    ability: 'Magic Bounce',
     level: 100,
     evs: '252 HP / 128 Def / 128 SpD',
     nature: 'Careful',
-    moves: ['Will-O-Wisp', 'Encore', 'Foul Play', 'Recover'],
+    moves: ['Will-O-Wisp', 'Encore', 'Recover', 'Foul Play'],
   };
-  const cottonee: ShowdownSetBlock = {
-    species: 'Cottonee',
+  const wobbuffet: ShowdownSetBlock = {
+    species: 'Wobbuffet',
+    item: 'Sitrus Berry',
+    ability: 'Shadow Tag',
+    level: 100,
+    evs: '252 HP / 128 Def / 128 SpD',
+    nature: 'Calm',
+    moves: ['Encore', 'Counter', 'Mirror Coat', 'Destiny Bond'],
+  };
+  const banetteMega: ShowdownSetBlock = {
+    species: 'Banette-Mega',
     item: 'Focus Sash',
     ability: 'Prankster',
     level: 100,
-    evs: '252 HP / 4 Def / 252 Spe',
-    nature: 'Timid',
-    moves: ['Tailwind', 'Endeavor', 'Encore', 'Protect'],
+    evs: '252 HP / 252 Atk / 4 SpD',
+    nature: 'Adamant',
+    moves: ['Destiny Bond', 'Will-O-Wisp', 'Encore', 'Taunt'],
   };
-  const clefairyAce: ShowdownSetBlock = {
-    nickname: 'Clefairy ★',
-    species: 'Clefairy',
-    item: 'Eviolite',
-    ability: 'Friend Guard',
-    level: 104,
-    evs: '252 HP / 252 Def / 4 SpD',
-    nature: 'Bold',
-    moves: ['Follow Me', 'Helping Hand', 'Moonblast', 'Protect'],
-  };
-  const dittoAce: ShowdownSetBlock = {
-    nickname: 'Ditto ★',
+  const dittoRat: ShowdownSetBlock = {
     species: 'Ditto',
     item: 'Choice Scarf',
     ability: 'Imposter',
-    level: 104,
+    level: 100,
     evs: '252 HP / 4 Def / 252 Spe',
     nature: 'Jolly',
     moves: ['Transform'],
   };
+  const zoroarkAce: ShowdownSetBlock = {
+    nickname: 'Zoroark ★',
+    species: 'Zoroark',
+    item: 'Life Orb',
+    ability: 'Illusion',
+    level: 118,
+    teraType: 'Dark',
+    evs: '4 HP / 252 SpA / 252 Spe',
+    nature: 'Timid',
+    ivs: '0 Atk',
+    moves: ['Night Daze', 'Flamethrower', 'Sludge Bomb', 'Nasty Plot'],
+  };
 
   const rivalBlocks =
     assassinPlan === 'mirror'
-      ? [smeargle, sableye, cottonee, dittoAce]
-      : [smeargle, sableye, cottonee, clefairyAce];
+      ? [smeargle, shedinja, banetteMega, dittoRat, zoroarkAce]
+      : [smeargle, shedinja, sableyeMega, wobbuffet, zoroarkAce];
 
   traces.push({
     id: 'ch2-rival',
     category: 'rival-team',
     choiceLabel:
       assassinPlan === 'mirror'
-        ? 'Acusar a Tizonio y Dargo'
-        : 'Guardar silencio y leer formación',
+        ? 'Exponer a quienes financian el atentado'
+        : 'Observar en silencio al Hombre Rata',
     flagKey: 'assassin_plan',
     flagValue: assassinPlan,
     effectTitle:
       assassinPlan === 'mirror'
-        ? 'Sicario ≤400 BST: Protocolo Espejo Activado'
-        : 'Sicario ≤400 BST: Escuadrón de Sabotaje',
+        ? 'El Hombre Rata: Protocolo Reflejo y Pesadillas'
+        : 'El Hombre Rata: Circo Sin Reglas',
     effectDetail:
-      'Inteligencia parcial: solo 2 de 4 especies avistadas antes del apagón.',
+      'Un arsenal de trucos ilegales y utilidad desesperante cubriendo a un único depredador oculto.',
   });
 
   const scriptedEnemyRules: ScriptedEnemyRule[] = [
     {
-      id: 'ch2-t1-fakeout',
+      id: 'rat-t1-shedinja-tera',
+      turn: 1,
+      actorSpecies: 'Shedinja',
+      forceMoveId: 'willowisp',
+      forceTera: true,
+      targetSpec: 'slot:1',
+      once: true,
+      description:
+        'Truco ilegal Turno 1: Shedinja se Teracristaliza Eléctrico flotando con Air Balloon.',
+      tauntLine:
+        '«¡Jejeje! ¡Intenta tocar a mi pequeño fantasma flotando con electricidad, Alteza!»',
+    },
+    {
+      id: 'rat-t1-smeargle-fakeout',
       turn: 1,
       actorSpecies: 'Smeargle',
       forceMoveId: 'fakeout',
       targetSpec: 'slot:1',
       once: true,
-      description: 'Turno 1 scripteado: Smeargle intenta frenar tu Slot 1 con Fake Out.',
-      tauntLine: '«¡No te apresures! ¡Smeargle, Sorpresa al frente!»',
+      description:
+        'Turno 1 del Hombre Rata: Smeargle Bromista frena a tu vanguardia con Fake Out.',
+      tauntLine:
+        '«¡Quieto ahí, principito! Primero bailas al ritmo de mis ratas.»',
     },
     {
-      id: 'ch2-t1-wisp',
-      turn: 1,
-      actorSpecies: 'Sableye',
-      forceMoveId: 'willowisp',
-      targetSpec: 'slot:1',
+      id: 'rat-banette-dbond',
+      actorSpecies: 'Banette-Mega',
+      condition: 'hpBelow60',
+      forceMoveId: 'destinybond',
       once: true,
-      description: 'Turno 1 scripteado: Sableye usa Fuego Fatuo con Bromista.',
-      tauntLine: '«Arde lentamente, Alteza. ¡Sableye, Fuego Fatuo!»',
+      description:
+        'Trampa de Mega Banette: usa Mismo Destino con Bromista al bajar de 60% PS.',
+      tauntLine:
+        '«¡Si cae mi marioneta, te vienes con ella al hoyo! ¡Mismo Destino!»',
     },
   ];
 
@@ -834,32 +870,29 @@ export function resolveChapter2BanquetBattle(
     chapterId: 'ch2-banquet-ambush',
     format: 'doubles',
     formatId: 'gen9doublescustomgame',
-    formatLabel: 'Dobles 2v2 · ≤400 BST',
+    formatLabel: 'Dobles · Sin Reglas',
+    reserveAsLastAceSpecies: 'Zoroark',
     playerName: 'Príncipe Heredero',
     playerCharId: 'prince',
-    rivalName: 'Sicario de la Corte',
-    rivalTitle: 'Agente Encubierto (≤400 BST)',
-    rivalCharId: 'assassin',
+    rivalName: 'El Hombre Rata',
+    rivalTitle: 'Saboteador del Banquete · Sin Reglas',
+    rivalCharId: 'rat_saboteur',
     arenaTheme: 'banquet-hall',
     playerTeamSummary:
       teamMode === 'combat'
         ? `Equipo de Combate (Zacian + Dragapult ${mixedRole === 'special' ? 'SpA' : 'Atk'})`
         : `Equipo de Vida Diaria (Arcanine ${mixedRole === 'special' ? 'SpA' : 'Atk'})`,
-    rivalTeamSummary: 'Inteligencia parcial: 2 de 4 especies avistadas',
+    rivalTeamSummary: 'Formación sin reglas · 1 especie avistada (4 ocultas)',
     playerShowdownPaste: buildShowdownPaste(playerBlocks),
     rivalShowdownPaste: buildShowdownPaste(rivalBlocks),
     rivalIntel: {
-      visibleSpeciesCount: 2,
+      visibleSpeciesCount: 1,
       totalSlots: rivalBlocks.length,
-      intelLabel: 'Inteligencia Parcial · 2/4 Especies',
+      intelLabel: 'Sin Reglas · 1/5 Especies',
       intelNote:
-        'Durante el apagón diplomático solo identificaste 2 de sus 4 Pokémon.',
+        'Entre el humo del salón solo alcanzas a distinguir una silueta antes de que empiece el caos.',
       levelCap: 100,
       hasBossAce: true,
-      bossAceWarning:
-        'Amenaza Ace clasificada: el sicario reserva un Pokémon oculto Nv. 104.',
-      aiScriptHint:
-        'Smeargle y Sableye abren con un guion de Fake Out + Will-O-Wisp sobre tu Slot 1 en Turno 1.',
     },
     scriptedEnemyRules,
     traces,
@@ -1649,9 +1682,9 @@ export function resolveChapter2MonotypeBattle(
     openTeamsheet: false,
     playerName: 'Príncipe Heredero',
     playerCharId: 'prince',
-    rivalName: 'Asesino Carmesí',
-    rivalTitle: 'Estandarte Siniestro (Monotype Dark)',
-    rivalCharId: 'assassin',
+    rivalName: 'Comandante Siniestro',
+    rivalTitle: 'Casa Rebelde del Estandarte Oscuro',
+    rivalCharId: 'dark_commander',
     arenaTheme: 'banner-battlefield',
     playerTeamSummary: 'Monotype Acero: Corviknight, Heatran, Gholdengo, Archaludon, Iron Treads, Scizor',
     rivalTeamSummary: 'Monotype Siniestro (6 especies visibles en Team Preview)',

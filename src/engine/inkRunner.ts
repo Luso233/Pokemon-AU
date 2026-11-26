@@ -40,6 +40,8 @@ const VALID_CHAR_IDS = new Set<CharacterId>([
   'prince',
   'assassin',
   'champion',
+  'dark_commander',
+  'rat_saboteur',
   'dock_militia',
   'mine_sapper',
   'corrupt_captain',

@@ -72,6 +72,25 @@ export const RivalPortraitTooltip: React.FC<RivalPortraitTooltipProps> = ({
         {profile.bio}
       </p>
 
+      {/* AI Personality & Combat Directives */}
+      {profile.personalityStyle && (
+        <div className="mt-2.5 rounded-xl border border-violet-400/35 bg-violet-500/10 p-2.5">
+          <div className="mb-0.5 flex items-center justify-between gap-2 text-[10px] font-extrabold uppercase tracking-wider text-violet-200">
+            <span>Personalidad: {profile.personalityStyle}</span>
+            {profile.bondBadge && (
+              <span className="rounded bg-fuchsia-500/20 px-1.5 py-0.2 text-[8px] text-fuchsia-200">
+                {profile.bondBadge}
+              </span>
+            )}
+          </div>
+          {profile.directiveSummary && (
+            <p className="text-[10.5px] leading-relaxed text-violet-100/85">
+              {profile.directiveSummary}
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Highlighted Tactical Reading */}
       <div className="mt-2.5 rounded-xl border border-amber-400/35 bg-gradient-to-br from-amber-500/12 via-rose-500/8 to-slate-950/95 p-2.5">
         <div className="mb-1 flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider text-amber-300">

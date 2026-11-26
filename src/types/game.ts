@@ -153,6 +153,8 @@ export type CharacterId =
   | 'prince'
   | 'assassin'
   | 'champion'
+  | 'dark_commander'
+  | 'rat_saboteur'
   | 'dock_militia'
   | 'mine_sapper'
   | 'corrupt_captain'
@@ -163,6 +165,60 @@ export type CharacterId =
   | 'colossus_keeper'
   | 'tobias'
   | 'ash_ketchum';
+
+export type BattleDifficultyMode = 'standard' | 'kaizo' | 'nightmare';
+
+export interface NpcAiPersonality {
+  styleName: string;
+  /** 0..1: Raw offensive KO pressure vs patience/setup. */
+  aggression: number;
+  /** 0..1: Bias toward status, hazards, Taunt, Encore, Spore, Revival Blessing. */
+  disruptionBias: number;
+  /** 0..1: Bias toward Protect, Recover, Wide Guard, Destiny Bond. */
+  protectBias: number;
+  /** 0..1: Tactical discipline & switching conservatism. */
+  switchDiscipline: number;
+  directiveSummary: string;
+}
+
+export interface NpcBattleDialogues {
+  onBattleStart?: string[];
+  onFirstFoeKO?: string[];
+  onPlayerFaint?: string[];
+  onSuperEffective?: string[];
+  onAceEntry?: string[];
+  onLowHp?: string[];
+  onVictory?: string[];
+  onDefeat?: string[];
+}
+
+export interface NpcSocialLinkMeta {
+  bondTrack: 'rival-romance' | 'mentor' | 'noble-house' | 'antagonist' | 'legend';
+  romanceable?: boolean;
+  canTagPartner?: boolean;
+  bondNote?: string;
+}
+
+export interface NpcTeamVariant {
+  id: string;
+  label: string;
+  description: string;
+  rivalShowdownPaste?: string;
+  reserveAsLastAceSpecies?: string;
+}
+
+export interface NpcDefinition {
+  id: CharacterId;
+  name: string;
+  title: string;
+  bio: string;
+  tacticalInsight: string;
+  archetypeTag: string;
+  personality: NpcAiPersonality;
+  dialogues: NpcBattleDialogues;
+  socialLink?: NpcSocialLinkMeta;
+  chapterVariants?: Record<string, NpcTeamVariant[]>;
+}
 
 export type SceneBackdropId =
   | 'wyndon-alleys'
@@ -190,6 +246,9 @@ export interface RivalProfile {
   bio: string;
   tacticalInsight: string;
   archetypeTag: string;
+  personalityStyle?: string;
+  directiveSummary?: string;
+  bondBadge?: string;
 }
 
 export interface PersistedMoveSlot {
@@ -309,6 +368,8 @@ export interface ScriptedEnemyRule {
   /** Species checked by `hpBelow35AndKeyAllyDamaged` (e.g. ['Giratina-Origin', 'Darkrai']). */
   allySpeciesList?: string[];
   forceMoveId: string;
+  /** When true, appends `terastallize` if available when this scripted rule fires. */
+  forceTera?: boolean;
   targetSpec?: string;
   once?: boolean;
 }
@@ -345,6 +406,15 @@ export interface ResolvedBattleConfig {
   rivalCharId: CharacterId;
   /** Narrative & tactical profile shown in RivalPortraitTooltip during Team Preview and live combat. */
   rivalProfile?: RivalProfile;
+  /** Combat directives driving heuristic AI behavior per NPC personality. */
+  npcPersonality?: NpcAiPersonality;
+  /** Event-reactive battle quotes (first KO, Ace entry, low HP, super effective, etc.). */
+  npcDialogues?: NpcBattleDialogues;
+  /** Active battle difficulty tier ('standard' | 'kaizo' | 'nightmare'). */
+  difficultyMode?: BattleDifficultyMode;
+  /** Selected or randomized NPC team variant ID. */
+  selectedVariantId?: string;
+  selectedVariantLabel?: string;
   arenaTheme: SceneBackdropId;
   playerTeamSummary: string;
   rivalTeamSummary: string;

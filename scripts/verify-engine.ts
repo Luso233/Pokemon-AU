@@ -57,6 +57,11 @@ import {
 } from '../src/engine/playerProfile';
 import { getLegalLearnsetForSpecies } from '../src/engine/learnsetService';
 import { CHAPTER_UNLOCK_RULES } from '../src/data/economyCatalog';
+import {
+  applyNpcRunModifiers,
+  getNpcDefinition,
+  getVariantsForChapterNpc,
+} from '../src/data/npcProfiles';
 import { createRivalBattleController } from '../src/engine/tacticalAI';
 import type { BattleSnapshot } from '../src/types/game';
 
@@ -1167,7 +1172,61 @@ async function main() {
     `  OK: Dex learnsets (Arcanine=${arcanineGen9.length}, Gen1 Tauros=${taurosGen1.length}), slot unlock + Mental Herb reward + unowned item guard + Dev Mode Unlock/Reset verified`
   );
 
-  console.log('\nALL 19 ENGINE, ECONOMY & TEAMBUILDER SUITES PASSED!');
+  console.log('\n=== 20. Personalidades NPC, Diálogos Reactivos, Dificultad/Variantes & Hombre Rata (Hackmons Sin Reglas) ===');
+  const ratInk = readFileSync(resolve('src/stories/chapter1_banquet.ink'), 'utf8');
+  const ratRunner = new InkVNRunner(ratInk);
+  let ratFrame = ratRunner.step();
+  while (!ratFrame.isEnded) {
+    if (ratFrame.canContinue) ratFrame = ratRunner.step();
+    else if (ratFrame.choices.length > 0) ratFrame = ratRunner.choose(0); // daily + physical + sabotage
+  }
+  const ratBaseCfg = resolveChapter2BanquetBattle(ratFrame.flags);
+  const ratHydratedCfg = applyNpcRunModifiers(ratBaseCfg, 'kaizo', 'canonical');
+  const { finalSnap: resRat, turn1Snap: t1Rat, turn2Snap: t2Rat } = await runFullSimMatch(
+    'Rat-Man Hackmons Bonus 02',
+    ratHydratedCfg,
+    { maxTurns: 40 }
+  );
+  if (
+    ratHydratedCfg.rivalCharId !== 'rat_saboteur' ||
+    !ratHydratedCfg.rivalShowdownPaste.includes('Level: 118') ||
+    !resRat.triggeredScriptIds.includes('rat-t1-shedinja-tera')
+  ) {
+    throw new Error(
+      `Expected Rat-Man Hackmons team (Zoroark Lv.118 + Shedinja T1 Tera Electric), got char=${ratHydratedCfg.rivalCharId} scripts=[${resRat.triggeredScriptIds.join(', ')}]`
+    );
+  }
+  const shedT2 = t2Rat?.p2.party.find((p) => p.species === 'Shedinja');
+  if (shedT2 && !shedT2.fainted && shedT2.terastallized !== 'Electric') {
+    throw new Error(`Expected Shedinja to Terastallize Electric on Turn 1, got tera=${shedT2.terastallized}`);
+  }
+  if (!t1Rat?.activeTaunt && !resRat.activeTaunt) {
+    throw new Error('Expected reactive or scripted NPC dialogue banner during Rat-Man combat!');
+  }
+
+  // Verify difficulty scaling + random variant selection across Comandante Siniestro & Rat-Man
+  const darkCmdVariants = getVariantsForChapterNpc('dark_commander', 'ch2-monotype-banners');
+  if (darkCmdVariants.length < 2) {
+    throw new Error(`Expected >=2 variants for Comandante Siniestro, got ${darkCmdVariants.length}`);
+  }
+  const nightmareRat = applyNpcRunModifiers(ratBaseCfg, 'nightmare', 'rat-banette-nightmare');
+  const standardRat = applyNpcRunModifiers(ratBaseCfg, 'standard', 'canonical');
+  if (
+    !nightmareRat.rivalShowdownPaste.includes('Banette-Mega') ||
+    !nightmareRat.rivalShowdownPaste.includes('Level: 122') ||
+    !standardRat.rivalShowdownPaste.includes('Level: 114')
+  ) {
+    throw new Error('Difficulty scaling or Banette-Mega variant check failed!');
+  }
+  const rivalDef = getNpcDefinition('assassin');
+  if (!rivalDef.socialLink?.romanceable || !rivalDef.socialLink?.canTagPartner) {
+    throw new Error('Expected recurring rival (assassin) to have future socialLink romanceable & tag-partner metadata!');
+  }
+  console.log(
+    `  OK: Rat-Man (Shedinja Tera Electric + Air Balloon + Prankster Smeargle + Mega Sableye + Wobbuffet + Zoroark Lv.118), Difficulty (114/118/122), Variants & Reactive Dialogues verified (turns=${resRat.turn})`
+  );
+
+  console.log('\nALL 20 ENGINE, ECONOMY, TEAMBUILDER & NPC PERSONALITY SUITES PASSED!');
 }
 
 let allSuitesCompleted = false;

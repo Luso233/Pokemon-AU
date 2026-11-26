@@ -6,18 +6,18 @@ VAR assassin_plan = "sabotage"
 
 === salon ===
 Las lámparas de cristal del Salón de Estado parpadean dos veces, sueltan un chasquido seco y dejan el banquete sumido en penumbra. El tintineo de copas rotas se mezcla con los gritos de los enviados diplomáticos buscando las salidas. # bg: banquet-hall # speaker: Narrador # mood: tense
-Un humo violeta y espeso se derrama desde las rejillas superiores, envolviendo las mesas largas hasta borrar las esquinas del salón. # bg: banquet-hall # speaker: Narrador # mood: tense
-A través de la bruma avanza un hombre de guantes raídos y máscara lisa. No lleva insignias ni protocolo; en su mano descansan dos Poké Balls gastadas por mil peleas callejeras. # bg: banquet-hall # speaker: Narrador # char: assassin # side: right # pokemon: none # mood: serious
-«Órdenes simples, Alteza. Sin guardias, sin rescates, sin cortesías de salón. Esta cena termina aquí.» # bg: banquet-hall # speaker: Sicario de la Corte # char: assassin # side: right # pokemon: none # mood: smug
-Tu comunicador vibra contra tu muñeca: el protocolo de cierre blindado sella las compuertas en dos segundos. Todavía alcanzas a mandar una señal a palacio... o responder con lo que ya llevas encima. # bg: banquet-hall # speaker: Narrador # char: prince # side: left # mood: serious
+Un humo violeta y acre se derrama desde las rejillas de ventilación, borrando las mesas largas hasta dejar solo sombras. Algo se arrastra rápido entre los candelabros caídos, acompañado por una risita aguda y nerviosa. # bg: banquet-hall # speaker: Narrador # mood: tense
+De la bruma sale un sujeto encorvado de sonrisa torcida, medallas robadas en la solapa, ballesta en la mano y una máscara de Zoroark sobre una melena despeinada. Su cola de rata roza la alfombra mientras hace girar una Poké Ball llena de grietas. # bg: banquet-hall # speaker: Narrador # char: rat_saboteur # side: right # pokemon: none # mood: serious
+«¡Jejeje! ¿Esperabas a un caballero elegante, Alteza? Qué pena. Aquí abajo no usamos reglas de liga, ni límites decentes, ni peleas justas. Esta noche vas a conocer lo que duele un truco sucio de verdad.» # bg: banquet-hall # speaker: El Hombre Rata # char: rat_saboteur # side: right # pokemon: none # mood: smug
+Tu comunicador vibra contra tu muñeca: el cierre blindado sella las compuertas del salón en dos segundos. Todavía alcanzas a pedir el enlace con la armería real... o responder con lo que ya llevas encima. # bg: banquet-hall # speaker: Narrador # char: prince # side: left # mood: serious
 
 * [Mantener la compostura y resistir con tu escolta habitual de palacio]
     ~ team_mode = "daily"
-    «No voy a convertir una cena de Estado en un campo de guerra delante de embajadores. Arcanine, Gardevoir, cubran el frente.» # bg: banquet-hall # speaker: Príncipe Heredero # char: prince # side: left # pokemon: arcanine # mood: fierce
+    «No voy a destruir el salón delante de los embajadores por una rata de cloaca. Arcanine, Gardevoir, cubran el frente.» # bg: banquet-hall # speaker: Príncipe Heredero # char: prince # side: left # pokemon: arcanine # mood: fierce
     -> elegir_set_mixto
 * [Activar el Código Corona y pedir el enlace inmediato a la armería real]
     ~ team_mode = "combat"
-    «Gardevoir, abre el enlace al maletín de guerra ahora mismo. Si vinieron a probar el filo de la Corona, que lo conozcan completo.» # bg: banquet-hall # speaker: Príncipe Heredero # char: prince # side: left # pokemon: zacian-crowned # mood: fierce
+    «Gardevoir, abre el enlace al maletín de guerra ahora mismo. Si trajo trucos sin reglas a nuestra mesa, los vamos a barrer de raíz.» # bg: banquet-hall # speaker: Príncipe Heredero # char: prince # side: left # pokemon: zacian-crowned # mood: fierce
     -> elegir_set_mixto
 
 === elegir_set_mixto ===
@@ -26,26 +26,26 @@ Tu comunicador vibra contra tu muñeca: el protocolo de cierre blindado sella la
 
 * [Cerrar la distancia con presión directa]
     ~ mixed_role = "physical"
-    «No le demos aire para pensar. Golpeemos de frente antes de que se acomode en la oscuridad.» # bg: banquet-hall # speaker: Príncipe Heredero # char: prince # side: left # mood: confident
+    «No le demos aire para montar su circo. Golpeemos de frente antes de que se esconda entre el humo.» # bg: banquet-hall # speaker: Príncipe Heredero # char: prince # side: left # mood: confident
     -> confrontacion_politica
 * [Mantener espacio y castigar a distancia]
     ~ mixed_role = "special"
-    «Cuidado con acercarse de más entre este humo. Mantengan la distancia y limpien el salón desde lejos.» # bg: banquet-hall # speaker: Príncipe Heredero # char: prince # side: left # mood: confident
+    «Cuidado con morder sus anzuelos de cerca. Mantengan la distancia y limpien el salón desde lejos.» # bg: banquet-hall # speaker: Príncipe Heredero # char: prince # side: left # mood: confident
     -> confrontacion_politica
 
 === confrontacion_politica ===
-El infiltrado deja escapar una risa ahogada detrás de la máscara y palmea un segundo cinturón oculto bajo la chaqueta. # bg: banquet-hall # speaker: Sicario de la Corte # char: assassin # side: right # pokemon: none # mood: smug
-«¿Sabes qué es lo más gracioso de pelear contra sangre azul? Que se acostumbran tanto a los tronos que se olvidan de cómo muerde la calle.» # bg: banquet-hall # speaker: Sicario de la Corte # char: assassin # side: right # pokemon: none # mood: smug
+El Hombre Rata se rasca debajo de la máscara con los dedos llenos de anillos robados y acaricia las cuchillas de su cinturón. # bg: banquet-hall # speaker: El Hombre Rata # char: rat_saboteur # side: right # pokemon: none # mood: smug
+«¿Sabes qué es lo más divertido de pelear contra sangre azul? Que traen cañones gigantes, pero se vuelven locos cuando no pueden tocar a una sola sombra... hasta que mi verdadero colmillo sale del disfraz.» # bg: banquet-hall # speaker: El Hombre Rata # char: rat_saboteur # side: right # pokemon: none # mood: smug
 
 * [Guardar silencio y observar cada movimiento de sus manos]
     ~ assassin_plan = "sabotage"
-    El sicario inclina la cabeza, satisfecho con el mutismo, y elige las cápsulas más desgastadas de su flanco derecho. # bg: banquet-hall # speaker: Narrador # char: assassin # side: right # pokemon: none # mood: tense
+    El intruso suelta una risotada chillona, encantado con tu cautela, y prepara sus trampas más desesperantes del costado derecho. # bg: banquet-hall # speaker: Narrador # char: rat_saboteur # side: right # pokemon: none # mood: tense
     -> fin_escena
-* [Lanzar al aire los nombres de quienes financian este atentado]
+* [Lanzar al aire los nombres de quienes le pagaron para colarse al palacio]
     ~ assassin_plan = "mirror"
-    Por una fracción de segundo sus hombros se endurecen. Cambia de mano con brusquedad y toma una cápsula distinta de la parte trasera de su cinturón. «Hablas de más, muchacho. Entonces te vas a ver en un espejo.» # bg: banquet-hall # speaker: Sicario de la Corte # char: assassin # side: right # pokemon: none # mood: angry
+    Sus orejas se tensan de golpe y su sonrisa se agrieta. Arroja una daga al suelo y saca otra cápsula manchada de la parte trasera del cinturón. «Hablas de más, principito... entonces vas a pelear contra tus propios reflejos y pesadillas.» # bg: banquet-hall # speaker: El Hombre Rata # char: rat_saboteur # side: right # pokemon: none # mood: angry
     -> fin_escena
 
 === fin_escena ===
-Las puertas blindadas caen con un golpe metálico que hace temblar la vajilla. Ya no entra ni sale nadie del Salón de Estado. # bg: banquet-hall # speaker: Narrador # char: prince # side: left # mood: serious
+Las puertas blindadas caen con un golpe metálico que hace temblar la vajilla. El Hombre Rata suelta una carcajada entre el humo violeta mientras arroja sus dos primeras cápsulas. # bg: banquet-hall # speaker: Narrador # char: rat_saboteur # side: right # mood: serious
 -> END
