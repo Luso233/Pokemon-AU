@@ -46,6 +46,10 @@ const VALID_CHAR_IDS = new Set<CharacterId>([
   'hammerlocke_duke',
   'triad_knights',
   'royal_archivist',
+  'clandestine_tamer',
+  'colossus_keeper',
+  'tobias',
+  'ash_ketchum',
 ]);
 
 function parseCharId(val: string): CharacterId | null {
@@ -216,7 +220,7 @@ export class InkVNRunner {
 
       if (parsed.side) {
         this.lastActiveSide = parsed.side;
-      } else if (parsed.char === 'prince') {
+      } else if (parsed.char === 'prince' || parsed.char === 'ash_ketchum') {
         this.lastActiveSide = 'left';
       } else if (parsed.char) {
         this.lastActiveSide = 'right';

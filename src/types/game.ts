@@ -84,11 +84,13 @@ export type ChapterCategory =
   | 'showcases'
   | 'challenges'
   | 'survival'
-  | 'archive';
+  | 'archive'
+  | 'anime';
 
 export type SupportedFormatId =
   | 'gen9doublescustomgame'
   | 'gen9customgame'
+  | 'gen9nationaldex'
   | 'gen91v1'
   | 'gen9monotype'
   | 'gen9vgc2024regg'
@@ -106,7 +108,11 @@ export type CharacterId =
   | 'corrupt_captain'
   | 'hammerlocke_duke'
   | 'triad_knights'
-  | 'royal_archivist';
+  | 'royal_archivist'
+  | 'clandestine_tamer'
+  | 'colossus_keeper'
+  | 'tobias'
+  | 'ash_ketchum';
 
 export type SceneBackdropId =
   | 'wyndon-alleys'
@@ -122,8 +128,19 @@ export type SceneBackdropId =
   | 'hammerlocke-field'
   | 'triad-arena'
   | 'silph-archive'
+  | 'underground-ring'
+  | 'titan-sanctum'
+  | 'lily-of-the-valley'
   | 'royal-pond'
   | 'banquet-hall';
+
+export interface RivalProfile {
+  name: string;
+  title: string;
+  bio: string;
+  tacticalInsight: string;
+  archetypeTag: string;
+}
 
 export interface PersistedMoveSlot {
   id: string;
@@ -199,6 +216,10 @@ export interface PuzzlePokemonModifier {
   boosts?: BoostsTable;
   status?: string;
   volatiles?: string[];
+  /** Volatiles or ability counters (e.g. 'slowstart') removed at Turn 0 before Turn 1. */
+  removeVolatiles?: string[];
+  /** Substitute HP ratio of maxhp when injecting 'substitute' at Turn 0 (e.g. 0.25). */
+  substituteHpRatio?: number;
   preMega?: boolean;
 }
 
@@ -211,6 +232,8 @@ export interface PuzzleConditions {
     | 'psychicterrain';
   sideConditions?: { p1?: string[]; p2?: string[] };
   pokemonModifiers?: PuzzlePokemonModifier[];
+  /** Optional custom log announcement when Turn 0 conditions activate. */
+  bannerLog?: string;
 }
 
 export interface ScriptedEnemyRule {
@@ -221,14 +244,20 @@ export interface ScriptedEnemyRule {
   /** Optional list of turns on which this rule can fire (e.g. [1, 3] for recurring Wide Guard). */
   turnList?: number[];
   actorSpecies?: string;
+  /** When true, only fires during the actor's first active turn after switching in. */
+  onFirstActiveTurn?: boolean;
   condition?:
     | 'always'
     | 'hpBelow60'
     | 'hpBelow35OrLast'
     | 'lastAlive'
     | 'playerHasScreens'
-    | 'playerHasSpecies';
+    | 'playerHasSpecies'
+    | 'foePositiveBoostsAtLeast4'
+    | 'hpBelow35AndKeyAllyDamaged';
   requiredPlayerSpecies?: string;
+  /** Species checked by `hpBelow35AndKeyAllyDamaged` (e.g. ['Giratina-Origin', 'Darkrai']). */
+  allySpeciesList?: string[];
   forceMoveId: string;
   targetSpec?: string;
   once?: boolean;
@@ -249,6 +278,8 @@ export interface ResolvedBattleConfig {
   openTeamsheet?: boolean;
   /** Optional preferred Showdown `team ...` order for Rival AI during Team Preview (e.g. 'team 5631' for Yuta). */
   preferredRivalTeamOrder?: string;
+  /** Optional Ace species that the Rival AI saves for LAST on forced switches (e.g. 'Giratina-Origin'). */
+  reserveAsLastAceSpecies?: string;
   /** Controls who pilots Player 2: 'ai' (default) or 'human' (Local Hotseat 1v1). */
   p2Control?: 'ai' | 'human';
   /** Marks a custom AI Teambuilder / Versus match (exits back to Versus Mode). */
@@ -262,6 +293,8 @@ export interface ResolvedBattleConfig {
   rivalName: string;
   rivalTitle: string;
   rivalCharId: CharacterId;
+  /** Narrative & tactical profile shown in RivalPortraitTooltip during Team Preview and live combat. */
+  rivalProfile?: RivalProfile;
   arenaTheme: SceneBackdropId;
   playerTeamSummary: string;
   rivalTeamSummary: string;
@@ -289,6 +322,7 @@ export interface ChapterDefinition {
   accentColor: string;
   featuredPokemon: string[];
   rivalPreview: string;
+  rivalProfile: RivalProfile;
   monotypeMatchup?: { playerType: string; rivalType: string };
   inkSource: string;
   resolveBattleConfig: (flags: StoryFlags) => ResolvedBattleConfig;
@@ -311,6 +345,7 @@ export interface EpilogueContent {
 export interface ChapterProgress {
   completed: boolean;
   victories: number;
+  attempts?: number;
   lastOutcome?: 'win' | 'loss';
   lastFlags?: StoryFlags;
 }
@@ -331,6 +366,10 @@ export interface ActiveMoveOption {
   accuracy: number | true;
   priority: number;
   shortDesc: string;
+  /** Configured happiness of the user (0..255), used for Frustration / Return tooltips. */
+  userHappiness?: number;
+  /** Special gimmick/power callout (e.g. Frustration at Happiness 0). */
+  powerNote?: string;
 }
 
 export interface RevealedMoveInfo {
@@ -339,6 +378,8 @@ export interface RevealedMoveInfo {
   type: string;
   used: number;
   maxPP: number;
+  basePower?: number;
+  powerNote?: string;
 }
 
 export interface SpeedRange {
@@ -385,6 +426,7 @@ export interface PartyPokemonState {
   volatiles: string[];
   speedRange?: SpeedRange;
   isBossAce?: boolean;
+  happiness?: number;
 }
 
 export interface OpenTeamsheetEntry {

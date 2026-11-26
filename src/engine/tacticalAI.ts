@@ -53,6 +53,8 @@ export interface OpponentContext {
   foeActiveSpecies: (string | null)[];
   foeActiveStatus: (string | null)[];
   foeActiveHpPercent?: (number | null)[];
+  foeActiveBoosts?: Record<string, number>[];
+  selfActiveTurns?: number[];
   foeSideConditions: string[];
   selfSideConditions?: string[];
   weather?: string;
@@ -62,6 +64,7 @@ export interface OpponentContext {
   scriptedRules: ScriptedEnemyRule[];
   triggeredRuleIds: Set<string>;
   preferredTeamPreviewOrder?: string;
+  reserveAsLastAceSpecies?: string;
 }
 
 export interface RivalActionDecision {
@@ -109,9 +112,14 @@ function calcTypeMultiplier(moveType: string, defenderTypes: string[]): number {
 function ruleConditionMatches(
   rule: ScriptedEnemyRule,
   selfMon: ShowdownRequestSidePokemon,
+  slotIdx: number,
   party: ShowdownRequestSidePokemon[],
   ctx: OpponentContext
 ): boolean {
+  if (rule.onFirstActiveTurn && (ctx.selfActiveTurns?.[slotIdx] ?? 1) > 1) {
+    return false;
+  }
+
   const cond = rule.condition ?? 'always';
   if (cond === 'always') return true;
   if (cond === 'hpBelow60') {
@@ -138,6 +146,33 @@ function ruleConditionMatches(
   if (cond === 'playerHasSpecies' && rule.requiredPlayerSpecies) {
     const wanted = toID(rule.requiredPlayerSpecies);
     return ctx.foeActiveSpecies.some((sp) => sp && toID(sp) === wanted);
+  }
+  if (cond === 'foePositiveBoostsAtLeast4') {
+    return (ctx.foeActiveBoosts ?? []).some((boosts) => {
+      const totalPos = Object.values(boosts).reduce(
+        (sum, val) => sum + (val > 0 ? val : 0),
+        0
+      );
+      return totalPos >= 4;
+    });
+  }
+  if (cond === 'hpBelow35AndKeyAllyDamaged') {
+    if (parseHpRatio(selfMon.condition) >= 0.35) return false;
+    const hasAliveBench = party.some((p) => !p.active && !isFainted(p.condition));
+    if (!hasAliveBench) return false;
+    const wantedList = (rule.allySpeciesList ?? []).map((s) => toID(s));
+    if (wantedList.length === 0) return true;
+    return party.some((p) => {
+      const sp = parseSpeciesFromDetails(p.details);
+      const baseSp = Dex.species.get(sp).baseSpecies;
+      const matches =
+        wantedList.includes(toID(sp)) || wantedList.includes(toID(baseSp));
+      if (!matches) return false;
+      const ratio = parseHpRatio(p.condition);
+      const hasStatus =
+        !isFainted(p.condition) && p.condition.trim().includes(' ');
+      return isFainted(p.condition) || ratio < 1 || hasStatus;
+    });
   }
   return false;
 }
@@ -234,14 +269,34 @@ export function chooseRivalAction(
 
   const party = request.side?.pokemon ?? [];
 
-  // 1. Forced switches after KO
+  // 1. Forced switches after KO (honoring reserveAsLastAceSpecies, e.g. Giratina-Origin)
   if (request.forceSwitch) {
     const usedSlots = new Set<number>();
+    const reservedAceId = ctx.reserveAsLastAceSpecies
+      ? toID(ctx.reserveAsLastAceSpecies)
+      : '';
+    const isReservedAce = (p: ShowdownRequestSidePokemon): boolean => {
+      if (!reservedAceId) return false;
+      const sp = parseSpeciesFromDetails(p.details);
+      const baseSp = Dex.species.get(sp).baseSpecies;
+      return toID(sp) === reservedAceId || toID(baseSp) === reservedAceId;
+    };
+
     const cmds = request.forceSwitch.map((needsSwitch) => {
       if (!needsSwitch) return 'pass';
-      const candidateIdx = party.findIndex(
-        (p, idx) => !p.active && !isFainted(p.condition) && !usedSlots.has(idx + 1)
+      let candidateIdx = party.findIndex(
+        (p, idx) =>
+          !p.active &&
+          !isFainted(p.condition) &&
+          !usedSlots.has(idx + 1) &&
+          !isReservedAce(p)
       );
+      if (candidateIdx === -1) {
+        candidateIdx = party.findIndex(
+          (p, idx) =>
+            !p.active && !isFainted(p.condition) && !usedSlots.has(idx + 1)
+        );
+      }
       if (candidateIdx === -1) return 'pass';
       const slot = candidateIdx + 1;
       usedSlots.add(slot);
@@ -299,7 +354,7 @@ export function chooseRivalAction(
         ) {
           continue;
         }
-        if (!ruleConditionMatches(rule, selfMon, party, ctx)) continue;
+        if (!ruleConditionMatches(rule, selfMon, slotIdx, party, ctx)) continue;
 
         const forced = legalMoves.find(
           (m) => toID(m.id || m.move) === toID(rule.forceMoveId)
@@ -308,12 +363,22 @@ export function chooseRivalAction(
 
         const moveData = Dex.moves.get(forced.id || forced.move);
         const targetType = forced.target || moveData.target || 'normal';
+        const isAllySupportMove =
+          isMulti &&
+          (targetType === 'adjacentAlly' ||
+            [
+              'floralhealing',
+              'decorate',
+              'afteryou',
+              'healpulse',
+            ].includes(toID(forced.id || forced.move)));
         const needsFoeTarget =
           isMulti &&
+          !isAllySupportMove &&
           (targetType === 'normal' ||
             targetType === 'any' ||
             targetType === 'adjacentFoe');
-        const needsAllyTarget = isMulti && targetType === 'adjacentAlly';
+        const needsAllyTarget = isAllySupportMove;
 
         let suffix = '';
         if (needsAllyTarget) {
@@ -359,12 +424,17 @@ export function chooseRivalAction(
       for (const mv of legalMoves) {
         const moveData = Dex.moves.get(mv.id || mv.move);
         const targetType = mv.target || moveData.target || 'normal';
+        const isAllySupportNormal =
+          isMulti &&
+          ['floralhealing', 'decorate', 'afteryou', 'healpulse'].includes(mv.id);
         const needsFoeTarget =
           isMulti &&
+          !isAllySupportNormal &&
           (targetType === 'normal' ||
             targetType === 'any' ||
             targetType === 'adjacentFoe');
-        const needsAllyTarget = isMulti && targetType === 'adjacentAlly';
+        const needsAllyTarget =
+          isMulti && (targetType === 'adjacentAlly' || isAllySupportNormal);
 
         if (needsAllyTarget) {
           const allySlot = findReachableAllySlot(
@@ -374,7 +444,15 @@ export function chooseRivalAction(
             request.active.length
           );
           if (allySlot === -1) continue;
-          const score = mv.id === 'helpinghand' ? 85 : 40;
+          const allyMon = party[allySlot];
+          const allyHp = allyMon ? parseHpRatio(allyMon.condition) : 1;
+          let score = 40;
+          if (mv.id === 'decorate') score = 128;
+          else if (mv.id === 'floralhealing' || mv.id === 'healpulse') {
+            score = allyHp < 0.8 ? 132 : 30;
+          } else if (mv.id === 'afteryou') score = 88;
+          else if (mv.id === 'helpinghand') score = 85;
+          score += Math.random() * 10;
           if (score > bestScore) {
             bestScore = score;
             bestCmd = `move ${mv.slot} -${allySlot + 1}`;
@@ -386,18 +464,48 @@ export function chooseRivalAction(
           let score = 20;
           if (mv.id === 'taunt') score = ctx.turn <= 2 ? 105 : 35;
           else if (mv.id === 'encore') score = ctx.turn > 1 ? 85 : 15;
-          else if (mv.id === 'spore' || mv.id === 'sleeppowder') {
+          else if (mv.id === 'darkvoid') {
+            const hasUnstatused = aliveFoeSlots.some((fi) => !ctx.foeActiveStatus[fi]);
+            score = hasUnstatused ? 145 : 5;
+          } else if (mv.id === 'spore' || mv.id === 'sleeppowder') {
             const hasUnstatused = aliveFoeSlots.some((fi) => !ctx.foeActiveStatus[fi]);
             score = hasUnstatused ? 135 : 5;
           } else if (mv.id === 'tailwind') score = ctx.turn <= 2 ? 120 : 20;
-          else if (mv.id === 'followme') score = isMulti ? 90 : 5;
-          else if (mv.id === 'wideguard') score = isMulti && ctx.turn % 2 === 1 ? 55 : 12;
+          else if (mv.id === 'followme') score = isMulti ? 102 : 5;
+          else if (mv.id === 'quash') score = isMulti ? 94 : 5;
+          else if (mv.id === 'partingshot') score = 78;
+          else if (mv.id === 'reflect') {
+            const hasReflect = (ctx.selfSideConditions ?? []).some((c) =>
+              c.toLowerCase().includes('reflect')
+            );
+            score = hasReflect ? 5 : 108;
+          } else if (mv.id === 'lightscreen') {
+            const hasLS = (ctx.selfSideConditions ?? []).some((c) =>
+              c.toLowerCase().includes('light screen')
+            );
+            score = hasLS ? 5 : 108;
+          } else if (mv.id === 'wideguard') score = isMulti && ctx.turn % 2 === 1 ? 55 : 12;
           else if (mv.id === 'willowisp' || mv.id === 'thunderwave' || mv.id === 'stunspore') {
             const hasUnstatused = aliveFoeSlots.some((fi) => !ctx.foeActiveStatus[fi]);
             score = hasUnstatused ? 100 : 10;
           } else if (mv.id === 'protect') score = ctx.turn % 3 === 0 ? 50 : 12;
-          else if (mv.id === 'recover' || mv.id === 'softboiled' || mv.id === 'rest') {
-            score = parseHpRatio(selfMon.condition) < 0.55 ? 115 : 10;
+          else if (
+            mv.id === 'recover' ||
+            mv.id === 'softboiled' ||
+            mv.id === 'rest' ||
+            mv.id === 'lunarblessing'
+          ) {
+            score = parseHpRatio(selfMon.condition) < 0.6 ? 120 : 15;
+          } else if (mv.id === 'psychup') {
+            const maxFoePos = Math.max(
+              0,
+              ...(ctx.foeActiveBoosts ?? []).map((b) =>
+                Object.values(b).reduce((s, v) => s + (v > 0 ? v : 0), 0)
+              )
+            );
+            score = maxFoePos >= 3 ? 125 : 5;
+          } else if (mv.id === 'lunardance') {
+            score = 5;
           } else if (mv.id === 'swordsdance' || mv.id === 'nastyplot') {
             score = parseHpRatio(selfMon.condition) > 0.7 ? 92 : 12;
           }
@@ -426,7 +534,13 @@ export function chooseRivalAction(
 
         const bp =
           moveData.basePower ||
-          (mv.id === 'endeavor' || mv.id === 'flail' ? 90 : 40);
+          (mv.id === 'frustration'
+            ? 102
+            : mv.id === 'crushgrip'
+              ? 110
+              : mv.id === 'endeavor' || mv.id === 'flail'
+                ? 90
+                : 40);
         const stab = selfSpecies.types.includes(moveData.type) ? 1.5 : 1;
 
         if (needsFoeTarget) {

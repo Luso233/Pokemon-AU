@@ -221,15 +221,33 @@ export const PokemonTooltip: React.FC<PokemonTooltipProps> = ({
                   Movimientos
                 </p>
                 <div className="flex flex-wrap gap-1">
-                  {mon.moves.map((mv) => (
-                    <span
-                      key={mv}
-                      className="rounded-md border border-slate-700/80 bg-slate-900 px-1.5 py-0.5 text-[10px] capitalize text-slate-200"
-                    >
-                      {mv}
-                    </span>
-                  ))}
+                  {mon.moves.map((mv) => {
+                    const isBrokenFrustration =
+                      mv.toLowerCase().startsWith('frustration') &&
+                      mon.happiness === 0;
+                    return (
+                      <span
+                        key={mv}
+                        className={`rounded-md border px-1.5 py-0.5 text-[10px] capitalize ${
+                          isBrokenFrustration
+                            ? 'border-rose-400/55 bg-rose-500/20 font-bold text-rose-100'
+                            : 'border-slate-700/80 bg-slate-900 text-slate-200'
+                        }`}
+                      >
+                        {isBrokenFrustration ? 'Frustration (102 BP)' : mv}
+                      </span>
+                    );
+                  })}
                 </div>
+                {mon.happiness === 0 &&
+                  mon.moves.some((m) =>
+                    m.toLowerCase().startsWith('frustration')
+                  ) && (
+                    <p className="mt-1.5 rounded-lg border border-rose-400/40 bg-rose-500/15 px-2 py-1 text-[10px] text-rose-100">
+                      <strong className="text-amber-200">Poder Base: 102</strong>{' '}
+                      — Potencia máxima por Felicidad: 0 (Vínculo roto)
+                    </p>
+                  )}
               </div>
             )}
           </div>
@@ -315,17 +333,34 @@ export const PokemonTooltip: React.FC<PokemonTooltipProps> = ({
                 <ul className="space-y-1">
                   {revealedMoveList.map((mv) => {
                     const remaining = Math.max(0, mv.maxPP - mv.used);
+                    const hasPowerNote = Boolean(mv.powerNote);
                     return (
                       <li
                         key={mv.name}
-                        className="flex items-center justify-between rounded-lg bg-slate-900/90 px-2 py-1 text-[11px]"
+                        className={`rounded-lg px-2 py-1 text-[11px] ${
+                          hasPowerNote
+                            ? 'border border-rose-400/45 bg-rose-950/60'
+                            : 'bg-slate-900/90'
+                        }`}
                       >
-                        <span className="font-medium text-slate-100">
-                          • {mv.name}
-                        </span>
-                        <span className="font-mono-code text-[10px] text-slate-400">
-                          ({remaining}/{mv.maxPP})
-                        </span>
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-slate-100">
+                            • {mv.name}
+                            {mv.basePower ? (
+                              <span className="ml-1 font-mono-code text-[10px] font-bold text-amber-200">
+                                ({mv.basePower} BP)
+                              </span>
+                            ) : null}
+                          </span>
+                          <span className="font-mono-code text-[10px] text-slate-400">
+                            ({remaining}/{mv.maxPP})
+                          </span>
+                        </div>
+                        {mv.powerNote && (
+                          <p className="mt-0.5 text-[9px] leading-snug text-rose-200">
+                            Poder Base: {mv.basePower ?? 102} · {mv.powerNote}
+                          </p>
+                        )}
                       </li>
                     );
                   })}

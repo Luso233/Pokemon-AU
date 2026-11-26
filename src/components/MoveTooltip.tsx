@@ -1,5 +1,5 @@
 import React from 'react';
-import { Crosshair, Zap } from 'lucide-react';
+import { AlertTriangle, Crosshair, Zap } from 'lucide-react';
 import { getTypeBadgeClass } from '../engine/pokemonVisuals';
 import type { ActiveMoveOption } from '../types/game';
 import { TooltipPortal } from './TooltipPortal';
@@ -60,6 +60,15 @@ export const MoveTooltip: React.FC<MoveTooltipProps> = ({
   const cat = categorySpanish(move.category);
   const accuracyText =
     move.accuracy === true ? 'Nunca falla' : `${move.accuracy}%`;
+  const isMaxFrustration =
+    move.id === 'frustration' &&
+    (move.userHappiness === 0 || move.basePower === 102 || Boolean(move.powerNote));
+  const displayedBasePower = isMaxFrustration ? 102 : move.basePower;
+  const effectivePowerNote =
+    move.powerNote ??
+    (isMaxFrustration
+      ? 'Potencia máxima por Felicidad: 0 (Vínculo roto)'
+      : undefined);
 
   const card = (
     <div className="w-[18.5rem] rounded-2xl border border-amber-400/45 bg-[#0a1020]/98 p-3.5 text-left shadow-2xl shadow-black/90 backdrop-blur-xl">
@@ -82,10 +91,20 @@ export const MoveTooltip: React.FC<MoveTooltipProps> = ({
 
       {/* Metrics */}
       <div className="mt-2.5 grid grid-cols-3 gap-1.5 text-center">
-        <div className="rounded-lg border border-slate-800 bg-slate-950/90 px-2 py-1">
-          <p className="text-[9px] uppercase text-slate-400">Potencia</p>
-          <p className="font-mono-code text-xs font-bold text-amber-200">
-            {move.basePower > 0 ? move.basePower : '—'}
+        <div
+          className={`rounded-lg border px-2 py-1 ${
+            isMaxFrustration
+              ? 'border-rose-400/50 bg-rose-950/55'
+              : 'border-slate-800 bg-slate-950/90'
+          }`}
+        >
+          <p className="text-[9px] uppercase text-slate-400">Poder Base</p>
+          <p
+            className={`font-mono-code text-xs font-bold ${
+              isMaxFrustration ? 'text-rose-200' : 'text-amber-200'
+            }`}
+          >
+            {displayedBasePower > 0 ? displayedBasePower : '—'}
           </p>
         </div>
         <div className="rounded-lg border border-slate-800 bg-slate-950/90 px-2 py-1">
@@ -101,6 +120,19 @@ export const MoveTooltip: React.FC<MoveTooltipProps> = ({
           </p>
         </div>
       </div>
+
+      {/* Special Gimmick Power Warning (e.g. Frustration Happiness: 0 -> 102 BP) */}
+      {effectivePowerNote && (
+        <div className="mt-2 flex items-start gap-1.5 rounded-lg border border-rose-400/45 bg-rose-500/15 px-2.5 py-1.5 text-[10px] leading-snug text-rose-100">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-400" />
+          <div>
+            <span className="font-extrabold text-amber-200">
+              Poder Base: {displayedBasePower}
+            </span>{' '}
+            — {effectivePowerNote}
+          </div>
+        </div>
+      )}
 
       {/* Target + Priority */}
       <div className="mt-2 flex flex-wrap items-center justify-between gap-1.5 rounded-lg border border-slate-800/80 bg-slate-900/70 px-2.5 py-1.5 text-[11px]">

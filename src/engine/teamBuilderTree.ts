@@ -12,6 +12,7 @@ export interface ShowdownSetBlock {
   item?: string;
   ability?: string;
   level: number;
+  happiness?: number;
   teraType?: string;
   evs?: string;
   ivs?: string;
@@ -35,6 +36,9 @@ export function buildShowdownPaste(blocks: ShowdownSetBlock[]): string {
         lines.push(`Ability: ${mon.ability}`);
       }
       lines.push(`Level: ${mon.level}`);
+      if (typeof mon.happiness === 'number') {
+        lines.push(`Happiness: ${mon.happiness}`);
+      }
       if (mon.teraType) {
         lines.push(`Tera Type: ${mon.teraType}`);
       }
@@ -2979,6 +2983,810 @@ export function resolveGen1SilphArchiveBattle(
         effectTitle: 'Apertura RBY Gen 1 OU',
         effectDetail:
           'Sin objetos ni habilidades: el control de estados y el timing de Hyper Beam deciden el combate.',
+      },
+    ],
+    flags,
+  };
+}
+
+/* ===================== Capítulo 03: El Domador Clandestino (Gimmick Frustration 102 BP) ===================== */
+
+export function resolveClandestineTamerBattle(
+  flags: StoryFlags
+): ResolvedBattleConfig {
+  const allyChoice = String(flags.tamer_ally ?? 'rescued_ursaring');
+  const scoutIntel = String(flags.scout_intel ?? 'listen');
+
+  const rescuedUrsaring: ShowdownSetBlock = {
+    species: 'Ursaring',
+    item: 'Eviolite',
+    ability: 'Guts',
+    level: 60,
+    happiness: 0,
+    teraType: 'Normal',
+    evs: '252 HP / 252 Atk / 4 SpD',
+    nature: 'Adamant',
+    moves: ['Frustration', 'Drain Punch', 'Crunch', 'Bulk Up'],
+  };
+
+  const royalCorviknight: ShowdownSetBlock = {
+    species: 'Corviknight',
+    item: 'Rocky Helmet',
+    ability: 'Mirror Armor',
+    level: 60,
+    teraType: 'Steel',
+    evs: '252 HP / 252 Def / 4 SpD',
+    nature: 'Impish',
+    moves: ['Body Press', 'Iron Defense', 'Brave Bird', 'Roost'],
+  };
+
+  const playerBlocks: ShowdownSetBlock[] = [
+    allyChoice === 'royal_corviknight' ? royalCorviknight : rescuedUrsaring,
+    {
+      species: 'Archaludon',
+      item: 'Assault Vest',
+      ability: 'Stamina',
+      level: 60,
+      teraType: 'Fighting',
+      evs: '252 HP / 160 Def / 96 SpA',
+      nature: 'Bold',
+      moves: ['Body Press', 'Draco Meteor', 'Flash Cannon', 'Foul Play'],
+    },
+    {
+      species: 'Skarmory',
+      item: 'Rocky Helmet',
+      ability: 'Sturdy',
+      level: 60,
+      teraType: 'Ghost',
+      evs: '252 HP / 252 Def / 4 SpD',
+      nature: 'Impish',
+      moves: ['Body Press', 'Iron Defense', 'Spikes', 'Roost'],
+    },
+    {
+      species: 'Gholdengo',
+      item: 'Leftovers',
+      ability: 'Good as Gold',
+      level: 60,
+      teraType: 'Fairy',
+      evs: '252 SpA / 4 SpD / 252 Spe',
+      nature: 'Timid',
+      ivs: '0 Atk',
+      moves: ['Make It Rain', 'Shadow Ball', 'Nasty Plot', 'Recover'],
+    },
+    {
+      species: 'Annihilape',
+      item: 'Leftovers',
+      ability: 'Defiant',
+      level: 60,
+      teraType: 'Water',
+      evs: '252 HP / 252 Atk / 4 SpD',
+      nature: 'Adamant',
+      moves: ['Drain Punch', 'Rage Fist', 'Bulk Up', 'Protect'],
+    },
+    {
+      species: 'Dragapult',
+      item: 'Choice Specs',
+      ability: 'Infiltrator',
+      level: 60,
+      teraType: 'Dragon',
+      evs: '252 SpA / 4 SpD / 252 Spe',
+      nature: 'Timid',
+      ivs: '0 Atk',
+      moves: ['Draco Meteor', 'Shadow Ball', 'Flamethrower', 'U-turn'],
+    },
+  ];
+
+  const rivalBlocks: ShowdownSetBlock[] = [
+    {
+      species: 'Kangaskhan',
+      item: 'Silk Scarf',
+      ability: 'Scrappy',
+      level: 60,
+      happiness: 0,
+      teraType: 'Normal',
+      evs: '252 Atk / 4 Def / 252 Spe',
+      nature: 'Jolly',
+      moves: ['Frustration', 'Fake Out', 'Drain Punch', 'Sucker Punch'],
+    },
+    {
+      species: 'Ursaring',
+      item: 'Eviolite',
+      ability: 'Guts',
+      level: 60,
+      happiness: 0,
+      teraType: 'Normal',
+      evs: '252 HP / 252 Atk / 4 SpD',
+      nature: 'Adamant',
+      moves: ['Frustration', 'Close Combat', 'Crunch', 'Bulk Up'],
+    },
+    {
+      species: 'Zangoose',
+      item: 'Toxic Orb',
+      ability: 'Toxic Boost',
+      level: 60,
+      happiness: 0,
+      teraType: 'Normal',
+      evs: '252 Atk / 4 Def / 252 Spe',
+      nature: 'Jolly',
+      moves: ['Frustration', 'Quick Attack', 'Close Combat', 'Knock Off'],
+    },
+    {
+      species: 'Snorlax',
+      item: 'Leftovers',
+      ability: 'Thick Fat',
+      level: 60,
+      happiness: 0,
+      teraType: 'Ghost',
+      evs: '252 HP / 252 Def / 4 SpD',
+      nature: 'Impish',
+      moves: ['Frustration', 'Earthquake', 'Curse', 'Rest'],
+    },
+    {
+      species: 'Obstagoon',
+      item: 'Flame Orb',
+      ability: 'Guts',
+      level: 60,
+      happiness: 0,
+      teraType: 'Dark',
+      evs: '252 Atk / 4 Def / 252 Spe',
+      nature: 'Jolly',
+      moves: ['Frustration', 'Knock Off', 'Close Combat', 'Obstruct'],
+    },
+    {
+      species: 'Lopunny',
+      item: 'Choice Band',
+      ability: 'Limber',
+      level: 62,
+      happiness: 0,
+      teraType: 'Normal',
+      evs: '252 Atk / 4 Def / 252 Spe',
+      nature: 'Jolly',
+      moves: ['Frustration', 'High Jump Kick', 'Switcheroo', 'U-turn'],
+    },
+  ];
+
+  const scriptedEnemyRules: ScriptedEnemyRule[] = [
+    {
+      id: 'tamer-t1-fakeout',
+      turn: 1,
+      actorSpecies: 'Kangaskhan',
+      forceMoveId: 'fakeout',
+      once: true,
+      description:
+        'Apertura del Domador (T1): Kangaskhan (Scrappy) golpea incluso a Fantasmas con Fake Out para romper Focus Sash y ganar tempo.',
+      tauntLine:
+        '«¡Sorpresa con Intrépido! Ningún Fantasma de la Corona está a salvo en mi foso.»',
+    },
+    {
+      id: 'tamer-t2-frustration',
+      turn: 2,
+      actorSpecies: 'Kangaskhan',
+      forceMoveId: 'frustration',
+      once: true,
+      description:
+        'Gimmick Vínculo Roto (T2): Kangaskhan desata Frustration a Poder Base 102 (183 con STAB + Silk Scarf) gracias a Felicidad: 0.',
+      tauntLine:
+        '«¡Siente el poder de un vínculo destruido! ¡Frustration al 100%!»',
+    },
+    {
+      id: 'tamer-ursaring-bulkup',
+      actorSpecies: 'Ursaring',
+      onFirstActiveTurn: true,
+      forceMoveId: 'bulkup',
+      once: true,
+      description:
+        'Ursaring @ Eviolite refuerza su Defensa y Ataque en su primer turno activo antes de golpear con Frustration 102 BP.',
+      tauntLine:
+        '«Un Ursaring con Mineral Evol y cero afecto es una muralla imparable.»',
+    },
+  ];
+
+  return {
+    chapterId: 'ch3-clandestine-tamer',
+    format: 'singles',
+    formatId: 'gen9customgame',
+    formatLabel: '6v6 Singles · Gimmick Rencor',
+    reserveAsLastAceSpecies: 'Lopunny',
+    playerName: 'Príncipe Heredero',
+    playerCharId: 'prince',
+    rivalName: 'Lord Vexen',
+    rivalTitle: 'Domador Clandestino',
+    rivalCharId: 'clandestine_tamer',
+    rivalProfile: {
+      name: 'Lord Vexen',
+      title: 'Domador Clandestino',
+      bio: 'Noble caído que opera un foso ilegal bajo Wyndon. Rompe el vínculo de sus Pokémon para llevar Frustration al máximo poder.',
+      tacticalInsight:
+        'Sus Pokémon luchan con rabia contenida; evita intercambiar golpes físicos directos contra tipos Normal.',
+      archetypeTag: 'Gimmick: Rencor',
+    },
+    arenaTheme: 'underground-ring',
+    playerTeamSummary:
+      allyChoice === 'royal_corviknight'
+        ? 'Escuadrón Anti-Normal: Corviknight · Archaludon · Skarmory · Gholdengo · Annihilape · Dragapult'
+        : 'Ursaring Rescatado (Felicidad 0 · Frustration 102 BP) + Archaludon · Skarmory · Gholdengo · Annihilape · Dragapult',
+    rivalTeamSummary:
+      'Equipo Vínculo Roto (Felicidad 0): Kangaskhan Scrappy · Ursaring · Zangoose · Snorlax · Obstagoon · Lopunny ★ Nv. 62',
+    playerShowdownPaste: buildShowdownPaste(playerBlocks),
+    rivalShowdownPaste: buildShowdownPaste(rivalBlocks),
+    rivalIntel: {
+      visibleSpeciesCount: scoutIntel === 'listen' ? 4 : 2,
+      totalSlots: 6,
+      intelLabel:
+        scoutIntel === 'listen'
+          ? 'Inteligencia de Foso (4/6 especies)'
+          : 'Inteligencia Limitada (2/6 especies)',
+      intelNote:
+        'Todos los Pokémon de Lord Vexen combaten con Felicidad: 0 (Frustration = 102 BP, 153 con STAB). Aprovecha Rocky Helmet, Stamina y Iron Defense en lugar de intercambiar golpes directos.',
+      levelCap: 60,
+      hasBossAce: true,
+      bossAceWarning:
+        'Lopunny ★ Nv. 62 (Choice Band + Frustration 102 BP) rompe el cap de Nv. 60 como rematador final.',
+      aiScriptHint:
+        'Kangaskhan abre con Fake Out (T1) y Frustration 102 BP (T2) ignorando inmunidad Fantasma con Scrappy.',
+    },
+    scriptedEnemyRules,
+    traces: [
+      {
+        id: 'tamer-ally-choice',
+        category: 'player-roster',
+        choiceLabel:
+          allyChoice === 'royal_corviknight'
+            ? 'Liderar con Corviknight (Casco Dentado)'
+            : 'Liberar al Ursaring rescatado (Felicidad: 0)',
+        flagKey: 'tamer_ally',
+        flagValue: allyChoice,
+        effectTitle:
+          allyChoice === 'royal_corviknight'
+            ? 'Muralla Física Anti-Normal'
+            : 'Ursaring @ Eviolite con Frustration (102 BP)',
+        effectDetail:
+          allyChoice === 'royal_corviknight'
+            ? 'Corviknight castiga Fake Out y Frustration con Rocky Helmet + Iron Defense + Body Press.'
+            : 'Ursaring entra con Felicidad: 0 y Frustration al máximo; inspecciona su MoveTooltip para ver el aviso de Vínculo roto.',
+      },
+      {
+        id: 'tamer-intel-choice',
+        category: 'ai-script',
+        choiceLabel:
+          scoutIntel === 'listen'
+            ? 'Escuchar órdenes antes de bajar al foso'
+            : 'Confrontar a Lord Vexen de frente',
+        flagKey: 'scout_intel',
+        flagValue: scoutIntel,
+        effectTitle:
+          scoutIntel === 'listen'
+            ? '4 especies rivales identificadas'
+            : 'Niebla de Guerra cerrada (2/6)',
+        effectDetail:
+          scoutIntel === 'listen'
+            ? 'Anticipas Kangaskhan Scrappy, Ursaring, Zangoose y Snorlax antes del Turno 1.'
+            : 'Entras a ciegas contra gran parte de los atacantes de Rencor de Lord Vexen.',
+      },
+    ],
+    flags,
+  };
+}
+
+/* ===================== PUZZLE 02: El Coloso Despertado (Regigigas Raid Boss) ===================== */
+
+export function resolvePuzzle2RegigigasBattle(
+  flags: StoryFlags
+): ResolvedBattleConfig {
+  const leadPref = String(flags.puzzle2_lead ?? 'dragapult_farigiraf');
+
+  const dragapult: ShowdownSetBlock = {
+    species: 'Dragapult',
+    item: 'Choice Specs',
+    ability: 'Infiltrator',
+    level: 55,
+    teraType: 'Ghost',
+    evs: '252 SpA / 4 SpD / 252 Spe',
+    nature: 'Timid',
+    ivs: '0 Atk',
+    moves: ['Draco Meteor', 'Dragon Pulse', 'Shadow Ball', 'Flamethrower'],
+  };
+
+  const farigiraf: ShowdownSetBlock = {
+    species: 'Farigiraf',
+    item: 'Sitrus Berry',
+    ability: 'Armor Tail',
+    level: 55,
+    teraType: 'Fairy',
+    evs: '252 HP / 116 Def / 140 SpA',
+    nature: 'Modest',
+    ivs: '0 Atk',
+    moves: ['Psychic Noise', 'Helping Hand', 'Hyper Voice', 'Protect'],
+  };
+
+  const weavile: ShowdownSetBlock = {
+    species: 'Weavile',
+    item: 'Focus Sash',
+    ability: 'Pressure',
+    level: 55,
+    teraType: 'Fighting',
+    evs: '252 Atk / 4 Def / 252 Spe',
+    nature: 'Jolly',
+    moves: ['Brick Break', 'Knock Off', 'Triple Axel', 'Protect'],
+  };
+
+  const murkrow: ShowdownSetBlock = {
+    species: 'Murkrow',
+    item: 'Eviolite',
+    ability: 'Prankster',
+    level: 55,
+    teraType: 'Ghost',
+    evs: '252 HP / 140 Def / 116 SpD',
+    nature: 'Calm',
+    ivs: '0 Atk',
+    moves: ['Haze', 'Tailwind', 'Taunt', 'Foul Play'],
+  };
+
+  const urshifu: ShowdownSetBlock = {
+    species: 'Urshifu',
+    item: 'Choice Band',
+    ability: 'Unseen Fist',
+    level: 55,
+    teraType: 'Fighting',
+    evs: '252 Atk / 4 Def / 252 Spe',
+    nature: 'Jolly',
+    moves: ['Wicked Blow', 'Close Combat', 'Sucker Punch', 'U-turn'],
+  };
+
+  const annihilape: ShowdownSetBlock = {
+    species: 'Annihilape',
+    item: 'Leftovers',
+    ability: 'Defiant',
+    level: 55,
+    teraType: 'Fighting',
+    evs: '252 HP / 252 Atk / 4 SpD',
+    nature: 'Adamant',
+    moves: ['Drain Punch', 'Rage Fist', 'Bulk Up', 'Protect'],
+  };
+
+  let playerBlocks: ShowdownSetBlock[];
+  if (leadPref === 'murkrow_weavile') {
+    playerBlocks = [murkrow, weavile, farigiraf, dragapult, urshifu, annihilape];
+  } else if (leadPref === 'urshifu_farigiraf') {
+    playerBlocks = [urshifu, farigiraf, murkrow, weavile, dragapult, annihilape];
+  } else {
+    playerBlocks = [dragapult, farigiraf, murkrow, weavile, urshifu, annihilape];
+  }
+
+  const rivalBlocks: ShowdownSetBlock[] = [
+    {
+      species: 'Regigigas',
+      item: 'Leftovers',
+      ability: 'Slow Start',
+      level: 85,
+      teraType: 'Normal',
+      evs: '252 HP / 252 Atk / 4 SpD',
+      nature: 'Adamant',
+      moves: ['Crush Grip', 'Knock Off', 'Drain Punch', 'Protect'],
+    },
+    {
+      species: 'Grimmsnarl',
+      item: 'Light Clay',
+      ability: 'Prankster',
+      level: 50,
+      teraType: 'Dark',
+      evs: '252 HP / 128 Def / 128 SpD',
+      nature: 'Careful',
+      moves: ['Reflect', 'Light Screen', 'Parting Shot', 'Taunt'],
+    },
+    {
+      species: 'Clefairy',
+      item: 'Eviolite',
+      ability: 'Friend Guard',
+      level: 50,
+      teraType: 'Fairy',
+      evs: '252 HP / 252 Def / 4 SpD',
+      nature: 'Bold',
+      ivs: '0 Atk',
+      moves: ['Follow Me', 'Helping Hand', 'After You', 'Protect'],
+    },
+    {
+      species: 'Comfey',
+      item: 'Sitrus Berry',
+      ability: 'Triage',
+      level: 50,
+      teraType: 'Fairy',
+      evs: '252 HP / 252 Def / 4 SpD',
+      nature: 'Bold',
+      ivs: '0 Atk',
+      moves: ['Floral Healing', 'Helping Hand', 'Protect', 'Dazzling Gleam'],
+    },
+    {
+      species: 'Alcremie',
+      item: 'Covert Cloak',
+      ability: 'Aroma Veil',
+      level: 50,
+      teraType: 'Fairy',
+      evs: '252 HP / 252 Def / 4 SpD',
+      nature: 'Bold',
+      ivs: '0 Atk',
+      moves: ['Decorate', 'Helping Hand', 'Recover', 'Dazzling Gleam'],
+    },
+    {
+      species: 'Sableye',
+      item: 'Focus Sash',
+      ability: 'Prankster',
+      level: 50,
+      teraType: 'Ghost',
+      evs: '252 HP / 252 Def / 4 SpD',
+      nature: 'Impish',
+      moves: ['Quash', 'Fake Out', 'Will-O-Wisp', 'Foul Play'],
+    },
+  ];
+
+  const scriptedEnemyRules: ScriptedEnemyRule[] = [
+    {
+      id: 'regi-t1-crushgrip',
+      turn: 1,
+      actorSpecies: 'Regigigas',
+      forceMoveId: 'crushgrip',
+      targetSpec: 'slot:1',
+      once: true,
+      description:
+        'Coloso Despertado (T1): Regigigas ya sin Slow Start ataca a plena potencia con Crush Grip (+1 Atk).',
+      tauntLine:
+        '«¡El sello se ha roto! ¡Regigigas, aplasta al intruso con Agarrón!»',
+    },
+    {
+      id: 'regi-t1-grimm-partingshot',
+      turn: 1,
+      actorSpecies: 'Grimmsnarl',
+      forceMoveId: 'partingshot',
+      targetSpec: 'slot:1',
+      once: true,
+      description:
+        'Grimmsnarl (T1): usa Parting Shot con Prankster para debilitar a tu atacante y dar entrada gratuita a Clefairy (Friend Guard).',
+      tauntLine:
+        '«Grimmsnarl, Última Palabra y releva a los guardianes de apoyo.»',
+    },
+    {
+      id: 'regi-comfey-heal',
+      actorSpecies: 'Comfey',
+      onFirstActiveTurn: true,
+      forceMoveId: 'floralhealing',
+      once: true,
+      description:
+        'Comfey (Triage +3 prioridad): cura a Regigigas con Floral Healing salvo que hayas aplicado Psychic Noise (Heal Block).',
+      tauntLine:
+        '«¡Comfey, Cura Floral! Mientras lata el santuario, el Coloso no caerá.»',
+    },
+    {
+      id: 'regi-alcremie-decorate',
+      actorSpecies: 'Alcremie',
+      onFirstActiveTurn: true,
+      forceMoveId: 'decorate',
+      once: true,
+      description:
+        'Alcremie (primer turno activo): aplica Decorate (+2 Atk / +2 SpA) sobre Regigigas si no se neutraliza con Haze o Taunt.',
+      tauntLine:
+        '«¡Alcremie, Decoración! ¡Multiplica la furia del Titán!»',
+    },
+  ];
+
+  return {
+    chapterId: 'puzzle-02-regigigas',
+    format: 'doubles',
+    formatId: 'gen9doublescustomgame',
+    formatLabel: 'Puzzle 6v6 Dobles · Raid Boss',
+    playerName: 'Príncipe Heredero',
+    playerCharId: 'prince',
+    rivalName: 'Custodio del Coloso',
+    rivalTitle: 'Guardián del Templo Puntaneva',
+    rivalCharId: 'colossus_keeper',
+    rivalProfile: {
+      name: 'Custodio del Coloso',
+      title: 'Guardián del Templo Puntaneva',
+      bio: 'Sacerdote de la cámara sellada que transfirió cinco auras ancestrales a Regigigas antes de abrir las puertas del santuario.',
+      tacticalInsight:
+        'Su formación gira en torno a un coloso ya despertado y blindado. Romper sus barreras será inútil si no cortas su regeneración.',
+      archetypeTag: 'Puzzle: Raid Boss',
+    },
+    arenaTheme: 'titan-sanctum',
+    playerTeamSummary:
+      'Herramientas Quirúrgicas Nv. 55: Dragapult (Infiltrator) · Farigiraf (Psychic Noise) · Weavile (Brick Break) · Murkrow (Haze) · Urshifu · Annihilape',
+    rivalTeamSummary:
+      'Regigigas ★ Nv. 85 (Sin Slow Start + Sub/Aqua Ring/Ingrain/+1) + Grimmsnarl · Clefairy · Comfey · Alcremie · Sableye Nv. 50',
+    playerShowdownPaste: buildShowdownPaste(playerBlocks),
+    rivalShowdownPaste: buildShowdownPaste(rivalBlocks),
+    rivalIntel: {
+      visibleSpeciesCount: 6,
+      totalSlots: 6,
+      intelLabel: 'Puzzle Raid Boss · Estado Inyectado en Turno 0',
+      intelNote:
+        'Regigigas Nv. 85 entra sin Slow Start, tras Sustituto (25% PS), con Aqua Ring, Ingrain, Reflect, Light Screen y +1 Atk/Def/SpD. Combina Psychic Noise, Haze, Brick Break e Infiltrator/Unseen Fist.',
+      levelCap: 55,
+      hasBossAce: true,
+      bossAceWarning:
+        'Regigigas ★ Nv. 85 (+30 niveles sobre tu escuadrón) recibe curación triple por turno (Leftovers + Aqua Ring + Ingrain) más Comfey Floral Healing.',
+      aiScriptHint:
+        'Grimmsnarl pivota con Parting Shot T1 hacia Clefairy (Friend Guard), Comfey tira Floral Healing (+3 prioridad) y Alcremie potencia con Decorate.',
+    },
+    puzzleConditions: {
+      bannerLog:
+        '🗿 ¡El Coloso Despertado (Turno 0)! Regigigas (Nv. 85) entra SIN Slow Start, con Sustituto (25% PS), Aqua Ring, Ingrain, Reflect, Light Screen y +1 Atk/Def/SpD.',
+      sideConditions: {
+        p2: ['reflect', 'lightscreen'],
+      },
+      pokemonModifiers: [
+        {
+          side: 'p2',
+          slotOrSpecies: 'Regigigas',
+          removeVolatiles: ['slowstart'],
+          volatiles: ['aquaring', 'ingrain', 'substitute'],
+          substituteHpRatio: 0.25,
+          boosts: { atk: 1, def: 1, spd: 1 },
+        },
+      ],
+    },
+    scriptedEnemyRules,
+    traces: [
+      {
+        id: 'puzzle2-lead-choice',
+        category: 'player-roster',
+        choiceLabel:
+          leadPref === 'murkrow_weavile'
+            ? 'Apertura: Murkrow (Haze) + Weavile (Brick Break)'
+            : leadPref === 'urshifu_farigiraf'
+              ? 'Apertura: Urshifu (Unseen Fist) + Farigiraf (Psychic Noise)'
+              : 'Apertura: Dragapult (Infiltrator) + Farigiraf (Psychic Noise)',
+        flagKey: 'puzzle2_lead',
+        flagValue: leadPref,
+        effectTitle: 'Plan de Desmantelamiento Turno 1',
+        effectDetail:
+          'Todas tus piezas Nv. 55 cubren una capa del Raid Boss: Psicorruido corta la regeneración, Niebla limpia boosts, Demolición rompe pantallas y Allanamiento atraviesa el Sustituto.',
+      },
+    ],
+    flags,
+  };
+}
+
+/* ===================== ARCHIVO ANIME: Liga de Sinnoh — Ash vs. Tobías (6v6) ===================== */
+
+export function resolveAnimeAshVsTobiasBattle(
+  flags: StoryFlags
+): ResolvedBattleConfig {
+  const mindset = String(flags.ash_mindset ?? 'sinnoh_spirit');
+
+  const ashBlocks: ShowdownSetBlock[] = [
+    {
+      species: 'Pikachu',
+      item: 'Light Ball',
+      ability: 'Static',
+      level: 60,
+      teraType: 'Electric',
+      evs: '4 Atk / 252 SpA / 252 Spe',
+      nature: 'Hasty',
+      moves: ['Thunderbolt', 'Volt Tackle', 'Iron Tail', 'Quick Attack'],
+    },
+    {
+      species: 'Heracross',
+      item: 'Flame Orb',
+      ability: 'Guts',
+      level: 60,
+      teraType: 'Bug',
+      evs: '252 Atk / 4 Def / 252 Spe',
+      nature: 'Jolly',
+      moves: ['Megahorn', 'Close Combat', 'Sleep Talk', 'Facade'],
+    },
+    {
+      species: 'Sceptile',
+      item: 'Life Orb',
+      ability: 'Overgrow',
+      level: 60,
+      teraType: 'Grass',
+      evs: '4 Atk / 252 SpA / 252 Spe',
+      nature: 'Timid',
+      moves: ['Leaf Storm', 'Dragon Pulse', 'Focus Blast', 'Quick Attack'],
+    },
+    {
+      species: 'Swellow',
+      item: 'Focus Sash',
+      ability: 'Guts',
+      level: 60,
+      teraType: 'Normal',
+      evs: '252 Atk / 4 SpD / 252 Spe',
+      nature: 'Jolly',
+      moves: ['Brave Bird', 'Facade', 'Quick Attack', 'Baton Pass'],
+    },
+    {
+      species: 'Torkoal',
+      item: 'Heavy-Duty Boots',
+      ability: 'Drought',
+      level: 60,
+      teraType: 'Fire',
+      evs: '252 HP / 252 Def / 4 SpD',
+      nature: 'Relaxed',
+      ivs: '0 Spe',
+      moves: ['Lava Plume', 'Body Press', 'Yawn', 'Baton Pass'],
+    },
+    {
+      species: 'Gible',
+      item: 'Eviolite',
+      ability: 'Rough Skin',
+      level: 60,
+      teraType: 'Dragon',
+      evs: '252 Atk / 4 SpA / 252 Spe',
+      nature: 'Naive',
+      moves: ['Draco Meteor', 'Earthquake', 'Crunch', 'Stealth Rock'],
+    },
+  ];
+
+  const tobiasBlocks: ShowdownSetBlock[] = [
+    {
+      species: 'Darkrai',
+      item: 'Life Orb',
+      ability: 'Bad Dreams',
+      level: 60,
+      teraType: 'Dark',
+      evs: '4 HP / 252 SpA / 252 Spe',
+      nature: 'Timid',
+      ivs: '0 Atk',
+      moves: ['Dark Void', 'Dark Pulse', 'Ice Beam', 'Dream Eater'],
+    },
+    {
+      species: 'Latios',
+      item: 'Expert Belt',
+      ability: 'Levitate',
+      level: 60,
+      teraType: 'Dragon',
+      evs: '4 HP / 252 SpA / 252 Spe',
+      nature: 'Timid',
+      ivs: '0 Atk',
+      moves: ['Luster Purge', 'Dragon Pulse', 'Giga Impact', 'Light Screen'],
+    },
+    {
+      species: 'Cresselia',
+      item: 'Leftovers',
+      ability: 'Levitate',
+      level: 60,
+      teraType: 'Psychic',
+      evs: '252 HP / 252 Def / 4 SpD',
+      nature: 'Bold',
+      ivs: '0 Atk',
+      moves: ['Lunar Blessing', 'Lunar Dance', 'Psych Up', 'Psyshock'],
+    },
+    {
+      species: 'Latias',
+      item: 'Assault Vest',
+      ability: 'Levitate',
+      level: 60,
+      teraType: 'Fairy',
+      evs: '252 HP / 4 Def / 252 SpD',
+      nature: 'Calm',
+      moves: ['Confusion', 'Draining Kiss', 'Scale Shot', 'Chilling Water'],
+    },
+    {
+      species: 'Lucario',
+      item: 'Focus Sash',
+      ability: 'Inner Focus',
+      level: 60,
+      teraType: 'Fighting',
+      evs: '252 Atk / 4 SpD / 252 Spe',
+      nature: 'Jolly',
+      moves: ['Close Combat', 'Meteor Mash', 'Extreme Speed', 'Swords Dance'],
+    },
+    {
+      species: 'Giratina-Origin',
+      item: 'Griseous Core',
+      ability: 'Levitate',
+      level: 60,
+      teraType: 'Ghost',
+      evs: '252 Atk / 4 SpA / 252 Spe',
+      nature: 'Naive',
+      moves: ['Shadow Force', 'Dragon Claw', 'Aura Sphere', 'Shadow Sneak'],
+    },
+  ];
+
+  const scriptedEnemyRules: ScriptedEnemyRule[] = [
+    {
+      id: 'tobias-t1-darkvoid',
+      turn: 1,
+      actorSpecies: 'Darkrai',
+      forceMoveId: 'darkvoid',
+      once: true,
+      description:
+        'Apertura de Tobías (T1): Darkrai siempre abre buscando dormir a tu Líder con Brecha Negra (Dark Void).',
+      tauntLine:
+        '«¡Darkrai, sumérgelos en una pesadilla eterna! ¡Brecha Negra!»',
+    },
+    {
+      id: 'tobias-cresselia-psychup',
+      actorSpecies: 'Cresselia',
+      onFirstActiveTurn: true,
+      condition: 'foePositiveBoostsAtLeast4',
+      forceMoveId: 'psychup',
+      once: true,
+      description:
+        'Lectura de Cresselia (Primer turno activo): detecta tus mejoras acumuladas (≥ +4) y las copia íntegras con Más Psique (Psych Up).',
+      tauntLine:
+        '«¿Creíste que ese espíritu de Sinnoh era solo tuyo? ¡Cresselia, Más Psique!»',
+    },
+    {
+      id: 'tobias-cresselia-lunardance',
+      actorSpecies: 'Cresselia',
+      condition: 'hpBelow35AndKeyAllyDamaged',
+      allySpeciesList: ['Giratina-Origin', 'Darkrai'],
+      forceMoveId: 'lunardance',
+      once: true,
+      description:
+        'Sacrificio de Cresselia (<35% PS): usa Danza Lunar (Lunar Dance) para restaurar al siguiente compañero ante el desgaste de Darkrai/Giratina.',
+      tauntLine:
+        '«¡Cresselia, Danza Lunar! Que la luz de la luna restaure nuestro poder.»',
+    },
+  ];
+
+  return {
+    chapterId: 'anime-ash-vs-tobias',
+    format: 'singles',
+    formatId: 'gen9customgame',
+    formatLabel: '6v6 Singles · Omniboost',
+    interactiveTeamPreview: true,
+    preferredRivalTeamOrder: 'team 123456',
+    reserveAsLastAceSpecies: 'Giratina-Origin',
+    playerName: 'Ash Ketchum',
+    playerCharId: 'ash_ketchum',
+    rivalName: 'Tobías',
+    rivalTitle: 'El del Action Replay',
+    rivalCharId: 'tobias',
+    rivalProfile: {
+      name: 'Tobías',
+      title: 'El del Action Replay',
+      bio: 'Entrenador misterioso de la Conferencia del Valle Lirio. Nadie sabe de dónde sacó tantos legendarios; rumores hablan de un dispositivo prohibido.',
+      tacticalInsight:
+        'Fuerza bruta de Ubers, pero con decisiones de entrenamiento cuestionables. Cuidado con su Cresselia: puede copiar tus mejoras si te confías.',
+      archetypeTag: 'Archivo: Anime',
+    },
+    arenaTheme: 'lily-of-the-valley',
+    playerTeamSummary:
+      'Liga de Sinnoh (Nv. 60): Pikachu · Heracross · Sceptile · Swellow (Baton Pass) · Torkoal (Baton Pass) · Gible',
+    rivalTeamSummary:
+      'Leyendas de Tobías (Nv. 60): Darkrai (Lead) · Latios · Cresselia · Latias · Lucario · Giratina-Origin (Ace Final)',
+    playerShowdownPaste: buildShowdownPaste(ashBlocks),
+    rivalShowdownPaste: buildShowdownPaste(tobiasBlocks),
+    rivalIntel: {
+      visibleSpeciesCount: mindset === 'scout_tobias' ? 6 : 2,
+      totalSlots: 6,
+      intelLabel:
+        mindset === 'scout_tobias'
+          ? 'Rumores del Valle Lirio (6/6 legendarios)'
+          : 'Solo Darkrai y Latios confirmados (2/6)',
+      intelNote:
+        'Mecánica «Espíritu de Sinnoh»: el Pokémon que elijas como Líder en el Team Preview recibe +2 en Atk, Def, SpA, SpD y Spe al Turno 0. Swellow y Torkoal pueden pasar ese +2 con Baton Pass.',
+      levelCap: 60,
+      hasBossAce: false,
+      aiScriptHint:
+        'Tobías siempre abre con Darkrai (Dark Void T1), Cresselia copia boosts ≥ +4 con Psych Up y usa Lunar Dance (<35% PS), y guarda a Giratina-Origin como su último Pokémon.',
+    },
+    puzzleConditions: {
+      bannerLog:
+        '⚡ ¡Espíritu de Sinnoh! El Pokémon elegido por Ash como Líder inicia con Omniboost (+2 Atk, +2 Def, +2 SpA, +2 SpD, +2 Spe).',
+      pokemonModifiers: [
+        {
+          side: 'p1',
+          slotOrSpecies: 'slot:1',
+          boosts: { atk: 2, def: 2, spa: 2, spd: 2, spe: 2 },
+        },
+      ],
+    },
+    scriptedEnemyRules,
+    traces: [
+      {
+        id: 'anime-sinnoh-spirit',
+        category: 'player-set',
+        choiceLabel:
+          mindset === 'scout_tobias'
+            ? 'Estudiar rumores de la Conferencia del Valle Lirio'
+            : 'Despertar el Espíritu de Sinnoh',
+        flagKey: 'ash_mindset',
+        flagValue: mindset,
+        effectTitle: 'Omniboost +2 al Líder elegido en Team Preview',
+        effectDetail:
+          'Puedes liderar directo con Heracross (Sleep Talk contra Dark Void) o pasar el +2 desde Swellow/Torkoal con Baton Pass.',
       },
     ],
     flags,

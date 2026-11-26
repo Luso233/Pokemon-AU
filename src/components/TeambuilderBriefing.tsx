@@ -20,6 +20,7 @@ import type { OpenTeamsheetEntry, ResolvedBattleConfig } from '../types/game';
 import { CharacterPortrait } from './CharacterPortrait';
 import { OpenTeamsheetModal } from './OpenTeamsheetModal';
 import { PokemonIcon } from './PokemonSprite';
+import { RivalPortraitTooltip } from './RivalPortraitTooltip';
 
 interface TeambuilderBriefingProps {
   config: ResolvedBattleConfig;
@@ -275,13 +276,32 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
             <div>
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-3">
-                  <div className="h-11 w-11 overflow-hidden rounded-xl border border-rose-500/45 bg-slate-950 p-0.5">
-                    <CharacterPortrait
+                  {config.rivalProfile ? (
+                    <RivalPortraitTooltip
+                      profile={config.rivalProfile}
                       charId={config.rivalCharId}
-                      variant="bust"
-                      className="h-full w-full object-cover object-top"
-                    />
-                  </div>
+                      placement="bottom"
+                    >
+                      <button
+                        type="button"
+                        className="h-11 w-11 overflow-hidden rounded-xl border-2 border-rose-500/60 bg-slate-950 p-0.5 transition hover:border-amber-300 cursor-help"
+                      >
+                        <CharacterPortrait
+                          charId={config.rivalCharId}
+                          variant="bust"
+                          className="h-full w-full object-cover object-top"
+                        />
+                      </button>
+                    </RivalPortraitTooltip>
+                  ) : (
+                    <div className="h-11 w-11 overflow-hidden rounded-xl border border-rose-500/45 bg-slate-950 p-0.5">
+                      <CharacterPortrait
+                        charId={config.rivalCharId}
+                        variant="bust"
+                        className="h-full w-full object-cover object-top"
+                      />
+                    </div>
+                  )}
                   <div>
                     <h3 className="font-display text-lg font-bold text-white">
                       {config.rivalName}

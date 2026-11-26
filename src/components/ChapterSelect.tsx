@@ -12,6 +12,7 @@ import {
   Play,
   Puzzle,
   ShieldAlert,
+  Sparkles,
   Swords,
   Trophy,
   Users,
@@ -80,6 +81,12 @@ const CATEGORY_META: Array<{
     label: 'Archivo Histórico',
     subtitle: 'Simulaciones retro nativas (Era Antigua Gen 1 OU vs Ubers)',
     icon: Archive,
+  },
+  {
+    id: 'anime',
+    label: 'Archivo Anime',
+    subtitle: 'Combates legendarios del anime con mecánicas especiales de Turno 0',
+    icon: Sparkles,
   },
 ];
 
@@ -307,12 +314,23 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
                                   Open Teamsheet
                                 </span>
                               )}
-                              {prog?.completed && (
+                              {prog?.completed ? (
                                 <span className="inline-flex items-center gap-1 rounded-lg border border-emerald-400/30 bg-emerald-500/15 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-300">
                                   <CheckCircle2 className="h-3 w-3" />
-                                  Completado ({prog.victories})
+                                  Completado · {prog.victories}{' '}
+                                  {prog.victories === 1 ? 'victoria' : 'victorias'}
+                                  {prog.attempts
+                                    ? ` / ${prog.attempts} ${
+                                        prog.attempts === 1 ? 'intento' : 'intentos'
+                                      }`
+                                    : ''}
                                 </span>
-                              )}
+                              ) : prog?.attempts && prog.attempts > 0 ? (
+                                <span className="inline-flex items-center gap-1 rounded-lg border border-amber-400/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-200">
+                                  {prog.attempts}{' '}
+                                  {prog.attempts === 1 ? 'intento' : 'intentos'}
+                                </span>
+                              ) : null}
                             </div>
 
                             <h3 className="font-display text-xl font-bold text-white sm:text-2xl">
@@ -334,9 +352,11 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
                               <span className="inline-flex items-center gap-1.5">
                                 <Users className="h-3.5 w-3.5 text-sky-400" />
                                 <strong className="text-slate-200">Modo:</strong>{' '}
-                                {chapter.format === 'doubles'
-                                  ? 'Dobles 2v2'
-                                  : 'Individuales'}
+                                {chapter.format === 'triples'
+                                  ? 'Triples 3v3'
+                                  : chapter.format === 'doubles'
+                                    ? 'Dobles 2v2'
+                                    : 'Individuales'}
                               </span>
                               <span className="inline-flex items-center gap-1.5">
                                 <GitBranch className="h-3.5 w-3.5 text-amber-400" />

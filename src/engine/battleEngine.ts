@@ -280,6 +280,9 @@ export class ShowdownBattleController {
   private emptySlotsCleared = false;
   private turn1RequestsSeen = 0;
   private triggeredRuleIds = new Set<string>();
+  private p1HappinessBySpecies = new Map<string, number>();
+  private p2HappinessBySpecies = new Map<string, number>();
+  private p2ActiveTurns: number[] = [];
   private p1PreviewPokes: Array<{
     species: string;
     level: number;
@@ -714,7 +717,8 @@ export class ShowdownBattleController {
 
     this.pushLog(
       'puzzle',
-      '🧩 Condiciones iniciales del Puzzle aplicadas al campo.'
+      puzzle.bannerLog ??
+        '🧩 Condiciones iniciales del Puzzle aplicadas al campo.'
     );
 
     if (puzzle.weather && sourceMon) {
@@ -838,6 +842,22 @@ export class ShowdownBattleController {
       }
     }
 
+    if (mod.removeVolatiles) {
+      for (const vol of mod.removeVolatiles) {
+        targetMon.removeVolatile(vol);
+        if (
+          toID(vol) === 'slowstart' &&
+          targetMon.abilityState?.id === 'slowstart'
+        ) {
+          const abState = targetMon.abilityState as { counter?: number };
+          if (abState.counter) {
+            delete abState.counter;
+            battle.add('-end', targetMon, 'Slow Start');
+          }
+        }
+      }
+    }
+
     if (mod.boosts && Object.keys(mod.boosts).length > 0) {
       battle.boost(mod.boosts, targetMon, targetMon, null, false, true);
     }
@@ -849,6 +869,16 @@ export class ShowdownBattleController {
     if (mod.volatiles) {
       for (const vol of mod.volatiles) {
         targetMon.addVolatile(vol, targetMon);
+        if (toID(vol) === 'substitute' && targetMon.volatiles['substitute']) {
+          const ratio =
+            typeof mod.substituteHpRatio === 'number'
+              ? mod.substituteHpRatio
+              : 0.25;
+          targetMon.volatiles['substitute'].hp = Math.max(
+            1,
+            Math.floor(targetMon.maxhp * ratio)
+          );
+        }
       }
     }
   }
@@ -877,6 +907,27 @@ export class ShowdownBattleController {
 
     const p1Packed = Teams.pack(p1Sets);
     const p2Packed = Teams.pack(p2Sets);
+
+    this.p1HappinessBySpecies.clear();
+    for (const s of p1Sets) {
+      if (typeof s.happiness === 'number') {
+        const sp = Dex.species.get(s.species);
+        this.p1HappinessBySpecies.set(toID(s.species), s.happiness);
+        if (sp.exists) {
+          this.p1HappinessBySpecies.set(toID(sp.baseSpecies), s.happiness);
+        }
+      }
+    }
+    this.p2HappinessBySpecies.clear();
+    for (const s of p2Sets) {
+      if (typeof s.happiness === 'number') {
+        const sp = Dex.species.get(s.species);
+        this.p2HappinessBySpecies.set(toID(s.species), s.happiness);
+        if (sp.exists) {
+          this.p2HappinessBySpecies.set(toID(sp.baseSpecies), s.happiness);
+        }
+      }
+    }
 
     // Default totalP2 (updated accurately by |teamsize|p2|N after Team Preview for 1v1 & VGC 4v4)
     this.state.totalP2 =
@@ -1105,21 +1156,42 @@ export class ShowdownBattleController {
             continue;
           }
 
+          // Ensure Turn-0 puzzle conditions (e.g. Regigigas buffs, Ash Omniboost) are applied BEFORE P2 picks Turn 1!
+          if (
+            !req.teamPreview &&
+            this.state.turn <= 1 &&
+            this.config.puzzleConditions &&
+            !this.puzzleConditionsApplied
+          ) {
+            this.applyInitialBattleOverridesIfNeeded();
+          }
+
+          const liveBattle = this.battleStreamRef?.battle;
           const decision = await this.rivalController.chooseAction(req, {
             format: this.config.format,
             foeActiveSpecies: this.state.p1.active.map((m, idx) =>
               m && !m.fainted && !this.config.emptyPlayerSlots?.includes(idx)
                 ? m.species
-                : null
+                : liveBattle?.p1.active[idx] &&
+                    !liveBattle.p1.active[idx]!.fainted &&
+                    !this.config.emptyPlayerSlots?.includes(idx)
+                  ? liveBattle.p1.active[idx]!.species.name
+                  : null
             ),
             foeActiveStatus: this.state.p1.active.map((m, idx) =>
               m && !m.fainted && !this.config.emptyPlayerSlots?.includes(idx)
                 ? m.status || null
-                : null
+                : liveBattle?.p1.active[idx]?.status || null
             ),
             foeActiveHpPercent: this.state.p1.active.map((m) =>
               m ? m.hpPercent : null
             ),
+            foeActiveBoosts: this.state.p1.active.map((m, idx) => {
+              const liveBoosts = liveBattle?.p1.active[idx]?.boosts;
+              if (liveBoosts) return { ...liveBoosts } as Record<string, number>;
+              return m ? { ...m.boosts } : {};
+            }),
+            selfActiveTurns: [...this.p2ActiveTurns],
             foeSideConditions: this.state.p1.sideConditions,
             selfSideConditions: this.state.p2.sideConditions,
             weather: this.state.weather,
@@ -1129,6 +1201,7 @@ export class ShowdownBattleController {
             scriptedRules: this.config.scriptedEnemyRules ?? [],
             triggeredRuleIds: this.triggeredRuleIds,
             preferredTeamPreviewOrder: this.config.preferredRivalTeamOrder,
+            reserveAsLastAceSpecies: this.config.reserveAsLastAceSpecies,
           });
 
           if (decision && this.streams && !this.destroyed && !this.isEnded()) {
@@ -1239,6 +1312,15 @@ export class ShowdownBattleController {
         revealedMoves: prev?.revealedMoves ?? {},
         volatiles: mon.active ? prev?.volatiles ?? [] : [],
         isBossAce: false,
+        happiness:
+          (sideKey === 'p1'
+            ? this.p1HappinessBySpecies
+            : this.p2HappinessBySpecies
+          ).get(toID(det.species)) ??
+          (sideKey === 'p1'
+            ? this.p1HappinessBySpecies
+            : this.p2HappinessBySpecies
+          ).get(toID(speciesData.baseSpecies)),
       };
       this.refreshSpeedRange(sideKey, stateMon);
       return stateMon;
@@ -1297,10 +1379,16 @@ export class ShowdownBattleController {
 
         const moves: ActiveMoveOption[] = slot.moves.map((m, idx) => {
           const data = Dex.moves.get(m.id || m.move);
+          const moveId = toID(m.id || m.move);
+          const isMaxFrustration =
+            moveId === 'frustration' &&
+            (mon.happiness === 0 || (m.move || '').includes('102'));
+          const displayName =
+            moveId === 'frustration' ? 'Frustration' : m.move || data.name;
           return {
             index: idx + 1,
             id: m.id,
-            name: m.move || data.name,
+            name: displayName,
             pp: m.pp ?? data.pp ?? 1,
             maxpp: m.maxpp ?? data.pp ?? 1,
             target: m.target || data.target || 'normal',
@@ -1308,10 +1396,14 @@ export class ShowdownBattleController {
             type: data.type || 'Normal',
             category:
               (data.category as ActiveMoveOption['category']) || 'Physical',
-            basePower: data.basePower || 0,
+            basePower: isMaxFrustration ? 102 : data.basePower || 0,
             accuracy: data.accuracy ?? true,
             priority: data.priority ?? 0,
             shortDesc: data.shortDesc || data.desc || '',
+            userHappiness: mon.happiness,
+            powerNote: isMaxFrustration
+              ? 'Potencia máxima por Felicidad: 0 (Vínculo roto)'
+              : undefined,
           };
         });
 
@@ -1603,6 +1695,11 @@ export class ShowdownBattleController {
 
       case 'turn': {
         this.state.turn = Number(parts[2]) || this.state.turn + 1;
+        for (let i = 0; i < this.state.p2.active.length; i++) {
+          if (this.state.p2.active[i] && !this.state.p2.active[i]!.fainted) {
+            this.p2ActiveTurns[i] = (this.p2ActiveTurns[i] ?? 0) + 1;
+          }
+        }
         this.decrementTurnTimers();
         this.pushLog('turn', `Turn ${this.state.turn}`);
         if (this.state.turn === 1) {
@@ -1617,16 +1714,41 @@ export class ShowdownBattleController {
         const { side, slotIndex, name } = parseSlotFromIdent(parts[2] ?? '');
         const det = parseDetails(parts[3] ?? '');
         const cond = parseCondition(parts[4] ?? '100/100');
+        const isBatonPass = parts
+          .slice(4)
+          .some((p) => p.includes('Baton Pass'));
         const speciesData = Dex.species.get(det.species);
         const sideState = this.state[side];
+        if (side === 'p2') {
+          this.p2ActiveTurns[slotIndex] = 0;
+        }
 
         const prevInSlot = sideState.active[slotIndex];
+        const passedBoosts =
+          isBatonPass && prevInSlot ? { ...prevInSlot.boosts } : {};
+        const passedVolatiles =
+          isBatonPass && prevInSlot
+            ? prevInSlot.volatiles.filter((v) =>
+                ['substitute', 'aqua ring', 'ingrain', 'leech seed', 'focus energy'].some(
+                  (k) => v.toLowerCase().includes(k)
+                )
+              )
+            : [];
+
         if (prevInSlot) {
           prevInSlot.active = false;
           prevInSlot.boosts = {};
           prevInSlot.volatiles = [];
           this.refreshSpeedRange(side, prevInSlot);
         }
+
+        const happinessMap =
+          side === 'p1'
+            ? this.p1HappinessBySpecies
+            : this.p2HappinessBySpecies;
+        const configuredHappiness =
+          happinessMap.get(toID(det.species)) ??
+          happinessMap.get(toID(speciesData.baseSpecies));
 
         // If Open Teamsheet is active (e.g. VGC Worlds), pre-populate rival's known item/ability/tera!
         const openRivalMatch =
@@ -1661,15 +1783,16 @@ export class ShowdownBattleController {
             types: speciesData.types ? [...speciesData.types] : ['Normal'],
             teraType: openRivalMatch?.teraType,
             terastallized: null,
-            boosts: {},
+            boosts: passedBoosts,
             revealed: true,
             revealedAbility: openRivalMatch?.ability ?? null,
             possibleAbilities: getPossibleAbilities(det.species),
             revealedItem: openRivalMatch?.item ?? null,
             consumedItem: null,
             revealedMoves: {},
-            volatiles: [],
+            volatiles: passedVolatiles,
             isBossAce: side === 'p2' && det.level > this.state.levelCap,
+            happiness: configuredHappiness,
           };
           sideState.party.push(existing);
         } else {
@@ -1681,8 +1804,8 @@ export class ShowdownBattleController {
           existing.fainted = cond.fainted;
           existing.active = true;
           existing.revealed = true;
-          existing.boosts = {};
-          existing.volatiles = [];
+          existing.boosts = passedBoosts;
+          existing.volatiles = passedVolatiles;
           existing.types = existing.terastallized
             ? [existing.terastallized]
             : speciesData.types
@@ -1690,6 +1813,9 @@ export class ShowdownBattleController {
               : existing.types;
           existing.possibleAbilities = getPossibleAbilities(det.species);
           existing.isBossAce = side === 'p2' && det.level > this.state.levelCap;
+          if (configuredHappiness !== undefined) {
+            existing.happiness = configuredHappiness;
+          }
         }
 
         this.refreshSpeedRange(side, existing);
@@ -1768,6 +1894,22 @@ export class ShowdownBattleController {
         if (!isFromSubMove && moveData.id !== 'struggle') {
           const { activeMon, partyMon } = this.getTargetMons(side, slotIndex, name);
           const maxPP = getShowdownMaxPP(moveName);
+          const hMap =
+            side === 'p1'
+              ? this.p1HappinessBySpecies
+              : this.p2HappinessBySpecies;
+          const actorHappiness =
+            activeMon?.happiness ??
+            partyMon?.happiness ??
+            hMap.get(toID(activeMon?.species ?? name));
+          const isMaxFrustration =
+            moveData.id === 'frustration' && actorHappiness === 0;
+          if (isMaxFrustration) {
+            this.pushLog(
+              'effective',
+              `💢 ${name} desata Frustration a Poder Base 102 (Felicidad: 0 · Vínculo roto)!`
+            );
+          }
           const updateMoves = (m: PartyPokemonState | null) => {
             if (!m) return;
             const prev = m.revealedMoves[moveName];
@@ -1777,6 +1919,10 @@ export class ShowdownBattleController {
               type: moveData.type || 'Normal',
               used: (prev?.used ?? 0) + 1,
               maxPP: prev?.maxPP ?? maxPP,
+              basePower: isMaxFrustration ? 102 : moveData.basePower || undefined,
+              powerNote: isMaxFrustration
+                ? 'Potencia máxima por Felicidad: 0 (Vínculo roto)'
+                : undefined,
             };
           };
           updateMoves(activeMon);
@@ -1964,6 +2110,29 @@ export class ShowdownBattleController {
         this.pushLog(
           'boost',
           `🔄 ¡Se invirtieron todos los cambios de stats de ${name}!`
+        );
+        break;
+      }
+
+      case '-copyboost': {
+        const target = parseSlotFromIdent(parts[2] ?? '');
+        const source = parseSlotFromIdent(parts[3] ?? '');
+        const sourceMon = this.state[source.side].active[source.slotIndex];
+        const { activeMon, partyMon } = this.getTargetMons(
+          target.side,
+          target.slotIndex,
+          target.name
+        );
+        if (sourceMon) {
+          for (const m of [activeMon, partyMon]) {
+            if (!m) continue;
+            m.boosts = { ...sourceMon.boosts };
+            this.refreshSpeedRange(target.side, m);
+          }
+        }
+        this.pushLog(
+          'boost',
+          `✨ ¡${target.name} copió todas las mejoras de stats de ${source.name}!`
         );
         break;
       }

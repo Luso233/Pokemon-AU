@@ -44,6 +44,10 @@ const SPEAKER_TO_CHAR: Record<string, CharacterId> = {
   'Duque de Hammerlocke': 'hammerlocke_duke',
   'Tríada de Élite del Duque': 'triad_knights',
   'El Archivista Real': 'royal_archivist',
+  'Lord Vexen (Domador Clandestino)': 'clandestine_tamer',
+  'Custodio del Coloso': 'colossus_keeper',
+  'Tobías (El del Action Replay)': 'tobias',
+  'Ash Ketchum': 'ash_ketchum',
 };
 
 export const VisualNovelView: React.FC<VisualNovelViewProps> = ({

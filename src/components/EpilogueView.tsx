@@ -22,6 +22,7 @@ interface EpilogueViewProps {
   config: ResolvedBattleConfig;
   won: boolean;
   battleSummary: BattleSnapshot | null;
+  attemptNumber?: number;
   aiSettings: AISettings;
   onOpenAISettings: () => void;
   onReplayChapter: () => void;
@@ -36,6 +37,7 @@ export const EpilogueView: React.FC<EpilogueViewProps> = ({
   config,
   won,
   battleSummary,
+  attemptNumber,
   aiSettings,
   onOpenAISettings,
   onReplayChapter,
@@ -113,7 +115,11 @@ export const EpilogueView: React.FC<EpilogueViewProps> = ({
 
         {/* Summary Stats */}
         {battleSummary && (
-          <div className="mb-5 grid grid-cols-3 gap-3 text-center">
+          <div
+            className={`mb-5 grid gap-3 text-center ${
+              !isVersus && attemptNumber ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'
+            }`}
+          >
             <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-3">
               <p className="text-[11px] uppercase text-slate-400">Turnos</p>
               <p className="font-mono-code mt-0.5 text-lg font-bold text-white">
@@ -126,11 +132,25 @@ export const EpilogueView: React.FC<EpilogueViewProps> = ({
                 {battleSummary.koCountP2} / {battleSummary.totalP2}
               </p>
             </div>
+            {!isVersus && attemptNumber != null && (
+              <div className="rounded-2xl border border-amber-400/25 bg-amber-500/10 p-3">
+                <p className="text-[11px] uppercase text-amber-200/80">
+                  {won ? 'Victoria en' : 'Intentos'}
+                </p>
+                <p className="font-mono-code mt-0.5 text-lg font-bold text-amber-200">
+                  #{attemptNumber}
+                </p>
+              </div>
+            )}
             <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-3">
               <p className="text-[11px] uppercase text-slate-400">Formato</p>
               <p className="mt-0.5 text-xs font-bold text-sky-300">
                 {config.formatLabel ??
-                  (config.format === 'doubles' ? 'Dobles' : 'Singles')}
+                  (config.format === 'triples'
+                    ? 'Triples'
+                    : config.format === 'doubles'
+                      ? 'Dobles'
+                      : 'Singles')}
               </p>
             </div>
           </div>
