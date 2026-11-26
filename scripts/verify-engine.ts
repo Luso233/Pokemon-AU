@@ -59,6 +59,11 @@ import {
 import { getLegalLearnsetForSpecies } from '../src/engine/learnsetService';
 import { CHAPTER_UNLOCK_RULES } from '../src/data/economyCatalog';
 import {
+  BLOC_BY_ID,
+  CHAPTER_MAP_LOCATIONS,
+  WORLD_BLOCS,
+} from '../src/data/worldGeopolitics';
+import {
   applyNpcRunModifiers,
   getNpcDefinition,
   getVariantsForChapterNpc,
@@ -1308,8 +1313,16 @@ async function main() {
       throw new Error(`Expected Castform ★ Lv.105 in climate_mode=${mode}`);
     }
   }
+  // Verify every chapter has a valid geopolitical map location & bloc
+  const allChapterIds = Object.keys(CHAPTER_UNLOCK_RULES);
+  for (const chId of allChapterIds) {
+    const loc = CHAPTER_MAP_LOCATIONS[chId];
+    if (!loc || !BLOC_BY_ID[loc.blocId]) {
+      throw new Error(`Missing or invalid WorldWarMap location for chapter '${chId}'`);
+    }
+  }
   console.log(
-    `  OK: Duelista/Estratega Solar/Guardián verified + all 8 Weather/Terrain modes (Rain='${t1WxRain.weather}', Snow='${t1WxSnow.weather}', Psychic='${t1WxPsy.terrain}', Castform ★ Nv.105 Ace, turns=${resWxRain.turn})`
+    `  OK: Duelista/Estratega Solar/Guardián verified + all 8 Weather/Terrain modes (Rain='${t1WxRain.weather}', Snow='${t1WxSnow.weather}', Psychic='${t1WxPsy.terrain}', Castform ★ Nv.105 Ace, turns=${resWxRain.turn}) + WorldWarMap (${WORLD_BLOCS.length} blocs, ${allChapterIds.length}/${allChapterIds.length} chapters mapped)`
   );
 
   console.log('\nALL 21 ENGINE, ECONOMY, TEAMBUILDER, NPC & WEATHER/TERRAIN SUITES PASSED!');
