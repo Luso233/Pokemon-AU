@@ -5,7 +5,6 @@ import {
   Cloud,
   CloudOff,
   Coins,
-  Cpu,
   Crown,
   Gamepad2,
   GitBranch,
@@ -30,6 +29,7 @@ interface HomePageProps {
   onOpenArcade: () => void;
   onOpenAccount: () => void;
   onOpenAISettings: () => void;
+  onOpenDevMode: () => void;
   onQuickStartMainChapter: () => void;
   profile: PlayerSaveProfile;
   firebaseUser: User | null;
@@ -45,6 +45,7 @@ export const HomePage: React.FC<HomePageProps> = ({
   onOpenArcade,
   onOpenAccount,
   onOpenAISettings,
+  onOpenDevMode,
   onQuickStartMainChapter,
   profile,
   firebaseUser,
@@ -73,7 +74,7 @@ export const HomePage: React.FC<HomePageProps> = ({
       </div>
 
       {/* Top Navigation */}
-      <header className="relative z-10 mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
+      <header className="relative z-10 mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-6">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-amber-400/40 bg-amber-500/10 text-amber-300 shadow-lg shadow-amber-500/10">
             <Crown className="h-5 w-5" />
@@ -83,7 +84,7 @@ export const HomePage: React.FC<HomePageProps> = ({
               CROWN OF GALAR
             </p>
             <p className="text-[11px] text-slate-400">
-              Novela Visual Política + Simulador Táctico 6v6 Dobles
+              Novela Visual Política · Combates Tácticos Pokémon
             </p>
           </div>
         </div>
@@ -97,6 +98,18 @@ export const HomePage: React.FC<HomePageProps> = ({
             <span className="font-mono-code">
               {profile.coins.toLocaleString()} PC
             </span>
+          </button>
+
+          <button
+            onClick={onOpenDevMode}
+            className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition cursor-pointer ${
+              profile.devModeEnabled
+                ? 'border-fuchsia-400/60 bg-fuchsia-500/20 text-fuchsia-200'
+                : 'border-slate-700 bg-slate-900/80 text-slate-300 hover:border-fuchsia-400/45 hover:text-fuchsia-200'
+            }`}
+          >
+            <Wrench className="h-3.5 w-3.5 text-fuchsia-300" />
+            Dev Mode
           </button>
 
           <button
@@ -127,7 +140,9 @@ export const HomePage: React.FC<HomePageProps> = ({
             className="inline-flex items-center gap-1.5 rounded-xl border border-sky-400/35 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-200 transition hover:bg-sky-500/20 cursor-pointer"
           >
             <Settings2 className="h-3.5 w-3.5" />
-            <span className="hidden lg:inline">{getActiveProviderLabel(aiSettings)}</span>
+            <span className="hidden lg:inline">
+              {getActiveProviderLabel(aiSettings)}
+            </span>
             <span className="lg:hidden">IA</span>
           </button>
 
@@ -147,7 +162,7 @@ export const HomePage: React.FC<HomePageProps> = ({
           <div className="lg:col-span-6">
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-500/10 px-3.5 py-1.5 text-xs font-medium text-amber-200">
               <Sparkles className="h-3.5 w-3.5 text-amber-400" />
-              InkJS · Niebla de Guerra · IA Scripteada por Turno · @pkmn/sim
+              Crónicas de Wyndon · Campaña, Puzzles y Archivos Históricos
             </div>
 
             <h1 className="font-display text-4xl font-extrabold leading-tight tracking-tight text-white sm:text-5xl">
@@ -158,15 +173,11 @@ export const HomePage: React.FC<HomePageProps> = ({
             </h1>
 
             <p className="mt-5 text-base leading-relaxed text-slate-300">
-              Acorralado bajo la lluvia de Wyndon solo con tu{' '}
-              <strong className="text-amber-200">Equipo de Vida Diaria</strong>,
-              enfrentas a un Asesino con un equipo 6v6 construido pieza por pieza
-              para hacerte counter. Tus decisiones durante la persecución
-              alteran leads, sabotean objetos, mejoran tus sets y exponen{' '}
-              <strong className="text-rose-300">
-                turnos scripteados de la IA
-              </strong>{' '}
-              para engañarla.
+              Bajo la lluvia nocturna de Wyndon, una conspiración corta el paso
+              al heredero lejos de la armería real. Cada decisión en la sombra
+              deja huella en la arena, y cada victoria te permite perfeccionar
+              los objetos y movimientos de tu equipo para sobrevivir a los retos
+              más despiadados del reino.
             </p>
 
             <div className="mt-8 flex flex-wrap items-center gap-3">
@@ -175,15 +186,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                 className="group inline-flex items-center gap-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 px-6 py-3.5 text-sm font-extrabold text-slate-950 shadow-xl shadow-amber-500/20 transition hover:brightness-110 active:scale-[0.98] cursor-pointer"
               >
                 <Play className="h-4 w-4 fill-current" />
-                Jugar Cap. 01: Cacería en Wyndon
-              </button>
-
-              <button
-                onClick={onOpenVersus}
-                className="inline-flex items-center gap-2 rounded-2xl border border-rose-400/50 bg-gradient-to-r from-rose-500/20 to-amber-500/15 px-5 py-3.5 text-sm font-bold text-rose-100 backdrop-blur transition hover:border-rose-300 hover:bg-rose-500/30 cursor-pointer"
-              >
-                <Wand2 className="h-4 w-4 text-rose-300" />
-                Modo Versus (AI Teambuilder)
+                Comenzar Capítulo 01
               </button>
 
               <button
@@ -192,6 +195,14 @@ export const HomePage: React.FC<HomePageProps> = ({
               >
                 <BookOpen className="h-4 w-4" />
                 Selector de Capítulos
+              </button>
+
+              <button
+                onClick={onOpenVersus}
+                className="inline-flex items-center gap-2 rounded-2xl border border-rose-400/50 bg-gradient-to-r from-rose-500/20 to-amber-500/15 px-5 py-3.5 text-sm font-bold text-rose-100 backdrop-blur transition hover:border-rose-300 hover:bg-rose-500/30 cursor-pointer"
+              >
+                <Wand2 className="h-4 w-4 text-rose-300" />
+                Modo Versus
               </button>
             </div>
 
@@ -209,7 +220,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                 className="inline-flex items-center gap-1.5 rounded-xl border border-sky-400/35 bg-sky-500/10 px-3.5 py-2 text-xs font-bold text-sky-200 transition hover:bg-sky-500/20 cursor-pointer"
               >
                 <Wrench className="h-3.5 w-3.5" />
-                Editor de Equipo
+                Equipo Libre
               </button>
               <button
                 onClick={onOpenArcade}
@@ -220,50 +231,50 @@ export const HomePage: React.FC<HomePageProps> = ({
               </button>
             </div>
 
-            {/* 3-Pillar Architecture Highlights */}
+            {/* 3-Pillar Highlights */}
             <div className="mt-9 grid gap-3 sm:grid-cols-3">
               <div className="rounded-2xl border border-slate-800/90 bg-slate-900/60 p-3.5">
                 <div className="mb-1.5 flex items-center gap-1.5 text-amber-300">
                   <GitBranch className="h-4 w-4" />
                   <span className="text-[11px] font-bold uppercase tracking-wider">
-                    Persecución Ink
+                    Decisiones Reales
                   </span>
                 </div>
                 <p className="text-xs leading-relaxed text-slate-400">
-                  4 decisiones tácticas que suavizan el matchup counter o te dejan
-                  en modo desafío puro.
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-slate-800/90 bg-slate-900/60 p-3.5">
-                <div className="mb-1.5 flex items-center gap-1.5 text-rose-300">
-                  <Cpu className="h-4 w-4" />
-                  <span className="text-[11px] font-bold uppercase tracking-wider">
-                    IA Scripteada
-                  </span>
-                </div>
-                <p className="text-xs leading-relaxed text-slate-400">
-                  Reglas por turno y HP para baitear Mofa, Fake Out, Brick Break o
-                  Sucker Punch.
+                  Lee la escena, arriésgate y descubre las consecuencias en la
+                  arena sin advertencias de manual.
                 </p>
               </div>
 
               <div className="rounded-2xl border border-slate-800/90 bg-slate-900/60 p-3.5">
                 <div className="mb-1.5 flex items-center gap-1.5 text-sky-300">
-                  <Swords className="h-4 w-4" />
+                  <Wrench className="h-4 w-4" />
                   <span className="text-[11px] font-bold uppercase tracking-wider">
-                    6v6 Dobles + Tera
+                    Progresión Táctica
                   </span>
                 </div>
                 <p className="text-xs leading-relaxed text-slate-400">
-                  Teracristalización, Fog of War estilo Showdown, rangos de
-                  velocidad y tooltips.
+                  Equipa objetos de tu inventario y desbloquea slots para
+                  enseñar cualquier movimiento legal del learnset.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-800/90 bg-slate-900/60 p-3.5">
+                <div className="mb-1.5 flex items-center gap-1.5 text-rose-300">
+                  <Swords className="h-4 w-4" />
+                  <span className="text-[11px] font-bold uppercase tracking-wider">
+                    15 Escenarios
+                  </span>
+                </div>
+                <p className="text-xs leading-relaxed text-slate-400">
+                  Campaña, puzzles imposibles, Triples, supervivencia sin
+                  curación y archivos históricos.
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Right Character Face-Off Card (Prince vs Assassin!) */}
+          {/* Right Character Face-Off Card */}
           <div className="lg:col-span-6">
             <div className="relative overflow-hidden rounded-3xl border border-amber-400/25 bg-gradient-to-b from-slate-900/90 via-slate-950/95 to-slate-950 p-5 shadow-2xl shadow-black/70">
               <div className="absolute -left-10 top-10 h-52 w-52 rounded-full bg-amber-400/15 blur-3xl" />
@@ -273,17 +284,15 @@ export const HomePage: React.FC<HomePageProps> = ({
                 <div className="flex items-center gap-2">
                   <Shield className="h-4 w-4 text-amber-400" />
                   <span className="text-xs font-bold uppercase tracking-widest text-amber-200">
-                    Protagonista vs. Antagonista
+                    Noche en Wyndon
                   </span>
                 </div>
                 <span className="rounded-full border border-rose-400/30 bg-rose-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-rose-200">
-                  6v6 Dobles · Tera Activo
+                  Capítulo 01 · 6v6 Dobles
                 </span>
               </div>
 
-              {/* Character Sprites Face-Off */}
               <div className="relative my-4 grid grid-cols-11 items-end rounded-2xl border border-slate-800/90 bg-gradient-to-b from-[#0b1326] to-[#050811] px-3 pt-4 pb-3">
-                {/* Prince */}
                 <div className="col-span-5 flex flex-col items-center">
                   <CharacterPortrait
                     charId="prince"
@@ -295,19 +304,17 @@ export const HomePage: React.FC<HomePageProps> = ({
                       Príncipe Heredero
                     </p>
                     <p className="text-[10px] text-slate-400">
-                      Arcanine · Gardevoir · Milotic · Corviknight · Sylveon · Rotom
+                      Escolta diaria de palacio
                     </p>
                   </div>
                 </div>
 
-                {/* VS Divider */}
                 <div className="col-span-1 flex flex-col items-center justify-center self-center">
                   <span className="font-display text-lg font-black text-amber-400">
                     VS
                   </span>
                 </div>
 
-                {/* Assassin */}
                 <div className="col-span-5 flex flex-col items-center">
                   <CharacterPortrait
                     charId="assassin"
@@ -319,7 +326,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                       Asesino Carmesí
                     </p>
                     <p className="text-[10px] text-slate-400">
-                      Equipo Anti-Príncipe 6v6 (Oculto bajo Fog of War)
+                      Formación oculta en la niebla
                     </p>
                   </div>
                 </div>

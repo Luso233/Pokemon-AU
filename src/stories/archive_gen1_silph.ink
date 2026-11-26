@@ -3,24 +3,25 @@ VAR gen1_lead = "tauros"
 -> camara_silph
 
 === camara_silph ===
-Bóveda Subterránea del Archivo Real de Galar. Monitores de fósforo verde cargan un cartucho sellado con el emblema de Silph Co., fechado décadas antes de la era moderna. # bg: silph-archive # speaker: Narrador # char: royal_archivist # side: right # pokemon: mewtwo # mood: calm
-"Bienvenido a la Reliquia de Silph Co., joven príncipe. He reconstruido una simulación exacta de la Era Antigua de Kanto (Generación 1): sin objetos equipados, sin habilidades, sin división Físico/Especial por movimiento y con Críticos ligados a la Velocidad." # bg: silph-archive # speaker: El Archivista Real # char: royal_archivist # side: right # pokemon: mew # mood: confident
-"Enfrentarás la versión equilibrada de las dos anomalías genéticas originales — Mewtwo y Mew (sin Amnesia ni Recuperación) — acompañadas por el panteón clásico de Kanto. Tu arma será el equipo legendario de Smogon Gen 1 OU: Tauros, Chansey, Snorlax, Exeggutor, Starmie y Alakazam." # bg: silph-archive # speaker: El Archivista Real # char: royal_archivist # side: right # pokemon: tauros # mood: serious
-"En Gen 1 la Parálisis, el Sueño y las Explosiones (que reducen a la mitad la Defensa rival al calcular daño) son el gran ecualizador frente al poder bruto de Mewtwo." # bg: silph-archive # speaker: Príncipe Heredero # char: prince # side: left # pokemon: alakazam # mood: confident
+En el nivel más hondo del Archivo Real de Galar, el zumbido eléctrico de un viejo monitor de fósforo verde rompe la penumbra. Sobre la consola descansa una cinta magnética sellada con el emblema descolorido de Silph Co. # bg: silph-archive # speaker: Narrador # char: royal_archivist # side: right # pokemon: mewtwo # mood: calm
+El Archivista Real ajusta un interruptor metálico; la pantalla parpadea con líneas monocromáticas y una silueta psíquica inmóvil llena el cristal. # bg: silph-archive # speaker: Narrador # char: royal_archivist # side: right # pokemon: mewtwo # mood: calm
+«Bienvenido a un recuerdo anterior a todas nuestras reglas modernas, Alteza.» Su voz suena reverente entre el zumbido de las cintas. «Aquí no existen objetos equipados ni habilidades ocultas; cada golpe depende del pulso puro, la velocidad y el temple de la vieja Kanto.» # bg: silph-archive # speaker: El Archivista Real # char: royal_archivist # side: right # pokemon: mewtwo # mood: confident
+«Del otro lado del registro aguarda la anomalía genética que Silph Co. intentó enterrar en sus bóvedas: Mewtwo, acompañado por los ecos de aquella era. Para responderle, el archivo te entrega seis veteranos clásicos de Kanto.» # bg: silph-archive # speaker: El Archivista Real # char: royal_archivist # side: right # pokemon: mewtwo # mood: serious
+Observas los seis perfiles parpadeando en verde sobre el tablero antiguo. Tienes apenas un instante para decidir quién cruzará primero la estática. # bg: silph-archive # speaker: Narrador # char: prince # side: left # pokemon: tauros # mood: confident
 
-* [Abrir con Alakazam (Psíquico + Onda Trueno veloz contra el lead rival)]
+* [Abrir con Alakazam para responder con velocidad y presión mental desde el inicio]
     ~ gen1_lead = "alakazam"
-    "Alakazam abrirá para esparcir Onda Trueno y controlar el ritmo especial desde el Turno 1." # bg: silph-archive # speaker: Príncipe Heredero # char: prince # side: left # pokemon: alakazam # mood: confident
+    «Si la vieja Kanto pertenece a la velocidad y la mente, Alakazam dará el primer paso.» # bg: silph-archive # speaker: Príncipe Heredero # char: prince # side: left # pokemon: alakazam # mood: confident
     -> inicio_gen1
-* [Abrir con Tauros (El Rey de Gen 1 OU: Golpe Cuerpo + Hiperrayo)]
+* [Abrir con Tauros confiando en el peso imparable del viejo rey del llano]
     ~ gen1_lead = "tauros"
-    "Tauros en punta para presionar desde el primer intercambio con Golpe Cuerpo y Ventisca." # bg: silph-archive # speaker: Príncipe Heredero # char: prince # side: left # pokemon: tauros # mood: confident
+    «Tauros al frente. Si algo define aquella época, es no ceder un centímetro de terreno.» # bg: silph-archive # speaker: Príncipe Heredero # char: prince # side: left # pokemon: tauros # mood: confident
     -> inicio_gen1
-* [Abrir con Exeggutor (Somnífero inmediato + Explosión táctica)]
+* [Abrir con Exeggutor buscando quebrar el ritmo enemigo desde el primer intercambio]
     ~ gen1_lead = "exeggutor"
-    "Exeggutor entra primero para dormir a la amenaza inicial y preparar el tablero." # bg: silph-archive # speaker: Príncipe Heredero # char: prince # side: left # pokemon: exeggutor # mood: confident
+    «Exeggutor primero. En un campo sin atajos, quien controle el ritmo manda la partida.» # bg: silph-archive # speaker: Príncipe Heredero # char: prince # side: left # pokemon: exeggutor # mood: confident
     -> inicio_gen1
 
 === inicio_gen1 ===
-Archivo Histórico cargado en motor nativo gen1customgame (Reglas RBY: sin objetos ni habilidades). ¡Demuestra que el control clásico supera a Mew y Mewtwo! # bg: silph-archive # speaker: Sistema Táctico # char: royal_archivist # side: right # pokemon: mewtwo # mood: confident
+El carrete magnético gira con un chasquido seco y la silueta de Mewtwo abre los ojos al otro lado de la pantalla. # bg: silph-archive # speaker: Narrador # char: royal_archivist # side: right # pokemon: mewtwo # mood: confident
 -> END

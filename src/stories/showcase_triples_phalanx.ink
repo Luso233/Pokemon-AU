@@ -3,20 +3,20 @@ VAR phalanx_plan = "gardevoir_center"
 -> campo_hammerlocke
 
 === campo_hammerlocke ===
-Explanada militar frente a las murallas de Hammerlocke. Estandartes azul cobalto ondean mientras la Caballería del Duque de Hammerlocke despliega tres líneas simultáneas. # bg: hammerlocke-field # speaker: Narrador # char: hammerlocke_duke # side: right # pokemon: kangaskhanmega # mood: confident
-"En una guerra de casas nobles no se combate de uno en uno, Alteza. Se combate en Falange Triple: Flanco Izquierdo, Vanguardia Central y Flanco Derecho." # bg: hammerlocke-field # speaker: Duque de Hammerlocke # char: hammerlocke_duke # side: right # pokemon: aegislash # mood: confident
-"Recuerda las leyes de la Batalla Triple (Gen 6): tu Pokémon del Centro alcanza a los tres rivales, mientras que las Esquinas solo golpean al frente y al centro — salvo ataques voladores o de pulso como Pájaro Osado o Tajo Aéreo, que cruzan todo el campo." # bg: hammerlocke-field # speaker: Duque de Hammerlocke # char: hammerlocke_duke # side: right # pokemon: togekiss # mood: serious
-"Hitmontop cubrirá el Flanco Izquierdo con Sorpresa y Vastaguardia, Mega Gardevoir comandará el Centro con Vozarrón, y Talonflame en el Flanco Derecho podrá cruzar todo el tablero con Pájaro Osado." # bg: hammerlocke-field # speaker: Príncipe Heredero # char: prince # side: left # pokemon: gardevoirmega # mood: confident
+La explanada militar de Hammerlocke se extiende bajo un cielo plomizo donde los estandartes azul cobalto crujen con el viento. Al otro lado de la tierra marcada con cal, el Duque alinea tres estandartes de combate al mismo tiempo. # bg: hammerlocke-field # speaker: Narrador # char: hammerlocke_duke # side: right # pokemon: none # mood: confident
+«En la corte la gente discute de a uno, Alteza, pero en la frontera el campo tiene tres frentes: izquierda, centro y derecha.» El Duque ajusta su guantelete mirando la extensión del patio. «Quien no entiende la distancia entre un flanco y la esquina opuesta termina perdiendo la línea entera.» # bg: hammerlocke-field # speaker: Duque de Hammerlocke # char: hammerlocke_duke # side: right # pokemon: none # mood: confident
+A tu alrededor, Gardevoir sostiene en silencio la piedra brillante que guarda en el pecho, Hitmontop gira sobre las puntas midiendo el terreno y Talonflame bate las alas buscando altura sobre las murallas. # bg: hammerlocke-field # speaker: Narrador # char: prince # side: left # pokemon: gardevoirmega # mood: confident
+Un cuerno grave resuena desde las almenas. Solo queda definir cómo se abrirán tus flancos antes de que choque la vanguardia. # bg: hammerlocke-field # speaker: Narrador # char: prince # side: left # pokemon: talonflame # mood: serious
 
-* [Formación Clásica: Hitmontop (Izq) · Mega Gardevoir (Centro) · Talonflame (Der)]
+* [Mantener la formación clásica: Hitmontop a la izquierda, Gardevoir al centro, Talonflame a la derecha]
     ~ phalanx_plan = "gardevoir_center"
-    "Vanguardia central con Mega Gardevoir. ¡Activa la Megaevolución desde el panel de comandos cuando estés listo!" # bg: hammerlocke-field # speaker: Príncipe Heredero # char: prince # side: left # pokemon: gardevoirmega # mood: confident
+    «Gardevoir comanda el centro; cubran ambos flancos y no pierdan de vista las esquinas.» # bg: hammerlocke-field # speaker: Príncipe Heredero # char: prince # side: left # pokemon: gardevoirmega # mood: confident
     -> cierre_triples
-* [Formación Flanqueo Veloz: Talonflame (Izq) · Mega Gardevoir (Centro) · Hitmontop (Der)]
+* [Invertir los flancos: Talonflame a la izquierda, Gardevoir al centro, Hitmontop a la derecha]
     ~ phalanx_plan = "flank_swap"
-    "Invertimos los flancos para alinear a Hitmontop frente a la Mega Kangaskhan del Duque." # bg: hammerlocke-field # speaker: Príncipe Heredero # char: prince # side: left # pokemon: hitmontop # mood: confident
+    «Cambiamos los extremos antes de sonar el cuerno. Vamos a descolocar su vanguardia desde el arranque.» # bg: hammerlocke-field # speaker: Príncipe Heredero # char: prince # side: left # pokemon: hitmontop # mood: confident
     -> cierre_triples
 
 === cierre_triples ===
-Showcase oficial de Batalla Triple 6v6 (gen6triplescustomgame · Megaevolución habilitada). 3 Pokémon activos por bando con alcance posicional real. # bg: hammerlocke-field # speaker: Sistema Táctico # char: prince # side: left # pokemon: talonflame # mood: confident
+El Duque levanta el brazo y tres destellos se abren al mismo tiempo sobre la explanada de Hammerlocke. # bg: hammerlocke-field # speaker: Narrador # char: prince # side: left # pokemon: none # mood: confident
 -> END

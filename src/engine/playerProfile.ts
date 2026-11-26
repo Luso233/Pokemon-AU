@@ -18,10 +18,28 @@ import type {
   PlayerSaveProfile,
   StoryFlags,
 } from '../types/game';
+import {
+  getFormatGeneration,
+  getMoveSlotUnlockCost,
+  getSpeciesKey,
+  isMoveLegalForSpecies,
+} from './learnsetService';
 import { buildShowdownPaste, type ShowdownSetBlock } from './teamBuilderTree';
 
 const PROFILE_STORAGE_KEY = 'galar-crown-profile-v2';
 const LEGACY_PROGRESS_KEY = 'galar-crown-vn-progress-v1';
+
+const EXTRA_DEV_ITEMS = [
+  'Sitrus Berry',
+  'Throat Spray',
+  'Miracle Seed',
+  'Weakness Policy',
+  'Clear Amulet',
+  'Safety Goggles',
+  'Lum Berry',
+  'Rusted Sword',
+  'Griseous Core',
+];
 
 export function createDefaultProfile(
   displayName = 'Invitado de Galar',
@@ -44,8 +62,70 @@ export function createDefaultProfile(
       moves: [...m.moves],
     })),
     useCustomTeamInStory: false,
+    unlockedMoveSlots: {},
+    customMoves: {},
+    customItems: {},
+    devModeEnabled: false,
     updatedAt: new Date().toISOString(),
   };
+}
+
+function normalizeUnlockedMoveSlots(
+  raw: Record<string, number[]> | undefined
+): Record<string, number[]> {
+  if (!raw || typeof raw !== 'object') return {};
+  const result: Record<string, number[]> = {};
+  for (const [spKey, slots] of Object.entries(raw)) {
+    if (!Array.isArray(slots)) continue;
+    const clean = Array.from(
+      new Set(
+        slots
+          .map((n) => Math.floor(Number(n)))
+          .filter((n) => Number.isInteger(n) && n >= 0 && n <= 3)
+      )
+    ).sort((a, b) => a - b);
+    if (clean.length > 0) {
+      result[getSpeciesKey(spKey)] = clean;
+    }
+  }
+  return result;
+}
+
+function normalizeCustomMoves(
+  raw: Record<string, Record<string, string>> | undefined
+): Record<string, Record<string, string>> {
+  if (!raw || typeof raw !== 'object') return {};
+  const result: Record<string, Record<string, string>> = {};
+  for (const [spKey, slotMap] of Object.entries(raw)) {
+    if (!slotMap || typeof slotMap !== 'object') continue;
+    const cleanMap: Record<string, string> = {};
+    for (const [slotIdx, mvName] of Object.entries(slotMap)) {
+      if (
+        (slotIdx === '0' || slotIdx === '1' || slotIdx === '2' || slotIdx === '3') &&
+        typeof mvName === 'string' &&
+        mvName.trim().length > 0
+      ) {
+        cleanMap[slotIdx] = mvName.trim().slice(0, 40);
+      }
+    }
+    if (Object.keys(cleanMap).length > 0) {
+      result[getSpeciesKey(spKey)] = cleanMap;
+    }
+  }
+  return result;
+}
+
+function normalizeCustomItems(
+  raw: Record<string, string> | undefined
+): Record<string, string> {
+  if (!raw || typeof raw !== 'object') return {};
+  const result: Record<string, string> = {};
+  for (const [spKey, itemName] of Object.entries(raw)) {
+    if (typeof itemName === 'string' && itemName.trim().length > 0) {
+      result[getSpeciesKey(spKey)] = itemName.trim().slice(0, 60);
+    }
+  }
+  return result;
 }
 
 export function normalizeProfile(
@@ -93,7 +173,7 @@ export function normalizeProfile(
   return {
     displayName: raw.displayName || base.displayName,
     email: raw.email || '',
-    coins: Math.max(0, Math.floor(raw.coins ?? base.coins)),
+    coins: Math.max(0, Math.min(10000000, Math.floor(raw.coins ?? base.coins))),
     unlockedChapters: unlocked,
     completedChapters: raw.completedChapters
       ? { ...raw.completedChapters }
@@ -112,6 +192,10 @@ export function normalizeProfile(
     },
     customTeam: normalizedTeam,
     useCustomTeamInStory: Boolean(raw.useCustomTeamInStory),
+    unlockedMoveSlots: normalizeUnlockedMoveSlots(raw.unlockedMoveSlots),
+    customMoves: normalizeCustomMoves(raw.customMoves),
+    customItems: normalizeCustomItems(raw.customItems),
+    devModeEnabled: Boolean(raw.devModeEnabled),
     updatedAt: raw.updatedAt || new Date().toISOString(),
   };
 }
@@ -123,7 +207,7 @@ export function loadLocalProfile(): PlayerSaveProfile {
     if (raw) {
       return normalizeProfile(JSON.parse(raw) as Partial<PlayerSaveProfile>);
     }
-    // Migrate legacy progress seamlessly if present!
+    // Migrate legacy progress seamlessly if present
     const legacyRaw = window.localStorage.getItem(LEGACY_PROGRESS_KEY);
     if (legacyRaw) {
       const legacyProgress = JSON.parse(legacyRaw) as Record<
@@ -166,7 +250,6 @@ export function mergeCloudAndLocalProfiles(
 ): PlayerSaveProfile {
   if (!cloud) return local;
   const normCloud = normalizeProfile(cloud);
-  // Prefer cloud when cloud has newer timestamp or any wins/inventory; union unlocked chapters & inventory safely!
   const mergedCompleted: Record<string, ChapterProgress> = {
     ...local.completedChapters,
   };
@@ -187,6 +270,24 @@ export function mergeCloudAndLocalProfiles(
         lastFlags: lProg.lastFlags ?? cProg.lastFlags,
       };
     }
+  }
+
+  // Union unlocked move slots per species
+  const mergedSlots: Record<string, number[]> = { ...local.unlockedMoveSlots };
+  for (const [spKey, slots] of Object.entries(normCloud.unlockedMoveSlots)) {
+    mergedSlots[spKey] = Array.from(
+      new Set([...(mergedSlots[spKey] ?? []), ...slots])
+    ).sort((a, b) => a - b);
+  }
+
+  const mergedCustomMoves: Record<string, Record<string, string>> = {
+    ...local.customMoves,
+  };
+  for (const [spKey, mvMap] of Object.entries(normCloud.customMoves)) {
+    mergedCustomMoves[spKey] = {
+      ...(mergedCustomMoves[spKey] ?? {}),
+      ...mvMap,
+    };
   }
 
   return normalizeProfile({
@@ -216,6 +317,13 @@ export function mergeCloudAndLocalProfiles(
       normCloud.customTeam.length > 0 ? normCloud.customTeam : local.customTeam,
     useCustomTeamInStory:
       normCloud.useCustomTeamInStory ?? local.useCustomTeamInStory,
+    unlockedMoveSlots: mergedSlots,
+    customMoves: mergedCustomMoves,
+    customItems: {
+      ...local.customItems,
+      ...normCloud.customItems,
+    },
+    devModeEnabled: local.devModeEnabled || normCloud.devModeEnabled,
     updatedAt: new Date().toISOString(),
   });
 }
@@ -224,6 +332,7 @@ export function isChapterUnlocked(
   profile: PlayerSaveProfile,
   chapterId: string
 ): boolean {
+  if (profile.devModeEnabled) return true;
   const rule = CHAPTER_UNLOCK_RULES[chapterId];
   if (rule?.unlockedByDefault) return true;
   if (profile.unlockedChapters.includes(chapterId)) return true;
@@ -246,7 +355,6 @@ export function computeNewlyEligibleUnlocks(
       rule.prerequisiteChapterIds &&
       rule.prerequisiteChapterIds.length > 0
     ) {
-      // Any listed prerequisite unlocks (supports OR like "Puzzle 02 o Archivo VGC")
       eligible = rule.prerequisiteChapterIds.some(
         (reqId) => profile.completedChapters[reqId]?.completed
       );
@@ -335,13 +443,29 @@ export function applyBattleOutcomeToProfile(
   const lowResetBonus = !wasAlreadyCompleted && attempts <= 2 ? 400 : 0;
   const coinsEarned = firstClearBonus + replayBonus + lowResetBonus;
 
+  // Story chapter held-item reward on first clear
+  const rewardItems: string[] = [];
+  let nextItems = nextProfile.inventory.items;
+  if (
+    !wasAlreadyCompleted &&
+    rule?.rewardItem &&
+    !nextItems.includes(rule.rewardItem)
+  ) {
+    nextItems = [...nextItems, rule.rewardItem];
+    rewardItems.push(rule.rewardItem);
+  }
+
   const newlyUnlocked = computeNewlyEligibleUnlocks(nextProfile);
   nextProfile = {
     ...nextProfile,
-    coins: nextProfile.coins + coinsEarned,
+    coins: Math.min(10000000, nextProfile.coins + coinsEarned),
     unlockedChapters: Array.from(
       new Set([...nextProfile.unlockedChapters, chapterId, ...newlyUnlocked])
     ),
+    inventory: {
+      ...nextProfile.inventory,
+      items: nextItems,
+    },
   };
 
   return {
@@ -352,6 +476,7 @@ export function applyBattleOutcomeToProfile(
       replayBonus,
       lowResetBonus,
       newlyUnlockedChapterIds: newlyUnlocked,
+      rewardItems,
     },
   };
 }
@@ -390,7 +515,7 @@ export function purchasePokemon(
   const entry = SHOP_POKEMON.find((p) => p.species === species);
   if (!entry) return { ok: false, error: 'Pokémon no encontrado.', nextProfile: profile };
   if (profile.inventory.pokemon.includes(species)) {
-    return { ok: false, error: 'Ya posees este Pokémon.', nextProfile: profile };
+    return { ok: false, error: 'Ya tienes este Pokémon.', nextProfile: profile };
   }
   if (profile.coins < entry.price) {
     return { ok: false, error: 'PokéCoronas insuficientes.', nextProfile: profile };
@@ -416,7 +541,7 @@ export function purchaseHeldItem(
   const entry = SHOP_ITEMS.find((i) => i.name === itemName);
   if (!entry) return { ok: false, error: 'Objeto no encontrado.', nextProfile: profile };
   if (profile.inventory.items.includes(itemName)) {
-    return { ok: false, error: 'Ya posees este objeto.', nextProfile: profile };
+    return { ok: false, error: 'Ya tienes este objeto.', nextProfile: profile };
   }
   if (profile.coins < entry.price) {
     return { ok: false, error: 'PokéCoronas insuficientes.', nextProfile: profile };
@@ -442,7 +567,7 @@ export function purchaseTM(
   const entry = SHOP_TMS.find((t) => t.move === moveName);
   if (!entry) return { ok: false, error: 'MT no encontrada.', nextProfile: profile };
   if (profile.inventory.tms.includes(moveName)) {
-    return { ok: false, error: 'Ya posees esta MT.', nextProfile: profile };
+    return { ok: false, error: 'Ya tienes esta MT.', nextProfile: profile };
   }
   if (profile.coins < entry.price) {
     return { ok: false, error: 'PokéCoronas insuficientes.', nextProfile: profile };
@@ -502,10 +627,313 @@ export function awardArcadeCoins(
   if (safeAmount === 0) return profile;
   return {
     ...profile,
-    coins: profile.coins + safeAmount,
+    coins: Math.min(10000000, profile.coins + safeAmount),
     updatedAt: new Date().toISOString(),
   };
 }
+
+/* ================= Narrative Teambuilder Move-Slot & Item Progression ================= */
+
+export function isMoveSlotUnlocked(
+  profile: PlayerSaveProfile,
+  species: string,
+  slotIndex: number
+): boolean {
+  if (profile.devModeEnabled) return true;
+  const key = getSpeciesKey(species);
+  const unlocked = profile.unlockedMoveSlots[key] ?? [];
+  return unlocked.includes(slotIndex);
+}
+
+export function unlockMoveSlotForSpecies(
+  profile: PlayerSaveProfile,
+  species: string,
+  slotIndex: number
+): { ok: boolean; error?: string; nextProfile: PlayerSaveProfile } {
+  if (slotIndex < 0 || slotIndex > 3) {
+    return { ok: false, error: 'Slot de movimiento inválido.', nextProfile: profile };
+  }
+  const key = getSpeciesKey(species);
+  const current = profile.unlockedMoveSlots[key] ?? [];
+  if (current.includes(slotIndex)) {
+    return { ok: true, nextProfile: profile };
+  }
+  const cost = profile.devModeEnabled ? 0 : getMoveSlotUnlockCost(slotIndex);
+  if (profile.coins < cost) {
+    return {
+      ok: false,
+      error: `Necesitas ${cost.toLocaleString()} PokéCoronas para desbloquear el Slot ${slotIndex + 1}.`,
+      nextProfile: profile,
+    };
+  }
+  const nextSlots = [...current, slotIndex].sort((a, b) => a - b);
+  return {
+    ok: true,
+    nextProfile: {
+      ...profile,
+      coins: profile.coins - cost,
+      unlockedMoveSlots: {
+        ...profile.unlockedMoveSlots,
+        [key]: nextSlots,
+      },
+      updatedAt: new Date().toISOString(),
+    },
+  };
+}
+
+export function setCustomMoveForSpecies(
+  profile: PlayerSaveProfile,
+  species: string,
+  slotIndex: number,
+  moveName: string
+): { ok: boolean; error?: string; nextProfile: PlayerSaveProfile } {
+  if (slotIndex < 0 || slotIndex > 3) {
+    return { ok: false, error: 'Slot inválido.', nextProfile: profile };
+  }
+  if (!isMoveSlotUnlocked(profile, species, slotIndex)) {
+    return {
+      ok: false,
+      error: `El Slot ${slotIndex + 1} de ${species} todavía está bloqueado.`,
+      nextProfile: profile,
+    };
+  }
+  const key = getSpeciesKey(species);
+  const existing = profile.customMoves[key] ?? {};
+  const nextSpeciesMoves = { ...existing };
+  if (!moveName.trim()) {
+    delete nextSpeciesMoves[String(slotIndex)];
+  } else {
+    nextSpeciesMoves[String(slotIndex)] = moveName.trim();
+  }
+  const nextAll = { ...profile.customMoves };
+  if (Object.keys(nextSpeciesMoves).length === 0) {
+    delete nextAll[key];
+  } else {
+    nextAll[key] = nextSpeciesMoves;
+  }
+  return {
+    ok: true,
+    nextProfile: {
+      ...profile,
+      customMoves: nextAll,
+      updatedAt: new Date().toISOString(),
+    },
+  };
+}
+
+export function setCustomItemForSpecies(
+  profile: PlayerSaveProfile,
+  species: string,
+  itemName: string
+): PlayerSaveProfile {
+  const key = getSpeciesKey(species);
+  const nextItems = { ...profile.customItems };
+  if (!itemName.trim()) {
+    delete nextItems[key];
+  } else {
+    nextItems[key] = itemName.trim();
+  }
+  return {
+    ...profile,
+    customItems: nextItems,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function resetSpeciesCustomizations(
+  profile: PlayerSaveProfile,
+  species: string
+): PlayerSaveProfile {
+  const key = getSpeciesKey(species);
+  const nextMoves = { ...profile.customMoves };
+  delete nextMoves[key];
+  const nextItems = { ...profile.customItems };
+  delete nextItems[key];
+  return {
+    ...profile,
+    customMoves: nextMoves,
+    customItems: nextItems,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+/**
+ * Applies the player's narrative Teambuilder progression (inventory-restricted held items,
+ * unlocked custom legal learnset moves, and owned Shiny Charms) onto the chapter's locked roster.
+ */
+export function applyChapterProgressionToPaste(
+  canonicalPaste: string,
+  profile: PlayerSaveProfile,
+  formatId: string,
+  shinySlotIndices: number[] = []
+): string {
+  const sets = Teams.import(canonicalPaste);
+  if (!sets || sets.length === 0) return canonicalPaste;
+
+  const isGen1 = getFormatGeneration(formatId) === 1;
+  const chapterDefaultItems = new Set(
+    sets.map((s) => s.item).filter((i): i is string => Boolean(i))
+  );
+  const allowedItems = new Set<string>([
+    ...chapterDefaultItems,
+    ...profile.inventory.items,
+  ]);
+
+  const allowedShinySlots = new Set(
+    shinySlotIndices.slice(0, Math.max(0, profile.inventory.shinyCharms))
+  );
+
+  const updated = sets.map((set, idx) => {
+    const key = getSpeciesKey(set.species);
+    let item = set.item;
+    if (!isGen1) {
+      const overrideItem = profile.customItems[key];
+      if (
+        overrideItem &&
+        (profile.devModeEnabled || allowedItems.has(overrideItem))
+      ) {
+        item = overrideItem;
+      }
+    } else {
+      item = '';
+    }
+
+    const baseMoves = [...(set.moves ?? [])];
+    const speciesOverrides = profile.customMoves[key] ?? {};
+    const finalMoves = baseMoves.map((canonicalMove, slotIdx) => {
+      const customMove = speciesOverrides[String(slotIdx)];
+      if (
+        customMove &&
+        isMoveSlotUnlocked(profile, set.species, slotIdx) &&
+        isMoveLegalForSpecies(set.species, customMove, formatId, baseMoves)
+      ) {
+        return customMove;
+      }
+      return canonicalMove;
+    });
+
+    // Prevent duplicate moves cleanly
+    const dedupedMoves: string[] = [];
+    for (let i = 0; i < finalMoves.length; i++) {
+      const candidate = finalMoves[i];
+      if (
+        !dedupedMoves.some(
+          (m) => m.toLowerCase() === candidate.toLowerCase()
+        )
+      ) {
+        dedupedMoves.push(candidate);
+      } else if (
+        baseMoves[i] &&
+        !dedupedMoves.some(
+          (m) => m.toLowerCase() === baseMoves[i].toLowerCase()
+        )
+      ) {
+        dedupedMoves.push(baseMoves[i]);
+      }
+    }
+
+    return {
+      ...set,
+      item,
+      moves: dedupedMoves.length > 0 ? dedupedMoves : baseMoves,
+      shiny: allowedShinySlots.has(idx) ? true : set.shiny || undefined,
+    };
+  });
+
+  return Teams.export(updated).trim();
+}
+
+/* ================= Dev Mode Sandbox Helpers ================= */
+
+export function applyDevUnlockEverything(
+  profile: PlayerSaveProfile
+): PlayerSaveProfile {
+  const allChapters = Object.keys(CHAPTER_UNLOCK_RULES);
+  const allPokemon = Array.from(
+    new Set([
+      ...STARTER_INVENTORY.pokemon,
+      ...SHOP_POKEMON.map((p) => p.species),
+      ...profile.inventory.pokemon,
+    ])
+  );
+  const allItems = Array.from(
+    new Set([
+      ...STARTER_INVENTORY.items,
+      ...SHOP_ITEMS.map((i) => i.name),
+      ...Object.values(CHAPTER_UNLOCK_RULES)
+        .map((r) => r.rewardItem)
+        .filter((x): x is string => Boolean(x)),
+      ...EXTRA_DEV_ITEMS,
+      ...profile.inventory.items,
+    ])
+  );
+  const allTms = Array.from(
+    new Set([
+      ...STARTER_INVENTORY.tms,
+      ...SHOP_TMS.map((t) => t.move),
+      ...profile.inventory.tms,
+    ])
+  );
+
+  const unlockedMoveSlots: Record<string, number[]> = {
+    ...profile.unlockedMoveSlots,
+  };
+  for (const sp of allPokemon) {
+    unlockedMoveSlots[getSpeciesKey(sp)] = [0, 1, 2, 3];
+  }
+
+  return {
+    ...profile,
+    coins: 9999999,
+    unlockedChapters: allChapters,
+    inventory: {
+      pokemon: allPokemon,
+      items: allItems,
+      tms: allTms,
+      shinyCharms: MAX_SHINY_CHARMS,
+    },
+    unlockedMoveSlots,
+    devModeEnabled: true,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function addDevCoins(
+  profile: PlayerSaveProfile,
+  amount = 1000000
+): PlayerSaveProfile {
+  return {
+    ...profile,
+    coins: Math.min(9999999, profile.coins + Math.max(0, Math.floor(amount))),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function setDevModeEnabled(
+  profile: PlayerSaveProfile,
+  enabled: boolean
+): PlayerSaveProfile {
+  return {
+    ...profile,
+    devModeEnabled: enabled,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function resetStoryProgress(
+  profile: PlayerSaveProfile
+): PlayerSaveProfile {
+  try {
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(LEGACY_PROGRESS_KEY);
+    }
+  } catch {
+    // ignore storage errors
+  }
+  return createDefaultProfile(profile.displayName, profile.email);
+}
+
+/* ================= Custom Team Editor Helpers ================= */
 
 export function buildDefaultMemberForSpecies(species: string): CustomTeamMember {
   const cat = POKEMON_CATALOG_MAP.get(species.toLowerCase());

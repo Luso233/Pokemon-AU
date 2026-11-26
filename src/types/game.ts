@@ -37,6 +37,14 @@ export interface PlayerSaveProfile {
   inventory: PlayerInventory;
   customTeam: CustomTeamMember[];
   useCustomTeamInStory: boolean;
+  /** Species key (e.g. 'arcanine') -> unlocked move slot indices (0..3). */
+  unlockedMoveSlots: Record<string, number[]>;
+  /** Species key -> slot index ('0'..'3') -> legal custom move name. */
+  customMoves: Record<string, Record<string, string>>;
+  /** Species key -> custom held item override from owned + chapter items. */
+  customItems: Record<string, string>;
+  /** Dev Mode sandbox toggle (free move slots + debug tools). */
+  devModeEnabled: boolean;
   updatedAt: string;
 }
 
@@ -46,6 +54,7 @@ export interface BattleRewardSummary {
   replayBonus: number;
   lowResetBonus: number;
   newlyUnlockedChapterIds: string[];
+  rewardItems?: string[];
 }
 
 export type AIProviderKind = 'gemini' | 'ollama' | 'offline';
@@ -348,6 +357,12 @@ export interface ResolvedBattleConfig {
   flags: StoryFlags;
 }
 
+export interface ChapterShowcaseSprite {
+  species: string;
+  mode: 'player-ace' | 'boss';
+  label?: string;
+}
+
 export interface ChapterDefinition {
   id: string;
   category: ChapterCategory;
@@ -361,6 +376,8 @@ export interface ChapterDefinition {
   difficulty: string;
   description: string;
   accentColor: string;
+  /** Single spoiler-free spotlight sprite shown on the Chapter Select card. */
+  showcaseSprite: ChapterShowcaseSprite;
   featuredPokemon: string[];
   rivalPreview: string;
   rivalProfile: RivalProfile;

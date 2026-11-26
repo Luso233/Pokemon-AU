@@ -236,6 +236,38 @@ export async function saveCloudProfile(
     },
     customTeam: sanitizedTeam,
     useCustomTeamInStory: Boolean(profile.useCustomTeamInStory),
+    unlockedMoveSlots: Object.fromEntries(
+      Object.entries(profile.unlockedMoveSlots ?? {})
+        .slice(0, 120)
+        .map(([k, slots]) => [
+          k.slice(0, 60),
+          Array.from(
+            new Set(
+              slots
+                .map((n) => Math.floor(Number(n)))
+                .filter((n) => Number.isInteger(n) && n >= 0 && n <= 3)
+            )
+          ),
+        ])
+    ),
+    customMoves: Object.fromEntries(
+      Object.entries(profile.customMoves ?? {})
+        .slice(0, 120)
+        .map(([k, slotMap]) => [
+          k.slice(0, 60),
+          Object.fromEntries(
+            Object.entries(slotMap)
+              .filter(([slot]) => ['0', '1', '2', '3'].includes(slot))
+              .map(([slot, mv]) => [slot, String(mv).slice(0, 40)])
+          ),
+        ])
+    ),
+    customItems: Object.fromEntries(
+      Object.entries(profile.customItems ?? {})
+        .slice(0, 120)
+        .map(([k, item]) => [k.slice(0, 60), String(item).slice(0, 60)])
+    ),
+    devModeEnabled: Boolean(profile.devModeEnabled),
     updatedAt: new Date().toISOString().slice(0, 40),
   };
 

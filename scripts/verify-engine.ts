@@ -35,18 +35,28 @@ import {
 } from '../src/engine/aiTeambuilder';
 import { askLiveCoach, generatePostGameReview } from '../src/engine/battleCoach';
 import {
+  addDevCoins,
   applyBattleOutcomeToProfile,
+  applyChapterProgressionToPaste,
+  applyDevUnlockEverything,
   awardArcadeCoins,
   compileCustomTeamToShowdownPaste,
   createDefaultProfile,
   isChapterUnlocked,
+  isMoveSlotUnlocked,
   purchaseHeldItem,
   purchasePokemon,
   purchaseShinyCharm,
   purchaseTM,
+  resetStoryProgress,
+  setCustomItemForSpecies,
+  setCustomMoveForSpecies,
   unlockChapterWithCoins,
+  unlockMoveSlotForSpecies,
   updateCustomTeamSlot,
 } from '../src/engine/playerProfile';
+import { getLegalLearnsetForSpecies } from '../src/engine/learnsetService';
+import { CHAPTER_UNLOCK_RULES } from '../src/data/economyCatalog';
 import { createRivalBattleController } from '../src/engine/tacticalAI';
 import type { BattleSnapshot } from '../src/types/game';
 
@@ -1066,7 +1076,98 @@ async function main() {
     `  OK: Economy/Locks/Shop/TeamEditor verified, Shiny Charm cap enforced, Shiny Dragapult active in @pkmn/sim (coins=${prof.coins})`
   );
 
-  console.log('\nALL 18 ENGINE & ECONOMY SUITES PASSED!');
+  console.log('\n=== 19. Teambuilder Narrativo (Learnsets Dex, Slots Desbloqueables, Inventario) & Dev Mode ===');
+  const arcanineGen9 = getLegalLearnsetForSpecies('Arcanine', 'gen9doublescustomgame');
+  if (
+    arcanineGen9.length < 40 ||
+    !arcanineGen9.some((m) => m.id === 'extremespeed') ||
+    !arcanineGen9.some((m) => m.id === 'closecombat')
+  ) {
+    throw new Error(`Expected Arcanine Gen 9 learnset to contain Extreme Speed & Close Combat, got count=${arcanineGen9.length}`);
+  }
+  const taurosGen1 = getLegalLearnsetForSpecies('Tauros', 'gen1customgame');
+  if (
+    !taurosGen1.some((m) => m.id === 'bodyslam') ||
+    !taurosGen1.some((m) => m.id === 'hyperbeam') ||
+    taurosGen1.some((m) => m.id === 'closecombat')
+  ) {
+    throw new Error(`Expected Tauros Gen 1 learnset strictly Gen 1 legal, got count=${taurosGen1.length}`);
+  }
+
+  let progProf = createDefaultProfile('Tester', 'test@example.com');
+  // Clearing Chapter 01 awards Mental Herb directly into inventory!
+  const ch1Clear = applyBattleOutcomeToProfile(progProf, 'ch1-wyndon-chase', true, 8);
+  progProf = ch1Clear.nextProfile;
+  if (!ch1Clear.reward?.rewardItems?.includes('Mental Herb') || !progProf.inventory.items.includes('Mental Herb')) {
+    throw new Error(`Expected Chapter 01 first clear to award Mental Herb, got ${JSON.stringify(ch1Clear.reward)}`);
+  }
+  // Move slot 0 is locked initially -> setCustomMove must fail before paying!
+  if (isMoveSlotUnlocked(progProf, 'Arcanine', 0)) {
+    throw new Error('Expected Arcanine slot 0 to be locked initially!');
+  }
+  const blockedMoveRes = setCustomMoveForSpecies(progProf, 'Arcanine', 0, 'Extreme Speed');
+  if (blockedMoveRes.ok) {
+    throw new Error('Expected setting move on locked slot 0 to be rejected!');
+  }
+  // Unlock slot 0 (500 PC) and assign Extreme Speed + Mental Herb (owned from Ch1 clear!)
+  const unlockSlot0 = unlockMoveSlotForSpecies(progProf, 'Arcanine', 0);
+  if (!unlockSlot0.ok) throw new Error(`Expected slot 0 unlock to succeed: ${unlockSlot0.error}`);
+  progProf = unlockSlot0.nextProfile;
+  const assignMove0 = setCustomMoveForSpecies(progProf, 'Arcanine', 0, 'Extreme Speed');
+  if (!assignMove0.ok) throw new Error(`Expected assigning Extreme Speed to succeed: ${assignMove0.error}`);
+  progProf = assignMove0.nextProfile;
+  progProf = setCustomItemForSpecies(progProf, 'Arcanine', 'Mental Herb');
+  // Also try setting an UNOWNED item ('Choice Specs') on Gardevoir -> progression compiler must ignore unowned item!
+  progProf = setCustomItemForSpecies(progProf, 'Gardevoir', 'Choice Specs');
+
+  const ch1CfgBase = resolveChapter1ChaseBattle({});
+  const progressedPaste = applyChapterProgressionToPaste(
+    ch1CfgBase.playerShowdownPaste,
+    progProf,
+    ch1CfgBase.formatId
+  );
+  const progressedSets = Teams.import(progressedPaste) ?? [];
+  const progArc = progressedSets.find((s) => s.species === 'Arcanine');
+  const progGard = progressedSets.find((s) => s.species === 'Gardevoir');
+  if (
+    !progArc ||
+    progArc.item !== 'Mental Herb' ||
+    progArc.moves[0] !== 'Extreme Speed' ||
+    progGard?.item !== 'Light Clay'
+  ) {
+    throw new Error(
+      `Story Teambuilder progression mismatch: Arc=${JSON.stringify(progArc?.item)}/${JSON.stringify(progArc?.moves)} Gard=${JSON.stringify(progGard?.item)}`
+    );
+  }
+
+  // Verify Dev Mode: Unlock Everything -> +1M coins -> Reset Story!
+  let devProf = applyDevUnlockEverything(progProf);
+  devProf = addDevCoins(devProf, 1000000);
+  const totalChapters = Object.keys(CHAPTER_UNLOCK_RULES).length;
+  if (
+    !devProf.devModeEnabled ||
+    devProf.coins !== 9999999 ||
+    devProf.inventory.shinyCharms !== 6 ||
+    devProf.unlockedChapters.length !== totalChapters ||
+    !isMoveSlotUnlocked(devProf, 'Regigigas', 3)
+  ) {
+    throw new Error(`Dev Mode unlock-all invariant failed: coins=${devProf.coins}, ch=${devProf.unlockedChapters.length}`);
+  }
+  const resetProf = resetStoryProgress(devProf);
+  if (
+    resetProf.devModeEnabled ||
+    resetProf.coins !== 1500 ||
+    resetProf.unlockedChapters.length !== 3 ||
+    Object.keys(resetProf.completedChapters).length !== 0 ||
+    Object.keys(resetProf.unlockedMoveSlots).length !== 0
+  ) {
+    throw new Error(`Dev Mode story reset failed: coins=${resetProf.coins}, ch=${resetProf.unlockedChapters.length}`);
+  }
+  console.log(
+    `  OK: Dex learnsets (Arcanine=${arcanineGen9.length}, Gen1 Tauros=${taurosGen1.length}), slot unlock + Mental Herb reward + unowned item guard + Dev Mode Unlock/Reset verified`
+  );
+
+  console.log('\nALL 19 ENGINE, ECONOMY & TEAMBUILDER SUITES PASSED!');
 }
 
 let allSuitesCompleted = false;

@@ -2961,15 +2961,13 @@ export function resolveGen1SilphArchiveBattle(
     playerShowdownPaste: buildShowdownPaste(playerBlocks),
     rivalShowdownPaste: buildShowdownPaste(rivalBlocks),
     rivalIntel: {
-      visibleSpeciesCount: 6,
+      visibleSpeciesCount: 1,
       totalSlots: 6,
-      intelLabel: 'Simulación Gen 1 (RBY) · Sin Objetos ni Habilidades',
+      intelLabel: 'Simulación Gen 1 · Sin Objetos ni Habilidades',
       intelNote:
-        'Reglas nativas de Generación 1 en @pkmn/sim: críticos según Velocidad, Parálisis y Sueño dominantes, y Explosión/Autodestrucción dividiendo la Defensa rival a la mitad.',
+        'Reglas clásicas de la Era Antigua de Kanto: sin objetos ni habilidades, donde la velocidad y los estados alterados mandan el combate.',
       levelCap: 100,
       hasBossAce: false,
-      aiScriptHint:
-        'Mewtwo (sin Amnesia ni Recover) abre con Psychic en Turno 1; Chansey + Thunder Wave o Exeggutor (Sleep Powder + Explosion) son claves para frenarlo.',
     },
     scriptedEnemyRules,
     traces: [
@@ -3214,20 +3212,16 @@ export function resolveClandestineTamerBattle(
     playerShowdownPaste: buildShowdownPaste(playerBlocks),
     rivalShowdownPaste: buildShowdownPaste(rivalBlocks),
     rivalIntel: {
-      visibleSpeciesCount: scoutIntel === 'listen' ? 4 : 2,
+      visibleSpeciesCount: scoutIntel === 'listen' ? 2 : 1,
       totalSlots: 6,
       intelLabel:
         scoutIntel === 'listen'
-          ? 'Inteligencia de Foso (4/6 especies)'
-          : 'Inteligencia Limitada (2/6 especies)',
+          ? 'Avistamiento en el Foso (2/6)'
+          : 'Sin inteligencia previa (1/6)',
       intelNote:
-        'Todos los Pokémon de Lord Vexen combaten con Felicidad: 0 (Frustration = 102 BP, 153 con STAB). Aprovecha Rocky Helmet, Stamina y Iron Defense en lugar de intercambiar golpes directos.',
+        'Las criaturas del foso pelean con una furia contenida fuera de lo común.',
       levelCap: 60,
       hasBossAce: true,
-      bossAceWarning:
-        'Lopunny ★ Nv. 62 (Choice Band + Frustration 102 BP) rompe el cap de Nv. 60 como rematador final.',
-      aiScriptHint:
-        'Kangaskhan abre con Fake Out (T1) y Frustration 102 BP (T2) ignorando inmunidad Fantasma con Scrappy.',
     },
     scriptedEnemyRules,
     traces: [
@@ -3498,17 +3492,13 @@ export function resolvePuzzle2RegigigasBattle(
     playerShowdownPaste: buildShowdownPaste(playerBlocks),
     rivalShowdownPaste: buildShowdownPaste(rivalBlocks),
     rivalIntel: {
-      visibleSpeciesCount: 6,
+      visibleSpeciesCount: 1,
       totalSlots: 6,
-      intelLabel: 'Puzzle Raid Boss · Estado Inyectado en Turno 0',
+      intelLabel: 'Jefe del Santuario · Regigigas',
       intelNote:
-        'Regigigas Nv. 85 entra sin Slow Start, tras Sustituto (25% PS), con Aqua Ring, Ingrain, Reflect, Light Screen y +1 Atk/Def/SpD. Combina Psychic Noise, Haze, Brick Break e Infiltrator/Unseen Fist.',
+        'El coloso ya despertó en el centro de la cámara, rodeado por cinco guardianes ocultos en la penumbra.',
       levelCap: 55,
       hasBossAce: true,
-      bossAceWarning:
-        'Regigigas ★ Nv. 85 (+30 niveles sobre tu escuadrón) recibe curación triple por turno (Leftovers + Aqua Ring + Ingrain) más Comfey Floral Healing.',
-      aiScriptHint:
-        'Grimmsnarl pivota con Parting Shot T1 hacia Clefairy (Friend Guard), Comfey tira Floral Healing (+3 prioridad) y Alcremie potencia con Decorate.',
     },
     puzzleConditions: {
       bannerLog:
@@ -3735,36 +3725,29 @@ export function resolveAnimeAshVsTobiasBattle(
     playerName: 'Ash Ketchum',
     playerCharId: 'ash_ketchum',
     rivalName: 'Tobías',
-    rivalTitle: 'El del Action Replay',
+    rivalTitle: 'El Misterio del Valle Lirio',
     rivalCharId: 'tobias',
     rivalProfile: {
       name: 'Tobías',
-      title: 'El del Action Replay',
-      bio: 'Entrenador misterioso de la Conferencia del Valle Lirio. Nadie sabe de dónde sacó tantos legendarios; rumores hablan de un dispositivo prohibido.',
+      title: 'El Misterio del Valle Lirio',
+      bio: 'Participante silencioso que barrió todos los gimnasios de Sinnoh sin mostrar jamás su equipo completo. Las gradas solo murmuran leyendas sobre él.',
       tacticalInsight:
-        'Fuerza bruta de Ubers, pero con decisiones de entrenamiento cuestionables. Cuidado con su Cresselia: puede copiar tus mejoras si te confías.',
-      archetypeTag: 'Archivo: Anime',
+        'Su poder individual parece sacado de un mito, pero los combates largos siempre revelan grietas cuando alguien depende solo de su fama.',
+      archetypeTag: 'Archivo · Liga de Sinnoh',
     },
     arenaTheme: 'lily-of-the-valley',
-    playerTeamSummary:
-      'Liga de Sinnoh (Nv. 60): Pikachu · Heracross · Sceptile · Swellow (Baton Pass) · Torkoal (Baton Pass) · Gible',
-    rivalTeamSummary:
-      'Leyendas de Tobías (Nv. 60): Darkrai (Lead) · Latios · Cresselia · Latias · Lucario · Giratina-Origin (Ace Final)',
+    playerTeamSummary: 'Equipo de Sinnoh de Ash (6 Pokémon)',
+    rivalTeamSummary: 'Solo un Pokémon visto en todo el torneo (5 ocultos)',
     playerShowdownPaste: buildShowdownPaste(ashBlocks),
     rivalShowdownPaste: buildShowdownPaste(tobiasBlocks),
     rivalIntel: {
-      visibleSpeciesCount: mindset === 'scout_tobias' ? 6 : 2,
+      visibleSpeciesCount: 1,
       totalSlots: 6,
-      intelLabel:
-        mindset === 'scout_tobias'
-          ? 'Rumores del Valle Lirio (6/6 legendarios)'
-          : 'Solo Darkrai y Latios confirmados (2/6)',
+      intelLabel: 'Solo 1 Pokémon visto en el torneo (1/6)',
       intelNote:
-        'Mecánica «Espíritu de Sinnoh»: el Pokémon que elijas como Líder en el Team Preview recibe +2 en Atk, Def, SpA, SpD y Spe al Turno 0. Swellow y Torkoal pueden pasar ese +2 con Baton Pass.',
+        'Nadie en la Conferencia del Valle Lirio ha logrado ver más allá de su primer Pokémon.',
       levelCap: 60,
       hasBossAce: false,
-      aiScriptHint:
-        'Tobías siempre abre con Darkrai (Dark Void T1), Cresselia copia boosts ≥ +4 con Psych Up y usa Lunar Dance (<35% PS), y guarda a Giratina-Origin como su último Pokémon.',
     },
     puzzleConditions: {
       bannerLog:

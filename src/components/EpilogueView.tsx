@@ -162,6 +162,20 @@ export const EpilogueView: React.FC<EpilogueViewProps> = ({
                 </span>
               )}
             </div>
+            {reward.rewardItems && reward.rewardItems.length > 0 && (
+              <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-white/10 pt-2 text-xs font-bold text-amber-200">
+                <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+                <span>Objeto añadido a tu inventario:</span>
+                {reward.rewardItems.map((item) => (
+                  <span
+                    key={item}
+                    className="rounded-lg border border-amber-400/40 bg-amber-500/20 px-2 py-0.5 text-[11px] text-amber-100"
+                  >
+                    {item}
+                  </span>
+                ))}
+              </div>
+            )}
             {reward.newlyUnlockedChapterIds.length > 0 && (
               <div className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-white/10 pt-2 text-xs font-bold text-emerald-300">
                 <Unlock className="h-3.5 w-3.5" />

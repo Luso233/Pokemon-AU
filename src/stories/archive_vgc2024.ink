@@ -4,43 +4,43 @@ VAR rival_plan = "game1"
 -> archivo_real
 
 === archivo_real ===
-Sala de Simulación Táctica del Archivo Real de Galar. Pantallas holográficas reconstruyen el estadio del Campeonato Mundial 2024 en Honolulu. # bg: vgc-worlds-stage # speaker: Narrador # char: champion # side: right # pokemon: calyrexice # mood: confident
-"Si quieres dominar combates dobles bajo presión real, Alteza, estudia la cumbre de la era Teracristalización: la Final Mundial entre Luca Ceribelli (Italia) y Yuta Ishigaki (Japón)." # bg: vgc-worlds-stage # speaker: La Campeona # char: champion # side: right # pokemon: miraidon # mood: confident
-"Reglas oficiales VGC 2024 Regulación G: Nivel 50, Bring 6 Pick 4 y Open Teamsheets completos. Primero, ¿en los zapatos de qué finalista quieres jugar esta simulación?" # bg: vgc-worlds-stage # speaker: La Campeona # char: champion # side: right # pokemon: ironvaliant # mood: serious
+Las paredes oscuras de la Sala de Simulación se disuelven en luz azul hasta reconstruir el rugido lejano de Honolulu. Miles de espectadores holográficos rodean la plataforma central donde dos sillas aguardan frente a frente. # bg: vgc-worlds-stage # speaker: Narrador # char: champion # side: right # pokemon: none # mood: confident
+«Si quieres entender cómo se respira cuando el mundo entero te mira, Alteza, estudia esta final.» La Campeona se detiene junto al proyector. «Luca Ceribelli contra Yuta Ishigaki. Reglas oficiales de torneo: hojas abiertas, cuatro elegidos de seis y ni un segundo de margen para el titubeo.» # bg: vgc-worlds-stage # speaker: La Campeona # char: champion # side: right # pokemon: none # mood: confident
+«Antes de encender el reloj del estadio, dime: ¿desde qué silla quieres vivir esta final?» # bg: vgc-worlds-stage # speaker: La Campeona # char: champion # side: right # pokemon: none # mood: serious
 
-* [Jugar como Luca Ceribelli — Equipo de Miraidon (Whimsicott, Urshifu-R, Ogerpon-H, Iron Hands, Farigiraf)]
+* [Tomar el lugar de Luca Ceribelli — La tormenta eléctrica de Italia]
     ~ selected_player = "luca"
-    "Excelente elección. Tomarás el control del Campeón Mundial: presión de Campo Eléctrico con Miraidon Choice Specs, Viento Afín de Whimsicott y control de Espacio Raro con Farigiraf." # bg: vgc-worlds-stage # speaker: La Campeona # char: prince # side: left # pokemon: miraidon # mood: confident
+    «Buena elección. Siente el pulso de la final desde el lado de Miraidon y decide cómo responder ante la muralla japonesa.» # bg: vgc-worlds-stage # speaker: La Campeona # char: prince # side: left # pokemon: miraidon # mood: confident
     -> elegir_plan_yuta
-* [Jugar como Yuta Ishigaki — Equipo de Calyrex-Ice (Urshifu-R, Pelipper, Amoonguss, Iron Valiant, Landorus)]
+* [Tomar el lugar de Yuta Ishigaki — El frío implacable de Japón]
     ~ selected_player = "yuta"
-    "Interesante desafío. Piloteas el núcleo japonés de Calyrex Jinete Glacial: apertura explosiva con Iron Valiant + Landorus Scarf, soporte de Pelipper/Amoonguss y remate bajo Espacio Raro." # bg: vgc-worlds-stage # speaker: La Campeona # char: champion # side: right # pokemon: calyrexice # mood: confident
+    «Un reto digno. Toma el mando de Calyrex y mide cada turno contra la velocidad desbordada del campeón.» # bg: vgc-worlds-stage # speaker: La Campeona # char: champion # side: right # pokemon: calyrexice # mood: confident
     -> elegir_plan_luca
 
 === elegir_plan_yuta ===
-"Ahora elige qué plan de la final quieres que ejecute la IA de Yuta Ishigaki contra tu Miraidon:" # bg: vgc-worlds-stage # speaker: La Campeona # char: champion # side: right # pokemon: pelipper # mood: serious
+«El archivo conserva los dos enfrentamientos de aquella serie. ¿Contra cuál de los dos planteamientos de Yuta quieres medirte?» # bg: vgc-worlds-stage # speaker: La Campeona # char: champion # side: right # pokemon: none # mood: serious
 
-* [Plan Juego 1: Yuta abre Iron Valiant + Landorus (Pelipper + Calyrex-Ice en retaguardia)]
+* [Revivir el Juego 1 de la Final]
     ~ rival_plan = "game1"
-    "Prepárate para Choque Anímico sobre Miraidon, Simún de Arena, Lluvia con Pelipper y Espacio Raro de Calyrex-Ice." # bg: vgc-worlds-stage # speaker: La Campeona # char: champion # side: right # pokemon: landorus # mood: confident
+    «Juego 1 en marcha. El reloj corre y el estadio espera el primer movimiento.» # bg: vgc-worlds-stage # speaker: La Campeona # char: champion # side: right # pokemon: none # mood: confident
     -> cierre_vgc
-* [Plan Juego 2: Yuta abre Iron Valiant + Landorus (Amoonguss + Calyrex-Ice en retaguardia)]
+* [Revivir el Juego 2 de la Final]
     ~ rival_plan = "game2"
-    "Cuidado con Polvo Ira y Espora de Amoonguss protegiendo el Espacio Raro de Calyrex-Ice. Ogerpon y el Campo Eléctrico serán decisivos." # bg: vgc-worlds-stage # speaker: La Campeona # char: champion # side: right # pokemon: amoonguss # mood: serious
+    «Juego 2 cargado. Aquí las respuestas se vuelven aún más estrechas.» # bg: vgc-worlds-stage # speaker: La Campeona # char: champion # side: right # pokemon: none # mood: serious
     -> cierre_vgc
 
 === elegir_plan_luca ===
-"Ahora elige qué configuración de la final ejecutará la IA de Luca Ceribelli frente a tu Calyrex-Ice:" # bg: vgc-worlds-stage # speaker: La Campeona # char: prince # side: left # pokemon: whimsicott # mood: serious
+«El archivo conserva ambas lecturas de Luca durante la serie. ¿Cuál prefieres enfrentar?» # bg: vgc-worlds-stage # speaker: La Campeona # char: prince # side: left # pokemon: none # mood: serious
 
-* [Plan Juego 1: Luca abre Whimsicott + Miraidon (Iron Hands + Farigiraf en retaguardia)]
+* [Revivir el Juego 1 de la Final]
     ~ rival_plan = "game1"
-    "Luca buscará Viento Afín y Brillo Mágico inmediato en Turno 1, guardando a Iron Hands (Sorpresa) y Farigiraf (Cola Armadura) para frenar tu Espacio Raro." # bg: vgc-worlds-stage # speaker: La Campeona # char: prince # side: left # pokemon: farigiraf # mood: confident
+    «Juego 1 en marcha. Demuestra si puedes frenar el vendaval antes de que cierre el estadio.» # bg: vgc-worlds-stage # speaker: La Campeona # char: prince # side: left # pokemon: none # mood: confident
     -> cierre_vgc
-* [Plan Juego 2: Luca abre Whimsicott + Miraidon (Urshifu-Fluido + Ogerpon-Horno en retaguardia)]
+* [Revivir el Juego 2 de la Final]
     ~ rival_plan = "game2"
-    "Modo hiper-ofensivo de Luca: presión de Miraidon + Whimsicott seguida por Ogerpon-Horno (Señuelo / Garrote Liana) y Urshifu-Fluido con Banda Focus." # bg: vgc-worlds-stage # speaker: La Campeona # char: prince # side: left # pokemon: ogerponhearthflame # mood: serious
+    «Juego 2 cargado. Un solo paso en falso decide el campeonato.» # bg: vgc-worlds-stage # speaker: La Campeona # char: prince # side: left # pokemon: none # mood: serious
     -> cierre_vgc
 
 === cierre_vgc ===
-Simulación oficial gen9vgc2024regg cargada (Nivel 50 · Open Teamsheets activos). Revisa el Teamsheet y selecciona 4 de tus 6 Pokémon en el Team Preview interactivo. # bg: vgc-worlds-stage # speaker: Sistema Táctico # char: prince # side: left # pokemon: miraidon # mood: confident
+Las luces del escenario bajan sobre las dos sillas holográficas. El rugido de Honolulu estalla cuando aparece la pantalla de selección de equipo. # bg: vgc-worlds-stage # speaker: Narrador # char: prince # side: left # pokemon: none # mood: confident
 -> END

@@ -31,6 +31,10 @@ rules_version = '2';
 //       - moves: list<string> (required, size 0..4, joined <= 240 chars)
 //       - shiny: bool (required; active shiny slots <= inventory.shinyCharms)
 //   - useCustomTeamInStory: bool (required) - Whether custom team replaces story roster
+//   - unlockedMoveSlots: map (required, size 0..120) - speciesId -> list of unlocked move slot indices (0..3)
+//   - customMoves: map (required, size 0..120) - speciesId -> map of slot index ('0'..'3') -> move name
+//   - customItems: map (required, size 0..120) - speciesId -> custom held item name
+//   - devModeEnabled: bool (required) - Single-player Dev Mode sandbox toggle (grants NO rule privileges)
 //   - updatedAt: string (required, length 19..40, ISO 8601 timestamp string)
 //
 // ===============================================================
@@ -97,6 +101,12 @@ service cloud.firestore {
              val.join(',').size() <= maxJoinedSize;
     }
 
+    // Validate map type and maximum number of entries
+    function isValidBoundedMap(val, maxSize) {
+      return val is map &&
+             val.size() <= maxSize;
+    }
+
     // ===============================================================
     // Domain Validators (Used on BOTH create and update)
     // ===============================================================
@@ -153,7 +163,7 @@ service cloud.firestore {
              countShinyMembers(team) <= maxShinies;
     }
 
-    // Validate the complete users/{uid} save document schema
+    // Validate the complete users/{uid} save document schema (13 exact keys)
     function validUserSave(data) {
       return hasExactKeys(data, [
                'displayName',
@@ -164,17 +174,24 @@ service cloud.firestore {
                'inventory',
                'customTeam',
                'useCustomTeamInStory',
+               'unlockedMoveSlots',
+               'customMoves',
+               'customItems',
+               'devModeEnabled',
                'updatedAt'
              ]) &&
              isValidString(data.displayName, 0, 80) &&
              isValidEmail(data.email) &&
              isIntInRange(data.coins, 0, 10000000) &&
              isValidStringList(data.unlockedChapters, 60, 4800) &&
-             data.completedChapters is map &&
-             data.completedChapters.size() <= 60 &&
+             isValidBoundedMap(data.completedChapters, 60) &&
              isValidInventory(data.inventory) &&
              isValidCustomTeam(data.customTeam, data.inventory.shinyCharms) &&
              data.useCustomTeamInStory is bool &&
+             isValidBoundedMap(data.unlockedMoveSlots, 120) &&
+             isValidBoundedMap(data.customMoves, 120) &&
+             isValidBoundedMap(data.customItems, 120) &&
+             data.devModeEnabled is bool &&
              isValidDateString(data.updatedAt);
     }
 

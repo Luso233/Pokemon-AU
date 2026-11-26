@@ -14,6 +14,8 @@ export interface ChapterUnlockRule {
   requirementLabel: string;
   firstClearReward: number;
   replayReward: number;
+  /** Optional held item awarded directly into inventory upon first clear. */
+  rewardItem?: string;
 }
 
 export const STARTER_UNLOCKED_CHAPTERS: string[] = [
@@ -30,6 +32,7 @@ export const CHAPTER_UNLOCK_RULES: Record<string, ChapterUnlockRule> = {
     requirementLabel: 'Disponible desde el inicio',
     firstClearReward: 1500,
     replayReward: 350,
+    rewardItem: 'Mental Herb',
   },
   'puzzle-01-sun-trap': {
     chapterId: 'puzzle-01-sun-trap',
@@ -38,6 +41,7 @@ export const CHAPTER_UNLOCK_RULES: Record<string, ChapterUnlockRule> = {
     requirementLabel: 'Disponible desde el inicio',
     firstClearReward: 1500,
     replayReward: 350,
+    rewardItem: 'Choice Scarf',
   },
   'flashback-lc-champion': {
     chapterId: 'flashback-lc-champion',
@@ -46,6 +50,7 @@ export const CHAPTER_UNLOCK_RULES: Record<string, ChapterUnlockRule> = {
     requirementLabel: 'Disponible desde el inicio',
     firstClearReward: 1400,
     replayReward: 300,
+    rewardItem: 'Eviolite',
   },
   'ch2-monotype-banners': {
     chapterId: 'ch2-monotype-banners',
@@ -54,6 +59,7 @@ export const CHAPTER_UNLOCK_RULES: Record<string, ChapterUnlockRule> = {
     requirementLabel: 'Completa el Capítulo 01',
     firstClearReward: 1600,
     replayReward: 350,
+    rewardItem: 'Assault Vest',
   },
   'ch2-banquet-ambush': {
     chapterId: 'ch2-banquet-ambush',
@@ -62,6 +68,7 @@ export const CHAPTER_UNLOCK_RULES: Record<string, ChapterUnlockRule> = {
     requirementLabel: 'Completa el Capítulo 01',
     firstClearReward: 1200,
     replayReward: 300,
+    rewardItem: 'Covert Cloak',
   },
   'duel-01-honor-1v1': {
     chapterId: 'duel-01-honor-1v1',
@@ -70,6 +77,7 @@ export const CHAPTER_UNLOCK_RULES: Record<string, ChapterUnlockRule> = {
     requirementLabel: 'Completa el Capítulo 01',
     firstClearReward: 1300,
     replayReward: 300,
+    rewardItem: 'Weakness Policy',
   },
   'ch3-clandestine-tamer': {
     chapterId: 'ch3-clandestine-tamer',
@@ -78,6 +86,7 @@ export const CHAPTER_UNLOCK_RULES: Record<string, ChapterUnlockRule> = {
     requirementLabel: 'Completa el Capítulo 02',
     firstClearReward: 1800,
     replayReward: 400,
+    rewardItem: 'Silk Scarf',
   },
   'puzzle-02-regigigas': {
     chapterId: 'puzzle-02-regigigas',
@@ -86,6 +95,7 @@ export const CHAPTER_UNLOCK_RULES: Record<string, ChapterUnlockRule> = {
     requirementLabel: 'Completa el Puzzle 01',
     firstClearReward: 2400,
     replayReward: 500,
+    rewardItem: 'Life Orb',
   },
   'archive-vgc-2024': {
     chapterId: 'archive-vgc-2024',
@@ -94,6 +104,7 @@ export const CHAPTER_UNLOCK_RULES: Record<string, ChapterUnlockRule> = {
     requirementLabel: 'Completa el Duelo 01 (1v1)',
     firstClearReward: 2000,
     replayReward: 450,
+    rewardItem: 'Booster Energy',
   },
   'challenge-last-bastion': {
     chapterId: 'challenge-last-bastion',
@@ -102,6 +113,7 @@ export const CHAPTER_UNLOCK_RULES: Record<string, ChapterUnlockRule> = {
     requirementLabel: 'Completa el Capítulo 02',
     firstClearReward: 2100,
     replayReward: 450,
+    rewardItem: 'Choice Band',
   },
   'survival-galar-mines': {
     chapterId: 'survival-galar-mines',
@@ -110,6 +122,7 @@ export const CHAPTER_UNLOCK_RULES: Record<string, ChapterUnlockRule> = {
     requirementLabel: 'Completa el Capítulo 03',
     firstClearReward: 2300,
     replayReward: 500,
+    rewardItem: 'Heavy-Duty Boots',
   },
   'showcase-triples-phalanx': {
     chapterId: 'showcase-triples-phalanx',
@@ -118,6 +131,7 @@ export const CHAPTER_UNLOCK_RULES: Record<string, ChapterUnlockRule> = {
     requirementLabel: 'Completa El Último Bastión',
     firstClearReward: 2200,
     replayReward: 450,
+    rewardItem: 'Choice Specs',
   },
   'challenge-three-knights': {
     chapterId: 'challenge-three-knights',
@@ -126,6 +140,7 @@ export const CHAPTER_UNLOCK_RULES: Record<string, ChapterUnlockRule> = {
     requirementLabel: 'Completa La Falange de Hammerlocke',
     firstClearReward: 2600,
     replayReward: 550,
+    rewardItem: 'Flame Orb',
   },
   'archive-gen1-silph': {
     chapterId: 'archive-gen1-silph',
@@ -134,6 +149,7 @@ export const CHAPTER_UNLOCK_RULES: Record<string, ChapterUnlockRule> = {
     requirementLabel: 'Completa 3 capítulos cualesquiera',
     firstClearReward: 1900,
     replayReward: 400,
+    rewardItem: 'Air Balloon',
   },
   'anime-ash-vs-tobias': {
     chapterId: 'anime-ash-vs-tobias',
@@ -142,6 +158,7 @@ export const CHAPTER_UNLOCK_RULES: Record<string, ChapterUnlockRule> = {
     requirementLabel: 'Completa Puzzle 02 o Archivo VGC',
     firstClearReward: 3000,
     replayReward: 600,
+    rewardItem: 'Light Ball',
   },
 };
 

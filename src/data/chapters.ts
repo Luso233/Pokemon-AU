@@ -44,53 +44,51 @@ export const CHAPTERS: ChapterDefinition[] = [
     category: 'story',
     number: 'CAPÍTULO 01',
     title: 'Cacería en los Callejones de Wyndon',
-    subtitle: 'Príncipe Rubio vs. Asesino Carmesí · 6v6 Dobles con IA Scripteada',
+    subtitle: 'Una noche de lluvia lejos de la armería del palacio',
     tag: 'HISTORIA · 6V6 DOBLES',
     format: 'doubles',
     formatId: 'gen9doublescustomgame',
-    formatLabel: '6v6 Dobles · Tera',
-    difficulty: 'Táctico Counter (Editable por decisiones)',
+    formatLabel: '6v6 Dobles',
+    difficulty: 'Campaña',
     description:
-      'Huyendo bajo la lluvia de Wyndon solo con tu Equipo de Vida Diaria, enfrentas al Asesino Carmesí cuyo equipo 6v6 (Grafaiai, Kingambit, Slowking-Galar, Gholdengo, Heatran, Rillaboom) fue diseñado para destruir el tuyo. Tus 4 decisiones alteran leads, sabotean objetos y exponen turnos scripteados.',
+      'Las sirenas del palacio quedaron atrás bajo el aguacero. Solo con tu escolta diaria, tendrás que abrirte paso entre callejones cerrados mientras alguien que conoce tus pasos te pisa los talones.',
     accentColor: 'amber',
-    featuredPokemon: ['Arcanine', 'Gardevoir', 'Grafaiai', 'Kingambit'],
-    rivalPreview: 'Asesino Carmesí · Equipo Anti-Príncipe 6v6',
+    showcaseSprite: { species: 'Arcanine', mode: 'player-ace' },
+    featuredPokemon: ['Arcanine', 'Gardevoir', 'Milotic', 'Corviknight'],
+    rivalPreview: 'Asesino Carmesí',
     rivalProfile: {
       name: 'Asesino Carmesí',
       title: 'Cazador de la Corona',
-      bio: 'Mercenario de élite contratado para neutralizar al heredero en las calles de Wyndon. Estudió cada miembro de tu escolta diaria.',
+      bio: 'Mercenario contratado para interceptar al heredero lejos de la guardia real. Lleva meses estudiando la rutina del palacio.',
       tacticalInsight:
-        'Su apertura busca anular tus pantallas y castigar cualquier reducción de stats. Observa sus turnos scripteados para tenderle trampas.',
-      archetypeTag: 'Campaña · Counter-Team',
+        'Pelea con cálculo frío; si pierde la paciencia o se confía, su propia prisa puede delatarle el siguiente movimiento.',
+      archetypeTag: 'Campaña · Wyndon',
     },
     inkSource: chapter1ChaseInk,
     resolveBattleConfig: resolveChapter1ChaseBattle,
     getEpilogue: (won: boolean, flags: StoryFlags) => {
       const sabotage = String(flags.sabotage_plan ?? 'no_trap');
-      const mind = String(flags.mind_game ?? 'cold_silence');
       if (won) {
         return {
-          headline: 'Supervivencia en la Torre del Reloj',
+          headline: 'Sobreviviente de la Torre del Reloj',
           subheadline:
-            'El Asesino Carmesí retrocede entre la lluvia tras ver caer su estrategia counter.',
-          badgeText: 'VICTORIA · PERSECUCIÓN SUPERADA',
+            'El Asesino Carmesí se pierde entre la lluvia al ver desmoronarse su emboscada.',
+          badgeText: 'VICTORIA · CAPÍTULO 01',
           paragraphs: [
             sabotage === 'no_trap'
-              ? '¡Hazaña táctica! Derrotaste al Asesino Carmesí sin sabotear ninguno de sus objetos y con su Ace Kingambit ★ rompiendo el límite de nivel.'
-              : 'Tus decisiones durante la persecución marcaron la diferencia: desarmaste un equipo diseñado específicamente para neutralizar tu escolta diaria.',
-            mind === 'cold_silence'
-              ? 'Incluso con su protocolo frío e implacable activo, lograste leer sus turnos scripteados y quebrar su formación.'
-              : 'Engañar a su IA leyendo sus patrones psicológicos te permitió darle la vuelta a una desventaja diseñada para ser letal.',
+              ? 'Resististe de frente sin recurrir a distracciones en los callejones. Incluso sin tu equipo de guerra, la escolta diaria demostró que la Corona no cae tan fácil.'
+              : 'Cada decisión en medio de la fuga pesó en el patio de piedra. El mercenario se retira entre el vapor sabiendo que subestimó al heredero.',
+            'El sello real sigue en tu bolsillo, aunque el silencio que cae sobre Wyndon anuncia que esto fue apenas la primera jugada.',
           ],
         };
       }
       return {
         headline: 'Acorralado bajo la Lluvia de Wyndon',
         subheadline:
-          'El equipo counter del Asesino Carmesí logró neutralizar tu Equipo de Vida Diaria.',
-        badgeText: 'DERROTA · REAGRUPAR ESTRATEGIA',
+          'El patio de la Torre del Reloj quedó en silencio cuando cedió tu última línea.',
+        badgeText: 'DERROTA · REAGRUPAR',
         paragraphs: [
-          'El equipo del Asesino está construido pieza por pieza contra tus sets base. Rejuega la persecución para sabotear sus objetos, activar Mental Herb en Gardevoir o provocar su IA.',
+          'El cazador había planeado la noche entera para este encuentro. Puedes tomar otro camino durante la fuga o ajustar tus objetos y movimientos en el Teambuilder antes de volver a intentarlo.',
         ],
       };
     },
@@ -100,24 +98,25 @@ export const CHAPTERS: ChapterDefinition[] = [
     category: 'story',
     number: 'CAPÍTULO 02',
     title: 'Choque de Estandartes',
-    subtitle: 'Batalla de Casas Nobles · Monotype Acero vs. Siniestro (Lead 1 de 6)',
+    subtitle: 'Decreto real entre dos casas enfrentadas',
     tag: 'MONOTYPE · 6V6 SINGLES',
     format: 'singles',
     formatId: 'gen9monotype',
-    formatLabel: '6v6 Singles · Monotype',
-    difficulty: 'Competitivo Oficial (gen9monotype)',
+    formatLabel: '6v6 Monotype',
+    difficulty: 'Campaña',
     description:
-      'Por decreto real, cada Casa Noble debe combatir únicamente con Pokémon que compartan el tipo de su estandarte. Defiende el Estandarte de Acero (Corviknight, Heatran, Gholdengo, Archaludon, Iron Treads, Scizor) frente al Estandarte Siniestro rebelde con Team Preview interactivo.',
+      'Bajo la ley antigua de Galar, los estandartes de acero dorado y los pendones oscuros se enfrentan en un duelo de linaje puro. La casa que ceda perderá su voz ante el trono.',
     accentColor: 'slate',
-    featuredPokemon: ['Corviknight', 'Heatran', 'Gholdengo', 'Samurott-Hisui'],
-    rivalPreview: 'Estandarte Siniestro · Samurott-H, Ting-Lu, Meowscarada, Greninja',
+    showcaseSprite: { species: 'Corviknight', mode: 'player-ace' },
+    featuredPokemon: ['Corviknight', 'Heatran', 'Gholdengo', 'Scizor'],
+    rivalPreview: 'Comandante de la Casa Rebelde',
     rivalProfile: {
       name: 'Comandante Siniestro',
       title: 'Casa Rebelde del Estandarte Oscuro',
-      bio: 'Noble insurrecto que desafía el decreto real bajo una formación Monotype Siniestro centrada en desgaste y velocidad.',
+      bio: 'Noble insurrecto que invocó el viejo decreto de estandartes para desafiar a la Corona a campo abierto.',
       tacticalInsight:
-        'Buscará apilar Púas desde el primer turno para castigar tus cambios. Controlar el ritmo de entrada y proteger tu inmunidad Tierra es vital.',
-      archetypeTag: 'Monotype · Siniestro',
+        'Su vanguardia no busca un duelo limpio: prefiere ensuciar el terreno y castigar cada retirada.',
+      archetypeTag: 'Monotype · Estandartes',
     },
     monotypeMatchup: { playerType: 'Steel', rivalType: 'Dark' },
     inkSource: chapter2MonotypeInk,
@@ -125,22 +124,22 @@ export const CHAPTERS: ChapterDefinition[] = [
     getEpilogue: (won: boolean) => {
       if (won) {
         return {
-          headline: 'El Estandarte de Acero Prevalece',
+          headline: 'El Estandarte de Acero Permanece en Pie',
           subheadline:
-            'La formación de la Corona demostró su sinergia de tipos secundarios frente al asedio Siniestro.',
-          badgeText: 'VICTORIA · MONOTYPE ACERO',
+            'Los pendones rebeldes se inclinan sobre el campo de ceniza.',
+          badgeText: 'VICTORIA · CAPÍTULO 02',
           paragraphs: [
-            'Superaste las Púas de Samurott-Hisui y la presión de Greninja/Meowscarada cubriendo cada debilidad del tipo Acero en formato oficial gen9monotype.',
+            'Tu línea de acero resistió el asedio y demostró ante los testigos de la corte que el metal de Galar todavía no se oxida.',
           ],
         };
       }
       return {
-        headline: 'El Estandarte Siniestro Avanza',
+        headline: 'El Estandarte Oscuro Reclama el Campo',
         subheadline:
-          'Los peligros de entrada y la presión ofensiva Siniestra doblegaron la muralla de Acero.',
-        badgeText: 'DERROTA · REAJUSTAR DOCTRINA',
+          'El desgaste de la batalla abierta terminó quebrando tu formación.',
+        badgeText: 'DERROTA · REAGRUPAR',
         paragraphs: [
-          'Prueba alternar entre Doctrina Velocidad (Gholdengo Scarf + Heatran Air Balloon) y Doctrina Muralla, o cambia tu Lead en el Team Preview.',
+          'Reconsidera el orden de salida al iniciar el combate o fortalece a tu escuadrón antes de volver a cruzar los estandartes.',
         ],
       };
     },
@@ -150,24 +149,25 @@ export const CHAPTERS: ChapterDefinition[] = [
     category: 'story',
     number: 'CAPÍTULO 03',
     title: 'El Foso del Vínculo Roto',
-    subtitle: 'Lord Vexen (Domador Clandestino) · Gimmick Frustration 102 BP (Felicidad: 0)',
-    tag: 'GIMMICK RENCOR · 6V6 SINGLES',
+    subtitle: 'Antorchas rojas bajo el Distrito Industrial',
+    tag: 'HISTORIA · 6V6 SINGLES',
     format: 'singles',
     formatId: 'gen9customgame',
-    formatLabel: '6v6 Singles · Gimmick Rencor',
-    difficulty: 'Kaizo Táctico (Frustration 102 BP + Scrappy)',
+    formatLabel: '6v6 Singles',
+    difficulty: 'Campaña',
     description:
-      'Desciende al foso clandestino bajo Wyndon donde Lord Vexen entrena tipos Normal con Felicidad: 0 para desatar Frustration a potencia máxima (102 BP / 153 con STAB), incluyendo Kangaskhan Scrappy @ Silk Scarf y Ursaring @ Eviolite. Elige si rescatar y desplegar a su Ursaring herido.',
+      'Bajo los adoquines de Wyndon opera un cuadrilátero prohibido donde un noble caído convierte el resentimiento en arma. Las jaulas del foso tiemblan esperando una decisión.',
     accentColor: 'rose',
-    featuredPokemon: ['Kangaskhan', 'Ursaring', 'Archaludon', 'Lopunny'],
-    rivalPreview: 'Lord Vexen · Kangaskhan Scrappy, Ursaring Eviolite, Lopunny ★ Nv. 62',
+    showcaseSprite: { species: 'Archaludon', mode: 'player-ace' },
+    featuredPokemon: ['Archaludon', 'Ursaring', 'Corviknight'],
+    rivalPreview: 'Lord Vexen',
     rivalProfile: {
       name: 'Lord Vexen',
       title: 'Domador Clandestino',
-      bio: 'Noble caído que opera un foso ilegal bajo Wyndon. Rompe el vínculo de sus Pokémon para llevar Frustration al máximo poder.',
+      bio: 'Aristócrata expulsado de la corte que dirige combates ilegales bajo la ciudad. Desprecia cualquier vínculo que no nazca del miedo.',
       tacticalInsight:
-        'Sus Pokémon luchan con rabia contenida; evita intercambiar golpes físicos directos contra tipos Normal.',
-      archetypeTag: 'Gimmick: Rencor',
+        'Sus Pokémon golpean con una furia contenida fuera de lo común; responder con fuerza bruta frente a frente rara vez sale barato.',
+      archetypeTag: 'Campaña · Foso Clandestino',
     },
     inkSource: chapter3ClandestineTamerInk,
     resolveBattleConfig: resolveClandestineTamerBattle,
@@ -175,24 +175,24 @@ export const CHAPTERS: ChapterDefinition[] = [
       const ally = String(flags.tamer_ally ?? 'rescued_ursaring');
       if (won) {
         return {
-          headline: 'El Foso Clandestino Clausurado',
+          headline: 'El Foso Queda Clausurado',
           subheadline:
-            'Lord Vexen cae arrestado por la Guardia Real mientras las jaulas subterráneas se abren.',
-          badgeText: 'VICTORIA · VÍNCULO SANADO',
+            'La Guardia Real irrumpe en la cámara subterránea mientras las cerraduras ceden una tras otra.',
+          badgeText: 'VICTORIA · CAPÍTULO 03',
           paragraphs: [
             ally === 'rescued_ursaring'
-              ? 'El Ursaring rescatado descargó por última vez el rencor de su antiguo captor con Frustration al 100% antes de aceptar una nueva vida junto a la Corona.'
-              : 'Tu disciplina defensiva (Casco Dentado, Firmeza y Defensa Férrea) demostró que la crueldad de Lord Vexen nunca superará a la táctica real.',
+              ? 'El Ursaring que liberaste sostuvo la mirada de su antiguo captor hasta el último golpe. Cuando cayó el silencio, bajó los hombros por primera vez en meses.'
+              : 'Mantuviste la calma ante la brutalidad del cuadrilátero y cerraste el negocio de Lord Vexen sin ceder un solo paso a sus reglas.',
           ],
         };
       }
       return {
-        headline: 'Aplastado por el Rencor del Foso',
+        headline: 'Devuelto a la Oscuridad del Foso',
         subheadline:
-          'Los golpes de Frustration a 102 de potencia base y Kangaskhan Scrappy quebraron tu línea.',
-        badgeText: 'DERROTA · REAGRUPAR ESTRATEGIA',
+          'La furia desatada sobre la arena subterránea rompió tu defensa.',
+        badgeText: 'DERROTA · REINTENTAR',
         paragraphs: [
-          'Recuerda que Kangaskhan golpea a Fantasmas con Scrappy y Ursaring/Obstagoon aprovechan quemaduras con Guts. Castiga sus ataques físicos con Rocky Helmet, Stamina y Iron Defense.',
+          'Las bestias del foso castigan a cualquiera que intercambie golpes sin medir el desgaste. Ajusta tu preparación antes de bajar de nuevo.',
         ],
       };
     },
@@ -202,24 +202,25 @@ export const CHAPTERS: ChapterDefinition[] = [
     category: 'story',
     number: 'BONUS 02',
     title: 'Emboscada en la Cena de Estado',
-    subtitle: 'Bonus AU Galar · Combate Doble 2v2 (≤400 BST)',
+    subtitle: 'Apagón en el Salón de Cristal',
     tag: 'BONUS · DOBLES 2V2',
     format: 'doubles',
     formatId: 'gen9doublescustomgame',
-    formatLabel: 'Dobles 2v2 · ≤400 BST',
-    difficulty: 'Early Game ≤400 BST (Sets Showdown)',
+    formatLabel: 'Dobles 4v4',
+    difficulty: 'Bonus',
     description:
-      'Apagón en el Salón de Estado. Decide entre tu Equipo de Vida Diaria o desplegar el Código Corona (Zacian-Crowned + Dragapult físico/especial) contra un escuadrón sucio de Showdown ≤400 BST.',
+      'Las lámparas de cristal mueren de golpe y un humo violeta invade el banquete diplomático. Tienes dos segundos antes de que las puertas blindadas te encierren con el intruso.',
     accentColor: 'indigo',
-    featuredPokemon: ['Zacian-Crowned', 'Dragapult', 'Smeargle'],
-    rivalPreview: 'Sicario ≤400 BST · Inteligencia parcial 2/4',
+    showcaseSprite: { species: 'Zacian-Crowned', mode: 'player-ace' },
+    featuredPokemon: ['Zacian-Crowned', 'Dragapult', 'Arcanine'],
+    rivalPreview: 'Sicario del Banquete',
     rivalProfile: {
       name: 'Sicario del Banquete',
       title: 'Infiltrado de la Cena de Estado',
-      bio: 'Agente encubierto especialista en tácticas sucias de bajo BST diseñadas para neutralizar amenazas legendarias.',
+      bio: 'Agente sin rostro especializado en humillar ejércitos enteros con herramientas baratas y trucos de callejón.',
       tacticalInsight:
-        'Depende de control sucio (Espora, Fuego Fatuo, Impostor) para castigar a atacantes potenciados. No le regales turnos gratis.',
-      archetypeTag: 'Bonus · Táctica Sucia',
+        'Nunca buscará igualarte en fuerza pura; intentará robarte el ritmo y usar tu propia potencia en tu contra.',
+      archetypeTag: 'Bonus · Infiltración',
     },
     inkSource: chapter2BanquetInk,
     resolveBattleConfig: resolveChapter2BanquetBattle,
@@ -227,22 +228,24 @@ export const CHAPTERS: ChapterDefinition[] = [
       const mode = String(flags.team_mode ?? 'daily');
       if (won) {
         return {
-          headline: 'La Corona Resiste el Atentado',
-          subheadline: 'El sicario cae antes de que cedan las puertas blindadas.',
-          badgeText: 'VICTORIA · EMBOSCADA NEUTRALIZADA',
+          headline: 'La Cena de Estado Resiste el Atentado',
+          subheadline:
+            'El humo se disipa mientras las luces de emergencia devuelven el orden al salón.',
+          badgeText: 'VICTORIA · BONUS 02',
           paragraphs: [
             mode === 'combat'
-              ? 'Zacian y tu Equipo de Combate recordaron a los embajadores extranjeros por qué nadie desafía abiertamente a Galar.'
-              : 'Tu Equipo de Vida Diaria neutralizó el sabotaje sin siquiera abrir la armería real.',
+              ? 'El destello metálico del Código Corona bastó para recordar a los invitados extranjeros por qué nadie desafía a Galar a plena luz.'
+              : 'Sofocaste la emboscada sin abrir siquiera la armería de guerra, manteniendo intacta la compostura del palacio.',
           ],
         };
       }
       return {
         headline: 'Evacuación de Emergencia',
-        subheadline: 'El sicario rompió tu formación en el Salón de Estado.',
+        subheadline:
+          'Los trucos sucios del infiltrado lograron desarmar tu formación entre el humo.',
         badgeText: 'DERROTA · REINTENTAR',
         paragraphs: [
-          'Un solo turno mal calculado contra Espora, Fuego Fatuo o Ditto Impostor cuesta la partida.',
+          'En un salón cerrado, subestimar a un rival pequeño cuesta la pelea entera. Vuelve a entrar con otra lectura.',
         ],
       };
     },
@@ -254,46 +257,47 @@ export const CHAPTERS: ChapterDefinition[] = [
     category: 'puzzles',
     number: 'PUZZLE 01',
     title: 'La Trampa del Sol',
-    subtitle: 'Puzzle 3v3 Dobles · Condiciones Iniciales + Turnos 1 y 2 Scripteados',
-    tag: 'PUZZLE TÁCTICO · 3V3 DOBLES',
+    subtitle: 'Un tablero amañado bajo calor sofocante',
+    tag: 'PUZZLE · 3V3 DOBLES',
     format: 'doubles',
     formatId: 'gen9doublescustomgame',
-    formatLabel: 'Puzzle 3v3 Dobles',
-    difficulty: 'Acertijo Táctico (Desventaja Inicial)',
+    formatLabel: 'Puzzle 3v3',
+    difficulty: 'Puzzle',
     description:
-      'Empiezas bajo Sol Intenso, Viento Afín rival, Trampa Rocas en tu lado y Sableye al 65% PS frente a Mega Metagross (+2 Atk, +1 Spe) y Volcarona (+2 SpA, +2 SpD, +2 Spe). Usa a Inkay (Topsy-Turvy / Trick Room), Sableye (Fake Out / Quash) y Ditto (Imposter) para darle la vuelta al guion enemigo.',
+      'El patio solar arde y tu escuadrón entra herido en desventaja absoluta frente a una tormenta ya desatada. Solo el ingenio puede voltear un tablero que parece perdido.',
     accentColor: 'orange',
-    featuredPokemon: ['Inkay', 'Sableye', 'Ditto', 'Metagross-Mega'],
-    rivalPreview: 'Mega Metagross (+2/+1), Volcarona (+2/+2/+2), Garchomp',
+    showcaseSprite: { species: 'Sableye', mode: 'player-ace' },
+    featuredPokemon: ['Sableye', 'Inkay', 'Ditto'],
+    rivalPreview: 'Estratega Solar',
     rivalProfile: {
       name: 'Estratega Solar',
       title: 'Arquitecto de la Trampa',
-      bio: 'Maestro de acertijos tácticos que prepara el tablero en desventaja extrema para poner a prueba el ingenio del Príncipe.',
+      bio: 'Coleccionista de escenarios imposibles que disfruta empujar a sus oponentes contra la pared desde el primer segundo.',
       tacticalInsight:
-        'Su fuerza nace de sus mejoras acumuladas y el orden de velocidad bajo Viento Afín. Invierte o roba ese poder antes de que barra tu equipo.',
-      archetypeTag: 'Puzzle: Inversión',
+        'Todo su dominio descansa sobre el impulso que ya acumuló antes de que llegaras. Si quiebras ese impulso, su castillo se derrumba.',
+      archetypeTag: 'Puzzle · Desventaja',
     },
     inkSource: puzzle1SunTrapInk,
     resolveBattleConfig: resolvePuzzle1SunTrapBattle,
     getEpilogue: (won: boolean) => {
       if (won) {
         return {
-          headline: '¡Puzzle Resuelto: La Trampa Invertida!',
+          headline: 'La Trampa del Sol Invertida',
           subheadline:
-            'Voltaste las condiciones imposibles del Sol Intenso en contra de su creador.',
-          badgeText: 'PUZZLE COMPLETADO · 3/3 KO',
+            'El patio solar guarda silencio cuando el tablero se vuelve contra su propio creador.',
+          badgeText: 'PUZZLE 01 COMPLETADO',
           paragraphs: [
-            'Invertir boosts con Topsy-Turvy, robar turnos con Fake Out/Quash y copiar amenazas potenciadas con Ditto demuestra el núcleo del diseño táctico de Crown of Galar.',
+            'Donde otros vieron una derrota matemática en el primer turno, encontraste la grieta exacta para voltear toda la partida.',
           ],
         };
       }
       return {
-        headline: 'Atrapado bajo el Sol Intenso',
+        headline: 'Consumido por el Sol Intenso',
         subheadline:
-          'Los boosts de Mega Metagross y Volcarona arrasaron la formación.',
+          'El impulso enemigo arrasó el patio antes de que pudieras recuperar el control.',
         badgeText: 'PUZZLE FALLIDO · REINTENTAR',
         paragraphs: [
-          'Recuerda el guion enemigo: en Turno 1 Volcarona usa Heat Wave y Mega Metagross ataca a Inkay con Meteor Mash; en Turno 2 Mega Metagross tira Bullet Punch a Inkay.',
+          'Observa el patrón con el que abren sus piezas y vuelve a intentarlo; cada movimiento en tu equipo está ahí por una razón.',
         ],
       };
     },
@@ -303,46 +307,47 @@ export const CHAPTERS: ChapterDefinition[] = [
     category: 'puzzles',
     number: 'PUZZLE 02',
     title: 'El Coloso Despertado',
-    subtitle: 'Regigigas Raid Boss (Nv. 85 sin Slow Start) + 5 Supports Nv. 50',
-    tag: 'PUZZLE · RAID BOSS DOBLES',
+    subtitle: 'Seis luces despiertan en la cámara sellada',
+    tag: 'PUZZLE · JEFE RAID',
     format: 'doubles',
     formatId: 'gen9doublescustomgame',
-    formatLabel: 'Puzzle 6v6 Dobles · Raid Boss',
-    difficulty: 'Kaizo Raid Boss (Estado Turno 0 Inyectado)',
+    formatLabel: 'Jefe 6v6 Dobles',
+    difficulty: 'Puzzle Jefe',
     description:
-      'Regigigas Nv. 85 entra en Turno 0 ya liberado de Slow Start, protegido por Sustituto (25% PS), Aqua Ring, Ingrain, Reflect, Light Screen y +1 Atk/Def/SpD junto a 5 supports (Grimmsnarl, Clefairy, Comfey, Alcremie, Sableye). Usa herramientas quirúrgicas Nv. 55 (Infiltrator, Psychic Noise, Brick Break, Haze) para derribar al Titán.',
+      'Las puertas rúnicas ceden con un estruendo sísmico. El antiguo coloso Regigigas ya se ha puesto de pie en el centro del santuario, sostenido por un coro silencioso de guardianes.',
     accentColor: 'amber',
-    featuredPokemon: ['Regigigas', 'Dragapult', 'Farigiraf', 'Murkrow'],
-    rivalPreview: 'Custodio del Coloso · Regigigas ★ Nv. 85 + 5 Supports Nv. 50',
+    showcaseSprite: { species: 'Regigigas', mode: 'boss', label: 'Jefe' },
+    featuredPokemon: ['Regigigas', 'Dragapult', 'Farigiraf'],
+    rivalPreview: 'Custodio del Coloso',
     rivalProfile: {
       name: 'Custodio del Coloso',
-      title: 'Guardián del Templo Puntaneva',
-      bio: 'Sacerdote de la cámara sellada que transfirió cinco auras ancestrales a Regigigas antes de abrir las puertas del santuario.',
+      title: 'Guardián del Santuario Sellado',
+      bio: 'Sacerdote que preparó durante horas el despertar del titán antes de que alcanzaras la cámara subterránea.',
       tacticalInsight:
-        'Su formación gira en torno a un coloso ya despertado y blindado. Romper sus barreras será inútil si no cortas su regeneración.',
-      archetypeTag: 'Puzzle: Raid Boss',
+        'Atacar al titán sin desmontar primero el sostén que lo rodea solo alargará la agonía.',
+      archetypeTag: 'Jefe · Santuario',
     },
     inkSource: puzzle2RegigigasInk,
     resolveBattleConfig: resolvePuzzle2RegigigasBattle,
     getEpilogue: (won: boolean) => {
       if (won) {
         return {
-          headline: '¡El Coloso del Santuario Derribado!',
+          headline: 'El Coloso Regresa al Reposo',
           subheadline:
-            'Desmantelaste cada capa del Raid Boss Regigigas con cirugía competitiva a Nivel 55.',
-          badgeText: 'PUZZLE 02 COMPLETADO · RAID BOSS KO',
+            'Las runas del santuario se apagan lentamente mientras el titán inclina la rodilla.',
+          badgeText: 'PUZZLE 02 COMPLETADO',
           paragraphs: [
-            'Cortar la regeneración triple con Psychic Noise, atravesar Sustituto y Pantallas con Infiltrator, limpiar Decorate con Haze y romper barreras con Brick Break doblegó a un Titán 30 niveles superior.',
+            'Desarmaste capa por capa a una fortaleza viviente treinta niveles por encima de los tuyos. El eco de la cámara guarda silencio por fin.',
           ],
         };
       }
       return {
         headline: 'El Titán Sigue en Pie',
         subheadline:
-          'La regeneración combinada de Aqua Ring, Ingrain, Leftovers y sus cinco supports sostuvo a Regigigas.',
-        badgeText: 'PUZZLE FALLIDO · REAJUSTAR LÍNEA',
+          'La cámara entera parece restaurar al coloso tras cada golpe.',
+        badgeText: 'PUZZLE FALLIDO · REINTENTAR',
         paragraphs: [
-          'Consejo Kaizo: aplica Psychic Noise de Farigiraf para sellar toda curación (incluido Floral Healing de Comfey), limpia sus boosts con Murkrow Haze y presiona directo a través del Sustituto con Dragapult Infiltrator o Urshifu.',
+          'Estudia qué mantiene en pie al coloso y aprovecha el Teambuilder si necesitas abrir un ángulo distinto antes de volver a desafiarlo.',
         ],
       };
     },
@@ -354,24 +359,25 @@ export const CHAPTERS: ChapterDefinition[] = [
     category: 'flashbacks',
     number: 'FLASHBACK LC',
     title: 'La Prueba de la Campeona',
-    subtitle: 'Príncipe (6 años · Nv. 5) vs. La Campeona (Meta S-Tier Little Cup · Nv. 6–7)',
-    tag: 'LITTLE CUP NV. 5 VS NV. 6–7',
+    subtitle: 'Un jardín soleado de hace diez años',
+    tag: 'FLASHBACK · LITTLE CUP',
     format: 'singles',
     formatId: 'gen9customgame',
-    formatLabel: 'Little Cup Nv. 5 vs Nv. 6–7',
-    difficulty: 'Pesadilla Amistosa (Cap Roto en gen9customgame)',
+    formatLabel: 'Little Cup',
+    difficulty: 'Flashback',
     description:
-      'Recuerdo de infancia contra La Campeona de Galar. Juegas con las preevoluciones Nivel 5 de tu futuro equipo real (Larvesta, Growlithe, Rookidee, Larvitar, Gible, Ralts) contra un núcleo opresivo Nivel 6 (Onix, Mienfoo, Foongus, Gastly, Pawniard) liderado por su As Vullaby ★ Nivel 7.',
+      'Diez años atrás, en el jardín del palacio, sostienes las Poké Balls de tus primeras crías frente a la sonrisa serena de la Campeona. Su lección no conoce la piedad.',
     accentColor: 'purple',
-    featuredPokemon: ['Larvesta', 'Larvitar', 'Ralts', 'Vullaby'],
-    rivalPreview: 'La Campeona · Meta S-Tier LC Nv. 6 + Vullaby ★ Nv. 7',
+    showcaseSprite: { species: 'Growlithe', mode: 'player-ace' },
+    featuredPokemon: ['Growlithe', 'Larvesta', 'Ralts'],
+    rivalPreview: 'La Campeona',
     rivalProfile: {
       name: 'La Campeona',
       title: 'Soberana Invicta de Galar',
-      bio: 'Mentora de infancia del Príncipe. Incluso en un combate amistoso con crías, jamás contiene el verdadero nivel táctico de la élite.',
+      bio: 'Mentora de infancia del Príncipe. Incluso cuando el combate es un juego entre crías, enseña como si la corona dependiera de ello.',
       tacticalInsight:
-        'Su núcleo abusa de Trampa Rocas y cambios con Regeneración antes de cerrar con un As sobre-leveado. Reserva un recurso de emergencia para el final.',
-      archetypeTag: 'Flashback · Little Cup',
+        'Jamás cede el ritmo del campo por cortesía. Si te desconcentras un turno, la brecha de experiencia se vuelve un muro.',
+      archetypeTag: 'Flashback · Infancia',
     },
     inkSource: chapterLittleCupInk,
     resolveBattleConfig: resolveChampionLittleCupBattle,
@@ -380,20 +386,20 @@ export const CHAPTERS: ChapterDefinition[] = [
         return {
           headline: 'La Promesa del Heredero',
           subheadline:
-            'La Campeona sonríe genuinamente sorprendida al ver caer a su Vullaby Nivel 7.',
-          badgeText: 'VICTORIA · LITTLE CUP SUPERADO',
+            'La Campeona aplaude despacio bajo el sol dorado del jardín.',
+          badgeText: 'VICTORIA · FLASHBACK',
           paragraphs: [
-            '«Increíble... con dos niveles de desventaja lograste desmontar doble Regenerator y tumbar a Vullaby. Algún día estas seis crías protegerán toda la Corona de Galar.»',
+            '«No retrocediste ni un paso, aunque sabías que la balanza estaba inclinada en tu contra. Recuerda esta tarde cuando el mundo real no te pida permiso para pelear.»',
           ],
         };
       }
       return {
-        headline: 'Lección de la Campeona',
+        headline: 'Lección de la Tarde',
         subheadline:
-          'La diferencia de estadísticas de Nivel 6 y 7 en Little Cup se hizo sentir.',
-        badgeText: 'DERROTA · INTENTAR OTRA RUTA',
+          'La diferencia de temple se notó en cada intercambio del jardín.',
+        badgeText: 'DERROTA · REINTENTAR',
         paragraphs: [
-          'Consejo táctico: frena las rocas de Onix en Turno 1 con Rookidee (Taunt) o Larvitar (Rock Blast), y reserva a Ralts con Focus Sash + Destiny Bond para Vullaby ★ Nivel 7.',
+          'La Campeona te tiende la mano con una sonrisa tranquila: «Otra vez, pequeño. Mira cómo empieza la pelea antes de lanzar tu primera orden.»',
         ],
       };
     },
@@ -405,24 +411,25 @@ export const CHAPTERS: ChapterDefinition[] = [
     category: 'showcases',
     number: 'DUELO 01',
     title: 'Duelo de Honor',
-    subtitle: 'Juicio por Combate Aristocrático · Showcase 1v1 (Bring 3, Pick 1)',
-    tag: 'SHOWCASE 1V1 · MUERTE SÚBITA',
+    subtitle: 'Tres Poké Balls sobre el terciopelo, una sola oportunidad',
+    tag: 'SHOWCASE · 1V1',
     format: 'singles',
     formatId: 'gen91v1',
-    formatLabel: '1v1 · Bring 3, Pick 1',
-    difficulty: 'Lectura de Team Preview (gen91v1)',
+    formatLabel: '1v1 · Pick 1',
+    difficulty: 'Competitivo',
     description:
-      'Las reglas de la corte prohíben equipos completos: ambos muestran 3 Pokémon y eligen solo 1 para un combate sin cambios. Lee la pista narrativa de Ink y supera el triángulo táctico (Gallade, Primarina, Metagross vs. Iron Crown, Skeledirge, Urshifu).',
+      'El protocolo aristocrático prohíbe relevos y segundas oportunidades. Frente al círculo de piedra, leer el pulso de tu rival antes de que suene la campana lo es todo.',
     accentColor: 'rose',
-    featuredPokemon: ['Gallade', 'Primarina', 'Metagross', 'Iron Crown'],
-    rivalPreview: 'Duelista Rival · Iron Crown, Skeledirge, Urshifu (Elige 1)',
+    showcaseSprite: { species: 'Metagross', mode: 'player-ace' },
+    featuredPokemon: ['Metagross', 'Gallade', 'Primarina'],
+    rivalPreview: 'Duelista de la Corte',
     rivalProfile: {
       name: 'Duelista de la Corte',
       title: 'Espadachín del Círculo de Honor',
-      bio: 'Aristócrata de Galar que resuelve disputas políticas mediante duelos 1v1 a muerte súbita sin banca ni segundas oportunidades.',
+      bio: 'Aristócrata habituado a zanjar disputas políticas en duelos sin banca ni marcha atrás.',
       tacticalInsight:
-        'Todo se decide en el Team Preview. Revisa el Open Teamsheet y recuerda la pista que dejó escapar antes del duelo.',
-      archetypeTag: 'Showcase · 1v1',
+        'Todo el duelo se juega en los segundos previos a lanzar la Poké Ball. Un gesto mínimo puede valer la victoria.',
+      archetypeTag: 'Competitivo · 1v1',
     },
     inkSource: duel1HonorInk,
     resolveBattleConfig: resolveDuel1Honor1v1Battle,
@@ -430,19 +437,21 @@ export const CHAPTERS: ChapterDefinition[] = [
       if (won) {
         return {
           headline: 'Honor Reivindicado en el Círculo',
-          subheadline: 'Tu lectura en el Team Preview sentenció el duelo 1v1 en seco.',
-          badgeText: 'VICTORIA · 1V1 SUPERADO',
+          subheadline:
+            'La sala entera murmura mientras tu rival guarda su Poké Ball en silencio.',
+          badgeText: 'VICTORIA · DUELO 01',
           paragraphs: [
-            'En el formato gen91v1 la batalla empieza antes del Turno 1: elegir la pieza exacta del triángulo frente a la amenaza rival decidió el destino del juicio.',
+            'En un duelo sin relevos, la batalla termina antes de que se lance el primer ataque. Tu lectura fue limpia de principio a fin.',
           ],
         };
       }
       return {
-        headline: 'Duelo Perdido en Muerte Súbita',
-        subheadline: 'El rival acertó el emparejamiento en el Team Preview.',
-        badgeText: 'DERROTA · RELEER TEAM PREVIEW',
+        headline: 'Sentenciado en Muerte Súbita',
+        subheadline:
+          'El duelista acertó el cruce decisivo en el instante que sonó la campana.',
+        badgeText: 'DERROTA · REINTENTAR',
         paragraphs: [
-          'Revisa la pista de Ink y consulta el Open Teamsheet antes de elegir tu Pokémon en el Team Preview 1 de 3.',
+          'En el círculo de honor no hay margen para el impulso. Vuelve a leer el encuentro y ajusta tu elección.',
         ],
       };
     },
@@ -452,50 +461,50 @@ export const CHAPTERS: ChapterDefinition[] = [
     category: 'showcases',
     number: 'ARCHIVO VGC',
     title: 'Final Mundial 2024: Luca vs. Yuta',
-    subtitle: 'Elige bando (Luca Ceribelli o Yuta Ishigaki) · VGC Reg G Dobles 4v4 Nv. 50',
-    tag: 'WORLDS 2024 · VGC REG G',
+    subtitle: 'Simulación holográfica de Honolulu',
+    tag: 'WORLDS · VGC REG G',
     format: 'doubles',
     formatId: 'gen9vgc2024regg',
-    formatLabel: 'VGC Reg G · Dobles 4v4 Nv. 50',
-    difficulty: 'Masters Finals · Bring 6, Pick 4',
+    formatLabel: 'VGC 4v4 Nv. 50',
+    difficulty: 'Competitivo',
     description:
-      'Revive la gran final del Mundial 2024 en Honolulu eligiendo al inicio si juegas como Luca Ceribelli (Miraidon, Whimsicott, Urshifu-R, Ogerpon-H, Iron Hands, Farigiraf) o como Yuta Ishigaki (Calyrex-Ice, Pelipper, Amoonguss, Iron Valiant, Landorus, Urshifu-R), con Open Teamsheets completos e IA scripteada.',
+      'Las pantallas del archivo real reconstruyen la gran final de Honolulu bajo reglas oficiales de torneo. Elige bando y mide tu templanza en el escenario más alto.',
     accentColor: 'sky',
-    featuredPokemon: ['Miraidon', 'Urshifu-Rapid-Strike', 'Calyrex-Ice', 'Iron Valiant'],
-    rivalPreview: 'Bando elegible: Luca (Miraidon) vs. Yuta (Calyrex-Ice) · Open Sheet',
+    showcaseSprite: { species: 'Miraidon', mode: 'player-ace' },
+    featuredPokemon: ['Miraidon', 'Calyrex-Ice'],
+    rivalPreview: 'Finalista Mundial VGC 2024',
     rivalProfile: {
-      name: 'Finalista Mundial VGC 2024',
-      title: 'Masters Finals · Honolulu Reg G',
-      bio: 'Simulación histórica de la final del Campeonato Mundial 2024 entre Luca Ceribelli (Italia) y Yuta Ishigaki (Japón).',
+      name: 'Finalista Mundial 2024',
+      title: 'Masters Finals · Honolulu',
+      bio: 'Reconstrucción histórica de la final del Campeonato Mundial 2024 entre Italia y Japón.',
       tacticalInsight:
-        'Controla el campo eléctrico, el clima y el duelo entre Viento Afín y Espacio Raro. Consulta siempre el Open Teamsheet antes de confirmar tus 4.',
-      archetypeTag: 'Showcase · VGC Reg G',
+        'Quien controle el ritmo de velocidad y el clima dicta cada intercambio. Revisa el Open Teamsheet con calma.',
+      archetypeTag: 'Archivo · VGC Reg G',
     },
     inkSource: archiveVgc2024Ink,
     resolveBattleConfig: resolveVgcWorlds2024Battle,
     getEpilogue: (won: boolean, flags: StoryFlags) => {
       const asYuta = String(flags.selected_player ?? 'luca') === 'yuta';
-      const playerLabel = asYuta ? 'Yuta Ishigaki (Calyrex-Ice)' : 'Luca Ceribelli (Miraidon)';
-      const rivalLabel = asYuta ? 'Luca Ceribelli (Miraidon)' : 'Yuta Ishigaki (Calyrex-Ice)';
+      const playerLabel = asYuta ? 'Yuta Ishigaki' : 'Luca Ceribelli';
+      const rivalLabel = asYuta ? 'Luca Ceribelli' : 'Yuta Ishigaki';
 
       if (won) {
         return {
-          headline: '¡Campeón del Archivo Mundial VGC!',
-          subheadline: `${playerLabel} se impuso sobre ${rivalLabel} en la simulación de Honolulu.`,
-          badgeText: asYuta ? 'VICTORIA · TEAM YUTA VGC' : 'VICTORIA · TEAM LUCA VGC',
+          headline: 'Ovación en el Archivo de Honolulu',
+          subheadline: `${playerLabel} se impuso sobre ${rivalLabel} en el cierre del estadio holográfico.`,
+          badgeText: 'VICTORIA · ARCHIVO VGC',
           paragraphs: [
-            'La Campeona asiente impresionada frente al holograma del estadio: «Dominar Bring 6 Pick 4, Open Teamsheets, control de velocidad y Teracristalización a este nivel te prepara para cualquier guerra en Galar.»',
+            'La Campeona apaga la proyección con una inclinación de cabeza: «Sostener la calma bajo un escenario así marca la diferencia entre un buen entrenador y un soberano.»',
           ],
         };
       }
       return {
-        headline: `Victoria para ${rivalLabel}`,
-        subheadline: asYuta
-          ? 'El Viento Afín de Whimsicott y la presión de Miraidon controlaron el tablero.'
-          : 'La presión de Iron Valiant, Landorus y Espacio Raro de Calyrex-Ice controló la final.',
-        badgeText: 'DERROTA · REINTENTAR FINAL',
+        headline: `El Estadio Se Inclina por ${rivalLabel}`,
+        subheadline:
+          'El control de ritmo rival terminó cerrando cada ventana del combate.',
+        badgeText: 'DERROTA · REINTENTAR',
         paragraphs: [
-          'Abre el Open Teamsheet antes de elegir tus 4 Pokémon en el Team Preview o prueba cambiar de bando en la escena inicial para estudiar el enfrentamiento desde ambos lados.',
+          'Puedes volver a estudiar el Open Teamsheet o cambiar de bando en la simulación para entender ambos lados del tablero.',
         ],
       };
     },
@@ -505,46 +514,47 @@ export const CHAPTERS: ChapterDefinition[] = [
     category: 'showcases',
     number: 'CAPÍTULO C',
     title: 'La Falange de Hammerlocke',
-    subtitle: 'Caballería del Duque · Batalla Triple 6v6 con Megaevoluciones (Gen 6)',
-    tag: 'TRIPLES 6V6 · GEN 6',
+    subtitle: 'Tres líneas enfrentadas frente a las murallas',
+    tag: 'TRIPLES · GEN 6',
     format: 'triples',
     formatId: 'gen6triplescustomgame',
-    formatLabel: 'Triples 6v6 · Gen 6',
-    difficulty: 'Táctico Posicional (3 Slots Activos)',
+    formatLabel: 'Triples 6v6',
+    difficulty: 'Táctico',
     description:
-      'Choque militar contra el Duque de Hammerlocke en Batalla Triple 6v6. Domina el alcance posicional (Izquierda · Centro · Derecha), ataques voladores/pulso de cruce de campo (Brave Bird, Air Slash), Wide Guard y Megaevolución con Mega Gardevoir vs. Mega Kangaskhan.',
+      'Frente a las murallas de Hammerlocke, el Duque despliega su caballería en formación triple clásica. El centro manda el tablero, pero los flancos deciden la guerra.',
     accentColor: 'indigo',
-    featuredPokemon: ['Gardevoir-Mega', 'Hitmontop', 'Talonflame', 'Kangaskhan-Mega'],
-    rivalPreview: 'Duque de Hammerlocke · Mega Kangaskhan, Aegislash, Togekiss, Landorus-T',
+    showcaseSprite: { species: 'Gardevoir-Mega', mode: 'player-ace' },
+    featuredPokemon: ['Gardevoir-Mega', 'Hitmontop', 'Talonflame'],
+    rivalPreview: 'Duque de Hammerlocke',
     rivalProfile: {
       name: 'Duque de Hammerlocke',
       title: 'Comandante de la Falange',
-      bio: 'Veterano estratega de la Casa de Hammerlocke que despliega formaciones de tres flancos con disciplina militar de Sexta Generación.',
+      bio: 'Veterano estratega que aún instruye a su casa en el arte perdido de las formaciones de tres flancos.',
       tacticalInsight:
-        'Protege sus líneas con Vastaguardia y controla el ritmo con Viento Afín. Usa ataques de largo alcance o Amago para quebrar su centro.',
-      archetypeTag: 'Showcase · Triples Gen 6',
+        'Su vanguardia pelea como un escudo cerrado; encontrar qué ataques alcanzan las esquinas opuestas abre la brecha.',
+      archetypeTag: 'Triples · Hammerlocke',
     },
     inkSource: showcaseTriplesPhalanxInk,
     resolveBattleConfig: resolveTriplesPhalanxBattle,
     getEpilogue: (won: boolean) => {
       if (won) {
         return {
-          headline: 'La Falange de Hammerlocke Quebrada',
+          headline: 'La Falange Cede el Paso',
           subheadline:
-            'Tu dominio de las tres líneas de batalla y el alcance posicional superó a la Caballería del Duque.',
-          badgeText: 'VICTORIA · TRIPLES 6V6',
+            'El Duque inclina su estandarte azul cobalto frente a las murallas.',
+          badgeText: 'VICTORIA · CAPÍTULO C',
           paragraphs: [
-            'El Duque de Hammerlocke inclina su estandarte azul cobalto: «Pocas mentes dominan el tablero triple con tanta claridad. El centro y los flancos te obedecieron como un solo escudo.»',
+            '«Hacía años que nadie leía tres frentes al mismo tiempo con tanta claridad. Los flancos y el centro te respondieron como un solo latido.»',
           ],
         };
       }
       return {
-        headline: 'La Falange Mantuvo la Línea',
+        headline: 'La Falange Sostuvo la Muralla',
         subheadline:
-          'El Wide Guard de Aegislash y el Viento Afín de Togekiss frenaron el avance.',
-        badgeText: 'DERROTA · REAGRUPAR FALANGE',
+          'La coordinación de los tres flancos enemigos frenó tu avance.',
+        badgeText: 'DERROTA · REINTENTAR',
         paragraphs: [
-          'Usa Feint de Hitmontop para romper el Wide Guard de Turno 1 o usa Brave Bird de Talonflame para golpear la esquina opuesta.',
+          'En un campo triple la posición vale tanto como la potencia. Reacomoda tus flancos y vuelve a embestir.',
         ],
       };
     },
@@ -556,23 +566,24 @@ export const CHAPTERS: ChapterDefinition[] = [
     category: 'challenges',
     number: 'CAPÍTULO A',
     title: 'El Último Bastión',
-    subtitle: 'La Milicia de los Muelles · 1 Pokémon Aliado (Raid Boss) vs. 6 Mercenarios',
-    tag: 'DESAFÍO · 1 VS 6 DOBLES',
+    subtitle: 'Un puente cerrado entre la niebla del puerto',
+    tag: 'DESAFÍO · 1 VS 6',
     format: 'doubles',
     formatId: 'gen9doublescustomgame',
     formatLabel: '1 vs 6 · Dobles',
-    difficulty: 'Raid Boss Solitario (Defiant + Rage Fist)',
+    difficulty: 'Desafío',
     description:
-      'Emboscada en el puente estrecho de los Muelles de Wyndon. Solo tu Annihilape (@ Leftovers · Defiant · Tera Fuego) queda en pie frente a los 6 mercenarios de la Milicia (Krookodile, Toxicroak, Kilowattrel, Mudsdale, Grimmsnarl y Regirock Tera Dark). Aprovecha su Intimidate y fuego amigo.',
+      'Madrugada en los muelles de Wyndon. La niebla marina cierra ambas salidas del puente de carga y solo un compañero queda en pie frente a toda la cuadrilla portuaria.',
     accentColor: 'orange',
-    featuredPokemon: ['Annihilape', 'Krookodile', 'Toxicroak', 'Regirock'],
-    rivalPreview: 'La Milicia de los Muelles · 6 Mercenarios (Fuego Amigo T1)',
+    showcaseSprite: { species: 'Annihilape', mode: 'player-ace' },
+    featuredPokemon: ['Annihilape'],
+    rivalPreview: 'La Milicia de los Muelles',
     rivalProfile: {
       name: 'Capataz de los Muelles',
       title: 'La Milicia de los Muelles',
-      bio: 'Banda de seis mercenarios portuarios que intentan abrumar por número al heredero en un puente estrecho.',
+      bio: 'Matones del puerto que apuestan al número y al ruido para acorralar presas solitarias en los puentes de carga.',
       tacticalInsight:
-        'Son impulsivos y mal coordinados: su propia Intimidación y ataques de área pueden volverse en su contra si escalas en el momento justo.',
+        'Son demasiados para un espacio tan estrecho y rara vez se cuidan entre ellos cuando pierden la cabeza.',
       archetypeTag: 'Desafío · 1 vs 6',
     },
     inkSource: challengeLastBastionInk,
@@ -580,22 +591,22 @@ export const CHAPTERS: ChapterDefinition[] = [
     getEpilogue: (won: boolean) => {
       if (won) {
         return {
-          headline: '¡El Puente de los Muelles Resiste!',
+          headline: 'El Puente Permanece en Pie',
           subheadline:
-            'Un solo Annihilape barrió a los seis mercenarios de La Milicia de los Muelles.',
-          badgeText: 'DESAFÍO SUPERADO · 1 VS 6',
+            'La niebla del puerto se despeja mientras el último mercenario retrocede hacia las grúas.',
+          badgeText: 'VICTORIA · CAPÍTULO A',
           paragraphs: [
-            'Cada golpe recibido y cada Intimidación mal calculada alimentaron la furia imparable de Annihilape hasta despejar el puente por completo.',
+            'Un solo compañero bastó para sostener el paso contra seis. Cada golpe que recibió solo endureció su postura hasta despejar el puente entero.',
           ],
         };
       }
       return {
         headline: 'Superado en el Puente de Carga',
         subheadline:
-          'La presión numérica de los seis mercenarios logró derribar a Annihilape.',
-        badgeText: 'DESAFÍO FALLIDO · REINTENTAR',
+          'La avalancha de la cuadrilla portuaria terminó cerrándote el paso.',
+        badgeText: 'DERROTA · REINTENTAR',
         paragraphs: [
-          'Consejo: aprovecha el +1 de Defiant y el Earthquake amigo de Krookodile en Turno 1, escala con Bulk Up, cúrate con Drain Punch y guarda Tera Fuego para resistir a Grimmsnarl.',
+          'En inferioridad numérica, elegir cuándo resistir y cuándo golpear marca toda la diferencia.',
         ],
       };
     },
@@ -605,46 +616,47 @@ export const CHAPTERS: ChapterDefinition[] = [
     category: 'challenges',
     number: 'CAPÍTULO D',
     title: 'El Juicio de los Tres Caballeros',
-    subtitle: 'Tríada de Élite del Duque · 1 As Central vs. 3 Caballeros en Triples',
-    tag: 'DESAFÍO · 1 VS 3 TRIPLES',
+    subtitle: 'Un solo as en el centro del círculo de piedra',
+    tag: 'DESAFÍO · 1 VS 3',
     format: 'triples',
     formatId: 'gen6triplescustomgame',
     formatLabel: '1 vs 3 · Triples',
-    difficulty: 'Kaizo Lectura de Wide Guard (Turnos 1 y 3)',
+    difficulty: 'Desafío',
     description:
-      'Enfrenta en solitario desde el Centro del tablero Triple a Escavalier, Aegislash y Bisharp con Mega Charizard Y o Garchomp Life Orb. Lee los Turnos 1 y 3 scripteados de Wide Guard de Aegislash alternando ataques individuales y de área.',
+      'Tres caballeros acorazados cierran media luna en el patio interior de Hammerlocke. Las reglas del juicio son simples: un solo representante contra los tres a la vez.',
     accentColor: 'rose',
-    featuredPokemon: ['Charizard-Mega-Y', 'Garchomp', 'Aegislash', 'Escavalier'],
-    rivalPreview: 'Tríada de Élite · Escavalier, Aegislash (Wide Guard T1/T3), Bisharp',
+    showcaseSprite: { species: 'Charizard-Mega-Y', mode: 'player-ace' },
+    featuredPokemon: ['Charizard-Mega-Y', 'Garchomp'],
+    rivalPreview: 'Tríada de Élite',
     rivalProfile: {
-      name: 'Tríada de Élite del Duque',
-      title: 'Escavalier · Aegislash · Bisharp',
-      bio: 'Los tres caballeros de acero que someten a prueba a los aspirantes en un juicio solitario en el centro de la arena triple.',
+      name: 'Tríada de Élite',
+      title: 'Guardia Interior de Hammerlocke',
+      bio: 'Tres guerreros de acero entrenados para pelear al unísono en el círculo de prueba del castillo.',
       tacticalInsight:
-        'Su escudo de área sigue un compás predecible en turnos impares, pero su rematador guarda prioridad letal si te descuidas con pocos PS.',
-      archetypeTag: 'Desafío · 1 vs 3 Kaizo',
+        'Sus escudos siguen una cadencia marcial muy precisa, pero uno de ellos siempre espera el momento exacto para rematar.',
+      archetypeTag: 'Desafío · 1 vs 3',
     },
     inkSource: challengeThreeKnightsInk,
     resolveBattleConfig: resolveThreeKnightsBattle,
     getEpilogue: (won: boolean) => {
       if (won) {
         return {
-          headline: '¡Juicio de los Tres Caballeros Superado!',
+          headline: 'El Círculo Reconoce a su Comandante',
           subheadline:
-            'Tu lectura de Vastaguardia permitió a un solo As doblegar a la Tríada de Élite.',
-          badgeText: 'DESAFÍO SUPERADO · 1 VS 3 TRIPLES',
+            'Los tres caballeros bajan las lanzas al unísono sobre la piedra tibia.',
+          badgeText: 'VICTORIA · CAPÍTULO D',
           paragraphs: [
-            'Alternar golpes individuales en los turnos impares (Wide Guard) con ráfagas de área en los turnos pares desarmó por completo a los tres caballeros.',
+            'Leíste su cadencia de escudo y golpeaste justo cuando la formación respiraba. El Consejo de Guerra abre sus puertas.',
           ],
         };
       }
       return {
         headline: 'La Tríada Sostuvo el Escudo',
         subheadline:
-          'Escavalier, Aegislash y Bisharp resistieron el asalto solitario.',
-        badgeText: 'DESAFÍO FALLIDO · REINTENTAR',
+          'La media luna de acero repelió tu asalto en solitario.',
+        badgeText: 'DERROTA · REINTENTAR',
         paragraphs: [
-          'Recuerda: Aegislash levanta Wide Guard en Turno 1 y Turno 3. Usa Air Slash / Solar Beam / Dragon Claw esos turnos y reserva Heat Wave / Earthquake para los turnos pares.',
+          'Fíjate en el compás con el que alzan su defensa; golpear a destiempo desperdicia tu mejor turno.',
         ],
       };
     },
@@ -656,24 +668,25 @@ export const CHAPTERS: ChapterDefinition[] = [
     category: 'survival',
     number: 'CAPÍTULO B',
     title: 'Asedio en las Minas de Galar',
-    subtitle: 'Back-to-Back sin curación · Zapadores Rebeldes → Capitán Corrupto',
+    subtitle: 'Dos oleadas consecutivas sin tiempo para curar',
     tag: 'SUPERVIVENCIA · BACK-TO-BACK',
     format: 'singles',
     formatId: 'gen9customgame',
-    formatLabel: 'Back-to-Back · Persistencia',
-    difficulty: '2 Oleadas Consecutivas (HP/PP/Estados Persistentes)',
+    formatLabel: 'Supervivencia · 2 Oleadas',
+    difficulty: 'Supervivencia',
     description:
-      'Fuga por las Minas de Galar en dos combates encadenados por Ink sin curación intermedia. Sobrevive primero a los Zapadores Rebeldes (cuyo último Golem @ Custap Berry detona Explosión), cruza la escena del humo con tu desgaste real intacto y derrota al Capitán de la Guardia Corrupta.',
+      'Nivel Profundo 4. Las lámparas de gas parpadean entre el polvo de carbón y dos escuadrones bloquean la salida de la galería. Cada rasguño del primer choque te acompañará al segundo.',
     accentColor: 'amber',
-    featuredPokemon: ['Arcanine', 'Dragapult', 'Golem', 'Bisharp'],
-    rivalPreview: 'Oleada 1: Zapadores (Explosion) → Oleada 2: Capitán Corrupto',
+    showcaseSprite: { species: 'Dragapult', mode: 'player-ace' },
+    featuredPokemon: ['Dragapult', 'Arcanine', 'Corviknight'],
+    rivalPreview: 'Bloqueo de las Minas',
     rivalProfile: {
-      name: 'Zapadores y Capitán Corrupto',
-      title: 'Bloqueo de las Minas de Galar',
-      bio: 'Demolición coordinada en dos oleadas sin respiro: primero desgastan al objetivo con explosivos y luego rematan en la salida.',
+      name: 'Bloqueo de las Minas',
+      title: 'Zapadores y Guardia Corrupta',
+      bio: 'Operativo en dos fases diseñado para desgastar a cualquiera que intente escapar por los túneles profundos.',
       tacticalInsight:
-        'El daño, los estados y los PP perdidos en la primera oleada se arrastran íntegros a la segunda. Cuidado con una detonación suicida al final de la Oleada 1.',
-      archetypeTag: 'Supervivencia · Back-to-Back',
+        'Salir vivo de la primera oleada no basta si llegas sin aliento a la boca del túnel. Cuida cada recurso.',
+      archetypeTag: 'Supervivencia · Sin Curación',
     },
     inkSource: survivalGalarMinesInk,
     resolveBattleConfig: resolveMinesWave1Battle,
@@ -690,22 +703,22 @@ export const CHAPTERS: ChapterDefinition[] = [
     getEpilogue: (won: boolean) => {
       if (won) {
         return {
-          headline: '¡Fuga Exitosa de las Minas de Galar!',
+          headline: 'Aire Fresco Fuera de la Galería',
           subheadline:
-            'Superaste las dos oleadas consecutivas sin curación gestionando PS, estados y PP hasta el final.',
-          badgeText: 'SUPERVIVENCIA COMPLETADA · 2/2 OLEADAS',
+            'El humo gris queda atrás mientras tu escuadrón cruza la boca de la mina.',
+          badgeText: 'VICTORIA · CAPÍTULO B',
           paragraphs: [
-            'Dejaste atrás a los Zapadores Rebeldes y rompiste el bloqueo del Capitán Corrupto incluso con el desgaste heredado por BattlePersistenceManager.',
+            'Soportaste el estruendo de los túneles y rompiste el segundo cerco con las heridas aún abiertas. Nadie podrá sellar este paso otra vez.',
           ],
         };
       }
       return {
         headline: 'Atrapado en el Nivel Profundo 4',
         subheadline:
-          'El desgaste acumulado entre oleadas doblegó al escuadrón de fuga.',
-        badgeText: 'SUPERVIVENCIA FALLIDA · REINTENTAR',
+          'El desgaste acumulado entre ambas oleadas terminó doblando tus rodillas.',
+        badgeText: 'DERROTA · REINTENTAR',
         paragraphs: [
-          'Consejo clave: usa Protect o cambia a Dragapult (tipo Fantasma, inmune a Normal) cuando Golem baje de 35% PS o quede último para esquivar su Explosion sin perder piezas para la Oleada 2.',
+          'En una fuga sin descanso, cada punto de salud y cada PP cuentan para lo que aguarda tras el humo.',
         ],
       };
     },
@@ -717,46 +730,47 @@ export const CHAPTERS: ChapterDefinition[] = [
     category: 'archive',
     number: 'CAPÍTULO E',
     title: 'Reliquia de Silph Co.',
-    subtitle: 'El Archivista Real · Smogon Gen 1 OU Clásico vs. Mew & Mewtwo',
-    tag: 'ARCHIVO HISTÓRICO · GEN 1 RBY',
+    subtitle: 'Cinta sellada de la Era Antigua de Kanto',
+    tag: 'ARCHIVO · GEN 1',
     format: 'singles',
     formatId: 'gen1customgame',
-    formatLabel: 'Gen 1 OU vs Ubers',
-    difficulty: 'Era Antigua de Kanto (Sin objetos ni habilidades)',
+    formatLabel: 'Gen 1 · Clásico',
+    difficulty: 'Archivo Jefe',
     description:
-      'El Archivista Real carga una simulación nativa de Generación 1 (gen1customgame). Pilotea el equipo clásico de Smogon Gen 1 OU (Tauros, Chansey, Snorlax, Exeggutor, Starmie, Alakazam) contra la versión equilibrada de Mewtwo y Mew (sin Amnesia ni Recover).',
+      'En la bóveda subterránea del archivo, un monitor de fósforo verde despierta un registro prohibido de Kanto: las reglas originales, sin objetos ni habilidades, frente al mito de Mewtwo.',
     accentColor: 'slate',
-    featuredPokemon: ['Tauros', 'Alakazam', 'Mewtwo', 'Mew'],
-    rivalPreview: 'El Archivista Real · Mewtwo & Mew (Equilibrados) + Gen 1 OU',
+    showcaseSprite: { species: 'Mewtwo', mode: 'boss', label: 'Jefe' },
+    featuredPokemon: ['Mewtwo', 'Tauros', 'Alakazam'],
+    rivalPreview: 'El Archivista Real',
     rivalProfile: {
       name: 'El Archivista Real',
-      title: 'Custodio de la Reliquia de Silph Co.',
-      bio: 'Erudito que preserva cintas de combate de la Era Antigua de Kanto, donde no existían objetos ni habilidades y los críticos dependían de la Velocidad.',
+      title: 'Custodio de la Bóveda Silph',
+      bio: 'Erudito obsesionado con preservar los duelos de una época más cruda, donde la velocidad decidía los golpes críticos y no existían objetos.',
       tacticalInsight:
-        'En Gen 1 la Parálisis y el Sueño dominan el ritmo. Frena el Especial masivo de Mewtwo antes de que barra con críticos.',
-      archetypeTag: 'Archivo · Gen 1 RBY',
+        'Las reglas modernas no sirven aquí: en la Era Antigua, la parálisis, el sueño y el sacrificio calculado cambian el mundo entero.',
+      archetypeTag: 'Archivo · Era Antigua',
     },
     inkSource: archiveGen1SilphInk,
     resolveBattleConfig: resolveGen1SilphArchiveBattle,
     getEpilogue: (won: boolean) => {
       if (won) {
         return {
-          headline: '¡La Reliquia de Silph Co. Dominada!',
+          headline: 'La Reliquia de Silph Co. Dominada',
           subheadline:
-            'El control táctico de Gen 1 OU (parálisis, sueño y explosiones) venció al poder genético de Mew y Mewtwo.',
-          badgeText: 'ARCHIVO GEN 1 COMPLETADO',
+            'El monitor de fósforo verde parpadea en calma al cerrarse la simulación.',
+          badgeText: 'VICTORIA · ARCHIVO GEN 1',
           paragraphs: [
-            'El Archivista Real apaga el monitor de fósforo verde con admiración: «Incluso ante el poder bruto de la Era Antigua de Kanto, la estrategia clásica de Tauros, Chansey y Exeggutor sigue siendo inmortal.»',
+            'El Archivista Real se quita los lentes con una sonrisa de asombro: «Incluso frente al experimento más temido de Kanto, la vieja escuela no ha perdido un ápice de filo.»',
           ],
         };
       }
       return {
-        headline: 'Anomalía Genética Imparable',
+        headline: 'Presión Psíquica Imparable',
         subheadline:
-          'Mewtwo y Mew impusieron su estadística Especial y velocidad crítica de Primera Generación.',
-        badgeText: 'SIMULACIÓN FALLIDA · REINTENTAR',
+          'El poder bruto de la Era Antigua cerró el registro antes de tiempo.',
+        badgeText: 'DERROTA · REINTENTAR',
         paragraphs: [
-          'Usa a Chansey con Light Screen + Thunder Wave para frenar a Mewtwo, y aprovecha el Sleep Powder y Explosion de Exeggutor o Self-Destruct de Snorlax para derribar a las amenazas más duras.',
+          'En un mundo sin objetos ni habilidades, controlar el estado del rival pesa más que cualquier golpe aislado.',
         ],
       };
     },
@@ -768,46 +782,47 @@ export const CHAPTERS: ChapterDefinition[] = [
     category: 'anime',
     number: 'ARCHIVO ANIME',
     title: 'Liga de Sinnoh — Ash vs. Tobías',
-    subtitle: 'Conferencia del Valle Lirio (6v6 Nv. 60) · Omniboost «Espíritu de Sinnoh»',
-    tag: 'ARCHIVO ANIME · 6V6 OMNIBOOST',
+    subtitle: 'Semifinales de la Conferencia del Valle Lirio',
+    tag: 'ARCHIVO ANIME · 6V6',
     format: 'singles',
     formatId: 'gen9customgame',
-    formatLabel: '6v6 Singles · Omniboost',
-    difficulty: 'Kaizo Legendarios (Darkrai · Latios · Cresselia · Giratina-O)',
+    formatLabel: '6v6 Singles',
+    difficulty: 'Archivo',
     description:
-      'Revive el duelo más infame del anime a Nivel 60: pilota el equipo completo de Ash (Pikachu, Heracross, Sceptile, Swellow, Torkoal, Gible) con +2 Omniboost al Líder que elijas en Team Preview y Baton Pass, frente a Darkrai, Latios, Cresselia (Psych Up + Lunar Dance), Latias, Lucario y Giratina-Origin.',
+      'El estadio del Valle Lirio contiene el aliento. Un entrenador envuelto en rumores sube al podio frente a Ash y Pikachu, y nadie en las gradas sabe realmente qué guarda en su cinturón.',
     accentColor: 'purple',
-    featuredPokemon: ['Pikachu', 'Heracross', 'Darkrai', 'Giratina-Origin'],
-    rivalPreview: 'Tobías · Darkrai, Latios, Cresselia, Latias, Lucario, Giratina-Origin',
+    showcaseSprite: { species: 'Pikachu', mode: 'player-ace' },
+    featuredPokemon: ['Pikachu', 'Sceptile', 'Heracross', 'Swellow'],
+    rivalPreview: 'Tobías',
     rivalProfile: {
       name: 'Tobías',
-      title: 'El del Action Replay',
-      bio: 'Entrenador misterioso de la Conferencia del Valle Lirio. Nadie sabe de dónde sacó tantos legendarios; rumores hablan de un dispositivo prohibido.',
+      title: 'El Misterio del Valle Lirio',
+      bio: 'Participante silencioso que barrió los gimnasios de Sinnoh sin mostrar jamás su equipo completo. Las gradas solo murmuran leyendas sobre él.',
       tacticalInsight:
-        'Fuerza bruta de Ubers, pero con decisiones de entrenamiento cuestionables. Cuidado con su Cresselia: puede copiar tus mejoras si te confías.',
-      archetypeTag: 'Archivo: Anime',
+        'Su poder individual parece sacado de un mito, pero los combates largos siempre revelan grietas cuando alguien depende solo de su fama.',
+      archetypeTag: 'Archivo · Liga de Sinnoh',
     },
     inkSource: archiveAnimeTobiasInk,
     resolveBattleConfig: resolveAnimeAshVsTobiasBattle,
     getEpilogue: (won: boolean) => {
       if (won) {
         return {
-          headline: '¡Historia Reescrita en el Valle Lirio!',
+          headline: 'Historia Reescrita en el Valle Lirio',
           subheadline:
-            'Ash Ketchum derrumbó a los seis Pokémon de Tobías y alzó el pase a la final de Sinnoh.',
-          badgeText: 'ARCHIVO ANIME · VICTORIA HISTÓRICA',
+            'El estadio entero estalla cuando cae la última Poké Ball de Tobías.',
+          badgeText: 'VICTORIA · LIGA DE SINNOH',
           paragraphs: [
-            'El estadio entero estalla al ver caer a Giratina-Origin: «¡Ni siquiera un equipo entero de mitos y legendarios pudo frenar el Espíritu de Sinnoh y el trabajo en equipo de Ash!»',
+            'Pikachu salta al hombro de Ash mientras las gradas rugen como nunca antes. Por primera vez, el misterio de Tobías encontró un muro que no pudo derribar.',
           ],
         };
       }
       return {
-        headline: 'El Muro de Legendarios de Tobías',
+        headline: 'El Telón Cae en el Valle Lirio',
         subheadline:
-          'El poder bruto de Darkrai, Cresselia y Giratina-Origin volvió a sentenciar la semifinal.',
-        badgeText: 'DERROTA · REINTENTAR SEMIFINAL',
+          'El peso de los mitos volvió a inclinar la semifinal de Sinnoh.',
+        badgeText: 'DERROTA · REINTENTAR',
         paragraphs: [
-          'Consejo Kaizo: elige a Heracross (Sleep Talk contra Dark Void) o usa Swellow/Torkoal para pasar el +2 Omniboost con Baton Pass, y recuerda presionar a Cresselia antes de que copie tus boosts con Psych Up o use Lunar Dance.',
+          'Ahora conoces un poco más de lo que escondía tras esa capa oscura. Ajusta tu estrategia y vuelve a subir al podio.',
         ],
       };
     },

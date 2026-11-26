@@ -6,6 +6,7 @@ import { AISettingsModal } from './components/AISettingsModal';
 import { ArcadeView } from './components/ArcadeView';
 import { BattleArena } from './components/BattleArena';
 import { ChapterSelect } from './components/ChapterSelect';
+import { DevModeModal } from './components/DevModeModal';
 import { EpilogueView } from './components/EpilogueView';
 import { HomePage } from './components/HomePage';
 import { ShopView } from './components/ShopView';
@@ -20,7 +21,9 @@ import {
   subscribeAuthState,
 } from './engine/firebaseClient';
 import {
+  addDevCoins,
   applyBattleOutcomeToProfile,
+  applyDevUnlockEverything,
   awardArcadeCoins,
   loadLocalProfile,
   mergeCloudAndLocalProfiles,
@@ -29,8 +32,14 @@ import {
   purchaseShinyCharm,
   purchaseTM,
   recordChapterAttemptInProfile,
+  resetSpeciesCustomizations,
+  resetStoryProgress,
   saveLocalProfile,
+  setCustomItemForSpecies,
+  setCustomMoveForSpecies,
+  setDevModeEnabled,
   unlockChapterWithCoins,
+  unlockMoveSlotForSpecies,
   updateCustomTeamSlot,
 } from './engine/playerProfile';
 import type {
@@ -68,6 +77,7 @@ export default function App() {
     'local' | 'syncing' | 'synced' | 'error'
   >('local');
   const [accountModalOpen, setAccountModalOpen] = useState(false);
+  const [devModalOpen, setDevModalOpen] = useState(false);
 
   const [aiSettings, setAiSettings] = useState<AISettings>(() =>
     loadAISettings()
@@ -290,6 +300,53 @@ export default function App() {
     setProfile((prev) => awardArcadeCoins(prev, coins));
   }, []);
 
+  // Narrative Teambuilder progression wrappers
+  const handleUnlockMoveSlot = (species: string, slotIndex: number) => {
+    const res = unlockMoveSlotForSpecies(profileRef.current, species, slotIndex);
+    if (res.ok) setProfile(res.nextProfile);
+    return res;
+  };
+
+  const handleSetCustomMove = (
+    species: string,
+    slotIndex: number,
+    moveName: string
+  ) => {
+    const res = setCustomMoveForSpecies(
+      profileRef.current,
+      species,
+      slotIndex,
+      moveName
+    );
+    if (res.ok) setProfile(res.nextProfile);
+    return res;
+  };
+
+  const handleSetCustomItem = (species: string, itemName: string) => {
+    setProfile((prev) => setCustomItemForSpecies(prev, species, itemName));
+  };
+
+  const handleResetSpecies = (species: string) => {
+    setProfile((prev) => resetSpeciesCustomizations(prev, species));
+  };
+
+  // Dev Mode sandbox wrappers
+  const handleDevUnlockEverything = () => {
+    setProfile((prev) => applyDevUnlockEverything(prev));
+  };
+
+  const handleDevAddMillionCoins = () => {
+    setProfile((prev) => addDevCoins(prev, 1000000));
+  };
+
+  const handleDevToggle = (enabled: boolean) => {
+    setProfile((prev) => setDevModeEnabled(prev, enabled));
+  };
+
+  const handleResetStory = () => {
+    setProfile((prev) => resetStoryProgress(prev));
+  };
+
   let view: React.ReactNode = null;
 
   if (screen === 'home') {
@@ -302,6 +359,7 @@ export default function App() {
         onOpenArcade={() => setScreen('arcade')}
         onOpenAccount={() => setAccountModalOpen(true)}
         onOpenAISettings={() => setAiModalOpen(true)}
+        onOpenDevMode={() => setDevModalOpen(true)}
         onQuickStartMainChapter={() => startChapter(CHAPTERS[0])}
         profile={profile}
         firebaseUser={firebaseUser}
@@ -318,6 +376,7 @@ export default function App() {
         onOpenTeamEditor={() => setScreen('team-editor')}
         onOpenArcade={() => setScreen('arcade')}
         onOpenAccount={() => setAccountModalOpen(true)}
+        onOpenDevMode={() => setDevModalOpen(true)}
         onSelectChapter={startChapter}
         onUnlockChapterWithCoins={handleUnlockChapterWithCoins}
         profile={profile}
@@ -387,7 +446,12 @@ export default function App() {
         config={resolvedConfig}
         profile={profile}
         onReplayVN={() => setScreen('vn')}
-        onOpenTeamEditor={() => setScreen('team-editor')}
+        onOpenShop={() => setScreen('shop')}
+        onOpenDevMode={() => setDevModalOpen(true)}
+        onUnlockMoveSlot={handleUnlockMoveSlot}
+        onSetCustomMove={handleSetCustomMove}
+        onSetCustomItem={handleSetCustomItem}
+        onResetSpecies={handleResetSpecies}
         onLaunchBattle={handleLaunchBattle}
       />
     );
@@ -470,6 +534,15 @@ export default function App() {
         cloudSyncStatus={cloudSyncStatus}
         onForceCloudSync={handleForceCloudSync}
         onFirebaseConfigUpdated={() => setFirebaseConfigEpoch((e) => e + 1)}
+      />
+      <DevModeModal
+        open={devModalOpen}
+        onClose={() => setDevModalOpen(false)}
+        profile={profile}
+        onUnlockEverything={handleDevUnlockEverything}
+        onAddMillionCoins={handleDevAddMillionCoins}
+        onToggleDevMode={handleDevToggle}
+        onResetStoryProgress={handleResetStory}
       />
     </>
   );

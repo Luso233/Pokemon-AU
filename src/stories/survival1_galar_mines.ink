@@ -4,29 +4,29 @@ VAR wave1_alive = 4
 -> tunel_entrada
 
 === tunel_entrada ===
-Minas de Galar, Nivel Profundo 4. Las lámparas de gas parpadean entre el polvo de carbón mientras una barricada de barriles explosivos sella el túnel de fuga. # bg: galar-mines # speaker: Narrador # char: prince # side: left # pokemon: arcanine # mood: serious
-"¡Alto ahí, Alteza! Somos los Zapadores Rebeldes. Si no podemos atraparte, derrumbaremos toda la galería contigo dentro." # bg: galar-mines # speaker: Jefe Zapador Rebelde # char: mine_sapper # side: right # pokemon: golem # mood: confident
-"¡Y escucha bien! Nuestro Golem con Baya Chiri tiene órdenes de detonar Explosión en cuanto caiga por debajo del 35% de PS o quede solo en pie. ¡Si sobrevives al derrumbe, la Guardia Corrupta te espera al otro lado sin tiempo para curarte!" # bg: galar-mines # speaker: Jefe Zapador Rebelde # char: mine_sapper # side: right # pokemon: golem # mood: confident
-"Dos combates seguidos sin Centro Pokémon ni pociones... Todo el daño, estado y PP que gaste contra los Zapadores se arrastrará contra el Capitán de la Guardia. Debo guardar a Dragapult (Fantasma) o usar Protección cuando salga Golem." # bg: galar-mines # speaker: Príncipe Heredero # char: prince # side: left # pokemon: dragapult # mood: serious
+Minas de Galar, Nivel Profundo 4. Las lámparas de gas tiemblan colgadas de vigas viejas mientras el polvo de carbón flota espeso bajo la bóveda de roca. Más adelante, una barricada improvisada de barriles y vagonetas volcadas sella el túnel de escape. # bg: galar-mines # speaker: Narrador # char: prince # side: left # pokemon: arcanine # mood: serious
+Entre las sombras del andén surgen cascos tiznados y mechas encendidas chisporroteando en el suelo. El jefe de los zapadores apoya la bota sobre un cajón marcado con pólvora y silba hacia el fondo del corredor. # bg: galar-mines # speaker: Narrador # char: mine_sapper # side: right # pokemon: none # mood: confident
+«Hasta aquí llegó su paseo subterráneo, Alteza. Si no logra pasar por encima de nosotros, derrumbaremos el túnel entero sobre sus cabezas.» # bg: galar-mines # speaker: Jefe Zapador Rebelde # char: mine_sapper # side: right # pokemon: none # mood: confident
+Al fondo de la galería, más allá del polvo, se distinguen linternas disciplinadas y el golpe acompasado de botas militares acercándose por la boca de salida. Si rompes esta barricada, no habrá un segundo para detenerse ni curar heridas antes del siguiente choque. # bg: galar-mines # speaker: Narrador # char: prince # side: left # pokemon: dragapult # mood: serious
+Uno de los zapadores acaricia una Poké Ball pesada con una sonrisa demente, revisando el cable de detonación en su cinturón. ¿Con quién rompes primero el bloqueo? # bg: galar-mines # speaker: Narrador # char: prince # side: left # pokemon: arcanine # mood: serious
 
-* [Abrir con Arcanine (Intimidación + Protección para baitear Explosión)]
+* [Abrir paso con Arcanine para imponer presencia en el corredor estrecho]
     ~ mines_lead = "arcanine"
-    "Arcanine, encabeza la fuga y controla el ataque físico de los Zapadores." # bg: galar-mines # speaker: Príncipe Heredero # char: prince # side: left # pokemon: arcanine # mood: confident
+    «Arcanine, al frente. Abre brecha rápido y no te regales si ves que se acorralan.» # bg: galar-mines # speaker: Príncipe Heredero # char: prince # side: left # pokemon: arcanine # mood: confident
     -> oleada_uno
-* [Abrir con Corviknight (Muralla Acero resistente a Roca y Explosión)]
+* [Abrir paso con Corviknight confiando en su coraza entre las rocas]
     ~ mines_lead = "corviknight"
-    "Corviknight, tu armadura de Acero amortiguará tanto las rocas como cualquier detonación." # bg: galar-mines # speaker: Príncipe Heredero # char: prince # side: left # pokemon: corviknight # mood: confident
+    «Corviknight, tú primero. Aguanta la lluvia de escombros y guarda fuerzas para lo que espera afuera.» # bg: galar-mines # speaker: Príncipe Heredero # char: prince # side: left # pokemon: corviknight # mood: confident
     -> oleada_uno
 
 === oleada_uno ===
-¡OLEADA 1: ZAPADORES REBELDES! Tu estado real de PS, PP y estados alterados se guardará al terminar para el Combate 2 sin curación. # bg: galar-mines # speaker: Sistema Táctico # char: mine_sapper # side: right # pokemon: excadrill # mood: serious # START_BATTLE: mines_wave1
+Los zapadores arrojan sus cápsulas entre chispas de pólvora y el eco de la mina se cierra detrás de ti. # bg: galar-mines # speaker: Narrador # char: mine_sapper # side: right # pokemon: none # mood: serious # START_BATTLE: mines_wave1
 -> humo_intermedio
 
 === humo_intermedio ===
-El estruendo de los explosivos sacude las vigas de hierro. El humo gris se disipa lentamente por la galería mientras los Zapadores huyen hacia las vías laterales. # bg: galar-mines # speaker: Narrador # char: prince # side: left # pokemon: dragapult # mood: serious # clear: right
-"Agh... no hay tiempo para curar al equipo. El desgaste, las heridas y los PP gastados siguen exactamente igual..." # bg: galar-mines # speaker: Príncipe Heredero # char: prince # side: left # pokemon: arcanine # mood: serious
-Unas botas blindadas resuenan desde la boca del túnel. Del humo emerge el Capitán de la Guardia Corrupta con tres Pokémon completamente frescos. # bg: galar-mines # speaker: Narrador # char: corrupt_captain # side: right # pokemon: corviknight # mood: serious
-"Buen trabajo despejando los escombros por mí, Príncipe. Mis hombres han recibido órdenes de no dejar testigos... y tu escuadrón ya está agotado." # bg: galar-mines # speaker: Capitán de la Guardia Corrupta # char: corrupt_captain # side: right # pokemon: bisharp # mood: confident
-"¡Corviknight, Grimmsnarl, Bisharp — cierren la salida!" # bg: galar-mines # speaker: Capitán de la Guardia Corrupta # char: corrupt_captain # side: right # pokemon: grimmsnarl # mood: confident
-¡OLEADA 2 (SIN CURACIÓN): CAPITÁN DE LA GUARDIA CORRUPTA! BattlePersistenceManager inyecta tus PS, estados, bajas y PP exactos heredados de la Oleada 1. # bg: galar-mines # speaker: Sistema Táctico # char: corrupt_captain # side: right # pokemon: bisharp # mood: serious # START_BATTLE: mines_wave2 --persist=true
+Un estruendo seco sacude las vigas del techo y deja caer una cortina de grava fina sobre los rieles. El humo gris se arrastra lento por la galería mientras los zapadores huyen hacia los túneles laterales. # bg: galar-mines # speaker: Narrador # char: prince # side: left # pokemon: dragapult # mood: serious # clear: right
+Tu escuadrón respira agitado entre la ceniza. Las heridas, el cansancio y el desgaste del choque anterior siguen intactos sobre cada uno de tus compañeros, y no queda ni un frasco de medicina en el bolsillo. # bg: galar-mines # speaker: Narrador # char: prince # side: left # pokemon: arcanine # mood: serious
+Desde la boca del túnel avanzan pasos lentos y firmes. Las linternas cortan el humo revelando la capa oscura del Capitán de la Guardia Corrupta, impecable y con su cinturón intacto. # bg: galar-mines # speaker: Narrador # char: corrupt_captain # side: right # pokemon: none # mood: serious
+«Gracias por quitarme de encima el polvo, Alteza.» El Capitán desenfunda su primera Poké Ball con calma helada. «Recibí órdenes de que nadie salga vivo de este nivel... y veo que ya vienen sin aliento.» # bg: galar-mines # speaker: Capitán de la Guardia Corrupta # char: corrupt_captain # side: right # pokemon: none # mood: confident
+El humo se cierra de nuevo sobre los rieles mientras el segundo cerco avanza sin darte tregua. # bg: galar-mines # speaker: Narrador # char: corrupt_captain # side: right # pokemon: none # mood: serious # START_BATTLE: mines_wave2 --persist=true
 -> END
