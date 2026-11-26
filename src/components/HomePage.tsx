@@ -1,38 +1,57 @@
 import React from 'react';
+import type { User } from 'firebase/auth';
 import {
   BookOpen,
+  Cloud,
+  CloudOff,
+  Coins,
   Cpu,
   Crown,
+  Gamepad2,
   GitBranch,
   Play,
   Settings2,
   Shield,
+  ShoppingBag,
   Sparkles,
   Swords,
   Wand2,
+  Wrench,
 } from 'lucide-react';
 import { getActiveProviderLabel } from '../engine/aiProvider';
 import { CharacterPortrait } from './CharacterPortrait';
-import type { AISettings, ChapterProgress } from '../types/game';
+import type { AISettings, PlayerSaveProfile } from '../types/game';
 
 interface HomePageProps {
   onOpenChapters: () => void;
   onOpenVersus: () => void;
+  onOpenShop: () => void;
+  onOpenTeamEditor: () => void;
+  onOpenArcade: () => void;
+  onOpenAccount: () => void;
   onOpenAISettings: () => void;
   onQuickStartMainChapter: () => void;
-  progress: Record<string, ChapterProgress>;
+  profile: PlayerSaveProfile;
+  firebaseUser: User | null;
+  cloudSyncStatus: 'local' | 'syncing' | 'synced' | 'error';
   aiSettings: AISettings;
 }
 
 export const HomePage: React.FC<HomePageProps> = ({
   onOpenChapters,
   onOpenVersus,
+  onOpenShop,
+  onOpenTeamEditor,
+  onOpenArcade,
+  onOpenAccount,
   onOpenAISettings,
   onQuickStartMainChapter,
-  progress,
+  profile,
+  firebaseUser,
+  cloudSyncStatus,
   aiSettings,
 }) => {
-  const completedCount = Object.values(progress).filter(
+  const completedCount = Object.values(profile.completedChapters).filter(
     (p) => p.completed
   ).length;
 
@@ -69,34 +88,54 @@ export const HomePage: React.FC<HomePageProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          {completedCount > 0 && (
-            <span className="hidden items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300 md:inline-flex">
-              <Sparkles className="h-3.5 w-3.5" />
-              {completedCount} capítulo{completedCount > 1 ? 's' : ''} completado
-              {completedCount > 1 ? 's' : ''}
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={onOpenShop}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-amber-400/45 bg-amber-500/15 px-3 py-2 text-xs font-extrabold text-amber-200 transition hover:bg-amber-500/25 cursor-pointer"
+          >
+            <Coins className="h-3.5 w-3.5 text-amber-400" />
+            <span className="font-mono-code">
+              {profile.coins.toLocaleString()} PC
             </span>
-          )}
+          </button>
+
+          <button
+            onClick={onOpenAccount}
+            className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition cursor-pointer ${
+              firebaseUser
+                ? 'border-emerald-400/45 bg-emerald-500/15 text-emerald-200 hover:bg-emerald-500/25'
+                : 'border-slate-700 bg-slate-900/80 text-slate-200 hover:border-amber-400/50'
+            }`}
+          >
+            {firebaseUser ? (
+              <Cloud className="h-3.5 w-3.5 text-emerald-400" />
+            ) : (
+              <CloudOff className="h-3.5 w-3.5 text-slate-400" />
+            )}
+            <span className="hidden sm:inline">
+              {firebaseUser
+                ? `${firebaseUser.displayName || profile.displayName}${
+                    cloudSyncStatus === 'syncing' ? ' · ...' : ''
+                  }`
+                : 'Cuenta / Nube'}
+            </span>
+            <span className="sm:hidden">Cuenta</span>
+          </button>
+
           <button
             onClick={onOpenAISettings}
             className="inline-flex items-center gap-1.5 rounded-xl border border-sky-400/35 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-200 transition hover:bg-sky-500/20 cursor-pointer"
           >
             <Settings2 className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">{getActiveProviderLabel(aiSettings)}</span>
-            <span className="sm:hidden">IA</span>
+            <span className="hidden lg:inline">{getActiveProviderLabel(aiSettings)}</span>
+            <span className="lg:hidden">IA</span>
           </button>
-          <button
-            onClick={onOpenVersus}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-rose-400/40 bg-rose-500/15 px-3.5 py-2 text-xs font-bold text-rose-200 transition hover:bg-rose-500/25 cursor-pointer"
-          >
-            <Wand2 className="h-3.5 w-3.5" />
-            Modo Versus
-          </button>
+
           <button
             onClick={onOpenChapters}
-            className="rounded-xl border border-slate-700/80 bg-slate-900/70 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-amber-400/50 hover:text-amber-200 cursor-pointer"
+            className="rounded-xl border border-slate-700/80 bg-slate-900/70 px-3.5 py-2 text-xs font-semibold text-slate-200 transition hover:border-amber-400/50 hover:text-amber-200 cursor-pointer"
           >
-            Capítulos
+            Capítulos ({completedCount}/15)
           </button>
         </div>
       </header>
@@ -153,6 +192,31 @@ export const HomePage: React.FC<HomePageProps> = ({
               >
                 <BookOpen className="h-4 w-4" />
                 Selector de Capítulos
+              </button>
+            </div>
+
+            {/* Economy & Progression Quick Strip */}
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                onClick={onOpenShop}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-amber-400/35 bg-amber-500/10 px-3.5 py-2 text-xs font-bold text-amber-200 transition hover:bg-amber-500/20 cursor-pointer"
+              >
+                <ShoppingBag className="h-3.5 w-3.5" />
+                Tienda & Shiny Charms ({profile.inventory.shinyCharms}/6)
+              </button>
+              <button
+                onClick={onOpenTeamEditor}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-sky-400/35 bg-sky-500/10 px-3.5 py-2 text-xs font-bold text-sky-200 transition hover:bg-sky-500/20 cursor-pointer"
+              >
+                <Wrench className="h-3.5 w-3.5" />
+                Editor de Equipo
+              </button>
+              <button
+                onClick={onOpenArcade}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-400/35 bg-emerald-500/10 px-3.5 py-2 text-xs font-bold text-emerald-200 transition hover:bg-emerald-500/20 cursor-pointer"
+              >
+                <Gamepad2 className="h-3.5 w-3.5" />
+                Arcade Flash (Farmear PC)
               </button>
             </div>
 

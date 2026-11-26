@@ -5,6 +5,7 @@ interface PokemonSpriteProps {
   species: string;
   side?: 'p1' | 'p2';
   animated?: boolean;
+  shiny?: boolean;
   className?: string;
   alt?: string;
 }
@@ -13,10 +14,11 @@ export const PokemonSprite: React.FC<PokemonSpriteProps> = ({
   species,
   side = 'p2',
   animated = true,
+  shiny = false,
   className = '',
   alt,
 }) => {
-  const sprite = getPokemonSprite(species, side, animated);
+  const sprite = getPokemonSprite(species, side, animated, shiny);
   const [src, setSrc] = useState(sprite.url);
   const [failed, setFailed] = useState(false);
 

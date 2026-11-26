@@ -282,6 +282,8 @@ export class ShowdownBattleController {
   private triggeredRuleIds = new Set<string>();
   private p1HappinessBySpecies = new Map<string, number>();
   private p2HappinessBySpecies = new Map<string, number>();
+  private p1ShinySpecies = new Set<string>();
+  private p2ShinySpecies = new Set<string>();
   private p2ActiveTurns: number[] = [];
   private p1PreviewPokes: Array<{
     species: string;
@@ -909,23 +911,33 @@ export class ShowdownBattleController {
     const p2Packed = Teams.pack(p2Sets);
 
     this.p1HappinessBySpecies.clear();
+    this.p1ShinySpecies.clear();
     for (const s of p1Sets) {
+      const sp = Dex.species.get(s.species);
       if (typeof s.happiness === 'number') {
-        const sp = Dex.species.get(s.species);
         this.p1HappinessBySpecies.set(toID(s.species), s.happiness);
         if (sp.exists) {
           this.p1HappinessBySpecies.set(toID(sp.baseSpecies), s.happiness);
         }
       }
+      if (s.shiny) {
+        this.p1ShinySpecies.add(toID(s.species));
+        if (sp.exists) this.p1ShinySpecies.add(toID(sp.baseSpecies));
+      }
     }
     this.p2HappinessBySpecies.clear();
+    this.p2ShinySpecies.clear();
     for (const s of p2Sets) {
+      const sp = Dex.species.get(s.species);
       if (typeof s.happiness === 'number') {
-        const sp = Dex.species.get(s.species);
         this.p2HappinessBySpecies.set(toID(s.species), s.happiness);
         if (sp.exists) {
           this.p2HappinessBySpecies.set(toID(sp.baseSpecies), s.happiness);
         }
+      }
+      if (s.shiny) {
+        this.p2ShinySpecies.add(toID(s.species));
+        if (sp.exists) this.p2ShinySpecies.add(toID(sp.baseSpecies));
       }
     }
 
@@ -1312,6 +1324,14 @@ export class ShowdownBattleController {
         revealedMoves: prev?.revealedMoves ?? {},
         volatiles: mon.active ? prev?.volatiles ?? [] : [],
         isBossAce: false,
+        shiny:
+          mon.details.includes(', shiny') ||
+          (sideKey === 'p1' ? this.p1ShinySpecies : this.p2ShinySpecies).has(
+            toID(det.species)
+          ) ||
+          (sideKey === 'p1' ? this.p1ShinySpecies : this.p2ShinySpecies).has(
+            toID(speciesData.baseSpecies)
+          ),
         happiness:
           (sideKey === 'p1'
             ? this.p1HappinessBySpecies
@@ -1750,6 +1770,13 @@ export class ShowdownBattleController {
           happinessMap.get(toID(det.species)) ??
           happinessMap.get(toID(speciesData.baseSpecies));
 
+        const shinySet =
+          side === 'p1' ? this.p1ShinySpecies : this.p2ShinySpecies;
+        const isMonShiny =
+          (parts[3] ?? '').includes(', shiny') ||
+          shinySet.has(toID(det.species)) ||
+          shinySet.has(toID(speciesData.baseSpecies));
+
         // If Open Teamsheet is active (e.g. VGC Worlds), pre-populate rival's known item/ability/tera!
         const openRivalMatch =
           side === 'p2' && this.state.openTeamsheet.enabled
@@ -1793,6 +1820,7 @@ export class ShowdownBattleController {
             volatiles: passedVolatiles,
             isBossAce: side === 'p2' && det.level > this.state.levelCap,
             happiness: configuredHappiness,
+            shiny: isMonShiny,
           };
           sideState.party.push(existing);
         } else {
@@ -1815,6 +1843,9 @@ export class ShowdownBattleController {
           existing.isBossAce = side === 'p2' && det.level > this.state.levelCap;
           if (configuredHappiness !== undefined) {
             existing.happiness = configuredHappiness;
+          }
+          if (isMonShiny) {
+            existing.shiny = true;
           }
         }
 

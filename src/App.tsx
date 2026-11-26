@@ -1,36 +1,51 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import type { User } from 'firebase/auth';
 import { CHAPTERS } from './data/chapters';
+import { AccountModal } from './components/AccountModal';
 import { AISettingsModal } from './components/AISettingsModal';
+import { ArcadeView } from './components/ArcadeView';
 import { BattleArena } from './components/BattleArena';
 import { ChapterSelect } from './components/ChapterSelect';
 import { EpilogueView } from './components/EpilogueView';
 import { HomePage } from './components/HomePage';
+import { ShopView } from './components/ShopView';
 import { TeambuilderBriefing } from './components/TeambuilderBriefing';
+import { TeamEditorView } from './components/TeamEditorView';
 import { VersusModeView } from './components/VersusModeView';
 import { VisualNovelView } from './components/VisualNovelView';
 import { loadAISettings, saveAISettings } from './engine/aiProvider';
+import {
+  loadCloudProfile,
+  saveCloudProfile,
+  subscribeAuthState,
+} from './engine/firebaseClient';
+import {
+  applyBattleOutcomeToProfile,
+  awardArcadeCoins,
+  loadLocalProfile,
+  mergeCloudAndLocalProfiles,
+  purchaseHeldItem,
+  purchasePokemon,
+  purchaseShinyCharm,
+  purchaseTM,
+  recordChapterAttemptInProfile,
+  saveLocalProfile,
+  unlockChapterWithCoins,
+  updateCustomTeamSlot,
+} from './engine/playerProfile';
 import type {
   AISettings,
+  BattleRewardSummary,
   BattleSnapshot,
   ChapterDefinition,
-  ChapterProgress,
+  CustomTeamMember,
   MidStoryBattleRequest,
   PersistedPartyState,
+  PlayerSaveProfile,
   ResolvedBattleConfig,
   ScreenView,
   StoryFlags,
 } from './types/game';
-
-const STORAGE_KEY = 'galar-crown-vn-progress-v1';
-
-function loadProgress(): Record<string, ChapterProgress> {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as Record<string, ChapterProgress>) : {};
-  } catch {
-    return {};
-  }
-}
 
 export default function App() {
   const [screen, setScreen] = useState<ScreenView>('home');
@@ -42,9 +57,18 @@ export default function App() {
   const [battleOutcome, setBattleOutcome] = useState<{
     won: boolean;
     snapshot: BattleSnapshot | null;
-  }>({ won: false, snapshot: null });
-  const [progress, setProgress] =
-    useState<Record<string, ChapterProgress>>(loadProgress);
+    reward: BattleRewardSummary | null;
+  }>({ won: false, snapshot: null, reward: null });
+
+  // Unified Player Save Profile (LocalStorage + Cloud Firestore users/{uid})
+  const [profile, setProfile] = useState<PlayerSaveProfile>(loadLocalProfile);
+  const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
+  const [firebaseConfigEpoch, setFirebaseConfigEpoch] = useState(0);
+  const [cloudSyncStatus, setCloudSyncStatus] = useState<
+    'local' | 'syncing' | 'synced' | 'error'
+  >('local');
+  const [accountModalOpen, setAccountModalOpen] = useState(false);
+
   const [aiSettings, setAiSettings] = useState<AISettings>(() =>
     loadAISettings()
   );
@@ -55,17 +79,75 @@ export default function App() {
   const [persistedPartyState, setPersistedPartyState] =
     useState<PersistedPartyState | null>(null);
 
+  const profileRef = useRef(profile);
+  profileRef.current = profile;
+
+  // Persist locally on every profile update
   useEffect(() => {
+    saveLocalProfile(profile);
+  }, [profile]);
+
+  // Observe Firebase Auth state & sync Firestore profile on login
+  useEffect(() => {
+    const unsub = subscribeAuthState((user) => {
+      setFirebaseUser(user);
+      if (!user) {
+        setCloudSyncStatus('local');
+        return;
+      }
+      setCloudSyncStatus('syncing');
+      void loadCloudProfile(user.uid)
+        .then(async (cloudData) => {
+          const merged = mergeCloudAndLocalProfiles(
+            {
+              ...profileRef.current,
+              displayName:
+                user.displayName || profileRef.current.displayName || 'Entrenador',
+              email: user.email || profileRef.current.email || '',
+            },
+            cloudData
+          );
+          setProfile(merged);
+          await saveCloudProfile(user.uid, merged);
+          setCloudSyncStatus('synced');
+        })
+        .catch(() => {
+          setCloudSyncStatus('error');
+        });
+    });
+    return () => unsub();
+  }, [firebaseConfigEpoch]);
+
+  // Debounced auto-save to Cloud Firestore whenever profile changes while signed in
+  useEffect(() => {
+    if (!firebaseUser) return;
+    const timer = window.setTimeout(() => {
+      setCloudSyncStatus('syncing');
+      void saveCloudProfile(firebaseUser.uid, profile)
+        .then(() => setCloudSyncStatus('synced'))
+        .catch(() => setCloudSyncStatus('error'));
+    }, 650);
+    return () => window.clearTimeout(timer);
+  }, [profile, firebaseUser]);
+
+  const handleForceCloudSync = useCallback(async () => {
+    if (!firebaseUser) return;
+    setCloudSyncStatus('syncing');
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+      await saveCloudProfile(firebaseUser.uid, profileRef.current);
+      setCloudSyncStatus('synced');
     } catch {
-      // ignore storage errors
+      setCloudSyncStatus('error');
     }
-  }, [progress]);
+  }, [firebaseUser]);
 
   const handleSaveAISettings = (next: AISettings) => {
     setAiSettings(next);
     saveAISettings(next);
+  };
+
+  const recordChapterAttempt = (chapterId: string) => {
+    setProfile((prev) => recordChapterAttemptInProfile(prev, chapterId));
   };
 
   const startChapter = (chapter: ChapterDefinition) => {
@@ -74,23 +156,6 @@ export default function App() {
     setSuspendedInkState(null);
     setPersistedPartyState(null);
     setScreen('vn');
-  };
-
-  const recordChapterAttempt = (chapterId: string) => {
-    setProgress((prev) => {
-      const existing = prev[chapterId] ?? {
-        completed: false,
-        victories: 0,
-        attempts: 0,
-      };
-      return {
-        ...prev,
-        [chapterId]: {
-          ...existing,
-          attempts: (existing.attempts ?? 0) + 1,
-        },
-      };
-    });
   };
 
   const handleFinishVN = (flags: StoryFlags) => {
@@ -152,27 +217,78 @@ export default function App() {
       return;
     }
 
-    setBattleOutcome({ won, snapshot });
+    let earnedReward: BattleRewardSummary | null = null;
     setSuspendedInkState(null);
+
     if (!resolvedConfig?.isVersusMatch) {
-      setProgress((prev) => {
-        const existing = prev[activeChapter.id] ?? {
-          completed: false,
-          victories: 0,
-        };
-        return {
-          ...prev,
-          [activeChapter.id]: {
-            completed: existing.completed || won,
-            victories: existing.victories + (won ? 1 : 0),
-            lastOutcome: won ? 'win' : 'loss',
-            lastFlags: resolvedConfig?.flags,
-          },
-        };
-      });
+      const res = applyBattleOutcomeToProfile(
+        profileRef.current,
+        activeChapter.id,
+        won,
+        snapshot.turn,
+        resolvedConfig?.flags
+      );
+      earnedReward = res.reward;
+      setProfile(res.nextProfile);
+    } else if (won && resolvedConfig.p2Control !== 'human') {
+      // Friendly coin bonus for winning Versus AI matches!
+      setProfile((prev) => awardArcadeCoins(prev, 250));
+      earnedReward = {
+        coinsEarned: 250,
+        firstClearBonus: 0,
+        replayBonus: 250,
+        lowResetBonus: 0,
+        newlyUnlockedChapterIds: [],
+      };
     }
+
+    setBattleOutcome({ won, snapshot, reward: earnedReward });
     setScreen('epilogue');
   };
+
+  // Economy action wrappers
+  const handleUnlockChapterWithCoins = (chapterId: string) => {
+    const res = unlockChapterWithCoins(profileRef.current, chapterId);
+    if (res.ok) setProfile(res.nextProfile);
+    return res;
+  };
+
+  const handleBuyPokemon = (species: string) => {
+    const res = purchasePokemon(profileRef.current, species);
+    if (res.ok) setProfile(res.nextProfile);
+    return res;
+  };
+
+  const handleBuyItem = (itemName: string) => {
+    const res = purchaseHeldItem(profileRef.current, itemName);
+    if (res.ok) setProfile(res.nextProfile);
+    return res;
+  };
+
+  const handleBuyTM = (moveName: string) => {
+    const res = purchaseTM(profileRef.current, moveName);
+    if (res.ok) setProfile(res.nextProfile);
+    return res;
+  };
+
+  const handleBuyShinyCharm = () => {
+    const res = purchaseShinyCharm(profileRef.current);
+    if (res.ok) setProfile(res.nextProfile);
+    return res;
+  };
+
+  const handleUpdateCustomSlot = (
+    slotIndex: number,
+    member: CustomTeamMember
+  ) => {
+    const res = updateCustomTeamSlot(profileRef.current, slotIndex, member);
+    if (res.ok) setProfile(res.nextProfile);
+    return res;
+  };
+
+  const handleAwardArcadeCoins = useCallback((coins: number) => {
+    setProfile((prev) => awardArcadeCoins(prev, coins));
+  }, []);
 
   let view: React.ReactNode = null;
 
@@ -181,9 +297,15 @@ export default function App() {
       <HomePage
         onOpenChapters={() => setScreen('chapters')}
         onOpenVersus={() => setScreen('versus')}
+        onOpenShop={() => setScreen('shop')}
+        onOpenTeamEditor={() => setScreen('team-editor')}
+        onOpenArcade={() => setScreen('arcade')}
+        onOpenAccount={() => setAccountModalOpen(true)}
         onOpenAISettings={() => setAiModalOpen(true)}
         onQuickStartMainChapter={() => startChapter(CHAPTERS[0])}
-        progress={progress}
+        profile={profile}
+        firebaseUser={firebaseUser}
+        cloudSyncStatus={cloudSyncStatus}
         aiSettings={aiSettings}
       />
     );
@@ -192,8 +314,51 @@ export default function App() {
       <ChapterSelect
         onBackHome={() => setScreen('home')}
         onOpenVersus={() => setScreen('versus')}
+        onOpenShop={() => setScreen('shop')}
+        onOpenTeamEditor={() => setScreen('team-editor')}
+        onOpenArcade={() => setScreen('arcade')}
+        onOpenAccount={() => setAccountModalOpen(true)}
         onSelectChapter={startChapter}
-        progress={progress}
+        onUnlockChapterWithCoins={handleUnlockChapterWithCoins}
+        profile={profile}
+      />
+    );
+  } else if (screen === 'shop') {
+    view = (
+      <ShopView
+        profile={profile}
+        onBackHome={() => setScreen('home')}
+        onOpenTeamEditor={() => setScreen('team-editor')}
+        onOpenArcade={() => setScreen('arcade')}
+        onBuyPokemon={handleBuyPokemon}
+        onBuyItem={handleBuyItem}
+        onBuyTM={handleBuyTM}
+        onBuyShinyCharm={handleBuyShinyCharm}
+      />
+    );
+  } else if (screen === 'team-editor') {
+    view = (
+      <TeamEditorView
+        profile={profile}
+        onBackHome={() => setScreen('home')}
+        onOpenShop={() => setScreen('shop')}
+        onUpdateSlot={handleUpdateCustomSlot}
+        onToggleUseCustomTeam={(enabled) =>
+          setProfile((prev) => ({
+            ...prev,
+            useCustomTeamInStory: enabled,
+            updatedAt: new Date().toISOString(),
+          }))
+        }
+      />
+    );
+  } else if (screen === 'arcade') {
+    view = (
+      <ArcadeView
+        profile={profile}
+        onBackHome={() => setScreen('home')}
+        onOpenShop={() => setScreen('shop')}
+        onAwardCoins={handleAwardArcadeCoins}
       />
     );
   } else if (screen === 'versus') {
@@ -220,7 +385,9 @@ export default function App() {
     view = (
       <TeambuilderBriefing
         config={resolvedConfig}
+        profile={profile}
         onReplayVN={() => setScreen('vn')}
+        onOpenTeamEditor={() => setScreen('team-editor')}
         onLaunchBattle={handleLaunchBattle}
       />
     );
@@ -231,7 +398,10 @@ export default function App() {
         aiSettings={aiSettings}
         attemptNumber={
           !resolvedConfig.isVersusMatch
-            ? Math.max(1, progress[activeChapter.id]?.attempts ?? 1)
+            ? Math.max(
+                1,
+                profile.completedChapters[activeChapter.id]?.attempts ?? 1
+              )
             : undefined
         }
         onRetryAttempt={
@@ -253,9 +423,13 @@ export default function App() {
         config={resolvedConfig}
         won={battleOutcome.won}
         battleSummary={battleOutcome.snapshot}
+        reward={battleOutcome.reward}
         attemptNumber={
           !resolvedConfig.isVersusMatch
-            ? Math.max(1, progress[activeChapter.id]?.attempts ?? 1)
+            ? Math.max(
+                1,
+                profile.completedChapters[activeChapter.id]?.attempts ?? 1
+              )
             : undefined
         }
         aiSettings={aiSettings}
@@ -272,6 +446,7 @@ export default function App() {
           setScreen('battle');
         }}
         onOpenChapters={() => setScreen('chapters')}
+        onOpenShop={() => setScreen('shop')}
         onOpenVersus={() => setScreen('versus')}
         onBackHome={() => setScreen('home')}
       />
@@ -286,6 +461,15 @@ export default function App() {
         settings={aiSettings}
         onSave={handleSaveAISettings}
         onClose={() => setAiModalOpen(false)}
+      />
+      <AccountModal
+        open={accountModalOpen}
+        onClose={() => setAccountModalOpen(false)}
+        firebaseUser={firebaseUser}
+        profile={profile}
+        cloudSyncStatus={cloudSyncStatus}
+        onForceCloudSync={handleForceCloudSync}
+        onFirebaseConfigUpdated={() => setFirebaseConfigEpoch((e) => e + 1)}
       />
     </>
   );

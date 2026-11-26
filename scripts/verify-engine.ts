@@ -34,6 +34,19 @@ import {
   VERSUS_FORMATS,
 } from '../src/engine/aiTeambuilder';
 import { askLiveCoach, generatePostGameReview } from '../src/engine/battleCoach';
+import {
+  applyBattleOutcomeToProfile,
+  awardArcadeCoins,
+  compileCustomTeamToShowdownPaste,
+  createDefaultProfile,
+  isChapterUnlocked,
+  purchaseHeldItem,
+  purchasePokemon,
+  purchaseShinyCharm,
+  purchaseTM,
+  unlockChapterWithCoins,
+  updateCustomTeamSlot,
+} from '../src/engine/playerProfile';
 import { createRivalBattleController } from '../src/engine/tacticalAI';
 import type { BattleSnapshot } from '../src/types/game';
 
@@ -985,7 +998,75 @@ async function main() {
     `  OK: Ash Lead Swellow +2 Omniboost -> Baton Pass (${bpRecipient.species} +2), Darkrai Dark Void T1, Cresselia Psych Up (+2 copied) & Lunar Dance (<35% HP), Giratina-Origin last Ace [${cressRevealOrder.join(' -> ')}], turns=${resTobias.turn}`
   );
 
-  console.log('\nALL 15 CHAPTERS + FRUSTRATION 102 + REGIGIGAS RAID + ASH VS TOBIAS + PERSISTENCE + TRIPLES + GEN 1 + VERSUS + COACH TESTS PASSED!');
+  console.log('\n=== 18. Economía, Candados, Tienda, Editor de Equipo & Shiny Charms (Máx. 6) ===');
+  let prof = createDefaultProfile('Luso233', 'luso@example.com');
+  if (!isChapterUnlocked(prof, 'ch1-wyndon-chase') || isChapterUnlocked(prof, 'anime-ash-vs-tobias')) {
+    throw new Error('Chapter starter lock rules mismatch!');
+  }
+  const winRes = applyBattleOutcomeToProfile(prof, 'ch1-wyndon-chase', true, 10);
+  prof = winRes.nextProfile;
+  if (!winRes.reward || winRes.reward.coinsEarned < 1500 || !isChapterUnlocked(prof, 'ch2-monotype-banners')) {
+    throw new Error(`Expected victory reward + ch2 unlock, got ${JSON.stringify(winRes.reward)}`);
+  }
+  const buyMon = purchasePokemon(prof, 'Dragapult');
+  if (!buyMon.ok) throw new Error('Expected Dragapult purchase to succeed!');
+  prof = buyMon.nextProfile;
+  const buyIt = purchaseHeldItem(prof, 'Life Orb');
+  if (!buyIt.ok) throw new Error('Expected Life Orb purchase to succeed!');
+  prof = buyIt.nextProfile;
+  const buyTm = purchaseTM(prof, 'Earthquake');
+  if (!buyTm.ok) throw new Error('Expected Earthquake TM purchase to succeed!');
+  prof = buyTm.nextProfile;
+  // Award Arcade coins to buy 1 Shiny Charm (10,000 PC) + unlock Ash vs Tobias (3,000 PC)
+  prof = awardArcadeCoins(prof, 15000);
+  const buyCharm = purchaseShinyCharm(prof);
+  if (!buyCharm.ok || buyCharm.nextProfile.inventory.shinyCharms !== 1) {
+    throw new Error('Expected Shiny Charm #1 purchase to succeed!');
+  }
+  prof = buyCharm.nextProfile;
+  const unlockAsh = unlockChapterWithCoins(prof, 'anime-ash-vs-tobias');
+  if (!unlockAsh.ok || !isChapterUnlocked(unlockAsh.nextProfile, 'anime-ash-vs-tobias')) {
+    throw new Error('Expected coin unlock of Ash vs Tobias to succeed!');
+  }
+  prof = unlockAsh.nextProfile;
+  // Activate Shiny on slot 0 (Dragapult) & verify exceeding shinyCharms (slot 1 shiny too) is blocked!
+  const setShiny0 = updateCustomTeamSlot(prof, 0, {
+    ...prof.customTeam[0],
+    species: 'Dragapult',
+    item: 'Life Orb',
+    moves: ['Draco Meteor', 'Shadow Ball', 'Earthquake', 'Protect'],
+    shiny: true,
+  });
+  if (!setShiny0.ok) throw new Error('Expected slot 0 Shiny activation to succeed!');
+  prof = setShiny0.nextProfile;
+  const setShiny1Blocked = updateCustomTeamSlot(prof, 1, {
+    ...prof.customTeam[1],
+    shiny: true,
+  });
+  if (setShiny1Blocked.ok) {
+    throw new Error('Expected slot 1 Shiny to be rejected when only 1 Shiny Charm is owned!');
+  }
+  const customPaste = compileCustomTeamToShowdownPaste(prof.customTeam, 100);
+  if (!customPaste.includes('Shiny: Yes')) {
+    throw new Error('Expected compiled custom paste to contain Shiny: Yes!');
+  }
+  // Verify ShowdownBattleController propagates mon.shiny === true into BattleSnapshot!
+  const { turn1Snap: shinyT1 } = await runFullSimMatch(
+    'Shiny Custom Team Test',
+    {
+      ...tamerCfg,
+      playerShowdownPaste: customPaste,
+    },
+    { maxTurns: 60 }
+  );
+  if (!shinyT1?.p1.active[0]?.shiny) {
+    throw new Error(`Expected Shiny Dragapult active[0].shiny === true, got ${shinyT1?.p1.active[0]?.shiny}`);
+  }
+  console.log(
+    `  OK: Economy/Locks/Shop/TeamEditor verified, Shiny Charm cap enforced, Shiny Dragapult active in @pkmn/sim (coins=${prof.coins})`
+  );
+
+  console.log('\nALL 18 ENGINE & ECONOMY SUITES PASSED!');
 }
 
 let allSuitesCompleted = false;

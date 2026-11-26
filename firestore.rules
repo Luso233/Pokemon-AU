@@ -1,0 +1,198 @@
+rules_version = '2';
+
+// ===============================================================
+// Assumed Data Model — Crown of Galar ("galar-crown-vn")
+// ===============================================================
+//
+// This security rules file assumes the following Cloud Firestore
+// (Standard Edition) data structure for single-player cloud saves:
+//
+// Collection: users
+// Document ID: {uid} (Firebase Authentication UID; immutable path binding)
+// Access: Strictly private to the authenticated owner (contains PII: email).
+//         Client-side deletes are disallowed to prevent accidental save wipes.
+// Fields (all required; no extraneous fields permitted):
+//   - displayName: string (required, length 0..80) - Trainer display name
+//   - email: string (required, length 0..160, empty or valid email format) - Account email (PII)
+//   - coins: int (required, range 0..10000000) - PokéCoronas currency balance
+//   - unlockedChapters: list<string> (required, size 0..60, joined <= 4800 chars) - Unlocked chapter IDs
+//   - completedChapters: map (required, size 0..60) - ChapterProgress records keyed by chapterId
+//   - inventory: map (required, exact keys: pokemon, items, tms, shinyCharms)
+//       - pokemon: list<string> (required, size 0..200, joined <= 12000 chars)
+//       - items: list<string> (required, size 0..200, joined <= 12000 chars)
+//       - tms: list<string> (required, size 0..200, joined <= 12000 chars)
+//       - shinyCharms: int (required, range 0..6) - Owned Shiny Charms (max 1 per team slot)
+//   - customTeam: list<map> (required, size 0..6) - Up to 6 CustomTeamMember objects:
+//       - species: string (required, length 1..60)
+//       - item: string (required, length 0..60)
+//       - ability: string (required, length 0..60)
+//       - nature: string (required, length 0..30)
+//       - teraType: string (required, length 0..30)
+//       - moves: list<string> (required, size 0..4, joined <= 240 chars)
+//       - shiny: bool (required; active shiny slots <= inventory.shinyCharms)
+//   - useCustomTeamInStory: bool (required) - Whether custom team replaces story roster
+//   - updatedAt: string (required, length 19..40, ISO 8601 timestamp string)
+//
+// ===============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    // Check if the request is authenticated via Firebase Auth
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Check if the authenticated user owns the target user document
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    // Check that a map contains all required keys and NO extraneous keys
+    function hasExactKeys(mapData, requiredKeys) {
+      return mapData is map &&
+             mapData.keys().hasAll(requiredKeys) &&
+             mapData.keys().hasOnly(requiredKeys);
+    }
+
+    // Validate string type and inclusive character length bounds
+    function isValidString(val, minLen, maxLen) {
+      return val is string &&
+             val.size() >= minLen &&
+             val.size() <= maxLen;
+    }
+
+    // Validate integer type (rejects floats/strings) and inclusive range
+    function isIntInRange(val, minVal, maxVal) {
+      return val is int &&
+             val >= minVal &&
+             val <= maxVal;
+    }
+
+    // Validate email format (allows empty string fallback, otherwise standard email)
+    function isValidEmail(email) {
+      return email is string &&
+             email.size() <= 160 &&
+             (email.size() == 0 ||
+              email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"));
+    }
+
+    // Validate ISO 8601 date string format (e.g., 2026-11-26T18:05:57.123Z) and length cap
+    function isValidDateString(dateStr) {
+      return dateStr is string &&
+             dateStr.size() >= 19 &&
+             dateStr.size() <= 40 &&
+             dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,9})?(Z|[+-]\\d{2}:\\d{2})$");
+    }
+
+    // Validate a list of strings with both element-count and aggregate-length caps.
+    // Calling .join(',') rejects non-string elements and prevents oversized string payloads.
+    function isValidStringList(val, maxItems, maxJoinedSize) {
+      return val is list &&
+             val.size() <= maxItems &&
+             val.join(',').size() <= maxJoinedSize;
+    }
+
+    // ===============================================================
+    // Domain Validators (Used on BOTH create and update)
+    // ===============================================================
+
+    // Validate the player's inventory map
+    function isValidInventory(inv) {
+      return hasExactKeys(inv, ['pokemon', 'items', 'tms', 'shinyCharms']) &&
+             isValidStringList(inv.pokemon, 200, 12000) &&
+             isValidStringList(inv.items, 200, 12000) &&
+             isValidStringList(inv.tms, 200, 12000) &&
+             isIntInRange(inv.shinyCharms, 0, 6);
+    }
+
+    // Validate a single CustomTeamMember object
+    function isValidCustomTeamMember(member) {
+      return hasExactKeys(member, [
+               'species',
+               'item',
+               'ability',
+               'nature',
+               'teraType',
+               'moves',
+               'shiny'
+             ]) &&
+             isValidString(member.species, 1, 60) &&
+             isValidString(member.item, 0, 60) &&
+             isValidString(member.ability, 0, 60) &&
+             isValidString(member.nature, 0, 30) &&
+             isValidString(member.teraType, 0, 30) &&
+             isValidStringList(member.moves, 4, 240) &&
+             member.shiny is bool;
+    }
+
+    // Count how many custom team slots have shiny == true (max 6 slots)
+    function countShinyMembers(team) {
+      return ((team.size() > 0 && team[0].shiny) ? 1 : 0) +
+             ((team.size() > 1 && team[1].shiny) ? 1 : 0) +
+             ((team.size() > 2 && team[2].shiny) ? 1 : 0) +
+             ((team.size() > 3 && team[3].shiny) ? 1 : 0) +
+             ((team.size() > 4 && team[4].shiny) ? 1 : 0) +
+             ((team.size() > 5 && team[5].shiny) ? 1 : 0);
+    }
+
+    // Validate the full customTeam list (up to 6 members) and shiny charm limit
+    function isValidCustomTeam(team, maxShinies) {
+      return team is list &&
+             team.size() <= 6 &&
+             (team.size() < 1 || isValidCustomTeamMember(team[0])) &&
+             (team.size() < 2 || isValidCustomTeamMember(team[1])) &&
+             (team.size() < 3 || isValidCustomTeamMember(team[2])) &&
+             (team.size() < 4 || isValidCustomTeamMember(team[3])) &&
+             (team.size() < 5 || isValidCustomTeamMember(team[4])) &&
+             (team.size() < 6 || isValidCustomTeamMember(team[5])) &&
+             countShinyMembers(team) <= maxShinies;
+    }
+
+    // Validate the complete users/{uid} save document schema
+    function validUserSave(data) {
+      return hasExactKeys(data, [
+               'displayName',
+               'email',
+               'coins',
+               'unlockedChapters',
+               'completedChapters',
+               'inventory',
+               'customTeam',
+               'useCustomTeamInStory',
+               'updatedAt'
+             ]) &&
+             isValidString(data.displayName, 0, 80) &&
+             isValidEmail(data.email) &&
+             isIntInRange(data.coins, 0, 10000000) &&
+             isValidStringList(data.unlockedChapters, 60, 4800) &&
+             data.completedChapters is map &&
+             data.completedChapters.size() <= 60 &&
+             isValidInventory(data.inventory) &&
+             isValidCustomTeam(data.customTeam, data.inventory.shinyCharms) &&
+             data.useCustomTeamInStory is bool &&
+             isValidDateString(data.updatedAt);
+    }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
+
+    // Private per-user save file (contains PII: email -> strictly owner-only read)
+    match /users/{uid} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && validUserSave(request.resource.data);
+      allow update: if isOwner(uid) && validUserSave(request.resource.data);
+      allow delete: if false;
+    }
+
+    // Default deny: reject all access to any other collection or subcollection
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

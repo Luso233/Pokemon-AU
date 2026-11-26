@@ -13,6 +13,7 @@ export interface ShowdownSetBlock {
   ability?: string;
   level: number;
   happiness?: number;
+  shiny?: boolean;
   teraType?: string;
   evs?: string;
   ivs?: string;
@@ -38,6 +39,9 @@ export function buildShowdownPaste(blocks: ShowdownSetBlock[]): string {
       lines.push(`Level: ${mon.level}`);
       if (typeof mon.happiness === 'number') {
         lines.push(`Happiness: ${mon.happiness}`);
+      }
+      if (mon.shiny) {
+        lines.push('Shiny: Yes');
       }
       if (mon.teraType) {
         lines.push(`Tera Type: ${mon.teraType}`);

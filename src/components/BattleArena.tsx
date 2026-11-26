@@ -637,6 +637,11 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
             }`}
           >
             <span className="max-w-[6.5rem] truncate font-bold text-white">
+              {mon.shiny && (
+                <span className="mr-0.5 text-amber-300" title="Variocolor (Shiny Charm)">
+                  ✨
+                </span>
+              )}
               {mon.name}
             </span>
             {mon.terastallized && (
@@ -673,6 +678,7 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
             <PokemonSprite
               species={mon.species}
               side={side}
+              shiny={Boolean(mon.shiny)}
               className="max-h-full max-w-full"
             />
           </div>
@@ -1185,9 +1191,11 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                                 <PokemonSprite
                                   species={pMon.species}
                                   side="p2"
+                                  shiny={Boolean(pMon.shiny)}
                                   className="h-14 w-14"
                                 />
                                 <p className="mt-1 w-full truncate text-[11px] font-extrabold text-white">
+                                  {pMon.shiny ? '✨ ' : ''}
                                   {pMon.species}
                                 </p>
                                 <p className="w-full truncate text-[9px] text-amber-200/85">

@@ -14,9 +14,19 @@ import {
   GitBranch,
   HelpCircle,
   RotateCcw,
+  Sparkles,
   Swords,
+  Wrench,
 } from 'lucide-react';
-import type { OpenTeamsheetEntry, ResolvedBattleConfig } from '../types/game';
+import {
+  applyShinySlotsToPaste,
+  compileCustomTeamToShowdownPaste,
+} from '../engine/playerProfile';
+import type {
+  OpenTeamsheetEntry,
+  PlayerSaveProfile,
+  ResolvedBattleConfig,
+} from '../types/game';
 import { CharacterPortrait } from './CharacterPortrait';
 import { OpenTeamsheetModal } from './OpenTeamsheetModal';
 import { PokemonIcon } from './PokemonSprite';
@@ -24,20 +34,54 @@ import { RivalPortraitTooltip } from './RivalPortraitTooltip';
 
 interface TeambuilderBriefingProps {
   config: ResolvedBattleConfig;
+  profile?: PlayerSaveProfile;
   onReplayVN: () => void;
+  onOpenTeamEditor?: () => void;
   onLaunchBattle: (finalConfig: ResolvedBattleConfig) => void;
 }
 
 export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
   config,
+  profile,
   onReplayVN,
+  onOpenTeamEditor,
   onLaunchBattle,
 }) => {
-  const [playerPaste, setPlayerPaste] = useState(config.playerShowdownPaste);
+  const canSwapCustomTeam =
+    Boolean(profile && profile.customTeam.length > 0) &&
+    config.formatId !== 'gen1customgame' &&
+    config.formatId !== 'gen6triplescustomgame' &&
+    config.formatId !== 'gen91v1' &&
+    config.formatId !== 'gen9monotype' &&
+    config.formatId !== 'gen9vgc2024regg' &&
+    !config.emptyPlayerSlots?.length &&
+    !config.persistedPartyState;
+
+  const [useCustomTeam, setUseCustomTeam] = useState(
+    Boolean(canSwapCustomTeam && profile?.useCustomTeamInStory)
+  );
+  const [playerPaste, setPlayerPaste] = useState(() => {
+    if (canSwapCustomTeam && profile?.useCustomTeamInStory) {
+      return compileCustomTeamToShowdownPaste(
+        profile.customTeam,
+        config.rivalIntel?.levelCap ?? 100
+      );
+    }
+    return config.playerShowdownPaste;
+  });
+  const [shinySlots, setShinySlots] = useState<number[]>(() => {
+    if (canSwapCustomTeam && profile?.useCustomTeamInStory) {
+      return profile.customTeam
+        .map((m, i) => (m.shiny ? i : -1))
+        .filter((i) => i >= 0);
+    }
+    return [];
+  });
   const [rivalPaste, setRivalPaste] = useState(config.rivalShowdownPaste);
   const [editMode, setEditMode] = useState(false);
   const [showRivalDebugPaste, setShowRivalDebugPaste] = useState(false);
   const [showTeamsheet, setShowTeamsheet] = useState(false);
+  const ownedShinyCharms = profile?.inventory.shinyCharms ?? 0;
 
   const buildSheet = (sets: ReturnType<typeof Teams.import>): OpenTeamsheetEntry[] =>
     (sets ?? []).map((s) => {
@@ -74,7 +118,47 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
   const visibleCount = Math.min(intel.visibleSpeciesCount, parsedRival.length);
   const hiddenCount = Math.max(0, parsedRival.length - visibleCount);
 
+  const handleToggleCustomTeam = () => {
+    if (!profile || !canSwapCustomTeam) return;
+    const next = !useCustomTeam;
+    setUseCustomTeam(next);
+    if (next) {
+      const customPaste = compileCustomTeamToShowdownPaste(
+        profile.customTeam,
+        config.rivalIntel?.levelCap ?? 100
+      );
+      setPlayerPaste(customPaste);
+      setShinySlots(
+        profile.customTeam
+          .map((m, i) => (m.shiny ? i : -1))
+          .filter((i) => i >= 0)
+      );
+    } else {
+      setPlayerPaste(config.playerShowdownPaste);
+      setShinySlots([]);
+    }
+  };
+
+  const handleToggleSlotShiny = (idx: number) => {
+    if (ownedShinyCharms <= 0) return;
+    setShinySlots((prev) => {
+      let next: number[];
+      if (prev.includes(idx)) {
+        next = prev.filter((i) => i !== idx);
+      } else {
+        if (prev.length >= ownedShinyCharms) return prev;
+        next = [...prev, idx];
+      }
+      setPlayerPaste((cur) =>
+        applyShinySlotsToPaste(cur, next, ownedShinyCharms)
+      );
+      return next;
+    });
+  };
+
   const handleResetPastes = () => {
+    setUseCustomTeam(false);
+    setShinySlots([]);
     setPlayerPaste(config.playerShowdownPaste);
     setRivalPaste(config.rivalShowdownPaste);
   };
@@ -231,24 +315,86 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
               </span>
             </div>
 
+            {/* Custom Team & Shiny Charms Bar */}
+            {(canSwapCustomTeam || ownedShinyCharms > 0) && (
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-fuchsia-400/25 bg-slate-950/80 px-3 py-2">
+                {canSwapCustomTeam && (
+                  <button
+                    type="button"
+                    onClick={handleToggleCustomTeam}
+                    className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-bold transition cursor-pointer ${
+                      useCustomTeam
+                        ? 'border-sky-400 bg-sky-500/20 text-sky-100'
+                        : 'border-slate-700 bg-slate-900 text-slate-300 hover:border-sky-400/50'
+                    }`}
+                  >
+                    <Wrench className="h-3 w-3" />
+                    {useCustomTeam
+                      ? '✓ Usando tu Equipo Personalizado'
+                      : 'Usar mi Equipo Personalizado'}
+                  </button>
+                )}
+                {ownedShinyCharms > 0 ? (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-200">
+                    <Sparkles className="h-3 w-3 text-fuchsia-300" />
+                    Shiny Charms: {shinySlots.length}/{ownedShinyCharms} (clic en ✨ por slot)
+                  </span>
+                ) : (
+                  onOpenTeamEditor && (
+                    <button
+                      type="button"
+                      onClick={onOpenTeamEditor}
+                      className="text-[10px] font-semibold text-slate-400 hover:text-amber-200 cursor-pointer"
+                    >
+                      Editar Armería →
+                    </button>
+                  )
+                )}
+              </div>
+            )}
+
             <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {parsedPlayer.map((set, i) => (
-                <div
-                  key={`${set.species}-${i}`}
-                  className="flex items-center gap-1.5 rounded-xl border border-slate-700/80 bg-slate-950/90 px-2.5 py-1.5 text-xs"
-                >
-                  <PokemonIcon species={set.species} className="scale-90" />
-                  <div className="min-w-0">
-                    <p className="truncate font-semibold text-white">
-                      {set.species}
-                    </p>
-                    <p className="truncate text-[10px] text-amber-300/80">
-                      {i < 2 ? 'Lead · ' : ''}
-                      {set.item || 'Sin obj.'}
-                    </p>
+              {parsedPlayer.map((set, i) => {
+                const isSlotShiny = Boolean(set.shiny) || shinySlots.includes(i);
+                return (
+                  <div
+                    key={`${set.species}-${i}`}
+                    className={`flex items-center justify-between gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs ${
+                      isSlotShiny
+                        ? 'border-fuchsia-400/55 bg-fuchsia-950/30'
+                        : 'border-slate-700/80 bg-slate-950/90'
+                    }`}
+                  >
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <PokemonIcon species={set.species} className="scale-90" />
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-white">
+                          {isSlotShiny ? '✨ ' : ''}
+                          {set.species}
+                        </p>
+                        <p className="truncate text-[10px] text-amber-300/80">
+                          {i < 2 ? 'Lead · ' : ''}
+                          {set.item || 'Sin obj.'}
+                        </p>
+                      </div>
+                    </div>
+                    {ownedShinyCharms > 0 && (
+                      <button
+                        type="button"
+                        title="Activar/Desactivar Shiny Charm en este slot"
+                        onClick={() => handleToggleSlotShiny(i)}
+                        className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] font-bold cursor-pointer ${
+                          isSlotShiny
+                            ? 'border-amber-300 bg-amber-400/25 text-amber-200'
+                            : 'border-slate-700 bg-slate-900 text-slate-400 hover:border-fuchsia-400'
+                        }`}
+                      >
+                        ✨
+                      </button>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <div className="mb-1.5 flex items-center justify-between text-[11px] text-slate-400">

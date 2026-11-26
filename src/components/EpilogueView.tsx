@@ -1,15 +1,22 @@
 import React from 'react';
 import {
   BookOpen,
+  Coins,
   Crown,
   Home,
   RefreshCw,
   RotateCcw,
+  ShoppingBag,
+  Sparkles,
   Trophy,
+  Unlock,
   Wand2,
 } from 'lucide-react';
+import { CHAPTERS } from '../data/chapters';
+import { CURRENCY_NAME } from '../data/economyCatalog';
 import type {
   AISettings,
+  BattleRewardSummary,
   BattleSnapshot,
   ChapterDefinition,
   ResolvedBattleConfig,
@@ -22,12 +29,14 @@ interface EpilogueViewProps {
   config: ResolvedBattleConfig;
   won: boolean;
   battleSummary: BattleSnapshot | null;
+  reward?: BattleRewardSummary | null;
   attemptNumber?: number;
   aiSettings: AISettings;
   onOpenAISettings: () => void;
   onReplayChapter: () => void;
   onRetryBattle: () => void;
   onOpenChapters: () => void;
+  onOpenShop?: () => void;
   onOpenVersus: () => void;
   onBackHome: () => void;
 }
@@ -37,12 +46,14 @@ export const EpilogueView: React.FC<EpilogueViewProps> = ({
   config,
   won,
   battleSummary,
+  reward,
   attemptNumber,
   aiSettings,
   onOpenAISettings,
   onReplayChapter,
   onRetryBattle,
   onOpenChapters,
+  onOpenShop,
   onOpenVersus,
   onBackHome,
 }) => {
@@ -112,6 +123,64 @@ export const EpilogueView: React.FC<EpilogueViewProps> = ({
             <p key={idx}>{p}</p>
           ))}
         </div>
+
+        {/* Battle Coin Rewards & Chapter Unlocks Banner */}
+        {reward && reward.coinsEarned > 0 && (
+          <div className="mb-5 rounded-2xl border border-amber-400/45 bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-emerald-500/15 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-amber-200">
+                <Coins className="h-5 w-5 text-amber-400" />
+                <span className="font-display text-base font-extrabold">
+                  +{reward.coinsEarned.toLocaleString()} {CURRENCY_NAME} ganadas
+                </span>
+              </div>
+              {onOpenShop && (
+                <button
+                  onClick={onOpenShop}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-amber-400/50 bg-amber-500/20 px-3 py-1.5 text-xs font-extrabold text-amber-100 hover:bg-amber-500/30 cursor-pointer"
+                >
+                  <ShoppingBag className="h-3.5 w-3.5" />
+                  Gastar en la Tienda
+                </button>
+              )}
+            </div>
+            <div className="mt-1.5 flex flex-wrap gap-2 text-[11px] text-slate-300">
+              {reward.firstClearBonus > 0 && (
+                <span className="rounded bg-amber-500/20 px-2 py-0.5 font-semibold text-amber-200">
+                  Primera Victoria: +{reward.firstClearBonus.toLocaleString()} PC
+                </span>
+              )}
+              {reward.replayBonus > 0 && (
+                <span className="rounded bg-sky-500/20 px-2 py-0.5 font-semibold text-sky-200">
+                  Bono Rejugar: +{reward.replayBonus.toLocaleString()} PC
+                </span>
+              )}
+              {reward.lowResetBonus > 0 && (
+                <span className="inline-flex items-center gap-1 rounded bg-emerald-500/20 px-2 py-0.5 font-semibold text-emerald-200">
+                  <Sparkles className="h-3 w-3" />
+                  Bono Maestría Kaizo (≤2 intentos): +{reward.lowResetBonus} PC
+                </span>
+              )}
+            </div>
+            {reward.newlyUnlockedChapterIds.length > 0 && (
+              <div className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-white/10 pt-2 text-xs font-bold text-emerald-300">
+                <Unlock className="h-3.5 w-3.5" />
+                <span>Nuevos escenarios desbloqueados:</span>
+                {reward.newlyUnlockedChapterIds.map((cid) => {
+                  const found = CHAPTERS.find((c) => c.id === cid);
+                  return (
+                    <span
+                      key={cid}
+                      className="rounded-lg border border-emerald-400/40 bg-emerald-500/15 px-2 py-0.5 text-[11px] text-emerald-100"
+                    >
+                      {found ? `${found.number}: ${found.title}` : cid}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Summary Stats */}
         {battleSummary && (

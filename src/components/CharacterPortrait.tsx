@@ -25,28 +25,31 @@ interface CharacterVisualMeta {
   emblemIcon?: React.FC<{ className?: string }>;
 }
 
+const ASSET_BASE = import.meta.env.BASE_URL || '/';
+const charAsset = (file: string) => `${ASSET_BASE}characters/${file}`;
+
 export const CHARACTER_META: Record<CharacterId, CharacterVisualMeta> = {
   prince: {
     name: 'Príncipe Heredero',
     role: 'Heredero de la Corona de Galar',
-    spriteUrl: '/characters/prince_sprite.png',
-    bustUrl: '/characters/prince_bust.png',
+    spriteUrl: charAsset('prince_sprite.png'),
+    bustUrl: charAsset('prince_bust.png'),
     accentBorder: 'border-amber-400/55',
     accentGlow: 'drop-shadow-[0_12px_24px_rgba(251,191,36,0.22)]',
   },
   assassin: {
     name: 'Asesino Carmesí',
     role: 'Cazador de la Corona',
-    spriteUrl: '/characters/assassin_sprite.png',
-    bustUrl: '/characters/assassin_bust.png',
+    spriteUrl: charAsset('assassin_sprite.png'),
+    bustUrl: charAsset('assassin_bust.png'),
     accentBorder: 'border-rose-500/55',
     accentGlow: 'drop-shadow-[0_12px_24px_rgba(244,63,94,0.28)]',
   },
   champion: {
     name: 'La Campeona',
     role: 'Soberana Invicta de Galar',
-    spriteUrl: '/characters/champion_sprite.png',
-    bustUrl: '/characters/champion_bust.png',
+    spriteUrl: charAsset('champion_sprite.png'),
+    bustUrl: charAsset('champion_bust.png'),
     accentBorder: 'border-purple-400/55',
     accentGlow: 'drop-shadow-[0_12px_24px_rgba(192,132,252,0.28)]',
   },

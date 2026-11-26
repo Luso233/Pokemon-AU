@@ -2,10 +2,51 @@ export type ScreenView =
   | 'home'
   | 'chapters'
   | 'versus'
+  | 'shop'
+  | 'team-editor'
+  | 'arcade'
   | 'vn'
   | 'teambuilder'
   | 'battle'
   | 'epilogue';
+
+export interface CustomTeamMember {
+  species: string;
+  item: string;
+  ability: string;
+  nature: string;
+  teraType: string;
+  moves: string[];
+  shiny: boolean;
+}
+
+export interface PlayerInventory {
+  pokemon: string[];
+  items: string[];
+  tms: string[];
+  /** Max 6 Shiny Charms (one per team slot). */
+  shinyCharms: number;
+}
+
+export interface PlayerSaveProfile {
+  displayName: string;
+  email: string;
+  coins: number;
+  unlockedChapters: string[];
+  completedChapters: Record<string, ChapterProgress>;
+  inventory: PlayerInventory;
+  customTeam: CustomTeamMember[];
+  useCustomTeamInStory: boolean;
+  updatedAt: string;
+}
+
+export interface BattleRewardSummary {
+  coinsEarned: number;
+  firstClearBonus: number;
+  replayBonus: number;
+  lowResetBonus: number;
+  newlyUnlockedChapterIds: string[];
+}
 
 export type AIProviderKind = 'gemini' | 'ollama' | 'offline';
 
@@ -346,6 +387,7 @@ export interface ChapterProgress {
   completed: boolean;
   victories: number;
   attempts?: number;
+  bestTurns?: number | null;
   lastOutcome?: 'win' | 'loss';
   lastFlags?: StoryFlags;
 }
@@ -427,6 +469,7 @@ export interface PartyPokemonState {
   speedRange?: SpeedRange;
   isBossAce?: boolean;
   happiness?: number;
+  shiny?: boolean;
 }
 
 export interface OpenTeamsheetEntry {

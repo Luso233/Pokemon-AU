@@ -14,16 +14,19 @@ export interface PokemonSpriteInfo {
 export function getPokemonSprite(
   species: string,
   side: 'p1' | 'p2' = 'p2',
-  animated = true
+  animated = true,
+  shiny = false
 ): PokemonSpriteInfo {
   const cleanSpecies = species.trim() || 'Magikarp';
   const primary = Sprites.getPokemon(cleanSpecies, {
     gen: animated ? 'ani' : 'gen5',
     side,
+    shiny,
   });
   const fallback = Sprites.getPokemon(cleanSpecies, {
     gen: 'gen5',
     side: 'p2',
+    shiny,
   });
   return {
     url: primary.url,

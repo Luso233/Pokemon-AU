@@ -5,33 +5,47 @@ import {
   BookOpen,
   CheckCircle2,
   ClipboardList,
+  Cloud,
+  Coins,
   Crown,
   Flame,
+  Gamepad2,
   GitBranch,
   History,
+  Lock,
   Play,
   Puzzle,
   ShieldAlert,
+  ShoppingBag,
   Sparkles,
   Swords,
   Trophy,
+  Unlock,
   Users,
   Wand2,
+  Wrench,
 } from 'lucide-react';
 import { CHAPTERS } from '../data/chapters';
+import { CHAPTER_UNLOCK_RULES, CURRENCY_SHORT } from '../data/economyCatalog';
+import { isChapterUnlocked } from '../engine/playerProfile';
 import { getTypeBadgeClass } from '../engine/pokemonVisuals';
 import type {
   ChapterCategory,
   ChapterDefinition,
-  ChapterProgress,
+  PlayerSaveProfile,
 } from '../types/game';
 import { PokemonIcon, PokemonSprite } from './PokemonSprite';
 
 interface ChapterSelectProps {
   onBackHome: () => void;
   onOpenVersus: () => void;
+  onOpenShop: () => void;
+  onOpenTeamEditor: () => void;
+  onOpenArcade: () => void;
+  onOpenAccount: () => void;
   onSelectChapter: (chapter: ChapterDefinition) => void;
-  progress: Record<string, ChapterProgress>;
+  onUnlockChapterWithCoins: (chapterId: string) => { ok: boolean; error?: string };
+  profile: PlayerSaveProfile;
 }
 
 const CATEGORY_META: Array<{
@@ -147,12 +161,19 @@ function getAccentStyles(accent: string) {
 export const ChapterSelect: React.FC<ChapterSelectProps> = ({
   onBackHome,
   onOpenVersus,
+  onOpenShop,
+  onOpenTeamEditor,
+  onOpenArcade,
+  onOpenAccount,
   onSelectChapter,
-  progress,
+  onUnlockChapterWithCoins,
+  profile,
 }) => {
   const [activeFilter, setActiveFilter] = useState<'all' | ChapterCategory>(
     'all'
   );
+  const [unlockNotice, setUnlockNotice] = useState<string | null>(null);
+  const progress = profile.completedChapters;
 
   const visibleSections = useMemo(() => {
     return CATEGORY_META.filter(
@@ -194,16 +215,59 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={onOpenShop}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-amber-400/45 bg-amber-500/15 px-3 py-2 text-xs font-extrabold text-amber-200 hover:bg-amber-500/25 cursor-pointer"
+            >
+              <Coins className="h-3.5 w-3.5 text-amber-400" />
+              <span className="font-mono-code">
+                {profile.coins.toLocaleString()} {CURRENCY_SHORT}
+              </span>
+            </button>
+            <button
+              onClick={onOpenShop}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-bold text-slate-200 hover:border-amber-400/50 cursor-pointer"
+            >
+              <ShoppingBag className="h-3.5 w-3.5 text-amber-300" />
+              Tienda
+            </button>
+            <button
+              onClick={onOpenTeamEditor}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-bold text-slate-200 hover:border-sky-400/50 cursor-pointer"
+            >
+              <Wrench className="h-3.5 w-3.5 text-sky-300" />
+              Equipo
+            </button>
+            <button
+              onClick={onOpenArcade}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-400/35 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-200 hover:bg-emerald-500/20 cursor-pointer"
+            >
+              <Gamepad2 className="h-3.5 w-3.5" />
+              Arcade
+            </button>
+            <button
+              onClick={onOpenAccount}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-bold text-slate-200 hover:border-emerald-400/50 cursor-pointer"
+            >
+              <Cloud className="h-3.5 w-3.5 text-emerald-400" />
+              Cuenta
+            </button>
             <button
               onClick={onOpenVersus}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-rose-400/45 bg-rose-500/15 px-3.5 py-2 text-xs font-bold text-rose-200 transition hover:bg-rose-500/25 cursor-pointer"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-rose-400/45 bg-rose-500/15 px-3 py-2 text-xs font-bold text-rose-200 transition hover:bg-rose-500/25 cursor-pointer"
             >
-              <Wand2 className="h-4 w-4" />
-              Modo Versus (AI Teambuilder)
+              <Wand2 className="h-3.5 w-3.5" />
+              Versus
             </button>
           </div>
         </div>
+
+        {unlockNotice && (
+          <div className="mb-4 rounded-2xl border border-amber-400/40 bg-amber-500/15 px-4 py-2.5 text-xs font-semibold text-amber-100">
+            {unlockNotice}
+          </div>
+        )}
 
         {/* Category Filter Bar */}
         <div className="mb-8 flex flex-wrap gap-2">
@@ -262,6 +326,8 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
                 <div className="grid gap-5">
                   {section.chapters.map((chapter) => {
                     const prog = progress[chapter.id];
+                    const unlocked = isChapterUnlocked(profile, chapter.id);
+                    const unlockRule = CHAPTER_UNLOCK_RULES[chapter.id];
                     const accent = getAccentStyles(chapter.accentColor);
                     const hasOpenSheet =
                       chapter.formatId === 'gen9vgc2024regg' ||
@@ -270,7 +336,11 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
                     return (
                       <div
                         key={chapter.id}
-                        className={`group relative overflow-hidden rounded-3xl border bg-slate-900/75 p-5 backdrop-blur transition-all duration-200 hover:-translate-y-0.5 ${accent.card}`}
+                        className={`group relative overflow-hidden rounded-3xl border bg-slate-900/75 p-5 backdrop-blur transition-all duration-200 ${
+                          unlocked
+                            ? `hover:-translate-y-0.5 ${accent.card}`
+                            : 'border-slate-800/90 opacity-80'
+                        }`}
                       >
                         <div className="grid items-center gap-5 md:grid-cols-12">
                           {/* Left Details */}
@@ -312,6 +382,18 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
                                 <span className="inline-flex items-center gap-1 rounded-lg border border-sky-400/35 bg-sky-500/15 px-2 py-0.5 text-[10px] font-semibold text-sky-200">
                                   <ClipboardList className="h-3 w-3" />
                                   Open Teamsheet
+                                </span>
+                              )}
+                              {!unlocked && (
+                                <span className="inline-flex items-center gap-1 rounded-lg border border-rose-400/45 bg-rose-500/15 px-2.5 py-0.5 text-[10px] font-bold text-rose-200">
+                                  <Lock className="h-3 w-3" />
+                                  Bloqueado
+                                </span>
+                              )}
+                              {unlockRule && (
+                                <span className="inline-flex items-center gap-1 rounded-lg border border-amber-400/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-200">
+                                  <Coins className="h-3 w-3 text-amber-400" />
+                                  +{prog?.completed ? unlockRule.replayReward : unlockRule.firstClearReward} {CURRENCY_SHORT}
                                 </span>
                               )}
                               {prog?.completed ? (
@@ -367,7 +449,11 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
 
                           {/* Right Preview & Action */}
                           <div className="flex flex-col items-center justify-between gap-3 rounded-2xl border border-slate-800/90 bg-slate-950/75 p-4 md:col-span-4">
-                            <div className="flex items-center justify-center gap-2 py-1">
+                            <div
+                              className={`flex items-center justify-center gap-2 py-1 ${
+                                unlocked ? '' : 'opacity-45 grayscale'
+                              }`}
+                            >
                               <PokemonSprite
                                 species={chapter.featuredPokemon[0]}
                                 side="p2"
@@ -380,13 +466,40 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
                               </div>
                             </div>
 
-                            <button
-                              onClick={() => onSelectChapter(chapter)}
-                              className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition active:scale-[0.98] cursor-pointer ${accent.btn}`}
-                            >
-                              <Play className="h-4 w-4 fill-current" />
-                              Iniciar Capítulo
-                            </button>
+                            {unlocked ? (
+                              <button
+                                onClick={() => onSelectChapter(chapter)}
+                                className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition active:scale-[0.98] cursor-pointer ${accent.btn}`}
+                              >
+                                <Play className="h-4 w-4 fill-current" />
+                                Iniciar Capítulo
+                              </button>
+                            ) : (
+                              <div className="w-full space-y-2 text-center">
+                                <p className="rounded-lg border border-slate-800 bg-slate-900/90 px-2.5 py-1.5 text-[10px] font-semibold text-slate-300">
+                                  <Lock className="mr-1 inline h-3 w-3 text-rose-400" />
+                                  {unlockRule?.requirementLabel ?? 'Capítulo bloqueado'}
+                                </p>
+                                {unlockRule && unlockRule.unlockCostCoins > 0 && (
+                                  <button
+                                    type="button"
+                                    disabled={profile.coins < unlockRule.unlockCostCoins}
+                                    onClick={() => {
+                                      const res = onUnlockChapterWithCoins(chapter.id);
+                                      setUnlockNotice(
+                                        res.ok
+                                          ? `🔓 ¡Desbloqueaste "${chapter.title}" por ${unlockRule.unlockCostCoins.toLocaleString()} ${CURRENCY_SHORT}!`
+                                          : res.error || 'No tienes suficientes PokéCoronas.'
+                                      );
+                                    }}
+                                    className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-amber-400/50 bg-amber-500/20 px-3 py-2 text-xs font-extrabold text-amber-200 transition hover:bg-amber-500/30 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+                                  >
+                                    <Unlock className="h-3.5 w-3.5" />
+                                    Desbloquear ({unlockRule.unlockCostCoins.toLocaleString()} {CURRENCY_SHORT})
+                                  </button>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
