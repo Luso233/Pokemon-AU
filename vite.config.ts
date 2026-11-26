@@ -7,6 +7,15 @@ export default defineConfig({
   define: {
     global: 'globalThis',
   },
+  server: {
+    proxy: {
+      '/ollama-proxy': {
+        target: 'http://localhost:11434',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/ollama-proxy/, ''),
+      },
+    },
+  },
   optimizeDeps: {
     include: ['@pkmn/sim', '@pkmn/sets', '@pkmn/img', 'inkjs/full'],
   },

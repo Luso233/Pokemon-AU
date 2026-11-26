@@ -4,27 +4,55 @@ import {
   ChevronRight,
   Code2,
   GitBranch,
+  HeartPulse,
   History,
   RotateCcw,
   Sparkles,
+  Swords,
   X,
 } from 'lucide-react';
 import { InkVNRunner, type VNFrameState } from '../engine/inkRunner';
-import type { ChapterDefinition, StoryFlags } from '../types/game';
+import { STATUS_BADGE_STYLES } from '../engine/pokemonVisuals';
+import type {
+  ChapterDefinition,
+  CharacterId,
+  MidStoryBattleRequest,
+  PersistedPartyState,
+  StoryFlags,
+} from '../types/game';
 import { CharacterPortrait } from './CharacterPortrait';
-import { PokemonSprite } from './PokemonSprite';
+import { PokemonIcon, PokemonSprite } from './PokemonSprite';
 import { SceneBackdrop } from './SceneBackdrop';
 
 interface VisualNovelViewProps {
   chapter: ChapterDefinition;
+  resumeInkStateJson?: string | null;
+  persistedPartyState?: PersistedPartyState | null;
   onExitToChapters: () => void;
   onFinishStory: (flags: StoryFlags) => void;
+  onTriggerMidStoryBattle?: (request: MidStoryBattleRequest) => void;
 }
+
+const SPEAKER_TO_CHAR: Record<string, CharacterId> = {
+  'Príncipe Heredero': 'prince',
+  'La Campeona': 'champion',
+  'Asesino Carmesí': 'assassin',
+  'Sicario de la Corte': 'assassin',
+  'Capataz de los Muelles': 'dock_militia',
+  'Jefe Zapador Rebelde': 'mine_sapper',
+  'Capitán de la Guardia Corrupta': 'corrupt_captain',
+  'Duque de Hammerlocke': 'hammerlocke_duke',
+  'Tríada de Élite del Duque': 'triad_knights',
+  'El Archivista Real': 'royal_archivist',
+};
 
 export const VisualNovelView: React.FC<VisualNovelViewProps> = ({
   chapter,
+  resumeInkStateJson = null,
+  persistedPartyState = null,
   onExitToChapters,
   onFinishStory,
+  onTriggerMidStoryBattle,
 }) => {
   const runnerRef = useRef<InkVNRunner | null>(null);
   const [frame, setFrame] = useState<VNFrameState | null>(null);
@@ -32,8 +60,15 @@ export const VisualNovelView: React.FC<VisualNovelViewProps> = ({
   const [showHistory, setShowHistory] = useState(false);
   const [showFlags, setShowFlags] = useState(false);
 
-  const initStory = () => {
+  const initStory = (useResume = false) => {
     const runner = new InkVNRunner(chapter.inkSource);
+    if (useResume && resumeInkStateJson) {
+      runner.loadStateJson(resumeInkStateJson);
+      if (persistedPartyState) {
+        const alive = persistedPartyState.pokemon.filter((p) => !p.fainted).length;
+        runner.setVariable('wave1_alive', alive);
+      }
+    }
     runnerRef.current = runner;
     const initial = runner.step();
     setFrame(initial);
@@ -41,9 +76,9 @@ export const VisualNovelView: React.FC<VisualNovelViewProps> = ({
   };
 
   useEffect(() => {
-    initStory();
+    initStory(Boolean(resumeInkStateJson));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chapter.id]);
+  }, [chapter.id, resumeInkStateJson]);
 
   const fullText = frame?.currentLine?.text ?? '';
   const isTyping = typedLen < fullText.length;
@@ -60,10 +95,26 @@ export const VisualNovelView: React.FC<VisualNovelViewProps> = ({
     return () => window.clearTimeout(timer);
   }, [fullText, typedLen]);
 
+  const handleTriggerBattle = () => {
+    if (!frame?.pendingBattleTrigger || !runnerRef.current || !onTriggerMidStoryBattle) {
+      return;
+    }
+    onTriggerMidStoryBattle({
+      battleId: frame.pendingBattleTrigger.battleId,
+      persist: frame.pendingBattleTrigger.persist,
+      flags: frame.flags,
+      inkStateJson: runnerRef.current.exportStateJson(),
+    });
+  };
+
   const handleAdvance = () => {
     if (!frame || !runnerRef.current) return;
     if (isTyping) {
       setTypedLen(fullText.length);
+      return;
+    }
+    if (frame.pendingBattleTrigger && onTriggerMidStoryBattle) {
+      handleTriggerBattle();
       return;
     }
     if (frame.canContinue) {
@@ -111,15 +162,9 @@ export const VisualNovelView: React.FC<VisualNovelViewProps> = ({
   const activeSide = line?.activeSide ?? 'left';
   const leftChar = line?.leftChar ?? null;
   const rightChar = line?.rightChar ?? null;
-  const activeSpeakerBust =
-    line?.speaker === 'Príncipe Heredero'
-      ? 'prince'
-      : line?.speaker === 'La Campeona'
-        ? 'champion'
-        : line?.speaker === 'Asesino Carmesí' ||
-            line?.speaker === 'Sicario de la Corte'
-          ? 'assassin'
-          : null;
+  const activeSpeakerBust: CharacterId | null = line?.speaker
+    ? SPEAKER_TO_CHAR[line.speaker] ?? null
+    : null;
 
   return (
     <div className="relative flex min-h-screen flex-col justify-between overflow-hidden bg-slate-950 text-slate-100">
@@ -167,7 +212,7 @@ export const VisualNovelView: React.FC<VisualNovelViewProps> = ({
           </button>
 
           <button
-            onClick={initStory}
+            onClick={() => initStory(false)}
             title="Reiniciar escena"
             className="inline-flex items-center justify-center rounded-xl border border-slate-700/80 bg-slate-900/80 p-1.5 text-slate-300 transition hover:border-amber-400/40 hover:text-white cursor-pointer"
           >
@@ -175,6 +220,80 @@ export const VisualNovelView: React.FC<VisualNovelViewProps> = ({
           </button>
         </div>
       </header>
+
+      {/* Live Persisted Party Wear Banner (Back-to-Back intermediate scene without healing!) */}
+      {persistedPartyState && (
+        <div className="relative z-20 mx-auto mt-3 w-full max-w-4xl px-5">
+          <div className="rounded-2xl border border-orange-400/45 bg-slate-950/92 px-4 py-3 shadow-xl backdrop-blur-md">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <span className="inline-flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-orange-300">
+                <HeartPulse className="h-4 w-4 text-rose-400" />
+                Desgaste Heredado (Sin Curación · BattlePersistenceManager)
+              </span>
+              <span className="font-mono-code text-[11px] text-slate-400">
+                {persistedPartyState.pokemon.filter((p) => !p.fainted).length}/
+                {persistedPartyState.pokemon.length} Pokémon conscientes
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {persistedPartyState.pokemon.map((pm, idx) => {
+                const pct = pm.fainted
+                  ? 0
+                  : Math.round((pm.hp / Math.max(1, pm.maxhp)) * 100);
+                const statusBadge = pm.status
+                  ? STATUS_BADGE_STYLES[pm.status]
+                  : null;
+                const spentPP = pm.moveSlots.reduce(
+                  (acc, m) => acc + (m.maxpp - m.pp),
+                  0
+                );
+                return (
+                  <div
+                    key={`${pm.species}-${idx}`}
+                    className={`rounded-xl border px-2.5 py-1.5 ${
+                      pm.fainted
+                        ? 'border-rose-500/40 bg-rose-950/30 opacity-60 grayscale'
+                        : 'border-slate-700 bg-slate-900/85'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-1">
+                      <div className="flex min-w-0 items-center gap-1">
+                        <PokemonIcon species={pm.species} className="scale-75" />
+                        <span className="truncate text-[11px] font-bold text-white">
+                          {pm.species}
+                        </span>
+                      </div>
+                      {statusBadge && (
+                        <span
+                          className={`rounded px-1 text-[8px] font-extrabold ${statusBadge.cls}`}
+                        >
+                          {statusBadge.label}
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+                      <div
+                        className={`h-full rounded-full ${
+                          pct > 50
+                            ? 'bg-emerald-400'
+                            : pct > 22
+                              ? 'bg-amber-400'
+                              : 'bg-rose-500'
+                        }`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <div className="font-mono-code mt-1 flex items-center justify-between text-[9px] text-slate-300">
+                      <span>{pm.fainted ? 'DEBILITADO' : `${pm.hp}/${pm.maxhp}`}</span>
+                      <span className="text-amber-300/85">-{spentPP} PP</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Live Ink Variables Overlay */}
       {showFlags && (
@@ -364,8 +483,27 @@ export const VisualNovelView: React.FC<VisualNovelViewProps> = ({
             </div>
           </div>
 
+          {/* Mid-Story # START_BATTLE Trigger (Back-to-Back Waves) */}
+          {!isTyping && frame.pendingBattleTrigger && onTriggerMidStoryBattle && (
+            <div className="mt-4 flex justify-end border-t border-slate-800/80 pt-4">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleTriggerBattle();
+                }}
+                className="inline-flex items-center gap-2.5 rounded-2xl bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 px-6 py-3 text-sm font-extrabold text-slate-950 shadow-xl shadow-orange-500/25 transition hover:brightness-110 active:scale-[0.98] cursor-pointer"
+              >
+                <Swords className="h-4 w-4" />
+                {frame.pendingBattleTrigger.persist
+                  ? 'Iniciar Oleada 2 (Con Desgaste Heredado)'
+                  : 'Iniciar Combate · Oleada 1'}
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
           {/* End of VN -> Proceed to Teambuilder Briefing */}
-          {!isTyping && frame.isEnded && (
+          {!isTyping && frame.isEnded && !frame.pendingBattleTrigger && (
             <div className="mt-4 flex justify-end border-t border-slate-800/80 pt-4">
               <button
                 onClick={(e) => {

@@ -1,14 +1,17 @@
 import React, { useMemo, useState } from 'react';
 import {
+  Archive,
   ArrowLeft,
   BookOpen,
   CheckCircle2,
   ClipboardList,
   Crown,
+  Flame,
   GitBranch,
   History,
   Play,
   Puzzle,
+  ShieldAlert,
   Swords,
   Trophy,
   Users,
@@ -57,8 +60,26 @@ const CATEGORY_META: Array<{
   {
     id: 'showcases',
     label: 'Showcases Competitivos',
-    subtitle: 'Formatos oficiales de Showdown con Team Preview interactivo',
+    subtitle: 'Formatos oficiales de Showdown (1v1, VGC Reg G, Triples Gen 6)',
     icon: Trophy,
+  },
+  {
+    id: 'challenges',
+    label: 'Desafíos',
+    subtitle: 'Asimetría extrema (1 vs 6 Dobles · 1 vs 3 Triples)',
+    icon: Flame,
+  },
+  {
+    id: 'survival',
+    label: 'Supervivencia',
+    subtitle: 'Combates Back-to-Back sin curación con persistencia HP/PP/Estados',
+    icon: ShieldAlert,
+  },
+  {
+    id: 'archive',
+    label: 'Archivo Histórico',
+    subtitle: 'Simulaciones retro nativas (Era Antigua Gen 1 OU vs Ubers)',
+    icon: Archive,
   },
 ];
 

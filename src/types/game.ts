@@ -75,9 +75,16 @@ export interface PostGameReview {
   improvements: string[];
 }
 
-export type BattleFormat = 'singles' | 'doubles';
+export type BattleFormat = 'singles' | 'doubles' | 'triples';
 
-export type ChapterCategory = 'story' | 'puzzles' | 'flashbacks' | 'showcases';
+export type ChapterCategory =
+  | 'story'
+  | 'puzzles'
+  | 'flashbacks'
+  | 'showcases'
+  | 'challenges'
+  | 'survival'
+  | 'archive';
 
 export type SupportedFormatId =
   | 'gen9doublescustomgame'
@@ -86,9 +93,20 @@ export type SupportedFormatId =
   | 'gen9monotype'
   | 'gen9vgc2024regg'
   | 'gen9lc'
+  | 'gen6triplescustomgame'
+  | 'gen1customgame'
   | (string & {});
 
-export type CharacterId = 'prince' | 'assassin' | 'champion';
+export type CharacterId =
+  | 'prince'
+  | 'assassin'
+  | 'champion'
+  | 'dock_militia'
+  | 'mine_sapper'
+  | 'corrupt_captain'
+  | 'hammerlocke_duke'
+  | 'triad_knights'
+  | 'royal_archivist';
 
 export type SceneBackdropId =
   | 'wyndon-alleys'
@@ -99,8 +117,44 @@ export type SceneBackdropId =
   | 'vgc-worlds-stage'
   | 'honor-duel-hall'
   | 'banner-battlefield'
+  | 'wyndon-docks'
+  | 'galar-mines'
+  | 'hammerlocke-field'
+  | 'triad-arena'
+  | 'silph-archive'
   | 'royal-pond'
   | 'banquet-hall';
+
+export interface PersistedMoveSlot {
+  id: string;
+  move: string;
+  pp: number;
+  maxpp: number;
+}
+
+export interface PersistedPokemonState {
+  species: string;
+  name: string;
+  hp: number;
+  maxhp: number;
+  fainted: boolean;
+  status: '' | 'par' | 'brn' | 'psn' | 'tox' | 'slp' | 'frz';
+  moveSlots: PersistedMoveSlot[];
+  ppByMoveId: Record<string, number>;
+}
+
+export interface PersistedPartyState {
+  sourceBattleId: string;
+  capturedAtTurn: number;
+  pokemon: PersistedPokemonState[];
+}
+
+export interface MidStoryBattleRequest {
+  battleId: string;
+  persist: boolean;
+  flags: StoryFlags;
+  inkStateJson: string;
+}
 
 export interface StoryFlags {
   [key: string]: string | number | boolean;
@@ -164,8 +218,16 @@ export interface ScriptedEnemyRule {
   description: string;
   tauntLine?: string;
   turn?: number;
+  /** Optional list of turns on which this rule can fire (e.g. [1, 3] for recurring Wide Guard). */
+  turnList?: number[];
   actorSpecies?: string;
-  condition?: 'always' | 'hpBelow60' | 'playerHasScreens' | 'playerHasSpecies';
+  condition?:
+    | 'always'
+    | 'hpBelow60'
+    | 'hpBelow35OrLast'
+    | 'lastAlive'
+    | 'playerHasScreens'
+    | 'playerHasSpecies';
   requiredPlayerSpecies?: string;
   forceMoveId: string;
   targetSpec?: string;
@@ -174,6 +236,10 @@ export interface ScriptedEnemyRule {
 
 export interface ResolvedBattleConfig {
   chapterId: string;
+  /** Optional stage identifier for Back-to-Back multi-wave chapters (e.g. 'mines_wave1', 'mines_wave2'). */
+  battleStageId?: string;
+  /** Optional label for the continue button when winning a mid-story wave (before Ink resumes). */
+  nextStageLabel?: string;
   format: BattleFormat;
   formatId: SupportedFormatId;
   formatLabel?: string;
@@ -187,6 +253,10 @@ export interface ResolvedBattleConfig {
   p2Control?: 'ai' | 'human';
   /** Marks a custom AI Teambuilder / Versus match (exits back to Versus Mode). */
   isVersusMatch?: boolean;
+  /** Pre-battle persisted party state injected without healing (Back-to-Back survival battles). */
+  persistedPartyState?: PersistedPartyState;
+  /** Indices of hidden placeholder player slots auto-fainted before Turn 1 (for 1 vs 6 Doubles and 1 vs 3 Triples). */
+  emptyPlayerSlots?: number[];
   playerName: string;
   playerCharId: CharacterId;
   rivalName: string;
@@ -222,6 +292,12 @@ export interface ChapterDefinition {
   monotypeMatchup?: { playerType: string; rivalType: string };
   inkSource: string;
   resolveBattleConfig: (flags: StoryFlags) => ResolvedBattleConfig;
+  /** Optional resolver for Ink `# START_BATTLE: <battleId>` mid-story / Back-to-Back waves. */
+  resolveStageBattleConfig?: (
+    battleId: string,
+    flags: StoryFlags,
+    persistedPartyState?: PersistedPartyState
+  ) => ResolvedBattleConfig;
   getEpilogue: (won: boolean, flags: StoryFlags) => EpilogueContent;
 }
 
@@ -413,6 +489,8 @@ export interface BattleSnapshot {
   trickRoomTurnsLeft: number | null;
   levelCap: number;
   puzzleApplied: boolean;
+  persistenceApplied: boolean;
+  exportedPartyState: PersistedPartyState | null;
   teamPreview: TeamPreviewState | null;
   openTeamsheet: {
     enabled: boolean;

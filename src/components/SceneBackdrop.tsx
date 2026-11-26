@@ -10,6 +10,126 @@ export const SceneBackdrop: React.FC<SceneBackdropProps> = ({
   theme,
   className = '',
 }) => {
+  if (theme === 'wyndon-docks') {
+    return (
+      <div
+        className={`pointer-events-none absolute inset-0 overflow-hidden ${className}`}
+      >
+        <div className="absolute inset-0 bg-gradient-to-b from-[#04141d] via-[#0a2230] to-[#040911]" />
+        <div className="absolute top-0 left-1/4 h-80 w-96 rounded-full bg-teal-400/18 blur-[110px]" />
+        <div className="absolute bottom-0 right-1/4 h-72 w-96 rounded-full bg-amber-500/14 blur-[100px]" />
+        <svg
+          className="absolute inset-0 h-full w-full opacity-25"
+          viewBox="0 0 1200 600"
+          preserveAspectRatio="none"
+        >
+          <path d="M0 440 L1200 440" stroke="#2dd4bf" strokeOpacity="0.4" strokeWidth="3" />
+          <path d="M120 440 L200 180 L380 180" fill="none" stroke="#94a3b8" strokeOpacity="0.4" strokeWidth="4" />
+          <path d="M1080 440 L1000 180 L820 180" fill="none" stroke="#94a3b8" strokeOpacity="0.4" strokeWidth="4" />
+          <ellipse cx="600" cy="495" rx="460" ry="38" fill="none" stroke="#2dd4bf" strokeOpacity="0.3" strokeWidth="2" />
+        </svg>
+      </div>
+    );
+  }
+
+  if (theme === 'galar-mines') {
+    return (
+      <div
+        className={`pointer-events-none absolute inset-0 overflow-hidden ${className}`}
+      >
+        <div className="absolute inset-0 bg-gradient-to-b from-[#1a0d07] via-[#171110] to-[#080607]" />
+        <div className="absolute top-0 left-1/2 h-80 w-[40rem] -translate-x-1/2 rounded-full bg-orange-500/20 blur-[110px]" />
+        <div className="absolute bottom-0 right-1/4 h-72 w-96 rounded-full bg-red-600/18 blur-[100px]" />
+        <svg
+          className="absolute inset-0 h-full w-full opacity-28"
+          viewBox="0 0 1200 600"
+          preserveAspectRatio="none"
+        >
+          {[140, 320, 500].map((r, i) => (
+            <path
+              key={i}
+              d={`M${600 - r} 520 L${600 - r} 220 Q600 ${80 + i * 25} ${600 + r} 220 L${600 + r} 520`}
+              fill="none"
+              stroke="#fb923c"
+              strokeOpacity="0.32"
+              strokeWidth="4"
+            />
+          ))}
+          <line x1="360" y1="580" x2="540" y2="390" stroke="#a8a29e" strokeOpacity="0.4" strokeWidth="3" />
+          <line x1="840" y1="580" x2="660" y2="390" stroke="#a8a29e" strokeOpacity="0.4" strokeWidth="3" />
+        </svg>
+      </div>
+    );
+  }
+
+  if (theme === 'hammerlocke-field') {
+    return (
+      <div
+        className={`pointer-events-none absolute inset-0 overflow-hidden ${className}`}
+      >
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0d102b] via-[#131c3d] to-[#070a14]" />
+        <div className="absolute -top-20 left-1/3 h-80 w-[44rem] -translate-x-1/2 rounded-full bg-indigo-500/22 blur-[110px]" />
+        <div className="absolute bottom-0 right-1/4 h-72 w-96 rounded-full bg-amber-400/15 blur-[100px]" />
+        <svg
+          className="absolute inset-0 h-full w-full opacity-28"
+          viewBox="0 0 1200 600"
+          preserveAspectRatio="none"
+        >
+          {/* 3-lane Triples military formation grid */}
+          <line x1="400" y1="180" x2="320" y2="560" stroke="#818cf8" strokeOpacity="0.35" strokeDasharray="8 6" strokeWidth="2" />
+          <line x1="800" y1="180" x2="880" y2="560" stroke="#818cf8" strokeOpacity="0.35" strokeDasharray="8 6" strokeWidth="2" />
+          <ellipse cx="600" cy="445" rx="500" ry="72" fill="none" stroke="#fbbf24" strokeOpacity="0.35" strokeWidth="2" />
+        </svg>
+      </div>
+    );
+  }
+
+  if (theme === 'triad-arena') {
+    return (
+      <div
+        className={`pointer-events-none absolute inset-0 overflow-hidden ${className}`}
+      >
+        <div className="absolute inset-0 bg-gradient-to-b from-[#171226] via-[#1a1524] to-[#08070e]" />
+        <div className="absolute top-0 left-1/2 h-80 w-[42rem] -translate-x-1/2 rounded-full bg-amber-500/20 blur-[110px]" />
+        <div className="absolute bottom-0 left-1/4 h-72 w-80 rounded-full bg-rose-500/18 blur-[100px]" />
+        <svg
+          className="absolute inset-0 h-full w-full opacity-28"
+          viewBox="0 0 1200 600"
+          preserveAspectRatio="none"
+        >
+          <polygon points="600,90 960,490 240,490" fill="none" stroke="#fbbf24" strokeOpacity="0.35" strokeWidth="2.5" />
+          <circle cx="600" cy="360" r="145" fill="none" stroke="#e2e8f0" strokeOpacity="0.25" strokeWidth="2" />
+        </svg>
+      </div>
+    );
+  }
+
+  if (theme === 'silph-archive') {
+    return (
+      <div
+        className={`pointer-events-none absolute inset-0 overflow-hidden ${className}`}
+      >
+        <div className="absolute inset-0 bg-gradient-to-b from-[#041712] via-[#07241e] to-[#030b0a]" />
+        <div className="absolute -top-24 left-1/2 h-80 w-[44rem] -translate-x-1/2 rounded-full bg-emerald-400/20 blur-[110px]" />
+        <div className="absolute bottom-0 right-1/4 h-72 w-96 rounded-full bg-teal-500/18 blur-[100px]" />
+        <svg
+          className="absolute inset-0 h-full w-full opacity-25"
+          viewBox="0 0 1200 600"
+          preserveAspectRatio="none"
+        >
+          {/* Retro Gen 1 CRT phosphor grid */}
+          {Array.from({ length: 12 }).map((_, i) => (
+            <line key={`h-${i}`} x1="0" y1={i * 52} x2="1200" y2={i * 52} stroke="#34d399" strokeOpacity="0.22" strokeWidth="1" />
+          ))}
+          {Array.from({ length: 16 }).map((_, i) => (
+            <line key={`v-${i}`} x1={i * 80} y1="0" x2={i * 80} y2="600" stroke="#34d399" strokeOpacity="0.16" strokeWidth="1" />
+          ))}
+          <ellipse cx="600" cy="450" rx="410" ry="48" fill="none" stroke="#6ee7b7" strokeOpacity="0.45" strokeWidth="2.5" />
+        </svg>
+      </div>
+    );
+  }
+
   if (theme === 'vgc-worlds-stage') {
     return (
       <div

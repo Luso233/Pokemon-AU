@@ -8,11 +8,18 @@ import {
   resolveChapter2BanquetBattle,
   resolveChapter2MonotypeBattle,
   resolveDuel1Honor1v1Battle,
+  resolveGen1SilphArchiveBattle,
+  resolveLastBastionBattle,
+  resolveMinesWave1Battle,
+  resolveMinesWave2Battle,
   resolvePuzzle1SunTrapBattle,
+  resolveThreeKnightsBattle,
+  resolveTriplesPhalanxBattle,
   resolveVgcWorlds2024Battle,
 } from '../src/engine/teamBuilderTree';
 import {
   computeSpeedRange,
+  isFoeTargetReachable,
   ShowdownBattleController,
 } from '../src/engine/battleEngine';
 import { getDefaultAISettings } from '../src/engine/aiProvider';
@@ -85,7 +92,9 @@ async function runFullSimMatch(
       if (snap.status === 'awaiting-choice' && snap.pendingSlots.length > 0) {
         if (
           snap.turn === 1 &&
-          (!turn1Snap || (!turn1Snap.puzzleApplied && snap.puzzleApplied))
+          (!turn1Snap ||
+            (!turn1Snap.puzzleApplied && snap.puzzleApplied) ||
+            (!turn1Snap.persistenceApplied && snap.persistenceApplied))
         ) {
           turn1Snap = snap;
         }
@@ -115,6 +124,17 @@ async function runFullSimMatch(
         if (config.puzzleConditions && !snap.puzzleApplied) {
           return;
         }
+        if (config.persistedPartyState && !snap.persistenceApplied) {
+          return;
+        }
+        if (
+          config.emptyPlayerSlots &&
+          config.emptyPlayerSlots.length > 0 &&
+          snap.turn === 1 &&
+          config.emptyPlayerSlots.some((idx) => !snap.p1.party[idx]?.fainted)
+        ) {
+          return;
+        }
 
         if (snap.turn === lastSentTurn) return;
         lastSentTurn = snap.turn;
@@ -124,15 +144,14 @@ async function runFullSimMatch(
           return;
         }
 
+        let megaUsed = false;
         const cmds = snap.pendingSlots.map((slot, i) => {
           if (slot.pass) return 'pass';
-          const damaging = slot.moves.find(
-            (m) => !m.disabled && m.category !== 'Status'
-          );
-          const pick =
-            damaging ?? slot.moves.find((m) => !m.disabled) ?? slot.moves[0];
-          if (!pick) return 'pass';
+          const legalMoves = slot.moves.filter((m) => !m.disabled);
+          if (legalMoves.length === 0) return 'move 1';
 
+          const wantMega = Boolean(slot.canMegaEvo) && !megaUsed;
+          const megaSuffix = wantMega ? ' mega' : '';
           let teraSuffix = '';
           if (
             options.testTeraTurn1 &&
@@ -143,18 +162,47 @@ async function runFullSimMatch(
             teraUsed = true;
             teraSuffix = ' terastallize';
           }
+          const modSuffix = `${teraSuffix}${megaSuffix}`;
 
-          if (config.format === 'doubles') {
-            const needsFoe =
-              pick.target === 'normal' ||
-              pick.target === 'any' ||
-              pick.target === 'adjacentFoe';
-            if (needsFoe) {
-              const targetIdx = snap.p2.active.findIndex((m) => m && !m.fainted);
-              return `move ${pick.index} +${(targetIdx >= 0 ? targetIdx : 0) + 1}${teraSuffix}`;
+          if (config.format === 'doubles' || config.format === 'triples') {
+            for (const cand of [
+              ...legalMoves.filter((m) => m.category !== 'Status'),
+              ...legalMoves.filter((m) => m.category === 'Status'),
+            ]) {
+              const needsFoe =
+                cand.target === 'normal' ||
+                cand.target === 'any' ||
+                cand.target === 'adjacentFoe';
+              const needsAlly = cand.target === 'adjacentAlly';
+              if (needsAlly) continue;
+              if (needsFoe) {
+                const targetIdx = snap.p2.active.findIndex(
+                  (m, fi) =>
+                    m &&
+                    !m.fainted &&
+                    isFoeTargetReachable(
+                      config.format,
+                      slot.activeIndex,
+                      fi,
+                      cand.target
+                    )
+                );
+                if (targetIdx === -1) continue;
+                if (wantMega) megaUsed = true;
+                return `move ${cand.index} +${targetIdx + 1}${modSuffix}`;
+              }
+              if (wantMega) megaUsed = true;
+              return `move ${cand.index}${modSuffix}`;
+            }
+            if (config.format === 'triples' && slot.activeIndex !== 1) {
+              return 'shift';
             }
           }
-          return `move ${pick.index}${teraSuffix}`;
+
+          const pick =
+            legalMoves.find((m) => m.category !== 'Status') ?? legalMoves[0];
+          if (wantMega) megaUsed = true;
+          return `move ${pick.index}${modSuffix}`;
         });
         void controller.submitPlayerChoice(cmds.join(', '));
       }
@@ -566,10 +614,195 @@ async function main() {
     `  OK: Hotseat P1 vs P2 ended (winner=${hotseatSnap.winner}, turns=${hotseatSnap.turn}), Live Coach OK, Game Review accuracy=${postReview.playerAccuracy}%`
   );
 
-  console.log('\nALL 7 CHAPTERS + VERSUS TEAMBUILDER + HOTSEAT + COACH + ENGINE TESTS PASSED!');
+  console.log('\n=== 10. CAPÍTULO A: El Último Bastión (1 vs 6 Dobles · Milicia de los Muelles) ===');
+  const bastionInk = readFileSync(resolve('src/stories/challenge1_last_bastion.ink'), 'utf8');
+  const bRunner = new InkVNRunner(bastionInk);
+  let bFrame = bRunner.step();
+  while (!bFrame.isEnded) {
+    if (bFrame.canContinue) bFrame = bRunner.step();
+    else if (bFrame.choices.length > 0) bFrame = bRunner.choose(0);
+  }
+  const bastionCfg = resolveLastBastionBattle(bFrame.flags);
+  const { finalSnap: resBastion, turn1Snap: t1Bastion } = await runFullSimMatch(
+    'El Ultimo Bastion 1v6 Doubles',
+    bastionCfg,
+    { maxTurns: 50, testTeraTurn1: true }
+  );
+  if ((t1Bastion?.p1.active[0]?.boosts.atk ?? 0) < 1) {
+    throw new Error(`Expected Annihilape Defiant +1 Atk from Krookodile Intimidate, got ${JSON.stringify(t1Bastion?.p1.active[0]?.boosts)}`);
+  }
+  if (!resBastion.triggeredScriptIds.includes('bastion-t1-krook-eq')) {
+    throw new Error('Expected Krookodile Turn 1 friendly-fire Earthquake script!');
+  }
+  console.log(
+    `  OK: Annihilape Defiant +${t1Bastion?.p1.active[0]?.boosts.atk} Atk, Scripted=[${resBastion.triggeredScriptIds.join(', ')}], turns=${resBastion.turn}`
+  );
+
+  console.log('\n=== 11. CAPÍTULO B: Asedio en las Minas (Back-to-Back Ink + BattlePersistenceManager) ===');
+  const minesInk = readFileSync(resolve('src/stories/survival1_galar_mines.ink'), 'utf8');
+  const minesRunner = new InkVNRunner(minesInk);
+  let minesFrame = minesRunner.step();
+  while (!minesFrame.isEnded && !minesFrame.pendingBattleTrigger) {
+    if (minesFrame.canContinue) minesFrame = minesRunner.step();
+    else if (minesFrame.choices.length > 0) minesFrame = minesRunner.choose(0);
+  }
+  if (minesFrame.pendingBattleTrigger?.battleId !== 'mines_wave1' || minesFrame.pendingBattleTrigger.persist) {
+    throw new Error(`Expected # START_BATTLE: mines_wave1, got ${JSON.stringify(minesFrame.pendingBattleTrigger)}`);
+  }
+  const suspendedMinesJson = minesRunner.exportStateJson();
+  const wave1Cfg = resolveMinesWave1Battle(minesFrame.flags);
+  const { finalSnap: resWave1 } = await runFullSimMatch('Mines Wave 1', wave1Cfg, {
+    maxTurns: 40,
+  });
+  if (!resWave1.exportedPartyState || resWave1.exportedPartyState.pokemon.length !== 4) {
+    throw new Error('BattlePersistenceManager failed to export 4-mon party state after Wave 1!');
+  }
+
+  // Resume suspended Ink story into intermediate smoke scene and hit Wave 2 (--persist=true)!
+  const minesRunner2 = new InkVNRunner(minesInk);
+  minesRunner2.loadStateJson(suspendedMinesJson);
+  let minesFrame2 = minesRunner2.step();
+  while (!minesFrame2.isEnded && !minesFrame2.pendingBattleTrigger) {
+    if (minesFrame2.canContinue) minesFrame2 = minesRunner2.step();
+    else break;
+  }
+  if (minesFrame2.pendingBattleTrigger?.battleId !== 'mines_wave2' || !minesFrame2.pendingBattleTrigger.persist) {
+    throw new Error(`Expected # START_BATTLE: mines_wave2 --persist=true, got ${JSON.stringify(minesFrame2.pendingBattleTrigger)}`);
+  }
+
+  // Explicitly verify fainted lead reorder + exact HP + status + PP injection into Wave 2!
+  const persistedTestState = {
+    sourceBattleId: 'mines_wave1',
+    capturedAtTurn: resWave1.turn,
+    pokemon: resWave1.exportedPartyState.pokemon.map((pm) => {
+      if (pm.species === 'Arcanine') {
+        return { ...pm, hp: 0, fainted: true, status: '' as const };
+      }
+      if (pm.species === 'Corviknight') {
+        return {
+          ...pm,
+          hp: 150,
+          fainted: false,
+          status: 'par' as const,
+          ppByMoveId: { ...pm.ppByMoveId, bravebird: 2 },
+        };
+      }
+      return { ...pm, hp: Math.min(200, pm.maxhp), fainted: false, status: '' as const };
+    }),
+  };
+  const wave2Cfg = resolveMinesWave2Battle(minesFrame2.flags, persistedTestState);
+  const { finalSnap: resWave2, turn1Snap: t1Wave2 } = await runFullSimMatch(
+    'Mines Wave 2 (Persisted)',
+    wave2Cfg,
+    { maxTurns: 50 }
+  );
+  const leadW2 = t1Wave2?.p1.active[0];
+  const braveBirdSlot = t1Wave2?.pendingSlots[0]?.moves.find((m) => m.id === 'bravebird');
+  const faintedArcanine = t1Wave2?.p1.party.find((p) => p.species === 'Arcanine');
+  if (
+    !t1Wave2?.persistenceApplied ||
+    leadW2?.species !== 'Corviknight' ||
+    leadW2.hp !== 150 ||
+    leadW2.status !== 'par' ||
+    braveBirdSlot?.pp !== 2 ||
+    !faintedArcanine?.fainted
+  ) {
+    throw new Error(
+      `Wave 2 persistence injection mismatch: applied=${t1Wave2?.persistenceApplied}, lead=${leadW2?.species} hp=${leadW2?.hp} st=${leadW2?.status} bbPP=${braveBirdSlot?.pp} arcFnt=${faintedArcanine?.fainted}`
+    );
+  }
+  console.log(
+    `  OK: Ink #START_BATTLE chain + Conscious Lead Reorder (Corviknight), HP=150, status=par, Brave Bird PP=2, Arcanine=fnt, Wave 2 turns=${resWave2.turn}`
+  );
+
+  console.log('\n=== 12. CAPÍTULO C: La Falange de Hammerlocke (Triples 6v6 · Gen 6) ===');
+  const triplesInk = readFileSync(resolve('src/stories/showcase_triples_phalanx.ink'), 'utf8');
+  const tRunner = new InkVNRunner(triplesInk);
+  let tFrame = tRunner.step();
+  while (!tFrame.isEnded) {
+    if (tFrame.canContinue) tFrame = tRunner.step();
+    else if (tFrame.choices.length > 0) tFrame = tRunner.choose(0);
+  }
+  const triplesCfg = resolveTriplesPhalanxBattle(tFrame.flags);
+  const { finalSnap: resTriples, turn1Snap: t1Triples } = await runFullSimMatch(
+    'Triples 6v6 Phalanx',
+    triplesCfg,
+    { maxTurns: 60 }
+  );
+  if (t1Triples?.p1.active.length !== 3 || t1Triples?.p2.active.length !== 3) {
+    throw new Error(`Expected 3 active slots per side in Triples, got ${t1Triples?.p1.active.length} vs ${t1Triples?.p2.active.length}`);
+  }
+  if (!t1Triples?.pendingSlots[1]?.canMegaEvo) {
+    throw new Error('Expected Center Gardevoir canMegaEvo=true in Gen 6 Triples!');
+  }
+  if (!resTriples.triggeredScriptIds.includes('triples-t1-aegislash-wg')) {
+    throw new Error('Expected Aegislash Turn 1 Wide Guard in Triples Phalanx!');
+  }
+  console.log(
+    `  OK: 3v3 active Triples verified, Mega Gardevoir ready, Scripted=[${resTriples.triggeredScriptIds.join(', ')}], turns=${resTriples.turn}`
+  );
+
+  console.log('\n=== 13. CAPÍTULO D: El Juicio de los Tres Caballeros (1 vs 3 Triples · Gen 6) ===');
+  const knightsInk = readFileSync(resolve('src/stories/challenge2_three_knights.ink'), 'utf8');
+  const kRunner = new InkVNRunner(knightsInk);
+  let kFrame = kRunner.step();
+  while (!kFrame.isEnded) {
+    if (kFrame.canContinue) kFrame = kRunner.step();
+    else if (kFrame.choices.length > 0) kFrame = kRunner.choose(0); // Mega Charizard Y
+  }
+  const knightsCfg = resolveThreeKnightsBattle(kFrame.flags);
+  const { finalSnap: resKnights, turn1Snap: t1Knights } = await runFullSimMatch(
+    'Triples 1v3 Three Knights',
+    knightsCfg,
+    { maxTurns: 30 }
+  );
+  if (t1Knights?.p1.active[1]?.species !== 'Charizard') {
+    throw new Error(`Expected Center Charizard in 1v3 Triples, got ${t1Knights?.p1.active[1]?.species}`);
+  }
+  if (!resKnights.triggeredScriptIds.includes('triad-wideguard-t1-t3')) {
+    throw new Error('Expected Aegislash Turn 1/3 Wide Guard script in Three Knights!');
+  }
+  console.log(
+    `  OK: Center Mega Charizard Y vs 3 Knights, Scripted=[${resKnights.triggeredScriptIds.join(', ')}], winner=${resKnights.winner}, turns=${resKnights.turn}`
+  );
+
+  console.log('\n=== 14. CAPÍTULO E: Reliquia de Silph Co. (Gen 1 OU vs Balanced Mew & Mewtwo) ===');
+  const gen1Ink = readFileSync(resolve('src/stories/archive_gen1_silph.ink'), 'utf8');
+  const g1Runner = new InkVNRunner(gen1Ink);
+  let g1Frame = g1Runner.step();
+  while (!g1Frame.isEnded) {
+    if (g1Frame.canContinue) g1Frame = g1Runner.step();
+    else if (g1Frame.choices.length > 0) g1Frame = g1Runner.choose(1); // Tauros lead
+  }
+  const gen1Cfg = resolveGen1SilphArchiveBattle(g1Frame.flags);
+  const { finalSnap: resGen1, turn1Snap: t1Gen1 } = await runFullSimMatch(
+    'Gen 1 Silph Co Archive',
+    gen1Cfg,
+    { maxTurns: 120 }
+  );
+  if (t1Gen1?.p1.active[0]?.species !== 'Tauros' || t1Gen1?.p2.active[0]?.species !== 'Mewtwo') {
+    throw new Error(`Expected Tauros vs Mewtwo in Gen 1, got ${t1Gen1?.p1.active[0]?.species} vs ${t1Gen1?.p2.active[0]?.species}`);
+  }
+  console.log(
+    `  OK: Native gen1customgame (Tauros vs Mewtwo/Mew), Scripted=[${resGen1.triggeredScriptIds.join(', ')}], winner=${resGen1.winner}, turns=${resGen1.turn}`
+  );
+
+  console.log('\nALL 12 CHAPTERS + PERSISTENCE + TRIPLES + GEN 1 + VERSUS + COACH TESTS PASSED!');
 }
 
-main().catch((err) => {
-  console.error('ENGINE TEST FAILED:', err);
-  process.exit(1);
+let allSuitesCompleted = false;
+process.on('beforeExit', () => {
+  if (!allSuitesCompleted) {
+    console.error('ENGINE TEST STALLED: event loop drained before all suites completed!');
+    process.exit(1);
+  }
 });
+
+main()
+  .then(() => {
+    allSuitesCompleted = true;
+  })
+  .catch((err) => {
+    console.error('ENGINE TEST FAILED:', err);
+    process.exit(1);
+  });

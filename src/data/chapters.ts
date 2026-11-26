@@ -5,16 +5,31 @@ import chapterLittleCupInk from '../stories/chapter_littlecup.ink?raw';
 import duel1HonorInk from '../stories/duel1_honor1v1.ink?raw';
 import chapter2MonotypeInk from '../stories/chapter2_monotype.ink?raw';
 import archiveVgc2024Ink from '../stories/archive_vgc2024.ink?raw';
+import challengeLastBastionInk from '../stories/challenge1_last_bastion.ink?raw';
+import survivalGalarMinesInk from '../stories/survival1_galar_mines.ink?raw';
+import showcaseTriplesPhalanxInk from '../stories/showcase_triples_phalanx.ink?raw';
+import challengeThreeKnightsInk from '../stories/challenge2_three_knights.ink?raw';
+import archiveGen1SilphInk from '../stories/archive_gen1_silph.ink?raw';
 import {
   resolveChampionLittleCupBattle,
   resolveChapter1ChaseBattle,
   resolveChapter2BanquetBattle,
   resolveChapter2MonotypeBattle,
   resolveDuel1Honor1v1Battle,
+  resolveGen1SilphArchiveBattle,
+  resolveLastBastionBattle,
+  resolveMinesWave1Battle,
+  resolveMinesWave2Battle,
   resolvePuzzle1SunTrapBattle,
+  resolveThreeKnightsBattle,
+  resolveTriplesPhalanxBattle,
   resolveVgcWorlds2024Battle,
 } from '../engine/teamBuilderTree';
-import type { ChapterDefinition, StoryFlags } from '../types/game';
+import type {
+  ChapterDefinition,
+  PersistedPartyState,
+  StoryFlags,
+} from '../types/game';
 
 export const CHAPTERS: ChapterDefinition[] = [
   /* ===================== HISTORIA ===================== */
@@ -318,6 +333,227 @@ export const CHAPTERS: ChapterDefinition[] = [
         badgeText: 'DERROTA · REINTENTAR FINAL',
         paragraphs: [
           'Abre el Open Teamsheet antes de elegir tus 4 Pokémon en el Team Preview o prueba cambiar de bando en la escena inicial para estudiar el enfrentamiento desde ambos lados.',
+        ],
+      };
+    },
+  },
+  {
+    id: 'showcase-triples-phalanx',
+    category: 'showcases',
+    number: 'CAPÍTULO C',
+    title: 'La Falange de Hammerlocke',
+    subtitle: 'Caballería del Duque · Batalla Triple 6v6 con Megaevoluciones (Gen 6)',
+    tag: 'TRIPLES 6V6 · GEN 6',
+    format: 'triples',
+    formatId: 'gen6triplescustomgame',
+    formatLabel: 'Triples 6v6 · Gen 6',
+    difficulty: 'Táctico Posicional (3 Slots Activos)',
+    description:
+      'Choque militar contra el Duque de Hammerlocke en Batalla Triple 6v6. Domina el alcance posicional (Izquierda · Centro · Derecha), ataques voladores/pulso de cruce de campo (Brave Bird, Air Slash), Wide Guard y Megaevolución con Mega Gardevoir vs. Mega Kangaskhan.',
+    accentColor: 'indigo',
+    featuredPokemon: ['Gardevoir-Mega', 'Hitmontop', 'Talonflame', 'Kangaskhan-Mega'],
+    rivalPreview: 'Duque de Hammerlocke · Mega Kangaskhan, Aegislash, Togekiss, Landorus-T',
+    inkSource: showcaseTriplesPhalanxInk,
+    resolveBattleConfig: resolveTriplesPhalanxBattle,
+    getEpilogue: (won: boolean) => {
+      if (won) {
+        return {
+          headline: 'La Falange de Hammerlocke Quebrada',
+          subheadline:
+            'Tu dominio de las tres líneas de batalla y el alcance posicional superó a la Caballería del Duque.',
+          badgeText: 'VICTORIA · TRIPLES 6V6',
+          paragraphs: [
+            'El Duque de Hammerlocke inclina su estandarte azul cobalto: «Pocas mentes dominan el tablero triple con tanta claridad. El centro y los flancos te obedecieron como un solo escudo.»',
+          ],
+        };
+      }
+      return {
+        headline: 'La Falange Mantuvo la Línea',
+        subheadline:
+          'El Wide Guard de Aegislash y el Viento Afín de Togekiss frenaron el avance.',
+        badgeText: 'DERROTA · REAGRUPAR FALANGE',
+        paragraphs: [
+          'Usa Feint de Hitmontop para romper el Wide Guard de Turno 1 o usa Brave Bird de Talonflame para golpear la esquina opuesta.',
+        ],
+      };
+    },
+  },
+
+  /* ===================== DESAFÍOS ===================== */
+  {
+    id: 'challenge-last-bastion',
+    category: 'challenges',
+    number: 'CAPÍTULO A',
+    title: 'El Último Bastión',
+    subtitle: 'La Milicia de los Muelles · 1 Pokémon Aliado (Raid Boss) vs. 6 Mercenarios',
+    tag: 'DESAFÍO · 1 VS 6 DOBLES',
+    format: 'doubles',
+    formatId: 'gen9doublescustomgame',
+    formatLabel: '1 vs 6 · Dobles',
+    difficulty: 'Raid Boss Solitario (Defiant + Rage Fist)',
+    description:
+      'Emboscada en el puente estrecho de los Muelles de Wyndon. Solo tu Annihilape (@ Leftovers · Defiant · Tera Fuego) queda en pie frente a los 6 mercenarios de la Milicia (Krookodile, Toxicroak, Kilowattrel, Mudsdale, Grimmsnarl y Regirock Tera Dark). Aprovecha su Intimidate y fuego amigo.',
+    accentColor: 'orange',
+    featuredPokemon: ['Annihilape', 'Krookodile', 'Toxicroak', 'Regirock'],
+    rivalPreview: 'La Milicia de los Muelles · 6 Mercenarios (Fuego Amigo T1)',
+    inkSource: challengeLastBastionInk,
+    resolveBattleConfig: resolveLastBastionBattle,
+    getEpilogue: (won: boolean) => {
+      if (won) {
+        return {
+          headline: '¡El Puente de los Muelles Resiste!',
+          subheadline:
+            'Un solo Annihilape barrió a los seis mercenarios de La Milicia de los Muelles.',
+          badgeText: 'DESAFÍO SUPERADO · 1 VS 6',
+          paragraphs: [
+            'Cada golpe recibido y cada Intimidación mal calculada alimentaron la furia imparable de Annihilape hasta despejar el puente por completo.',
+          ],
+        };
+      }
+      return {
+        headline: 'Superado en el Puente de Carga',
+        subheadline:
+          'La presión numérica de los seis mercenarios logró derribar a Annihilape.',
+        badgeText: 'DESAFÍO FALLIDO · REINTENTAR',
+        paragraphs: [
+          'Consejo: aprovecha el +1 de Defiant y el Earthquake amigo de Krookodile en Turno 1, escala con Bulk Up, cúrate con Drain Punch y guarda Tera Fuego para resistir a Grimmsnarl.',
+        ],
+      };
+    },
+  },
+  {
+    id: 'challenge-three-knights',
+    category: 'challenges',
+    number: 'CAPÍTULO D',
+    title: 'El Juicio de los Tres Caballeros',
+    subtitle: 'Tríada de Élite del Duque · 1 As Central vs. 3 Caballeros en Triples',
+    tag: 'DESAFÍO · 1 VS 3 TRIPLES',
+    format: 'triples',
+    formatId: 'gen6triplescustomgame',
+    formatLabel: '1 vs 3 · Triples',
+    difficulty: 'Lectura de Wide Guard (Turnos 1 y 3)',
+    description:
+      'Enfrenta en solitario desde el Centro del tablero Triple a Escavalier, Aegislash y Bisharp con Mega Charizard Y o Garchomp Life Orb. Lee los Turnos 1 y 3 scripteados de Wide Guard de Aegislash alternando ataques individuales y de área.',
+    accentColor: 'rose',
+    featuredPokemon: ['Charizard-Mega-Y', 'Garchomp', 'Aegislash', 'Escavalier'],
+    rivalPreview: 'Tríada de Élite · Escavalier, Aegislash (Wide Guard T1/T3), Bisharp',
+    inkSource: challengeThreeKnightsInk,
+    resolveBattleConfig: resolveThreeKnightsBattle,
+    getEpilogue: (won: boolean) => {
+      if (won) {
+        return {
+          headline: '¡Juicio de los Tres Caballeros Superado!',
+          subheadline:
+            'Tu lectura de Vastaguardia permitió a un solo As doblegar a la Tríada de Élite.',
+          badgeText: 'DESAFÍO SUPERADO · 1 VS 3 TRIPLES',
+          paragraphs: [
+            'Alternar golpes individuales en los turnos impares (Wide Guard) con ráfagas de área en los turnos pares desarmó por completo a los tres caballeros.',
+          ],
+        };
+      }
+      return {
+        headline: 'La Tríada Sostuvo el Escudo',
+        subheadline:
+          'Escavalier, Aegislash y Bisharp resistieron el asalto solitario.',
+        badgeText: 'DESAFÍO FALLIDO · REINTENTAR',
+        paragraphs: [
+          'Recuerda: Aegislash levanta Wide Guard en Turno 1 y Turno 3. Usa Air Slash / Solar Beam / Dragon Claw esos turnos y reserva Heat Wave / Earthquake para los turnos pares.',
+        ],
+      };
+    },
+  },
+
+  /* ===================== SUPERVIVENCIA (BACK-TO-BACK) ===================== */
+  {
+    id: 'survival-galar-mines',
+    category: 'survival',
+    number: 'CAPÍTULO B',
+    title: 'Asedio en las Minas de Galar',
+    subtitle: 'Back-to-Back sin curación · Zapadores Rebeldes → Capitán Corrupto',
+    tag: 'SUPERVIVENCIA · BACK-TO-BACK',
+    format: 'singles',
+    formatId: 'gen9customgame',
+    formatLabel: 'Back-to-Back · Persistencia',
+    difficulty: '2 Oleadas Consecutivas (HP/PP/Estados Persistentes)',
+    description:
+      'Fuga por las Minas de Galar en dos combates encadenados por Ink sin curación intermedia. Sobrevive primero a los Zapadores Rebeldes (cuyo último Golem @ Custap Berry detona Explosión), cruza la escena del humo con tu desgaste real intacto y derrota al Capitán de la Guardia Corrupta.',
+    accentColor: 'amber',
+    featuredPokemon: ['Arcanine', 'Dragapult', 'Golem', 'Bisharp'],
+    rivalPreview: 'Oleada 1: Zapadores (Explosion) → Oleada 2: Capitán Corrupto',
+    inkSource: survivalGalarMinesInk,
+    resolveBattleConfig: resolveMinesWave1Battle,
+    resolveStageBattleConfig: (
+      battleId: string,
+      flags: StoryFlags,
+      persistedPartyState?: PersistedPartyState
+    ) => {
+      if (battleId === 'mines_wave2') {
+        return resolveMinesWave2Battle(flags, persistedPartyState);
+      }
+      return resolveMinesWave1Battle(flags);
+    },
+    getEpilogue: (won: boolean) => {
+      if (won) {
+        return {
+          headline: '¡Fuga Exitosa de las Minas de Galar!',
+          subheadline:
+            'Superaste las dos oleadas consecutivas sin curación gestionando PS, estados y PP hasta el final.',
+          badgeText: 'SUPERVIVENCIA COMPLETADA · 2/2 OLEADAS',
+          paragraphs: [
+            'Dejaste atrás a los Zapadores Rebeldes y rompiste el bloqueo del Capitán Corrupto incluso con el desgaste heredado por BattlePersistenceManager.',
+          ],
+        };
+      }
+      return {
+        headline: 'Atrapado en el Nivel Profundo 4',
+        subheadline:
+          'El desgaste acumulado entre oleadas doblegó al escuadrón de fuga.',
+        badgeText: 'SUPERVIVENCIA FALLIDA · REINTENTAR',
+        paragraphs: [
+          'Consejo clave: usa Protect o cambia a Dragapult (tipo Fantasma, inmune a Normal) cuando Golem baje de 35% PS o quede último para esquivar su Explosion sin perder piezas para la Oleada 2.',
+        ],
+      };
+    },
+  },
+
+  /* ===================== ARCHIVO HISTÓRICO (GEN 1) ===================== */
+  {
+    id: 'archive-gen1-silph',
+    category: 'archive',
+    number: 'CAPÍTULO E',
+    title: 'Reliquia de Silph Co.',
+    subtitle: 'El Archivista Real · Smogon Gen 1 OU Clásico vs. Mew & Mewtwo',
+    tag: 'ARCHIVO HISTÓRICO · GEN 1 RBY',
+    format: 'singles',
+    formatId: 'gen1customgame',
+    formatLabel: 'Gen 1 OU vs Ubers',
+    difficulty: 'Era Antigua de Kanto (Sin objetos ni habilidades)',
+    description:
+      'El Archivista Real carga una simulación nativa de Generación 1 (gen1customgame). Pilotea el equipo clásico de Smogon Gen 1 OU (Tauros, Chansey, Snorlax, Exeggutor, Starmie, Alakazam) contra la versión equilibrada de Mewtwo y Mew (sin Amnesia ni Recover).',
+    accentColor: 'slate',
+    featuredPokemon: ['Tauros', 'Alakazam', 'Mewtwo', 'Mew'],
+    rivalPreview: 'El Archivista Real · Mewtwo & Mew (Equilibrados) + Gen 1 OU',
+    inkSource: archiveGen1SilphInk,
+    resolveBattleConfig: resolveGen1SilphArchiveBattle,
+    getEpilogue: (won: boolean) => {
+      if (won) {
+        return {
+          headline: '¡La Reliquia de Silph Co. Dominada!',
+          subheadline:
+            'El control táctico de Gen 1 OU (parálisis, sueño y explosiones) venció al poder genético de Mew y Mewtwo.',
+          badgeText: 'ARCHIVO GEN 1 COMPLETADO',
+          paragraphs: [
+            'El Archivista Real apaga el monitor de fósforo verde con admiración: «Incluso ante el poder bruto de la Era Antigua de Kanto, la estrategia clásica de Tauros, Chansey y Exeggutor sigue siendo inmortal.»',
+          ],
+        };
+      }
+      return {
+        headline: 'Anomalía Genética Imparable',
+        subheadline:
+          'Mewtwo y Mew impusieron su estadística Especial y velocidad crítica de Primera Generación.',
+        badgeText: 'SIMULACIÓN FALLIDA · REINTENTAR',
+        paragraphs: [
+          'Usa a Chansey con Light Screen + Thunder Wave para frenar a Mewtwo, y aprovecha el Sleep Powder y Explosion de Exeggutor o Self-Destruct de Snorlax para derribar a las amenazas más duras.',
         ],
       };
     },

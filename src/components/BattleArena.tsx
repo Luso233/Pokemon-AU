@@ -25,6 +25,8 @@ import {
 import { askLiveCoach } from '../engine/battleCoach';
 import {
   formatNeedsTarget,
+  isAllyTargetReachable,
+  isFoeTargetReachable,
   ShowdownBattleController,
 } from '../engine/battleEngine';
 import {
@@ -153,10 +155,13 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
   const [reservedSwitchSlots, setReservedSwitchSlots] = useState<number[]>([]);
   const [teraQueuedInTurn, setTeraQueuedInTurn] = useState(false);
   const [wantTera, setWantTera] = useState(false);
+  const [megaQueuedInTurn, setMegaQueuedInTurn] = useState(false);
+  const [wantMega, setWantMega] = useState(false);
   const [pendingTargetMove, setPendingTargetMove] = useState<{
     move: ActiveMoveOption;
     mode: 'foe' | 'ally';
     tera: boolean;
+    mega: boolean;
   } | null>(null);
 
   const startBattle = () => {
@@ -171,6 +176,8 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
     setReservedSwitchSlots([]);
     setTeraQueuedInTurn(false);
     setWantTera(false);
+    setMegaQueuedInTurn(false);
+    setWantMega(false);
     setPendingTargetMove(null);
 
     const ctrl = new ShowdownBattleController(
@@ -292,6 +299,8 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
       setReservedSwitchSlots([]);
       setTeraQueuedInTurn(false);
       setWantTera(false);
+      setMegaQueuedInTurn(false);
+      setWantMega(false);
       setPendingTargetMove(null);
       if (activeSide === 'p2') {
         void controllerRef.current?.submitP2Choice(autoCmds.join(', '));
@@ -305,6 +314,8 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
     setReservedSwitchSlots([]);
     setTeraQueuedInTurn(false);
     setWantTera(false);
+    setMegaQueuedInTurn(false);
+    setWantMega(false);
     setPendingTargetMove(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestKey]);
@@ -331,7 +342,8 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
   const commitSlotCommand = (
     cmd: string,
     switchSlotUsed?: number,
-    usedTera = false
+    usedTera = false,
+    usedMega = false
   ) => {
     if (!snapshot || !controllerRef.current) return;
     const nextCmds = [...queuedCommands, cmd];
@@ -340,10 +352,10 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
         ? [...reservedSwitchSlots, switchSlotUsed]
         : reservedSwitchSlots;
     const nextTeraQueued = teraQueuedInTurn || usedTera;
+    const nextMegaQueued = megaQueuedInTurn || usedMega;
 
     // Count unreserved, non-active, alive bench Pokémon remaining after this pick.
-    // Crucial for Doubles double-KO (`forceSwitch: [true, true]`) with only 1 bench Pokémon left:
-    // once that last Pokémon is chosen for Slot 1, Slot 2 MUST automatically append `pass` (`switch N, pass`)!
+    // Crucial for Doubles/Triples multi-KO (`forceSwitch`) with fewer alive bench Pokémon than fainted slots!
     const remainingBenchCount = activeParty.filter(
       (p) => !p.active && !p.fainted && !nextReserved.includes(p.slotIndex)
     ).length;
@@ -360,11 +372,13 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
 
     setPendingTargetMove(null);
     setWantTera(false);
+    setWantMega(false);
 
     if (nextIdx >= activePendingSlots.length) {
       setQueuedCommands([]);
       setReservedSwitchSlots([]);
       setTeraQueuedInTurn(false);
+      setMegaQueuedInTurn(false);
       setSlotCursor(0);
       if (activeSide === 'p2') {
         void controllerRef.current.submitP2Choice(nextCmds.join(', '));
@@ -375,6 +389,7 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
       setQueuedCommands(nextCmds);
       setReservedSwitchSlots(nextReserved);
       setTeraQueuedInTurn(nextTeraQueued);
+      setMegaQueuedInTurn(nextMegaQueued);
       setSlotCursor(nextIdx);
     }
   };
@@ -382,45 +397,74 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
   const handleMoveClick = (move: ActiveMoveOption) => {
     if (!snapshot) return;
     const useTera = wantTera && !teraQueuedInTurn;
-    const teraSuffix = useTera ? ' terastallize' : '';
+    const useMega = wantMega && !megaQueuedInTurn;
+    const modSuffix = `${useTera ? ' terastallize' : ''}${useMega ? ' mega' : ''}`;
     const targetMode = formatNeedsTarget(snapshot.format, move.target);
+    const activeIdx = activePendingSlots[slotCursor]?.activeIndex ?? 0;
 
     if (targetMode === 'none') {
-      commitSlotCommand(`move ${move.index}${teraSuffix}`, undefined, useTera);
+      commitSlotCommand(`move ${move.index}${modSuffix}`, undefined, useTera, useMega);
       return;
     }
 
     if (targetMode === 'ally') {
-      const activeIdx = activePendingSlots[slotCursor]?.activeIndex ?? 0;
-      const allyIdx = activeIdx === 0 ? 1 : 0;
-      commitSlotCommand(
-        `move ${move.index} -${allyIdx + 1}${teraSuffix}`,
-        undefined,
-        useTera
-      );
+      const myActiveRow =
+        activeSide === 'p2' ? snapshot.p2.active : snapshot.p1.active;
+      const reachableAllies = myActiveRow
+        .map((m, idx) => ({ m, idx }))
+        .filter(
+          ({ m, idx }) =>
+            m &&
+            !m.fainted &&
+            !(activeSide === 'p1' && config.emptyPlayerSlots?.includes(idx)) &&
+            isAllyTargetReachable(snapshot.format, activeIdx, idx)
+        );
+
+      if (reachableAllies.length === 1) {
+        commitSlotCommand(
+          `move ${move.index} -${reachableAllies[0].idx + 1}${modSuffix}`,
+          undefined,
+          useTera,
+          useMega
+        );
+        return;
+      }
+      if (reachableAllies.length === 0) {
+        commitSlotCommand(`move ${move.index}${modSuffix}`, undefined, useTera, useMega);
+        return;
+      }
+      setPendingTargetMove({ move, mode: 'ally', tera: useTera, mega: useMega });
       return;
     }
 
-    const aliveFoes = activeFoes
+    const reachableFoes = activeFoes
       .map((m, idx) => ({ m, idx }))
-      .filter(({ m }) => m && !m.fainted);
+      .filter(
+        ({ m, idx }) =>
+          m &&
+          !m.fainted &&
+          isFoeTargetReachable(snapshot.format, activeIdx, idx, move.target)
+      );
 
-    if (aliveFoes.length === 1) {
+    if (reachableFoes.length === 1) {
       commitSlotCommand(
-        `move ${move.index} +${aliveFoes[0].idx + 1}${teraSuffix}`,
+        `move ${move.index} +${reachableFoes[0].idx + 1}${modSuffix}`,
         undefined,
-        useTera
+        useTera,
+        useMega
       );
       return;
     }
 
-    setPendingTargetMove({ move, mode: 'foe', tera: useTera });
+    setPendingTargetMove({ move, mode: 'foe', tera: useTera, mega: useMega });
   };
 
   const handleUndoDoubleSlot = () => {
     setPendingTargetMove(null);
     setWantTera(false);
     setTeraQueuedInTurn(false);
+    setWantMega(false);
+    setMegaQueuedInTurn(false);
     if (!snapshot) return;
     let firstInteractive = 0;
     const leadingPasses: string[] = [];
@@ -494,8 +538,14 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
     activeIsForceSwitch &&
     (availableSwitches.length === 0 ||
       remainingForceSwitchSlots > availableSwitches.length);
+  const isEmptyPlayerSlot = (idx: number) =>
+    Boolean(config.emptyPlayerSlots?.includes(idx));
+  const visibleP1Party = snapshot.p1.party.filter(
+    (_, idx) => !isEmptyPlayerSlot(idx)
+  );
   const canTeraNow = Boolean(currentSlot?.canTerastallize) && !teraQueuedInTurn;
-  const aliveP1 = snapshot.p1.party.filter((p) => !p.fainted).length;
+  const canMegaNow = Boolean(currentSlot?.canMegaEvo) && !megaQueuedInTurn;
+  const aliveP1 = visibleP1Party.filter((p) => !p.fainted).length;
   const aliveP2 = Math.max(0, snapshot.totalP2 - snapshot.koCountP2);
   const activeTrainerName =
     activeSide === 'p2' ? config.rivalName : config.playerName;
@@ -507,10 +557,14 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
     side: 'p1' | 'p2',
     slotIdx: number
   ) => {
-    if (!mon) {
+    if (!mon || (side === 'p1' && isEmptyPlayerSlot(slotIdx))) {
       return (
-        <div className="flex h-24 w-24 items-center justify-center rounded-2xl border border-dashed border-slate-700/40 bg-slate-950/20 text-[10px] text-slate-600">
-          Vacío
+        <div
+          className={`flex items-center justify-center rounded-2xl border border-dashed border-slate-700/35 bg-slate-950/15 text-[9px] text-slate-600 ${
+            snapshot.format === 'triples' ? 'h-16 w-20 xl:h-20 xl:w-24' : 'h-20 w-24'
+          }`}
+        >
+          {snapshot.format === 'triples' ? 'Flanco vacío' : 'Vacío'}
         </div>
       );
     }
@@ -577,9 +631,11 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
           <div
             key={`${mon.ident}-${isHit ? cue?.id : 'idle'}`}
             className={`mt-0.5 flex items-center justify-center ${
-              snapshot.format === 'doubles'
-                ? 'h-20 w-24 xl:h-24 xl:w-28'
-                : 'h-24 w-28 xl:h-28 xl:w-32'
+              snapshot.format === 'triples'
+                ? 'h-16 w-20 xl:h-20 xl:w-24'
+                : snapshot.format === 'doubles'
+                  ? 'h-20 w-24 xl:h-24 xl:w-28'
+                  : 'h-24 w-28 xl:h-28 xl:w-32'
             } ${
               isHit
                 ? 'animate-hit-shake'
@@ -610,7 +666,7 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
     side: 'p1' | 'p2',
     idx: number
   ) => {
-    if (!mon) return null;
+    if (!mon || (side === 'p1' && isEmptyPlayerSlot(idx))) return null;
     const statusBadge = mon.status ? STATUS_BADGE_STYLES[mon.status] : null;
     const boosts = Object.entries(mon.boosts).filter(([, v]) => v !== 0);
 
@@ -694,11 +750,20 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
     );
   };
 
-  const playerRailCount = Math.min(6, Math.max(snapshot.p1.party.length, 1));
+  const playerRailCount = Math.min(6, Math.max(visibleP1Party.length, 1));
   const playerRailSlots = Array.from(
     { length: playerRailCount },
-    (_, i) => snapshot.p1.party[i] ?? null
+    (_, i) => visibleP1Party[i] ?? null
   );
+
+  // Visual lane order: in Triples, P2 row is mirrored [2, 1, 0] so P2 pos 2 faces P1 pos 0 (Left)!
+  const p2ActiveIndices =
+    snapshot.format === 'triples'
+      ? [2, 1, 0].filter((i) => i < snapshot.p2.active.length)
+      : snapshot.p2.active.map((_, i) => i);
+  const p1ActiveIndices = snapshot.p1.active.map((_, i) => i);
+  const triplesLaneLabel = (visualCol: number) =>
+    visualCol === 0 ? 'Flanco Izq' : visualCol === 1 ? 'Centro' : 'Flanco Der';
 
   const rivalRailCount = Math.min(
     6,
@@ -1226,20 +1291,54 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
 
                   {/* CENTER SPRITE ARENA */}
                   <div className="relative flex min-h-0 flex-1 flex-col justify-between py-0.5">
-                    <div className="flex items-start justify-end gap-3 pr-2 xl:gap-6 xl:pr-5">
-                      {snapshot.p2.active.map((mon, idx) => (
-                        <React.Fragment key={`p2-active-${idx}`}>
-                          {renderActiveSprite(mon, 'p2', idx)}
-                        </React.Fragment>
-                      ))}
+                    <div
+                      className={`flex items-start ${
+                        snapshot.format === 'triples'
+                          ? 'justify-around gap-1.5 px-1'
+                          : 'justify-end gap-3 pr-2 xl:gap-6 xl:pr-5'
+                      }`}
+                    >
+                      {p2ActiveIndices.map((slotIdx, visualCol) => {
+                        const mon = snapshot.p2.active[slotIdx] ?? null;
+                        return (
+                          <div
+                            key={`p2-active-${slotIdx}`}
+                            className="flex flex-col items-center"
+                          >
+                            {snapshot.format === 'triples' && (
+                              <span className="mb-0.5 rounded bg-rose-500/15 px-1.5 py-0.2 text-[8px] font-bold uppercase tracking-wider text-rose-200/80">
+                                {triplesLaneLabel(visualCol)}
+                              </span>
+                            )}
+                            {renderActiveSprite(mon, 'p2', slotIdx)}
+                          </div>
+                        );
+                      })}
                     </div>
 
-                    <div className="flex items-end justify-start gap-3 pl-2 xl:gap-6 xl:pl-5">
-                      {snapshot.p1.active.map((mon, idx) => (
-                        <React.Fragment key={`p1-active-${idx}`}>
-                          {renderActiveSprite(mon, 'p1', idx)}
-                        </React.Fragment>
-                      ))}
+                    <div
+                      className={`flex items-end ${
+                        snapshot.format === 'triples'
+                          ? 'justify-around gap-1.5 px-1'
+                          : 'justify-start gap-3 pl-2 xl:gap-6 xl:pl-5'
+                      }`}
+                    >
+                      {p1ActiveIndices.map((slotIdx, visualCol) => {
+                        const mon = snapshot.p1.active[slotIdx] ?? null;
+                        return (
+                          <div
+                            key={`p1-active-${slotIdx}`}
+                            className="flex flex-col items-center"
+                          >
+                            {renderActiveSprite(mon, 'p1', slotIdx)}
+                            {snapshot.format === 'triples' && (
+                              <span className="mt-0.5 rounded bg-amber-500/15 px-1.5 py-0.2 text-[8px] font-bold uppercase tracking-wider text-amber-200/80">
+                                {triplesLaneLabel(visualCol)}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -1295,8 +1394,8 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                     )}
                   </div>
                   <div className="flex min-w-0 gap-1.5">
-                    {snapshot.p2.active.map((mon, idx) =>
-                      renderSwitchHudPlate(mon, 'p2', idx)
+                    {p2ActiveIndices.map((slotIdx) =>
+                      renderSwitchHudPlate(snapshot.p2.active[slotIdx] ?? null, 'p2', slotIdx)
                     )}
                   </div>
                 </div>
@@ -1423,9 +1522,19 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                         }
                         className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 px-5 py-2 text-xs font-extrabold text-slate-950 shadow-lg shadow-amber-500/25 hover:brightness-110 cursor-pointer"
                       >
-                        <Brain className="h-3.5 w-3.5" />
-                        Epílogo & Game Review
-                        <ChevronRight className="h-3.5 w-3.5" />
+                        {snapshot.winner === 'p1' && config.nextStageLabel ? (
+                          <>
+                            <Sparkles className="h-3.5 w-3.5" />
+                            {config.nextStageLabel}
+                            <ChevronRight className="h-3.5 w-3.5" />
+                          </>
+                        ) : (
+                          <>
+                            <Brain className="h-3.5 w-3.5" />
+                            Epílogo & Game Review
+                            <ChevronRight className="h-3.5 w-3.5" />
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>
@@ -1461,9 +1570,9 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                   </div>
                 ) : pendingTargetMove ? (
                   <div>
-                    <div className="mb-2 flex items-center justify-between">
+                    <div className="mb-2 flex items-center justify-between gap-2">
                       <p className="text-xs font-bold text-amber-200">
-                        Elige objetivo para{' '}
+                        Elige {pendingTargetMove.mode === 'ally' ? 'aliado' : 'objetivo'} para{' '}
                         <span className="text-white">
                           {pendingTargetMove.move.name}
                         </span>
@@ -1471,7 +1580,18 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                           <span className="ml-1.5 rounded bg-cyan-500/20 px-1.5 py-0.5 text-[10px] text-cyan-200">
                             ✦ Tera
                           </span>
-                        )}{' '}
+                        )}
+                        {pendingTargetMove.mega && (
+                          <span className="ml-1.5 rounded bg-fuchsia-500/20 px-1.5 py-0.5 text-[10px] text-fuchsia-200">
+                            ✦ Mega
+                          </span>
+                        )}
+                        {snapshot.format === 'triples' &&
+                          pendingTargetMove.move.target === 'any' && (
+                            <span className="ml-1.5 rounded bg-emerald-500/20 px-1.5 py-0.5 text-[10px] text-emerald-200">
+                              ✦ Cruce de Campo
+                            </span>
+                          )}{' '}
                         ({currentSlot.pokemon.name})
                       </p>
                       <button
@@ -1481,48 +1601,146 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                         ← Volver
                       </button>
                     </div>
-                    <div className="grid grid-cols-2 gap-2.5">
-                      {activeFoes.map((foe, idx) => {
-                        if (!foe || foe.fainted) return null;
-                        return (
-                          <PokemonTooltip
-                            key={foe.ident}
-                            mon={foe}
-                            side={activeSide === 'p2' ? 'p1' : 'p2'}
-                            placement="top"
-                          >
+                    {pendingTargetMove.mode === 'ally' ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        {(activeSide === 'p2'
+                          ? snapshot.p2.active
+                          : snapshot.p1.active
+                        ).map((ally, idx) => {
+                          if (
+                            !ally ||
+                            ally.fainted ||
+                            (activeSide === 'p1' && isEmptyPlayerSlot(idx)) ||
+                            !isAllyTargetReachable(
+                              snapshot.format,
+                              currentSlot.activeIndex,
+                              idx
+                            )
+                          ) {
+                            return null;
+                          }
+                          return (
                             <button
+                              key={`ally-${ally.ident}-${idx}`}
                               onClick={() =>
                                 commitSlotCommand(
-                                  `move ${pendingTargetMove.move.index} +${idx + 1}${
+                                  `move ${pendingTargetMove.move.index} -${idx + 1}${
                                     pendingTargetMove.tera ? ' terastallize' : ''
-                                  }`,
+                                  }${pendingTargetMove.mega ? ' mega' : ''}`,
                                   undefined,
-                                  pendingTargetMove.tera
+                                  pendingTargetMove.tera,
+                                  pendingTargetMove.mega
                                 )
                               }
-                              className="flex w-full items-center justify-between rounded-xl border border-rose-400/40 bg-rose-500/10 px-3 py-2 text-left transition hover:border-rose-400 hover:bg-rose-500/20 cursor-pointer"
+                              className="flex w-full items-center justify-between rounded-xl border border-sky-400/45 bg-sky-500/15 px-3 py-2 text-left transition hover:border-sky-300 hover:bg-sky-500/25 cursor-pointer"
                             >
                               <div className="flex items-center gap-2">
-                                <PokemonIcon
-                                  species={foe.species}
-                                  className="scale-90"
-                                />
+                                <PokemonIcon species={ally.species} className="scale-90" />
                                 <div>
-                                  <p className="text-xs font-bold text-white">
-                                    {foe.name}
-                                  </p>
-                                  <p className="text-[11px] text-rose-200">
-                                    PS: {foe.hpPercent}% · Rival {idx + 1}
+                                  <p className="text-xs font-bold text-white">{ally.name}</p>
+                                  <p className="text-[11px] text-sky-200">
+                                    Aliado · {snapshot.format === 'triples' ? triplesLaneLabel(idx) : `Slot ${idx + 1}`}
                                   </p>
                                 </div>
                               </div>
-                              <ChevronRight className="h-4 w-4 text-rose-300" />
+                              <ChevronRight className="h-4 w-4 text-sky-300" />
                             </button>
-                          </PokemonTooltip>
-                        );
-                      })}
-                    </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div
+                        className={`grid gap-2 ${
+                          snapshot.format === 'triples' ? 'grid-cols-3' : 'grid-cols-2'
+                        }`}
+                      >
+                        {(snapshot.format === 'triples' && activeSide === 'p1'
+                          ? [2, 1, 0].filter((i) => i < activeFoes.length)
+                          : activeFoes.map((_, i) => i)
+                        ).map((foeIdx, visualCol) => {
+                          const foe = activeFoes[foeIdx];
+                          if (!foe || foe.fainted) {
+                            return snapshot.format === 'triples' ? (
+                              <div
+                                key={`foe-empty-${foeIdx}`}
+                                className="flex items-center justify-center rounded-xl border border-dashed border-slate-800 bg-slate-950/40 px-2 py-2 text-[10px] text-slate-600"
+                              >
+                                {triplesLaneLabel(visualCol)} vacío
+                              </div>
+                            ) : null;
+                          }
+                          const reachable = isFoeTargetReachable(
+                            snapshot.format,
+                            currentSlot.activeIndex,
+                            foeIdx,
+                            pendingTargetMove.move.target
+                          );
+                          return (
+                            <PokemonTooltip
+                              key={foe.ident}
+                              mon={foe}
+                              side={activeSide === 'p2' ? 'p1' : 'p2'}
+                              placement="top"
+                            >
+                              <button
+                                disabled={!reachable}
+                                onClick={() =>
+                                  commitSlotCommand(
+                                    `move ${pendingTargetMove.move.index} +${foeIdx + 1}${
+                                      pendingTargetMove.tera ? ' terastallize' : ''
+                                    }${pendingTargetMove.mega ? ' mega' : ''}`,
+                                    undefined,
+                                    pendingTargetMove.tera,
+                                    pendingTargetMove.mega
+                                  )
+                                }
+                                className={`flex w-full items-center justify-between rounded-xl border px-2.5 py-2 text-left transition ${
+                                  reachable
+                                    ? 'border-rose-400/40 bg-rose-500/10 hover:border-rose-400 hover:bg-rose-500/20 cursor-pointer'
+                                    : 'border-slate-800 bg-slate-950/60 opacity-40 cursor-not-allowed'
+                                }`}
+                              >
+                                <div className="flex min-w-0 items-center gap-1.5">
+                                  <PokemonIcon
+                                    species={foe.species}
+                                    className="scale-90"
+                                  />
+                                  <div className="min-w-0">
+                                    <p className="truncate text-xs font-bold text-white">
+                                      {foe.name}
+                                    </p>
+                                    <p className="truncate text-[10px] text-rose-200">
+                                      {reachable
+                                        ? `${foe.hpPercent}% · ${
+                                            snapshot.format === 'triples'
+                                              ? triplesLaneLabel(visualCol)
+                                              : `Rival ${foeIdx + 1}`
+                                          }`
+                                        : 'Fuera de alcance'}
+                                    </p>
+                                  </div>
+                                </div>
+                                {reachable && (
+                                  <ChevronRight className="h-4 w-4 shrink-0 text-rose-300" />
+                                )}
+                              </button>
+                            </PokemonTooltip>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {snapshot.format === 'triples' &&
+                      currentSlot.activeIndex !== 1 && (
+                        <div className="mt-2 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => commitSlotCommand('shift')}
+                            className="rounded-lg border border-indigo-400/45 bg-indigo-500/15 px-3 py-1 text-[11px] font-bold text-indigo-200 hover:bg-indigo-500/25 cursor-pointer"
+                          >
+                            ↔ Desplazarse al Centro (Shift)
+                          </button>
+                        </div>
+                      )}
                   </div>
                 ) : currentSlot.forceSwitch ? (
                   <div>
@@ -1623,15 +1841,54 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                         <span className="font-mono-code rounded border border-slate-700 bg-slate-900 px-1.5 py-0.5 text-[10px] text-slate-300">
                           PS {currentSlot.pokemon.hp}/{currentSlot.pokemon.maxhp}
                         </span>
-                        {snapshot.format === 'doubles' && (
+                        {(snapshot.format === 'doubles' ||
+                          snapshot.format === 'triples') && (
                           <span className="rounded border border-amber-400/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-200">
-                            Slot {currentSlot.activeIndex + 1}/
-                            {activePendingSlots.length}
+                            {snapshot.format === 'triples'
+                              ? triplesLaneLabel(currentSlot.activeIndex)
+                              : `Slot ${currentSlot.activeIndex + 1}/${activePendingSlots.length}`}
                           </span>
                         )}
                       </div>
 
                       <div className="flex items-center gap-2">
+                        {canMegaNow && (
+                          <ActionInfoTooltip
+                            title="Megaevolución (Gen 6)"
+                            badge="1× por combate"
+                            description="Transforma a tu Pokémon en su Mega Forma este turno al ejecutar su movimiento."
+                            placement="top"
+                          >
+                            <button
+                              type="button"
+                              onClick={() => setWantMega((v) => !v)}
+                              className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[11px] font-bold transition cursor-pointer ${
+                                wantMega
+                                  ? 'border-fuchsia-300 bg-fuchsia-500/25 text-fuchsia-100 ring-1 ring-fuchsia-300/60'
+                                  : 'border-slate-700 bg-slate-900 text-slate-300 hover:border-fuchsia-400/60 hover:text-fuchsia-200'
+                              }`}
+                            >
+                              <Sparkles className="h-3 w-3 text-fuchsia-300" />
+                              <span>Mega</span>
+                            </button>
+                          </ActionInfoTooltip>
+                        )}
+                        {snapshot.format === 'triples' &&
+                          currentSlot.activeIndex !== 1 && (
+                            <ActionInfoTooltip
+                              title="Desplazar al Centro (Shift)"
+                              description="En Batalla Triple, un Pokémon de esquina puede cambiar de posición con el Centro para alcanzar todo el tablero."
+                              placement="top"
+                            >
+                              <button
+                                type="button"
+                                onClick={() => commitSlotCommand('shift')}
+                                className="rounded-lg border border-indigo-400/40 bg-indigo-500/15 px-2 py-1 text-[11px] font-bold text-indigo-200 hover:bg-indigo-500/25 cursor-pointer"
+                              >
+                                ↔ Shift
+                              </button>
+                            </ActionInfoTooltip>
+                          )}
                         {snapshot.p2Control !== 'human' && (
                           <ActionInfoTooltip
                             title="¿Qué haría el Coach?"
@@ -1742,7 +1999,12 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                             : 'Sin banca disponible (formato 1v1 o solo activos)'}
                         </span>
                       ) : (
-                        activeParty.map((mon) => {
+                        activeParty
+                          .filter(
+                            (_, idx) =>
+                              !(activeSide === 'p1' && isEmptyPlayerSlot(idx))
+                          )
+                          .map((mon) => {
                           const canSwitch =
                             !currentSlot.trapped &&
                             !mon.active &&

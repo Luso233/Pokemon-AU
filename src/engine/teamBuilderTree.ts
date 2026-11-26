@@ -1,5 +1,6 @@
 import type {
   DecisionTraceItem,
+  PersistedPartyState,
   ResolvedBattleConfig,
   ScriptedEnemyRule,
   StoryFlags,
@@ -9,7 +10,7 @@ export interface ShowdownSetBlock {
   nickname?: string;
   species: string;
   item?: string;
-  ability: string;
+  ability?: string;
   level: number;
   teraType?: string;
   evs?: string;
@@ -29,11 +30,11 @@ export function buildShowdownPaste(blocks: ShowdownSetBlock[]): string {
         ? `${mon.nickname} (${mon.species})`
         : mon.species;
       const firstLine = mon.item ? `${headerName} @ ${mon.item}` : headerName;
-      const lines = [
-        firstLine,
-        `Ability: ${mon.ability}`,
-        `Level: ${mon.level}`,
-      ];
+      const lines = [firstLine];
+      if (mon.ability) {
+        lines.push(`Ability: ${mon.ability}`);
+      }
+      lines.push(`Level: ${mon.level}`);
       if (mon.teraType) {
         lines.push(`Tera Type: ${mon.teraType}`);
       }
@@ -2015,6 +2016,969 @@ export function resolveVgcWorlds2024Battle(
         effectDetail: isPlayingAsYuta
           ? 'Whimsicott + Miraidon en Turno 1 con Viento Afín y Brillo Mágico.'
           : 'Iron Valiant + Landorus en Turno 1, con pivote mid-game hacia Calyrex-Ice (Trick Room).',
+      },
+    ],
+    flags,
+  };
+}
+
+/* ===================== CAPÍTULO A: El Último Bastión (1 vs 6 Dobles · La Milicia de los Muelles) ===================== */
+
+export function resolveLastBastionBattle(
+  flags: StoryFlags
+): ResolvedBattleConfig {
+  const dockStance = String(flags.dock_stance ?? 'defiant');
+
+  // Slot 0 = Raid Boss Annihilape; Slot 1 = Hidden empty slot auto-fainted before Turn 1 so @pkmn/sim runs pure 1 vs 6 Doubles!
+  const playerBlocks: ShowdownSetBlock[] = [
+    {
+      species: 'Annihilape',
+      item: 'Leftovers',
+      ability: 'Defiant',
+      level: 100,
+      teraType: 'Fire',
+      evs: '252 HP / 4 Atk / 252 SpD',
+      nature: 'Careful',
+      moves: ['Rage Fist', 'Drain Punch', 'Bulk Up', 'Protect'],
+    },
+    {
+      nickname: 'Espacio Vacío',
+      species: 'Rookidee',
+      ability: 'Keen Eye',
+      level: 1,
+      moves: ['Peck'],
+    },
+  ];
+
+  const rivalBlocks: ShowdownSetBlock[] = [
+    {
+      species: 'Krookodile',
+      item: 'Soft Sand',
+      ability: 'Intimidate',
+      level: 90,
+      teraType: 'Ground',
+      evs: '4 HP / 252 Atk / 252 Spe',
+      nature: 'Jolly',
+      moves: ['Earthquake', 'Crunch', 'Rock Slide', 'Taunt'],
+    },
+    {
+      species: 'Toxicroak',
+      item: 'Black Sludge',
+      ability: 'Dry Skin',
+      level: 90,
+      teraType: 'Poison',
+      evs: '4 HP / 252 Atk / 252 Spe',
+      nature: 'Jolly',
+      moves: ['Poison Jab', 'Drain Punch', 'Sucker Punch', 'Fake Out'],
+    },
+    {
+      species: 'Kilowattrel',
+      item: 'Focus Sash',
+      ability: 'Volt Absorb',
+      level: 90,
+      teraType: 'Electric',
+      evs: '4 HP / 252 SpA / 252 Spe',
+      nature: 'Timid',
+      ivs: '0 Atk',
+      moves: ['Discharge', 'Air Slash', 'Volt Switch', 'Tailwind'],
+    },
+    {
+      species: 'Mudsdale',
+      item: 'Assault Vest',
+      ability: 'Stamina',
+      level: 92,
+      teraType: 'Ground',
+      evs: '252 HP / 252 Atk / 4 SpD',
+      nature: 'Adamant',
+      moves: ['High Horsepower', 'Body Press', 'Rock Slide', 'Heavy Slam'],
+    },
+    {
+      species: 'Grimmsnarl',
+      item: 'Light Clay',
+      ability: 'Prankster',
+      level: 92,
+      teraType: 'Dark',
+      evs: '252 HP / 128 Def / 128 SpD',
+      nature: 'Careful',
+      moves: ['Spirit Break', 'Reflect', 'Light Screen', 'Thunder Wave'],
+    },
+    {
+      nickname: 'Regirock ★',
+      species: 'Regirock',
+      item: 'Leftovers',
+      ability: 'Clear Body',
+      level: 96,
+      teraType: 'Dark',
+      evs: '252 HP / 252 Def / 4 SpD',
+      nature: 'Impish',
+      moves: ['Body Press', 'Rock Slide', 'Iron Defense', 'Drain Punch'],
+    },
+  ];
+
+  const scriptedEnemyRules: ScriptedEnemyRule[] = [
+    {
+      id: 'bastion-t1-krook-eq',
+      turn: 1,
+      actorSpecies: 'Krookodile',
+      forceMoveId: 'earthquake',
+      once: true,
+      description:
+        'Turno 1 Fuego Amigo: Krookodile (tras activar Defiant con Intimidate) usa Earthquake, dañando también a su propio Toxicroak y cargando Rage Fist.',
+      tauntLine:
+        '«¡Aplasta el puente entero, Krookodile! ¡Terremoto — no me importa si alcanza a Toxicroak!»',
+    },
+    {
+      id: 'bastion-t1-toxicroak-fakeout',
+      turn: 1,
+      actorSpecies: 'Toxicroak',
+      forceMoveId: 'poisonjab',
+      targetSpec: 'species:Annihilape',
+      once: true,
+      description:
+        'Turno 1: Toxicroak golpea a Annihilape con Poison Jab, sumando otra carga a Rage Fist.',
+      tauntLine: '«¡Pínchalo sin descanso, Toxicroak!»',
+    },
+    {
+      id: 'bastion-kilowattrel-discharge',
+      actorSpecies: 'Kilowattrel',
+      forceMoveId: 'discharge',
+      once: true,
+      description:
+        'Entrada de Kilowattrel: descarga eléctrica en área sobre el puente (puede herir a su propio aliado).',
+      tauntLine: '«¡Chispa al muelle! ¡Kilowattrel, Chispazo a todo lo que se mueva!»',
+    },
+  ];
+
+  return {
+    chapterId: 'challenge-last-bastion',
+    format: 'doubles',
+    formatId: 'gen9doublescustomgame',
+    formatLabel: '1 vs 6 · Dobles',
+    emptyPlayerSlots: [1],
+    playerName: 'Príncipe Heredero',
+    playerCharId: 'prince',
+    rivalName: 'Capataz de los Muelles',
+    rivalTitle: 'La Milicia de los Muelles · Emboscada 1 vs 6',
+    rivalCharId: 'dock_militia',
+    arenaTheme: 'wyndon-docks',
+    playerTeamSummary: '1 Pokémon en pie: Annihilape (Defiant · Tera Fuego · Rage Fist)',
+    rivalTeamSummary: 'La Milicia de los Muelles: 6 mercenarios (Krookodile, Toxicroak, Kilowattrel, Mudsdale, Grimmsnarl, Regirock Tera Dark)',
+    playerShowdownPaste: buildShowdownPaste(playerBlocks),
+    rivalShowdownPaste: buildShowdownPaste(rivalBlocks),
+    rivalIntel: {
+      visibleSpeciesCount: 4,
+      totalSlots: 6,
+      intelLabel: 'Emboscada 1 vs 6 · Fuego Amigo',
+      intelNote:
+        'Solo Annihilape sigue consciente en el puente. Krookodile activa tu Defiant (+1 Atk) con Intimidate y dispara Earthquake sobre su propio compañero en Turno 1.',
+      levelCap: 95,
+      hasBossAce: true,
+      bossAceWarning: 'Regirock ★ (Tera Dark) cierra la cuadrilla del muelle.',
+      aiScriptHint:
+        'En Turno 1 Krookodile tira Earthquake (fuego amigo a Toxicroak) y ambos ataques cargan la potencia de tu Rage Fist.',
+    },
+    scriptedEnemyRules,
+    traces: [
+      {
+        id: 'bastion-stance',
+        category: 'player-set',
+        choiceLabel:
+          dockStance === 'cautious'
+            ? 'Postura prudente (Drain Punch + Protect)'
+            : 'Postura Defiant (Bulk Up + Rage Fist)',
+        flagKey: 'dock_stance',
+        flagValue: dockStance,
+        effectTitle: 'Raid Boss Aliado: Annihilape @ Leftovers',
+        effectDetail:
+          '252 HP / 252 SpD Careful con Tera Fuego para aguantar fuego, hada y quemaduras mientras escala Rage Fist.',
+      },
+      {
+        id: 'bastion-friendly-fire',
+        category: 'ai-script',
+        choiceLabel: 'Milicia indisciplinada en puente estrecho',
+        flagKey: 'militia_script',
+        flagValue: 'friendly_fire',
+        effectTitle: 'Intimidate → Defiant (+1 Atk) + Fuego Amigo',
+        effectDetail:
+          'Krookodile y Kilowattrel usan ataques de área descuidados que hieren a sus propios aliados.',
+      },
+    ],
+    flags,
+  };
+}
+
+/* ===================== CAPÍTULO B: Asedio en las Minas de Galar (Back-to-Back + Persistencia) ===================== */
+
+function buildMinesPlayerSquad(minesLead: string): ShowdownSetBlock[] {
+  const arcanine: ShowdownSetBlock = {
+    species: 'Arcanine',
+    item: 'Sitrus Berry',
+    ability: 'Intimidate',
+    level: 100,
+    teraType: 'Water',
+    evs: '244 HP / 4 Atk / 108 Def / 116 SpD / 36 Spe',
+    nature: 'Careful',
+    moves: ['Flare Blitz', 'Extreme Speed', 'Will-O-Wisp', 'Protect'],
+  };
+  const corviknight: ShowdownSetBlock = {
+    species: 'Corviknight',
+    item: 'Leftovers',
+    ability: 'Mirror Armor',
+    level: 100,
+    teraType: 'Dragon',
+    evs: '252 HP / 252 Def / 4 SpD',
+    nature: 'Impish',
+    moves: ['Brave Bird', 'Body Press', 'Iron Defense', 'Roost'],
+  };
+  const dragapult: ShowdownSetBlock = {
+    species: 'Dragapult',
+    item: 'Life Orb',
+    ability: 'Clear Body',
+    level: 100,
+    teraType: 'Ghost',
+    evs: '252 Atk / 4 SpD / 252 Spe',
+    nature: 'Jolly',
+    moves: ['Dragon Darts', 'Phantom Force', 'U-turn', 'Protect'],
+  };
+  const gardevoir: ShowdownSetBlock = {
+    species: 'Gardevoir',
+    item: 'Wise Glasses',
+    ability: 'Trace',
+    level: 100,
+    teraType: 'Fairy',
+    evs: '4 HP / 252 SpA / 252 Spe',
+    nature: 'Timid',
+    ivs: '0 Atk',
+    moves: ['Moonblast', 'Psychic', 'Mystical Fire', 'Protect'],
+  };
+
+  return minesLead === 'corviknight'
+    ? [corviknight, arcanine, dragapult, gardevoir]
+    : [arcanine, corviknight, dragapult, gardevoir];
+}
+
+export function resolveMinesWave1Battle(
+  flags: StoryFlags
+): ResolvedBattleConfig {
+  const minesLead = String(flags.mines_lead ?? 'arcanine');
+  const playerBlocks = buildMinesPlayerSquad(minesLead);
+
+  const rivalBlocks: ShowdownSetBlock[] = [
+    {
+      species: 'Excadrill',
+      item: 'Focus Sash',
+      ability: 'Mold Breaker',
+      level: 95,
+      evs: '252 Atk / 4 Def / 252 Spe',
+      nature: 'Jolly',
+      moves: ['Earthquake', 'Iron Head', 'Rock Tomb', 'Stealth Rock'],
+    },
+    {
+      species: 'Coalossal',
+      item: 'Heavy-Duty Boots',
+      ability: 'Flame Body',
+      level: 95,
+      evs: '252 HP / 252 Def / 4 SpD',
+      nature: 'Bold',
+      moves: ['Flamethrower', 'Power Gem', 'Will-O-Wisp', 'Rapid Spin'],
+    },
+    {
+      nickname: 'Golem Demolición',
+      species: 'Golem',
+      item: 'Custap Berry',
+      ability: 'Sturdy',
+      level: 96,
+      evs: '252 HP / 252 Atk / 4 Def',
+      nature: 'Adamant',
+      moves: ['Explosion', 'Earthquake', 'Stone Edge', 'Sucker Punch'],
+    },
+  ];
+
+  const scriptedEnemyRules: ScriptedEnemyRule[] = [
+    {
+      id: 'mines-w1-excadrill-sr',
+      turn: 1,
+      actorSpecies: 'Excadrill',
+      forceMoveId: 'stealthrock',
+      once: true,
+      description:
+        'Oleada 1 T1: Excadrill intenta sembrar Trampa Rocas en el túnel para desgastarte.',
+      tauntLine: '«¡Hagan caer el techo del túnel! ¡Excadrill, Trampa Rocas!»',
+    },
+    {
+      id: 'mines-w1-golem-explosion',
+      actorSpecies: 'Golem',
+      condition: 'hpBelow35OrLast',
+      forceMoveId: 'explosion',
+      once: true,
+      description:
+        'Trampa Demolición: Golem (@ Custap Berry + Sturdy) detona EXPLOSION al bajar de 35% PS o quedar como último Pokémon.',
+      tauntLine:
+        '«¡Si caemos, te llevamos con nosotros! ¡Golem, Baya Chiri y EXPLOSIÓN!»',
+    },
+  ];
+
+  return {
+    chapterId: 'survival-galar-mines',
+    battleStageId: 'mines_wave1',
+    nextStageLabel: 'Continuar entre el humo → Oleada 2 (Sin Curación)',
+    format: 'singles',
+    formatId: 'gen9customgame',
+    formatLabel: 'Oleada 1/2 · Back-to-Back',
+    playerName: 'Príncipe Heredero',
+    playerCharId: 'prince',
+    rivalName: 'Jefe Zapador Rebelde',
+    rivalTitle: 'Oleada 1 · Zapadores Rebeldes (Demolición)',
+    rivalCharId: 'mine_sapper',
+    arenaTheme: 'galar-mines',
+    playerTeamSummary: 'Escuadrón de Fuga (4 Pokémon · Sin curación entre oleadas)',
+    rivalTeamSummary: 'Zapadores Rebeldes: Excadrill, Coalossal, Golem (Explosion)',
+    playerShowdownPaste: buildShowdownPaste(playerBlocks),
+    rivalShowdownPaste: buildShowdownPaste(rivalBlocks),
+    rivalIntel: {
+      visibleSpeciesCount: 3,
+      totalSlots: 3,
+      intelLabel: 'Oleada 1/2 · Persistencia Activa',
+      intelNote:
+        'Todo daño, estado alterado y gasto de PP se transferirá intacto a la Oleada 2. Guarda Protect o Dragapult (Fantasma) para el Explosion de Golem.',
+      levelCap: 96,
+      hasBossAce: false,
+      aiScriptHint:
+        'Golem (@ Custap Berry + Sturdy) tiene scripteado usar Explosion cuando quede solo o baje de 35% PS.',
+    },
+    scriptedEnemyRules,
+    traces: [
+      {
+        id: 'mines-lead',
+        category: 'player-roster',
+        choiceLabel:
+          minesLead === 'corviknight'
+            ? 'Lead: Corviknight (Muralla Acero)'
+            : 'Lead: Arcanine (Intimidación + Protect)',
+        flagKey: 'mines_lead',
+        flagValue: minesLead,
+        effectTitle: 'Orden de Fuga en las Minas',
+        effectDetail:
+          'Dragapult (Fantasma) es inmune a Explosion; Corviknight resiste Roca y Normal.',
+      },
+      {
+        id: 'mines-persist-rule',
+        category: 'ai-script',
+        choiceLabel: 'Modo Supervivencia Back-to-Back',
+        flagKey: 'persistence',
+        flagValue: 'enabled',
+        effectTitle: 'Sin Curación entre Oleada 1 y Oleada 2',
+        effectDetail:
+          'BattlePersistenceManager exportará tus PS, bajas, estados y PP exactos al terminar.',
+      },
+    ],
+    flags,
+  };
+}
+
+export function resolveMinesWave2Battle(
+  flags: StoryFlags,
+  persistedPartyState?: PersistedPartyState
+): ResolvedBattleConfig {
+  const minesLead = String(flags.mines_lead ?? 'arcanine');
+  const playerBlocks = buildMinesPlayerSquad(minesLead);
+
+  const rivalBlocks: ShowdownSetBlock[] = [
+    {
+      species: 'Grimmsnarl',
+      item: 'Light Clay',
+      ability: 'Prankster',
+      level: 96,
+      evs: '252 HP / 128 Def / 128 SpD',
+      nature: 'Careful',
+      moves: ['Reflect', 'Light Screen', 'Spirit Break', 'Parting Shot'],
+    },
+    {
+      species: 'Corviknight',
+      item: 'Rocky Helmet',
+      ability: 'Pressure',
+      level: 97,
+      evs: '252 HP / 252 Def / 4 SpD',
+      nature: 'Impish',
+      moves: ['Brave Bird', 'Body Press', 'Iron Head', 'Roost'],
+    },
+    {
+      nickname: 'Bisharp ★',
+      species: 'Bisharp',
+      item: 'Eviolite',
+      ability: 'Defiant',
+      level: 98,
+      evs: '252 HP / 252 Atk / 4 SpD',
+      nature: 'Adamant',
+      moves: ['Kowtow Cleave', 'Iron Head', 'Sucker Punch', 'Swords Dance'],
+    },
+  ];
+
+  const scriptedEnemyRules: ScriptedEnemyRule[] = [
+    {
+      id: 'mines-w2-grimm-reflect',
+      turn: 1,
+      actorSpecies: 'Grimmsnarl',
+      forceMoveId: 'reflect',
+      once: true,
+      description:
+        'Oleada 2 T1: Grimmsnarl aprovecha tu desgaste alzando Reflect con Prankster.',
+      tauntLine:
+        '«Tu escuadrón ya sangra. ¡Grimmsnarl, cierra el paso con Reflejo!»',
+    },
+    {
+      id: 'mines-w2-bisharp-sucker',
+      actorSpecies: 'Bisharp',
+      condition: 'hpBelow60',
+      forceMoveId: 'suckerpunch',
+      once: true,
+      description:
+        'Capitán en apuros: Bisharp intenta rematar por prioridad con Sucker Punch.',
+      tauntLine: '«¡Nadie sale vivo de estas minas! ¡Bisharp, Golpe Bajo!»',
+    },
+  ];
+
+  return {
+    chapterId: 'survival-galar-mines',
+    battleStageId: 'mines_wave2',
+    format: 'singles',
+    formatId: 'gen9customgame',
+    formatLabel: 'Oleada 2/2 · Persistencia Heredada',
+    persistedPartyState,
+    playerName: 'Príncipe Heredero',
+    playerCharId: 'prince',
+    rivalName: 'Capitán de la Guardia Corrupta',
+    rivalTitle: 'Oleada 2 · Fuerza de Choque Fresca',
+    rivalCharId: 'corrupt_captain',
+    arenaTheme: 'galar-mines',
+    playerTeamSummary: 'Sobrevivientes de Oleada 1 (PS, PP y Estados heredados sin curación)',
+    rivalTeamSummary: 'Capitán Corrupto: Grimmsnarl, Corviknight, Bisharp ★ (Frescos)',
+    playerShowdownPaste: buildShowdownPaste(playerBlocks),
+    rivalShowdownPaste: buildShowdownPaste(rivalBlocks),
+    rivalIntel: {
+      visibleSpeciesCount: 3,
+      totalSlots: 3,
+      intelLabel: 'Oleada 2/2 · Sin Curación',
+      intelNote:
+        'Inicias con los PS, estados, bajas y PP exactos que te quedaron tras sobrevivir a los Zapadores Rebeldes.',
+      levelCap: 97,
+      hasBossAce: true,
+      bossAceWarning: 'Bisharp ★ Nv.98 (@ Eviolite · Defiant) lidera al Capitán Corrupto.',
+      aiScriptHint:
+        'Grimmsnarl abre con Reflect en Turno 1; Bisharp busca remate con Sucker Punch bajo 60% PS.',
+    },
+    scriptedEnemyRules,
+    traces: [
+      {
+        id: 'mines-w2-persist',
+        category: 'player-roster',
+        choiceLabel: 'Estado heredado desde Oleada 1',
+        flagKey: 'persist',
+        flagValue: 'true',
+        effectTitle: 'BattlePersistenceManager Activo',
+        effectDetail:
+          'HP exactos, Pokémon debilitados, estados alterados y PP restantes inyectados antes del Turno 1.',
+      },
+    ],
+    flags,
+  };
+}
+
+/* ===================== CAPÍTULO C: La Falange de Hammerlocke (Triples 6v6 · Gen 6) ===================== */
+
+export function resolveTriplesPhalanxBattle(
+  flags: StoryFlags
+): ResolvedBattleConfig {
+  const plan = String(flags.phalanx_plan ?? 'gardevoir_center');
+
+  const hitmontop: ShowdownSetBlock = {
+    species: 'Hitmontop',
+    item: 'Sitrus Berry',
+    ability: 'Intimidate',
+    level: 100,
+    evs: '252 HP / 252 Atk / 4 SpD',
+    nature: 'Adamant',
+    moves: ['Fake Out', 'Wide Guard', 'Close Combat', 'Feint'],
+  };
+  const megaGardevoir: ShowdownSetBlock = {
+    species: 'Gardevoir',
+    item: 'Gardevoirite',
+    ability: 'Trace',
+    level: 100,
+    evs: '4 HP / 252 SpA / 252 Spe',
+    nature: 'Timid',
+    ivs: '0 Atk',
+    moves: ['Hyper Voice', 'Psychic', 'Helping Hand', 'Protect'],
+  };
+  const talonflame: ShowdownSetBlock = {
+    species: 'Talonflame',
+    item: 'Sharp Beak',
+    ability: 'Gale Wings',
+    level: 100,
+    evs: '4 HP / 252 Atk / 252 Spe',
+    nature: 'Adamant',
+    moves: ['Brave Bird', 'Flare Blitz', 'Tailwind', 'Protect'],
+  };
+  const bench: ShowdownSetBlock[] = [
+    {
+      species: 'Garchomp',
+      item: 'Lum Berry',
+      ability: 'Rough Skin',
+      level: 100,
+      evs: '4 HP / 252 Atk / 252 Spe',
+      nature: 'Jolly',
+      moves: ['Dragon Claw', 'Rock Slide', 'Earthquake', 'Protect'],
+    },
+    {
+      species: 'Rotom-Heat',
+      item: 'Safety Goggles',
+      ability: 'Levitate',
+      level: 100,
+      evs: '252 HP / 252 SpA / 4 SpD',
+      nature: 'Modest',
+      ivs: '0 Atk',
+      moves: ['Overheat', 'Thunderbolt', 'Will-O-Wisp', 'Protect'],
+    },
+    {
+      species: 'Milotic',
+      item: 'Leftovers',
+      ability: 'Competitive',
+      level: 100,
+      evs: '252 HP / 172 Def / 84 SpA',
+      nature: 'Bold',
+      ivs: '0 Atk',
+      moves: ['Scald', 'Icy Wind', 'Recover', 'Protect'],
+    },
+  ];
+
+  const playerBlocks =
+    plan === 'flank_swap'
+      ? [talonflame, megaGardevoir, hitmontop, ...bench]
+      : [hitmontop, megaGardevoir, talonflame, ...bench];
+
+  const rivalBlocks: ShowdownSetBlock[] = [
+    {
+      species: 'Kangaskhan',
+      item: 'Kangaskhanite',
+      ability: 'Scrappy',
+      level: 100,
+      evs: '4 HP / 252 Atk / 252 Spe',
+      nature: 'Jolly',
+      moves: ['Fake Out', 'Return', 'Sucker Punch', 'Power-Up Punch'],
+    },
+    {
+      species: 'Aegislash',
+      item: 'Leftovers',
+      ability: 'Stance Change',
+      level: 100,
+      evs: '252 HP / 252 SpA / 4 SpD',
+      nature: 'Quiet',
+      ivs: '0 Atk / 0 Spe',
+      moves: ['Shadow Ball', 'Flash Cannon', 'Wide Guard', 'King\'s Shield'],
+    },
+    {
+      species: 'Togekiss',
+      item: 'Sitrus Berry',
+      ability: 'Serene Grace',
+      level: 100,
+      evs: '252 HP / 164 Def / 92 SpD',
+      nature: 'Bold',
+      ivs: '0 Atk',
+      moves: ['Air Slash', 'Dazzling Gleam', 'Follow Me', 'Tailwind'],
+    },
+    {
+      species: 'Greninja',
+      item: 'Life Orb',
+      ability: 'Protean',
+      level: 100,
+      evs: '4 HP / 252 SpA / 252 Spe',
+      nature: 'Timid',
+      ivs: '0 Atk',
+      moves: ['Dark Pulse', 'Scald', 'Ice Beam', 'Mat Block'],
+    },
+    {
+      species: 'Landorus-Therian',
+      item: 'Choice Scarf',
+      ability: 'Intimidate',
+      level: 100,
+      evs: '4 HP / 252 Atk / 252 Spe',
+      nature: 'Adamant',
+      moves: ['Rock Slide', 'Earthquake', 'U-turn', 'Superpower'],
+    },
+    {
+      species: 'Rotom-Wash',
+      item: 'Sitrus Berry',
+      ability: 'Levitate',
+      level: 100,
+      evs: '252 HP / 140 Def / 116 SpD',
+      nature: 'Calm',
+      ivs: '0 Atk',
+      moves: ['Hydro Pump', 'Thunderbolt', 'Will-O-Wisp', 'Protect'],
+    },
+  ];
+
+  const scriptedEnemyRules: ScriptedEnemyRule[] = [
+    {
+      id: 'triples-t1-aegislash-wg',
+      turn: 1,
+      actorSpecies: 'Aegislash',
+      forceMoveId: 'wideguard',
+      once: true,
+      description:
+        'Falange T1: Aegislash en el Centro levanta Wide Guard para frenar el Hyper Voice de Mega Gardevoir.',
+      tauntLine:
+        '«¡Escudos al centro! ¡Aegislash, Vastaguardia para proteger toda la falange!»',
+    },
+    {
+      id: 'triples-t1-togekiss-tailwind',
+      turn: 1,
+      actorSpecies: 'Togekiss',
+      forceMoveId: 'tailwind',
+      once: true,
+      description:
+        'Falange T1: Togekiss despega Tailwind para acelerar a Mega Kangaskhan y Greninja.',
+      tauntLine: '«¡Viento a favor de Hammerlocke! ¡Togekiss, Viento Afín!»',
+    },
+  ];
+
+  return {
+    chapterId: 'showcase-triples-phalanx',
+    format: 'triples',
+    formatId: 'gen6triplescustomgame',
+    formatLabel: 'Triples 6v6 · Gen 6',
+    playerName: 'Príncipe Heredero',
+    playerCharId: 'prince',
+    rivalName: 'Duque de Hammerlocke',
+    rivalTitle: 'Caballería del Duque · Falange Triple 6v6',
+    rivalCharId: 'hammerlocke_duke',
+    arenaTheme: 'hammerlocke-field',
+    playerTeamSummary:
+      'Falange Real: Hitmontop · Mega Gardevoir (Centro) · Talonflame · Garchomp · Rotom-H · Milotic',
+    rivalTeamSummary:
+      'Caballería de Hammerlocke: Mega Kangaskhan · Aegislash · Togekiss · Greninja · Landorus-T · Rotom-W',
+    playerShowdownPaste: buildShowdownPaste(playerBlocks),
+    rivalShowdownPaste: buildShowdownPaste(rivalBlocks),
+    rivalIntel: {
+      visibleSpeciesCount: 6,
+      totalSlots: 6,
+      intelLabel: 'Triples 6v6 · Posicionamiento Gen 6',
+      intelNote:
+        'En Triples el Centro alcanza a los 3 rivales; las Esquinas solo alcanzan al frente y al centro, salvo ataques de alcance total como Brave Bird, Air Slash o Dark Pulse.',
+      levelCap: 100,
+      hasBossAce: false,
+      aiScriptHint:
+        'En Turno 1 Aegislash usa Wide Guard (rompible con Feint de Hitmontop) y Togekiss levanta Tailwind.',
+    },
+    scriptedEnemyRules,
+    traces: [
+      {
+        id: 'triples-formation',
+        category: 'player-roster',
+        choiceLabel:
+          plan === 'flank_swap'
+            ? 'Flanqueo Veloz (Talonflame Izq · Gardevoir Centro · Hitmontop Der)'
+            : 'Falange Clásica (Hitmontop Izq · Gardevoir Centro · Talonflame Der)',
+        flagKey: 'phalanx_plan',
+        flagValue: plan,
+        effectTitle: 'Formación de 3 Líneas Activas + Megaevolución',
+        effectDetail:
+          'Mega Gardevoir en el Centro alcanza a toda la línea rival con Hyper Voice; Brave Bird de Talonflame cruza de esquina a esquina.',
+      },
+    ],
+    flags,
+  };
+}
+
+/* ===================== CAPÍTULO D: El Juicio de los Tres Caballeros (Triples 1 vs 3 · Gen 6) ===================== */
+
+export function resolveThreeKnightsBattle(
+  flags: StoryFlags
+): ResolvedBattleConfig {
+  const aceChoice = String(flags.triad_ace ?? 'charizard');
+
+  const aceBlock: ShowdownSetBlock =
+    aceChoice === 'garchomp'
+      ? {
+          species: 'Garchomp',
+          item: 'Life Orb',
+          ability: 'Rough Skin',
+          level: 100,
+          evs: '4 HP / 252 Atk / 252 Spe',
+          nature: 'Jolly',
+          moves: ['Earthquake', 'Rock Slide', 'Dragon Claw', 'Protect'],
+        }
+      : {
+          species: 'Charizard',
+          item: 'Charizardite Y',
+          ability: 'Blaze',
+          level: 100,
+          evs: '4 HP / 252 SpA / 252 Spe',
+          nature: 'Timid',
+          ivs: '0 Atk',
+          moves: ['Heat Wave', 'Solar Beam', 'Air Slash', 'Protect'],
+        };
+
+  // Ace stands in CENTER (index 1) so it reaches ALL 3 Knights; slots 0 and 2 are hidden empty placeholders!
+  const playerBlocks: ShowdownSetBlock[] = [
+    {
+      nickname: 'Flanco Izq Vacío',
+      species: 'Fletchling',
+      ability: 'Big Pecks',
+      level: 1,
+      moves: ['Tackle'],
+    },
+    aceBlock,
+    {
+      nickname: 'Flanco Der Vacío',
+      species: 'Fletchling',
+      ability: 'Big Pecks',
+      level: 1,
+      moves: ['Tackle'],
+    },
+  ];
+
+  const rivalBlocks: ShowdownSetBlock[] = [
+    {
+      species: 'Escavalier',
+      item: 'Assault Vest',
+      ability: 'Overcoat',
+      level: 95,
+      evs: '252 HP / 252 Atk / 4 SpD',
+      nature: 'Adamant',
+      moves: ['Megahorn', 'Iron Head', 'Drill Run', 'Knock Off'],
+    },
+    {
+      species: 'Aegislash',
+      item: 'Leftovers',
+      ability: 'Stance Change',
+      level: 96,
+      evs: '252 HP / 4 Def / 252 SpA',
+      nature: 'Quiet',
+      ivs: '0 Atk / 0 Spe',
+      moves: ['Wide Guard', 'Shadow Ball', 'Flash Cannon', 'King\'s Shield'],
+    },
+    {
+      species: 'Bisharp',
+      item: 'Focus Sash',
+      ability: 'Defiant',
+      level: 95,
+      evs: '4 HP / 252 Atk / 252 Spe',
+      nature: 'Adamant',
+      moves: ['Sucker Punch', 'Iron Head', 'Knock Off', 'Protect'],
+    },
+  ];
+
+  const scriptedEnemyRules: ScriptedEnemyRule[] = [
+    {
+      id: 'triad-wideguard-t1-t3',
+      turnList: [1, 3],
+      actorSpecies: 'Aegislash',
+      forceMoveId: 'wideguard',
+      once: false,
+      description:
+        'Juicio T1 y T3: Aegislash alza Wide Guard para bloquear Heat Wave / Earthquake / Rock Slide — usa ataques individuales esos turnos.',
+      tauntLine:
+        '«¡Formación Escudo en Turnos impares! ¡Aegislash, Vastaguardia ante la Tríada!»',
+    },
+  ];
+
+  return {
+    chapterId: 'challenge-three-knights',
+    format: 'triples',
+    formatId: 'gen6triplescustomgame',
+    formatLabel: '1 vs 3 · Triples',
+    emptyPlayerSlots: [0, 2],
+    playerName: 'Príncipe Heredero',
+    playerCharId: 'prince',
+    rivalName: 'Tríada de Élite del Duque',
+    rivalTitle: 'El Juicio de los Tres Caballeros · 1 vs 3 Triples',
+    rivalCharId: 'triad_knights',
+    arenaTheme: 'triad-arena',
+    playerTeamSummary:
+      aceChoice === 'garchomp'
+        ? '1 As en el Centro: Garchomp @ Life Orb (Earthquake · Rock Slide · Dragon Claw)'
+        : '1 As en el Centro: Mega Charizard Y (Drought · Heat Wave · Solar Beam · Air Slash)',
+    rivalTeamSummary: 'Tríada de Élite: Escavalier · Aegislash (Wide Guard T1/T3) · Bisharp',
+    playerShowdownPaste: buildShowdownPaste(playerBlocks),
+    rivalShowdownPaste: buildShowdownPaste(rivalBlocks),
+    rivalIntel: {
+      visibleSpeciesCount: 3,
+      totalSlots: 3,
+      intelLabel: 'Desafío 1 vs 3 · Lectura de Wide Guard',
+      intelNote:
+        'Tu As ocupa la posición Central con alcance a los 3 caballeros. Alterna ataques individuales en Turnos 1 y 3 (Wide Guard) con ataques de área en los turnos pares.',
+      levelCap: 96,
+      hasBossAce: false,
+      aiScriptHint:
+        'Aegislash tiene scripteado usar Wide Guard en Turno 1 y Turno 3 — evita tirar Heat Wave / Earthquake / Rock Slide en esos turnos.',
+    },
+    scriptedEnemyRules,
+    traces: [
+      {
+        id: 'triad-ace',
+        category: 'player-roster',
+        choiceLabel:
+          aceChoice === 'garchomp'
+            ? 'As Elegido: Garchomp @ Life Orb'
+            : 'As Elegido: Mega Charizard Y (Sequía)',
+        flagKey: 'triad_ace',
+        flagValue: aceChoice,
+        effectTitle: 'Posición Central Solitaria (Alcance Total)',
+        effectDetail:
+          'Al estar en el Centro, todos tus ataques individuales y de área alcanzan a Escavalier, Aegislash y Bisharp.',
+      },
+    ],
+    flags,
+  };
+}
+
+/* ===================== CAPÍTULO E: Reliquia de Silph Co. (Gen 1 OU vs Mew & Mewtwo) ===================== */
+
+export function resolveGen1SilphArchiveBattle(
+  flags: StoryFlags
+): ResolvedBattleConfig {
+  const leadChoice = String(flags.gen1_lead ?? 'tauros');
+
+  const tauros: ShowdownSetBlock = {
+    species: 'Tauros',
+    level: 100,
+    moves: ['Body Slam', 'Hyper Beam', 'Blizzard', 'Earthquake'],
+  };
+  const chansey: ShowdownSetBlock = {
+    species: 'Chansey',
+    level: 100,
+    moves: ['Ice Beam', 'Thunder Wave', 'Light Screen', 'Soft-Boiled'],
+  };
+  const snorlax: ShowdownSetBlock = {
+    species: 'Snorlax',
+    level: 100,
+    moves: ['Body Slam', 'Earthquake', 'Hyper Beam', 'Self-Destruct'],
+  };
+  const exeggutor: ShowdownSetBlock = {
+    species: 'Exeggutor',
+    level: 100,
+    moves: ['Sleep Powder', 'Psychic', 'Stun Spore', 'Explosion'],
+  };
+  const starmie: ShowdownSetBlock = {
+    species: 'Starmie',
+    level: 100,
+    moves: ['Surf', 'Thunderbolt', 'Thunder Wave', 'Recover'],
+  };
+  const alakazam: ShowdownSetBlock = {
+    species: 'Alakazam',
+    level: 100,
+    moves: ['Psychic', 'Seismic Toss', 'Thunder Wave', 'Recover'],
+  };
+
+  let playerBlocks = [tauros, chansey, snorlax, exeggutor, starmie, alakazam];
+  if (leadChoice === 'alakazam') {
+    playerBlocks = [alakazam, tauros, chansey, snorlax, exeggutor, starmie];
+  } else if (leadChoice === 'exeggutor') {
+    playerBlocks = [exeggutor, tauros, chansey, snorlax, starmie, alakazam];
+  }
+
+  // Exact balanced Gen 1 Ubers rival (Mewtwo & Mew WITHOUT Amnesia or Recover!)
+  const rivalBlocks: ShowdownSetBlock[] = [
+    {
+      species: 'Mewtwo',
+      level: 100,
+      moves: ['Psychic', 'Blizzard', 'Thunderbolt', 'Submission'],
+    },
+    {
+      species: 'Mew',
+      level: 100,
+      moves: ['Swords Dance', 'Body Slam', 'Earthquake', 'Hyper Beam'],
+    },
+    {
+      species: 'Tauros',
+      level: 100,
+      moves: ['Body Slam', 'Hyper Beam', 'Blizzard', 'Earthquake'],
+    },
+    {
+      species: 'Chansey',
+      level: 100,
+      moves: ['Ice Beam', 'Thunderbolt', 'Thunder Wave', 'Soft-Boiled'],
+    },
+    {
+      species: 'Snorlax',
+      level: 100,
+      moves: ['Body Slam', 'Earthquake', 'Rest', 'Self-Destruct'],
+    },
+    {
+      species: 'Exeggutor',
+      level: 100,
+      moves: ['Sleep Powder', 'Psychic', 'Mega Drain', 'Explosion'],
+    },
+  ];
+
+  const scriptedEnemyRules: ScriptedEnemyRule[] = [
+    {
+      id: 'gen1-t1-mewtwo-psychic',
+      turn: 1,
+      actorSpecies: 'Mewtwo',
+      forceMoveId: 'psychic',
+      once: true,
+      description:
+        'Era Kanto T1: Mewtwo abre con Psychic aprovechando su estadística Especial masiva (sin Amnesia ni Recover).',
+      tauntLine:
+        '«Anomalía genética #150 en línea. ¡Mewtwo, Psíquico de Primera Generación!»',
+    },
+    {
+      id: 'gen1-mew-sd',
+      actorSpecies: 'Mew',
+      forceMoveId: 'swordsdance',
+      once: true,
+      description:
+        'Anomalía #151: Mew busca potenciar Body Slam y Hyper Beam con Swords Dance.',
+      tauntLine:
+        '«Patrón ancestral detectado: ¡Mew prepara Danza Espada!»',
+    },
+  ];
+
+  return {
+    chapterId: 'archive-gen1-silph',
+    format: 'singles',
+    formatId: 'gen1customgame',
+    formatLabel: 'Gen 1 OU vs Ubers',
+    playerName: 'Príncipe Heredero',
+    playerCharId: 'prince',
+    rivalName: 'El Archivista Real',
+    rivalTitle: 'Reliquia de Silph Co. · Era Antigua de Kanto (RBY)',
+    rivalCharId: 'royal_archivist',
+    arenaTheme: 'silph-archive',
+    playerTeamSummary:
+      'Smogon Gen 1 OU Clásico: Tauros · Chansey · Snorlax · Exeggutor · Starmie · Alakazam',
+    rivalTeamSummary:
+      'Anomalías de Kanto: Mewtwo & Mew (sin Amnesia/Recover) + Tauros, Chansey, Snorlax, Exeggutor',
+    playerShowdownPaste: buildShowdownPaste(playerBlocks),
+    rivalShowdownPaste: buildShowdownPaste(rivalBlocks),
+    rivalIntel: {
+      visibleSpeciesCount: 6,
+      totalSlots: 6,
+      intelLabel: 'Simulación Gen 1 (RBY) · Sin Objetos ni Habilidades',
+      intelNote:
+        'Reglas nativas de Generación 1 en @pkmn/sim: críticos según Velocidad, Parálisis y Sueño dominantes, y Explosión/Autodestrucción dividiendo la Defensa rival a la mitad.',
+      levelCap: 100,
+      hasBossAce: false,
+      aiScriptHint:
+        'Mewtwo (sin Amnesia ni Recover) abre con Psychic en Turno 1; Chansey + Thunder Wave o Exeggutor (Sleep Powder + Explosion) son claves para frenarlo.',
+    },
+    scriptedEnemyRules,
+    traces: [
+      {
+        id: 'gen1-lead',
+        category: 'player-roster',
+        choiceLabel:
+          leadChoice === 'alakazam'
+            ? 'Lead: Alakazam (Thunder Wave + Psychic)'
+            : leadChoice === 'exeggutor'
+              ? 'Lead: Exeggutor (Sleep Powder + Explosion)'
+              : 'Lead: Tauros (Body Slam + Hyper Beam)',
+        flagKey: 'gen1_lead',
+        flagValue: leadChoice,
+        effectTitle: 'Apertura RBY Gen 1 OU',
+        effectDetail:
+          'Sin objetos ni habilidades: el control de estados y el timing de Hyper Beam deciden el combate.',
       },
     ],
     flags,

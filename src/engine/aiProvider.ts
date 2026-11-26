@@ -207,13 +207,25 @@ export async function callStructuredLLM<T>(
   }
 
   if (settings.provider === 'ollama') {
-    const base = settings.ollamaBaseUrl.replace(/\/+$/, '');
+    const rawBase = settings.ollamaBaseUrl.replace(/\/+$/, '');
+    // In Vite browser dev mode, route default localhost:11434 through /ollama-proxy to avoid CORS errors
+    const isBrowserLocalDev =
+      typeof window !== 'undefined' &&
+      (window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1');
+    const isDefaultLocalOllama =
+      rawBase === 'http://localhost:11434' ||
+      rawBase === 'http://127.0.0.1:11434';
+    const endpoint =
+      isBrowserLocalDev && isDefaultLocalOllama
+        ? '/ollama-proxy/api/chat'
+        : `${rawBase}/api/chat`;
     const model = settings.ollamaModel.trim() || 'llama3.1:8b';
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-      const response = await fetch(`${base}/api/chat`, {
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
@@ -257,7 +269,7 @@ export async function callStructuredLLM<T>(
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
         throw new Error(
-          `Tiempo de espera agotado conectando a Ollama (${base}).`
+          `Tiempo de espera agotado conectando a Ollama (${rawBase}).`
         );
       }
       throw err;

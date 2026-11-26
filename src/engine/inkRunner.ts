@@ -2,6 +2,11 @@ import { Compiler } from 'inkjs/full';
 import type { Story } from 'inkjs/engine/Story';
 import type { CharacterId, SceneBackdropId, StoryFlags } from '../types/game';
 
+export interface InkBattleTrigger {
+  battleId: string;
+  persist: boolean;
+}
+
 export interface VNDialogueLine {
   id: number;
   text: string;
@@ -12,6 +17,7 @@ export interface VNDialogueLine {
   activeSide?: 'left' | 'right';
   pokemon?: string | null;
   mood?: string;
+  battleTrigger?: InkBattleTrigger | null;
   rawTags: string[];
 }
 
@@ -25,14 +31,37 @@ export interface VNFrameState {
   choices: VNChoice[];
   canContinue: boolean;
   isEnded: boolean;
+  pendingBattleTrigger: InkBattleTrigger | null;
   history: VNDialogueLine[];
   flags: StoryFlags;
 }
 
+const VALID_CHAR_IDS = new Set<CharacterId>([
+  'prince',
+  'assassin',
+  'champion',
+  'dock_militia',
+  'mine_sapper',
+  'corrupt_captain',
+  'hammerlocke_duke',
+  'triad_knights',
+  'royal_archivist',
+]);
+
 function parseCharId(val: string): CharacterId | null {
-  const low = val.toLowerCase();
-  if (low === 'prince' || low === 'assassin' || low === 'champion') return low;
+  const low = val.toLowerCase() as CharacterId;
+  if (VALID_CHAR_IDS.has(low)) return low;
   return null;
+}
+
+function parseStartBattleValue(rawVal: string): InkBattleTrigger | null {
+  const tokens = rawVal.trim().split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return null;
+  const battleId = tokens[0];
+  const persist = tokens.some(
+    (t) => t.toLowerCase() === '--persist=true' || t.toLowerCase() === '--persist'
+  );
+  return { battleId, persist };
 }
 
 function parseTags(
@@ -46,6 +75,7 @@ function parseTags(
   pokemon?: string | null;
   side?: 'left' | 'right';
   mood?: string;
+  battleTrigger?: InkBattleTrigger | null;
 } {
   let bg: SceneBackdropId = prevBg;
   let speaker = 'Narrador';
@@ -54,6 +84,7 @@ function parseTags(
   let pokemon: string | null | undefined;
   let side: 'left' | 'right' | undefined;
   let mood: string | undefined;
+  let battleTrigger: InkBattleTrigger | null | undefined;
 
   for (const raw of tags ?? []) {
     const idx = raw.indexOf(':');
@@ -92,12 +123,15 @@ function parseTags(
       case 'mood':
         mood = value;
         break;
+      case 'start_battle':
+        battleTrigger = parseStartBattleValue(value);
+        break;
       default:
         break;
     }
   }
 
-  return { bg, speaker, char, clearChar, pokemon, side, mood };
+  return { bg, speaker, char, clearChar, pokemon, side, mood, battleTrigger };
 }
 
 export class InkVNRunner {
@@ -113,6 +147,27 @@ export class InkVNRunner {
   constructor(inkSource: string) {
     const compiler = new Compiler(inkSource);
     this.story = compiler.Compile() as unknown as Story;
+  }
+
+  public exportStateJson(): string {
+    return this.story.state.ToJson();
+  }
+
+  public loadStateJson(stateJson: string): void {
+    this.story.state.LoadJson(stateJson);
+  }
+
+  public setVariable(name: string, value: string | number | boolean): void {
+    try {
+      const varsState = this.story.variablesState as unknown as {
+        $?: (k: string, v?: unknown) => unknown;
+      };
+      if (typeof varsState.$ === 'function') {
+        varsState.$(name, value);
+      }
+    } catch {
+      // variable may not be declared in every ink file
+    }
   }
 
   public getFlags(): StoryFlags {
@@ -163,7 +218,7 @@ export class InkVNRunner {
         this.lastActiveSide = parsed.side;
       } else if (parsed.char === 'prince') {
         this.lastActiveSide = 'left';
-      } else if (parsed.char === 'assassin' || parsed.char === 'champion') {
+      } else if (parsed.char) {
         this.lastActiveSide = 'right';
       }
 
@@ -189,6 +244,7 @@ export class InkVNRunner {
         activeSide: this.lastActiveSide,
         pokemon: this.lastPokemon,
         mood: parsed.mood,
+        battleTrigger: parsed.battleTrigger ?? null,
         rawTags,
       };
       this.history.push(line);
@@ -209,14 +265,18 @@ export class InkVNRunner {
       text: c.text,
     }));
 
-    const isEnded = !this.story.canContinue && choices.length === 0;
+    const currentLine =
+      this.history.length > 0 ? this.history[this.history.length - 1] : null;
+    const pendingBattleTrigger = currentLine?.battleTrigger ?? null;
+    const isEnded =
+      !this.story.canContinue && choices.length === 0 && !pendingBattleTrigger;
 
     return {
-      currentLine:
-        this.history.length > 0 ? this.history[this.history.length - 1] : null,
+      currentLine,
       choices,
       canContinue: this.story.canContinue,
       isEnded,
+      pendingBattleTrigger,
       history: [...this.history],
       flags: this.getFlags(),
     };

@@ -14,6 +14,8 @@ import type {
   BattleSnapshot,
   ChapterDefinition,
   ChapterProgress,
+  MidStoryBattleRequest,
+  PersistedPartyState,
   ResolvedBattleConfig,
   ScreenView,
   StoryFlags,
@@ -47,6 +49,11 @@ export default function App() {
     loadAISettings()
   );
   const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [suspendedInkState, setSuspendedInkState] = useState<string | null>(
+    null
+  );
+  const [persistedPartyState, setPersistedPartyState] =
+    useState<PersistedPartyState | null>(null);
 
   useEffect(() => {
     try {
@@ -64,13 +71,30 @@ export default function App() {
   const startChapter = (chapter: ChapterDefinition) => {
     setActiveChapter(chapter);
     setResolvedConfig(null);
+    setSuspendedInkState(null);
+    setPersistedPartyState(null);
     setScreen('vn');
   };
 
   const handleFinishVN = (flags: StoryFlags) => {
+    setSuspendedInkState(null);
     const config = activeChapter.resolveBattleConfig(flags);
     setResolvedConfig(config);
     setScreen('teambuilder');
+  };
+
+  const handleTriggerMidStoryBattle = (req: MidStoryBattleRequest) => {
+    const resolver = activeChapter.resolveStageBattleConfig;
+    const config = resolver
+      ? resolver(
+          req.battleId,
+          req.flags,
+          req.persist ? persistedPartyState ?? undefined : undefined
+        )
+      : activeChapter.resolveBattleConfig(req.flags);
+    setSuspendedInkState(req.persist ? null : req.inkStateJson);
+    setResolvedConfig(config);
+    setScreen('battle');
   };
 
   const handleLaunchBattle = (finalConfig: ResolvedBattleConfig) => {
@@ -79,7 +103,20 @@ export default function App() {
   };
 
   const handleBattleComplete = (won: boolean, snapshot: BattleSnapshot) => {
+    // Back-to-Back Wave 1 -> export exact HP/status/PP and return to intermediate Ink scene!
+    if (
+      won &&
+      suspendedInkState &&
+      resolvedConfig?.nextStageLabel &&
+      snapshot.exportedPartyState
+    ) {
+      setPersistedPartyState(snapshot.exportedPartyState);
+      setScreen('vn');
+      return;
+    }
+
     setBattleOutcome({ won, snapshot });
+    setSuspendedInkState(null);
     if (!resolvedConfig?.isVersusMatch) {
       setProgress((prev) => {
         const existing = prev[activeChapter.id] ?? {
@@ -135,8 +172,11 @@ export default function App() {
     view = (
       <VisualNovelView
         chapter={activeChapter}
+        resumeInkStateJson={suspendedInkState}
+        persistedPartyState={persistedPartyState}
         onExitToChapters={() => setScreen('chapters')}
         onFinishStory={handleFinishVN}
+        onTriggerMidStoryBattle={handleTriggerMidStoryBattle}
       />
     );
   } else if (screen === 'teambuilder' && resolvedConfig) {

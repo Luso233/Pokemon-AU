@@ -130,6 +130,10 @@ export function getFormatRuleDescription(formatId: string): string {
       'Formato Individuales personalizable (usado en Little Cup con cap roto Nv. 5 vs Nv. 6–7 y combates de historia).',
     gen9lc:
       'Little Cup oficial: solo Pokémon básicos en su primera etapa evolutiva al Nivel 5.',
+    gen6triplescustomgame:
+      'Batalla Triple Gen 6 (3 activos por bando): el Centro alcanza a todos; las Esquinas solo alcanzan al frente y al centro salvo ataques voladores/pulso (Brave Bird, Air Slash, Dark Pulse). Megaevolución activa.',
+    gen1customgame:
+      'Reglas nativas de Generación 1 (RBY): sin objetos equipados, sin habilidades, Críticos ligados a la Velocidad y Explosión reduciendo la Defensa rival a la mitad.',
   };
   return (
     map[formatId] ??

@@ -14,8 +14,11 @@ import type {
   SpeedRange,
   TeamPreviewState,
 } from '../types/game';
+import { BattlePersistenceManager } from './battlePersistence';
 import {
   createRivalBattleController,
+  isTriplesAdjacentAlly,
+  isTriplesAdjacentFoe,
   type RivalBattleController,
   type ShowdownRequest,
 } from './tacticalAI';
@@ -35,8 +38,17 @@ export function getFormatDisplayLabel(
     gen9monotype: '6v6 Singles · Monotype',
     gen9vgc2024regg: 'VGC Reg G · Dobles 4v4 Nv. 50',
     gen9lc: 'Little Cup Nv. 5',
+    gen6triplescustomgame: 'Triples 6v6 · Gen 6',
+    gen1customgame: 'Gen 1 OU vs Ubers',
   };
-  return map[formatId] ?? (format === 'doubles' ? 'Dobles 2v2' : 'Individuales');
+  return (
+    map[formatId] ??
+    (format === 'triples'
+      ? 'Triples 3v3'
+      : format === 'doubles'
+        ? 'Dobles 2v2'
+        : 'Individuales')
+  );
 }
 
 export function getStageMultiplier(stage: number): number {
@@ -188,7 +200,7 @@ function parseSlotFromIdent(ident: string): {
   const name = colonIdx >= 0 ? ident.slice(colonIdx + 1).trim() : ident.trim();
   const side: 'p1' | 'p2' = prefix.startsWith('p2') ? 'p2' : 'p1';
   const letter = prefix.charAt(2);
-  const slotIndex = letter === 'b' ? 1 : 0;
+  const slotIndex = letter === 'c' ? 2 : letter === 'b' ? 1 : 0;
   return { side, slotIndex, name };
 }
 
@@ -264,6 +276,9 @@ export class ShowdownBattleController {
   private tauntSeq = 0;
   private destroyed = false;
   private puzzleConditionsApplied = false;
+  private persistenceInjected = false;
+  private emptySlotsCleared = false;
+  private turn1RequestsSeen = 0;
   private triggeredRuleIds = new Set<string>();
   private p1PreviewPokes: Array<{
     species: string;
@@ -287,7 +302,8 @@ export class ShowdownBattleController {
     this.config = config;
     this.listener = onUpdate;
     this.rivalController = createRivalBattleController(aiSettings);
-    const activeCount = config.format === 'doubles' ? 2 : 1;
+    const activeCount =
+      config.format === 'triples' ? 3 : config.format === 'doubles' ? 2 : 1;
     const defaultLevel =
       config.formatId === 'gen9vgc2024regg'
         ? 50
@@ -313,6 +329,8 @@ export class ShowdownBattleController {
       trickRoomTurnsLeft: null,
       levelCap: config.rivalIntel?.levelCap ?? defaultLevel,
       puzzleApplied: false,
+      persistenceApplied: false,
+      exportedPartyState: null,
       teamPreview: null,
       openTeamsheet: {
         enabled: Boolean(config.openTeamsheet),
@@ -612,6 +630,78 @@ export class ShowdownBattleController {
     }
   }
 
+  private applyInitialBattleOverridesIfNeeded(): void {
+    const battle = this.battleStreamRef?.battle;
+    if (!battle) return;
+
+    let needsFreshRequest = false;
+
+    // 1. Auto-faint hidden empty placeholder slots for 1 vs 6 Doubles & 1 vs 3 Triples
+    if (
+      !this.emptySlotsCleared &&
+      this.config.emptyPlayerSlots &&
+      this.config.emptyPlayerSlots.length > 0
+    ) {
+      this.emptySlotsCleared = true;
+      for (const idx of this.config.emptyPlayerSlots) {
+        const mon = battle.p1.pokemon[idx];
+        if (mon) {
+          mon.hp = 0;
+          mon.fainted = true;
+          mon.status = 'fnt' as typeof mon.status;
+          mon.statusState = {
+            effectOrder: 0,
+            id: 'fnt',
+            target: mon,
+          } as unknown as typeof mon.statusState;
+        }
+        if (this.state.p1.active[idx]) {
+          this.state.p1.active[idx]!.hp = 0;
+          this.state.p1.active[idx]!.hpPercent = 0;
+          this.state.p1.active[idx]!.fainted = true;
+        }
+        if (this.state.p1.party[idx]) {
+          this.state.p1.party[idx].hp = 0;
+          this.state.p1.party[idx].hpPercent = 0;
+          this.state.p1.party[idx].fainted = true;
+        }
+      }
+      battle.p1.pokemonLeft = battle.p1.pokemon.filter((p) => !p.fainted).length;
+      battle.add('-message', '__EMPTY_SLOTS_READY__');
+      needsFreshRequest = true;
+    }
+
+    // 2. Back-to-Back Persistence Injection (HP, Fainted, Status, exact Move PP — NO HEALING)
+    if (!this.persistenceInjected && this.config.persistedPartyState) {
+      this.persistenceInjected = true;
+      const summary = BattlePersistenceManager.summarizePartyWear(
+        this.config.persistedPartyState
+      );
+      BattlePersistenceManager.injectPartyState(
+        battle,
+        this.config.persistedPartyState
+      );
+      this.pushLog(
+        'puzzle',
+        `💾 Persistencia Back-to-Back (sin curación): ${summary.aliveCount}/${summary.totalCount} en pie · PS prom. ${summary.avgHpPercent}% · PP y estados heredados.`
+      );
+      battle.add('-message', '__PERSISTENCE_READY__');
+      needsFreshRequest = true;
+    }
+
+    // 3. Puzzle Conditions
+    if (!this.puzzleConditionsApplied && this.config.puzzleConditions) {
+      this.applyPuzzleConditionsIfNeeded();
+    } else if (needsFreshRequest) {
+      this.triggeredRuleIds.clear();
+      this.state.triggeredScriptIds = [];
+      this.state.pendingSlots = [];
+      this.state.status = 'resolving';
+      battle.makeRequest('move');
+      battle.sendUpdates();
+    }
+  }
+
   private applyPuzzleConditionsIfNeeded(): void {
     if (this.puzzleConditionsApplied) return;
     const puzzle = this.config.puzzleConditions;
@@ -764,7 +854,14 @@ export class ShowdownBattleController {
   }
 
   public async start(): Promise<void> {
-    const p1Sets = Teams.import(this.config.playerShowdownPaste);
+    const effectivePlayerPaste = this.config.persistedPartyState
+      ? BattlePersistenceManager.reorderPasteForConsciousLead(
+          this.config.playerShowdownPaste,
+          this.config.persistedPartyState
+        )
+      : this.config.playerShowdownPaste;
+
+    const p1Sets = Teams.import(effectivePlayerPaste);
     const p2Sets = Teams.import(this.config.rivalShowdownPaste);
 
     if (!p1Sets || p1Sets.length === 0) {
@@ -1010,11 +1107,15 @@ export class ShowdownBattleController {
 
           const decision = await this.rivalController.chooseAction(req, {
             format: this.config.format,
-            foeActiveSpecies: this.state.p1.active.map((m) =>
-              m && !m.fainted ? m.species : null
+            foeActiveSpecies: this.state.p1.active.map((m, idx) =>
+              m && !m.fainted && !this.config.emptyPlayerSlots?.includes(idx)
+                ? m.species
+                : null
             ),
-            foeActiveStatus: this.state.p1.active.map((m) =>
-              m && !m.fainted ? m.status || null : null
+            foeActiveStatus: this.state.p1.active.map((m, idx) =>
+              m && !m.fainted && !this.config.emptyPlayerSlots?.includes(idx)
+                ? m.status || null
+                : null
             ),
             foeActiveHpPercent: this.state.p1.active.map((m) =>
               m ? m.hpPercent : null
@@ -1326,7 +1427,12 @@ export class ShowdownBattleController {
 
     sideState.party = updatedParty;
 
-    const activeCount = this.config.format === 'doubles' ? 2 : 1;
+    const activeCount =
+      this.config.format === 'triples'
+        ? 3
+        : this.config.format === 'doubles'
+          ? 2
+          : 1;
     const nextActive: (PartyPokemonState | null)[] = Array(activeCount).fill(null);
     for (let i = 0; i < activeCount; i++) {
       const candidate = updatedParty[i];
@@ -1381,6 +1487,25 @@ export class ShowdownBattleController {
   }
 
   private handlePlayerRequest(req: ShowdownRequest): void {
+    const expectsTurn1Override =
+      !req.teamPreview &&
+      !req.wait &&
+      Boolean(
+        this.config.persistedPartyState ||
+          (this.config.emptyPlayerSlots && this.config.emptyPlayerSlots.length > 0)
+      );
+
+    if (expectsTurn1Override && this.state.turn <= 1) {
+      this.turn1RequestsSeen += 1;
+      if (this.turn1RequestsSeen === 1) {
+        // Discard stale pre-override Turn 1 request; wait cleanly for post-override Turn 1 request #2!
+        this.state.pendingSlots = [];
+        this.state.status = 'resolving';
+        this.emit();
+        return;
+      }
+    }
+
     this.syncPlayerSideFromRequest(req);
 
     if (req.teamPreview) {
@@ -1421,6 +1546,9 @@ export class ShowdownBattleController {
     this.state.pendingSlots = built.pending;
     this.state.p1Waiting = built.pending.length === 0;
     this.state.requestSeq += 1;
+    if (this.persistenceInjected && this.turn1RequestsSeen >= 2) {
+      this.state.persistenceApplied = true;
+    }
     this.syncCompositeStatus();
     this.emit();
   }
@@ -1477,8 +1605,8 @@ export class ShowdownBattleController {
         this.state.turn = Number(parts[2]) || this.state.turn + 1;
         this.decrementTurnTimers();
         this.pushLog('turn', `Turn ${this.state.turn}`);
-        if (this.state.turn === 1 && this.config.puzzleConditions) {
-          this.applyPuzzleConditionsIfNeeded();
+        if (this.state.turn === 1) {
+          this.applyInitialBattleOverridesIfNeeded();
         }
         break;
       }
@@ -2074,6 +2202,13 @@ export class ShowdownBattleController {
           this.state.puzzleApplied = true;
           this.refreshSideSpeeds('p1');
           this.refreshSideSpeeds('p2');
+        } else if (msg === '__PERSISTENCE_READY__') {
+          if (this.turn1RequestsSeen >= 2) {
+            this.state.persistenceApplied = true;
+          }
+          this.refreshSideSpeeds('p1');
+        } else if (msg === '__EMPTY_SLOTS_READY__') {
+          this.refreshSideSpeeds('p1');
         } else if (msg) {
           this.pushLog('system', msg);
         }
@@ -2089,6 +2224,12 @@ export class ShowdownBattleController {
         this.state.p2PendingSlots = [];
         this.state.teamPreview = null;
         this.state.p2TeamPreview = null;
+        if (this.battleStreamRef?.battle) {
+          this.state.exportedPartyState = BattlePersistenceManager.exportPartyState(
+            this.battleStreamRef.battle,
+            this.config.battleStageId ?? this.config.chapterId
+          );
+        }
         this.pushLog('win', `🏆 ¡${winnerName} ganó el combate!`);
         break;
       }
@@ -2100,6 +2241,12 @@ export class ShowdownBattleController {
         this.state.p2PendingSlots = [];
         this.state.teamPreview = null;
         this.state.p2TeamPreview = null;
+        if (this.battleStreamRef?.battle) {
+          this.state.exportedPartyState = BattlePersistenceManager.exportPartyState(
+            this.battleStreamRef.battle,
+            this.config.battleStageId ?? this.config.chapterId
+          );
+        }
         this.pushLog('win', 'El combate terminó en empate.');
         break;
       }
@@ -2114,7 +2261,7 @@ export function formatNeedsTarget(
   format: BattleFormat,
   moveTarget: string
 ): 'foe' | 'ally' | 'none' {
-  if (format !== 'doubles') return 'none';
+  if (format !== 'doubles' && format !== 'triples') return 'none';
   if (
     moveTarget === 'normal' ||
     moveTarget === 'any' ||
@@ -2126,4 +2273,25 @@ export function formatNeedsTarget(
     return 'ally';
   }
   return 'none';
+}
+
+export function isFoeTargetReachable(
+  format: BattleFormat,
+  attackerSlot: number,
+  foeSlot: number,
+  moveTarget: string
+): boolean {
+  if (format !== 'triples') return true;
+  if (moveTarget === 'any') return true;
+  return isTriplesAdjacentFoe(attackerSlot, foeSlot);
+}
+
+export function isAllyTargetReachable(
+  format: BattleFormat,
+  attackerSlot: number,
+  allySlot: number
+): boolean {
+  if (attackerSlot === allySlot) return false;
+  if (format !== 'triples') return true;
+  return isTriplesAdjacentAlly(attackerSlot, allySlot);
 }
