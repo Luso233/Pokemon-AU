@@ -500,23 +500,89 @@ export const NPC_REGISTRY: Record<CharacterId, NpcDefinition> = {
 
   triad_knights: {
     id: 'triad_knights',
-    name: 'Tríada de Élite',
-    title: 'Guardia Interior de Hammerlocke',
-    bio: 'Tres caballeros acorazados entrenados para pelear al unísono en el círculo de piedra.',
-    tacticalInsight: 'Su escudo central respira a un compás fijo mientras la hoja del flanco acecha.',
-    archetypeTag: 'Desafío · 1 vs 3',
+    name: 'Caín, Abel y Frey (Los Tres Jinetes)',
+    title: 'Guarnición Naval de las Islas Bruma · 3 vs 1',
+    bio: 'Tres caballeros absurdamente fornidos, bigotones y teatrales que se parecen demasiado a sus Pokémon: Sir Caín (Escavalier · rojo impetuoso), Sir Abel (Aegislash · verde disciplinado) y Sir Frey (Bisharp · oscuro tramposo).',
+    tacticalInsight: 'Sir Abel marca el compás con Wide Guard mientras Sir Caín embiste sin freno y Sir Frey espera el contragolpe con Sucker Punch.',
+    archetypeTag: 'Desafío · 1 vs 3 · Los Tres Jinetes',
     personality: {
-      styleName: 'Escudo y Lanza',
-      aggression: 0.72,
-      disruptionBias: 0.5,
+      styleName: 'Bigote, Escudo y Lanza',
+      aggression: 0.74,
+      disruptionBias: 0.55,
       protectBias: 0.75,
       switchDiscipline: 0.5,
-      directiveSummary: 'Alterna defensa de área y remates letales coordinados.',
+      directiveSummary: 'Caín presiona frontal, Abel cierra el área con Wide Guard y Frey castiga con Sucker Punch.',
     },
     dialogues: {
-      onBattleStart: ['«¡Formación de juicio! Sostén el centro si te crees digno.»'],
-      onFirstFoeKO: ['«Un hermano cae, pero el círculo sigue cerrado.»'],
-      onDefeat: ['«Las lanzas se inclinan. Has superado el juicio del castillo.»'],
+      onBattleStart: [
+        'Sir Caín: «¡WAAAH-JAJA! ¡Formación de juicio, hermanos!» · Sir Abel: «Mantengan el compás...» · Sir Frey: «¡Jeje, ya verás!»',
+      ],
+      onFirstFoeKO: [
+        'Sir Abel: «¡Un hermano cayó, cierren el círculo!» · Sir Frey: «¡Típico de Caín meterse de cabeza!»',
+      ],
+      onPlayerFaint: [
+        'Sir Frey: «¡WAH-JEJE! ¡Nadie supera a los tres bigotes más fuertes de Galar!»',
+      ],
+      onDefeat: [
+        'Sir Abel: «Las lanzas se inclinan con honor.» · Sir Caín: «¡Qué pelea tan brava, Alteza!» · Sir Frey: «¡Tch, revancha!»',
+      ],
+    },
+  },
+  knight_cain: {
+    id: 'knight_cain',
+    name: 'Sir Caín «El Toro Carmesí»',
+    title: 'Lanza Roja · Compañero de Escavalier',
+    bio: 'El hermano rojo, fornido, ruidoso y orgulloso de su bigote; carga siempre primero con su lanza de justa igual que su Escavalier.',
+    tacticalInsight: 'Ataca de frente sin frenos con fuerza física brutal.',
+    archetypeTag: 'Jinete Carmesí · Escavalier',
+    personality: {
+      styleName: 'Embestida Carmesí',
+      aggression: 0.9,
+      disruptionBias: 0.25,
+      protectBias: 0.2,
+      switchDiscipline: 0.3,
+      directiveSummary: 'Presión ofensiva directa y constante.',
+    },
+    dialogues: {
+      onBattleStart: ['«¡POR EL BIGOTE Y LA LANZA! ¡Allá vamos, Escavalier!»'],
+    },
+  },
+  knight_abel: {
+    id: 'knight_abel',
+    name: 'Sir Abel «El Muro Esmeralda»',
+    title: 'Escudo Central · Compañero de Aegislash',
+    bio: 'El hermano verde, alto, elegante y responsable; su bigote impecable y su paciencia sostienen la formación del trío y el escudo de Aegislash.',
+    tacticalInsight: 'Marca el compás exacto de Wide Guard y King’s Shield.',
+    archetypeTag: 'Jinete Esmeralda · Aegislash',
+    personality: {
+      styleName: 'Muralla Disciplinada',
+      aggression: 0.55,
+      disruptionBias: 0.55,
+      protectBias: 0.88,
+      switchDiscipline: 0.7,
+      directiveSummary: 'Alterna escudo y contraataque con precisión marcial.',
+    },
+    dialogues: {
+      onBattleStart: ['«Respiración firme, hermanos. ¡Alcen el muro de acero!»'],
+    },
+  },
+  knight_frey: {
+    id: 'knight_frey',
+    name: 'Sir Frey «La Hoja Siniestra»',
+    title: 'Alabarda Oscura · Compañero de Bisharp',
+    bio: 'El hermano larguirucho y burlón de bigote retorcido; disfruta provocar al rival mientras su Bisharp acecha con Golpe Bajo.',
+    tacticalInsight: 'Castiga cualquier ataque directo precipitado con prioridad Siniestro.',
+    archetypeTag: 'Jinete Oscuro · Bisharp',
+    personality: {
+      styleName: 'Acecho Burlón',
+      aggression: 0.82,
+      disruptionBias: 0.85,
+      protectBias: 0.35,
+      switchDiscipline: 0.5,
+      directiveSummary: 'Espera el momento exacto para castigar con prioridad y trucos sucios.',
+    },
+    dialogues: {
+      onBattleStart: ['«¡WAH-JEJEJE! ¡Cuando bajes la guardia, mi Bisharp cierra el telón!»'],
     },
   },
 
@@ -784,11 +850,19 @@ export function applyNpcRunModifiers(
   if (!isOfficialFixedCap && difficulty !== 'kaizo') {
     const sets = Teams.import(rivalPaste);
     if (sets && sets.length > 0) {
-      const delta = difficulty === 'standard' ? -4 : 4;
+      const delta =
+        difficulty === 'baby' ? -8 : difficulty === 'standard' ? -4 : 4;
       const scaled = sets.map((s) => {
         const curLvl = s.level || 100;
-        // Keep Little Cup small delta (-1 / +1)
-        const adjustedDelta = curLvl <= 10 ? (difficulty === 'standard' ? -1 : 1) : delta;
+        // Keep Little Cup small delta (-2 / -1 / +1)
+        const adjustedDelta =
+          curLvl <= 10
+            ? difficulty === 'baby'
+              ? -2
+              : difficulty === 'standard'
+                ? -1
+                : 1
+            : delta;
         return {
           ...s,
           level: Math.max(1, curLvl + adjustedDelta),
@@ -798,7 +872,7 @@ export function applyNpcRunModifiers(
     }
   }
 
-  // Declarative per-chapter species/item/move overrides (e.g. Bubble Beam + Mystic Water -> Water Spout + Choice Specs in Diablo!)
+  // Declarative per-chapter species/item/move overrides (e.g. Bubble Beam + Mystic Water -> Water Spout + Choice Specs in Tryhard/Diablo!)
   const overrideRes = applyChapterDifficultyOverrides(
     baseConfig.chapterId,
     rivalPaste,
@@ -807,33 +881,42 @@ export function applyNpcRunModifiers(
   );
   rivalPaste = overrideRes.paste;
 
-  // Scale NPC AI personality directives according to difficulty
+  // Scale NPC AI personality directives according to difficulty (Baby Mode -> Normal -> Difícil -> Tryhard)
   const basePers: NpcAiPersonality = baseConfig.npcPersonality ?? npc.personality;
+  const aggrShift =
+    difficulty === 'nightmare'
+      ? 0.14
+      : difficulty === 'baby'
+        ? -0.26
+        : difficulty === 'standard'
+          ? -0.14
+          : 0;
+  const disruptShift =
+    difficulty === 'nightmare'
+      ? 0.12
+      : difficulty === 'baby'
+        ? -0.28
+        : difficulty === 'standard'
+          ? -0.15
+          : 0;
+  const protectShift =
+    difficulty === 'nightmare'
+      ? 0.1
+      : difficulty === 'baby'
+        ? -0.22
+        : difficulty === 'standard'
+          ? -0.1
+          : 0;
   const scaledPersonality: NpcAiPersonality = {
     ...basePers,
-    aggression: Math.max(
-      0.1,
-      Math.min(
-        1,
-        basePers.aggression +
-          (difficulty === 'nightmare' ? 0.14 : difficulty === 'standard' ? -0.14 : 0)
-      )
-    ),
+    aggression: Math.max(0.1, Math.min(1, basePers.aggression + aggrShift)),
     disruptionBias: Math.max(
-      0.1,
-      Math.min(
-        1,
-        basePers.disruptionBias +
-          (difficulty === 'nightmare' ? 0.12 : difficulty === 'standard' ? -0.15 : 0)
-      )
+      0.08,
+      Math.min(1, basePers.disruptionBias + disruptShift)
     ),
     protectBias: Math.max(
       0.05,
-      Math.min(
-        1,
-        basePers.protectBias +
-          (difficulty === 'nightmare' ? 0.1 : difficulty === 'standard' ? -0.1 : 0)
-      )
+      Math.min(1, basePers.protectBias + protectShift)
     ),
   };
 

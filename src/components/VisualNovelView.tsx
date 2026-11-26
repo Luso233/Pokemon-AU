@@ -28,6 +28,7 @@ interface VisualNovelViewProps {
   chapter: ChapterDefinition;
   resumeInkStateJson?: string | null;
   persistedPartyState?: PersistedPartyState | null;
+  vnPacingMode?: 'full' | 'decisions-only' | 'skip-to-battle';
   onExitToChapters: () => void;
   onFinishStory: (flags: StoryFlags) => void;
   onTriggerMidStoryBattle?: (request: MidStoryBattleRequest) => void;
@@ -37,10 +38,12 @@ const SPEAKER_TO_CHAR: Record<string, CharacterId> = {
   'Príncipe Heredero': 'prince',
   'La Campeona': 'champion',
   'Asesino Carmesí': 'assassin',
+  'El Pelirrojo': 'assassin',
   'Comandante Siniestro': 'dark_commander',
   'El Hombre Rata': 'rat_saboteur',
   'Sicario de la Corte': 'rat_saboteur',
   'La Duelista de la Frontera': 'court_duelist',
+  'La Duelista de Vayra': 'court_duelist',
   'Duelista de la Corte': 'court_duelist',
   'El Estratega Solar': 'solar_strategist',
   'Estratega Solar': 'solar_strategist',
@@ -51,6 +54,9 @@ const SPEAKER_TO_CHAR: Record<string, CharacterId> = {
   'Duque de Hammerlocke': 'hammerlocke_duke',
   'Tríada de Élite del Duque': 'triad_knights',
   'Tríada de Élite': 'triad_knights',
+  'Sir Caín': 'knight_cain',
+  'Sir Abel': 'knight_abel',
+  'Sir Frey': 'knight_frey',
   'El Archivista Real': 'royal_archivist',
   'Lord Vexen': 'clandestine_tamer',
   'Lord Vexen (Domador Clandestino)': 'clandestine_tamer',
@@ -64,6 +70,7 @@ export const VisualNovelView: React.FC<VisualNovelViewProps> = ({
   chapter,
   resumeInkStateJson = null,
   persistedPartyState = null,
+  vnPacingMode = 'full',
   onExitToChapters,
   onFinishStory,
   onTriggerMidStoryBattle,
@@ -73,6 +80,30 @@ export const VisualNovelView: React.FC<VisualNovelViewProps> = ({
   const [typedLen, setTypedLen] = useState(0);
   const [showHistory, setShowHistory] = useState(false);
   const [showFlags, setShowFlags] = useState(false);
+  const [fastToDecision, setFastToDecision] = useState(
+    vnPacingMode === 'decisions-only'
+  );
+
+  const stepToNextStop = (
+    runner: InkVNRunner,
+    current: VNFrameState,
+    jumpToChoice: boolean
+  ): VNFrameState => {
+    if (!jumpToChoice) return current;
+    let next = current;
+    let safety = 0;
+    while (
+      safety < 80 &&
+      next.canContinue &&
+      next.choices.length === 0 &&
+      !next.pendingBattleTrigger &&
+      !next.isEnded
+    ) {
+      next = runner.step();
+      safety++;
+    }
+    return next;
+  };
 
   const initStory = (useResume = false) => {
     const runner = new InkVNRunner(chapter.inkSource);
@@ -84,9 +115,9 @@ export const VisualNovelView: React.FC<VisualNovelViewProps> = ({
       }
     }
     runnerRef.current = runner;
-    const initial = runner.step();
+    const initial = stepToNextStop(runner, runner.step(), fastToDecision);
     setFrame(initial);
-    setTypedLen(0);
+    setTypedLen(fastToDecision ? (initial.currentLine?.text.length ?? 0) : 0);
   };
 
   useEffect(() => {
@@ -132,7 +163,13 @@ export const VisualNovelView: React.FC<VisualNovelViewProps> = ({
       return;
     }
     if (frame.canContinue) {
-      setFrame(runnerRef.current.step());
+      const next = stepToNextStop(
+        runnerRef.current,
+        runnerRef.current.step(),
+        fastToDecision
+      );
+      setFrame(next);
+      if (fastToDecision) setTypedLen(next.currentLine?.text.length ?? 0);
     } else if (frame.isEnded) {
       onFinishStory(frame.flags);
     }
@@ -140,7 +177,35 @@ export const VisualNovelView: React.FC<VisualNovelViewProps> = ({
 
   const handleChoice = (index: number) => {
     if (!runnerRef.current) return;
-    setFrame(runnerRef.current.choose(index));
+    const next = stepToNextStop(
+      runnerRef.current,
+      runnerRef.current.choose(index),
+      fastToDecision
+    );
+    setFrame(next);
+    if (fastToDecision) setTypedLen(next.currentLine?.text.length ?? 0);
+  };
+
+  const handleSkipStraightToBattle = () => {
+    if (!runnerRef.current || !frame) return;
+    let cur = frame;
+    let safety = 0;
+    while (safety < 120 && !cur.isEnded && !cur.pendingBattleTrigger) {
+      if (cur.canContinue) cur = runnerRef.current.step();
+      else if (cur.choices.length > 0) cur = runnerRef.current.choose(0);
+      else break;
+      safety++;
+    }
+    if (cur.pendingBattleTrigger && onTriggerMidStoryBattle) {
+      onTriggerMidStoryBattle({
+        battleId: cur.pendingBattleTrigger.battleId,
+        persist: cur.pendingBattleTrigger.persist,
+        flags: cur.flags,
+        inkStateJson: runnerRef.current.exportStateJson(),
+      });
+      return;
+    }
+    onFinishStory(cur.flags);
   };
 
   useEffect(() => {
@@ -204,7 +269,37 @@ export const VisualNovelView: React.FC<VisualNovelViewProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              const nextMode = !fastToDecision;
+              setFastToDecision(nextMode);
+              if (nextMode && runnerRef.current && frame) {
+                const jumped = stepToNextStop(runnerRef.current, frame, true);
+                setFrame(jumped);
+                setTypedLen(jumped.currentLine?.text.length ?? 0);
+              }
+            }}
+            className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition cursor-pointer ${
+              fastToDecision
+                ? 'border-amber-400/70 bg-amber-500/20 text-amber-200'
+                : 'border-slate-700/80 bg-slate-900/80 text-slate-300 hover:border-amber-400/40'
+            }`}
+          >
+            <GitBranch className="h-3.5 w-3.5" />
+            {fastToDecision ? '⚡ Solo Decisiones: ON' : 'Solo Decisiones'}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleSkipStraightToBattle}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-rose-400/50 bg-rose-500/15 px-3 py-1.5 text-xs font-bold text-rose-200 transition hover:bg-rose-500/25 cursor-pointer"
+          >
+            <Swords className="h-3.5 w-3.5" />
+            Saltar al Combate
+          </button>
+
           <button
             onClick={() => setShowFlags((v) => !v)}
             className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
@@ -399,7 +494,14 @@ export const VisualNovelView: React.FC<VisualNovelViewProps> = ({
             <CharacterPortrait
               charId={rightChar}
               variant="sprite"
-              className="h-[18rem] w-auto sm:h-[24rem]"
+              className={
+                rightChar === 'triad_knights' ||
+                rightChar === 'knight_cain' ||
+                rightChar === 'knight_abel' ||
+                rightChar === 'knight_frey'
+                  ? 'h-[13.5rem] w-auto max-w-[60vw] object-contain sm:h-[19rem]'
+                  : 'h-[18rem] w-auto sm:h-[24rem]'
+              }
             />
           )}
         </div>
@@ -466,12 +568,19 @@ export const VisualNovelView: React.FC<VisualNovelViewProps> = ({
                       ? 'border border-amber-400/40 bg-amber-500/20 text-amber-200'
                       : line?.speaker === 'La Campeona'
                         ? 'border border-purple-400/45 bg-purple-500/20 text-purple-200'
-                        : line?.speaker === 'Asesino Carmesí' ||
-                            line?.speaker === 'Sicario de la Corte'
-                          ? 'border border-rose-400/40 bg-rose-500/20 text-rose-200'
-                          : line?.speaker === 'Sistema Táctico'
-                            ? 'border border-sky-400/40 bg-sky-500/20 text-sky-200'
-                            : 'border border-slate-700 bg-slate-800/90 text-slate-200'
+                        : line?.speaker === 'Sir Caín'
+                          ? 'border border-rose-400/55 bg-rose-500/25 text-rose-100'
+                          : line?.speaker === 'Sir Abel'
+                            ? 'border border-emerald-400/55 bg-emerald-500/20 text-emerald-100'
+                            : line?.speaker === 'Sir Frey'
+                              ? 'border border-indigo-400/55 bg-indigo-500/25 text-indigo-100'
+                              : line?.speaker === 'Asesino Carmesí' ||
+                                  line?.speaker === 'El Pelirrojo' ||
+                                  line?.speaker === 'Sicario de la Corte'
+                                ? 'border border-rose-400/40 bg-rose-500/20 text-rose-200'
+                                : line?.speaker === 'Sistema Táctico'
+                                  ? 'border border-sky-400/40 bg-sky-500/20 text-sky-200'
+                                  : 'border border-slate-700 bg-slate-800/90 text-slate-200'
                   }`}
                 >
                   {line?.speaker ?? 'Narrador'}

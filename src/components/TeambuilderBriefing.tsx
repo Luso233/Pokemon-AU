@@ -25,8 +25,13 @@ import {
   Unlock,
   Wrench,
 } from 'lucide-react';
+import { CHAPTERS } from '../data/chapters';
 import { getDiabloScoutingAlertsForChapter } from '../data/difficultyOverrides';
-import { CURRENCY_SHORT } from '../data/economyCatalog';
+import {
+  CURRENCY_SHORT,
+  DIFFICULTY_META,
+  DIFFICULTY_ORDER,
+} from '../data/economyCatalog';
 import { computeActiveSocialLinkPerks } from '../data/socialLinksCatalog';
 import {
   applyNpcRunModifiers,
@@ -48,6 +53,7 @@ import {
 import { getTypeBadgeClass } from '../engine/pokemonVisuals';
 import type {
   BattleDifficultyMode,
+  ChapterTeamPolicy,
   OpenTeamsheetEntry,
   PlayerSaveProfile,
   ResolvedBattleConfig,
@@ -60,6 +66,7 @@ import { RivalPortraitTooltip } from './RivalPortraitTooltip';
 interface TeambuilderBriefingProps {
   config: ResolvedBattleConfig;
   profile: PlayerSaveProfile;
+  teamEditPolicy?: ChapterTeamPolicy;
   onReplayVN: () => void;
   onOpenShop: () => void;
   onOpenDevMode: () => void;
@@ -81,6 +88,7 @@ interface TeambuilderBriefingProps {
 export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
   config,
   profile,
+  teamEditPolicy,
   onReplayVN,
   onOpenShop,
   onOpenDevMode,
@@ -92,7 +100,12 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
   onLaunchBattle,
 }) => {
   const isGen1 = getFormatGeneration(config.formatId) === 1;
+  const effectiveTeamPolicy: ChapterTeamPolicy =
+    teamEditPolicy ??
+    CHAPTERS.find((c) => c.id === config.chapterId)?.teamEditPolicy ??
+    'fixed';
   const canSwapCustomTeam =
+    effectiveTeamPolicy === 'editable' &&
     profile.customTeam.length > 0 &&
     config.formatId !== 'gen1customgame' &&
     config.formatId !== 'gen6triplescustomgame' &&
@@ -492,6 +505,32 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                     {parsedPlayer.length} listos
                   </span>
                 </div>
+              </div>
+
+              {/* Chapter Team Policy Banner (Fixed Single-Team vs Editable Squad) */}
+              <div
+                className={`mb-4 rounded-2xl border px-3.5 py-2.5 text-xs ${
+                  effectiveTeamPolicy === 'editable'
+                    ? 'border-sky-400/40 bg-sky-500/10 text-sky-100'
+                    : 'border-slate-700 bg-slate-950/80 text-slate-300'
+                }`}
+              >
+                {effectiveTeamPolicy === 'editable' ? (
+                  <p>
+                    <strong className="text-sky-200">
+                      🛠️ Capítulo de Equipo Modificable:
+                    </strong>{' '}
+                    Puedes usar el escuadrón narrativo o cambiar a tu{' '}
+                    <strong>Equipo Libre (Cajas PC)</strong> con los Pokémon que hayas desbloqueado en tu run.
+                  </p>
+                ) : (
+                  <p>
+                    <strong className="text-amber-200">
+                      🔒 Capítulo de Equipo Único Fijo:
+                    </strong>{' '}
+                    Este escenario se juega con un único equipo predefinido para respetar el reto táctico (puedes seguir ajustando objetos y slots desbloqueados).
+                  </p>
+                )}
               </div>
 
               {/* Selectable Party Slots */}
@@ -1034,47 +1073,46 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                   {npcDef.personality.directiveSummary}
                 </p>
 
-                {/* Difficulty Selector */}
+                {/* 4-Tier Difficulty Selector (Baby Mode / Normal / Difícil / Tryhard) */}
                 <div className="border-t border-white/10 pt-2">
                   <p className="mb-1.5 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-amber-200">
                     <Flame className="h-3 w-3 text-amber-400" />
                     Dificultad del Rival
                   </p>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {(
-                      [
-                        { id: 'standard', label: 'Estándar' },
-                        { id: 'kaizo', label: 'Kaizo' },
-                        { id: 'nightmare', label: 'Diablo' },
-                      ] as const
-                    ).map((opt) => (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => setDifficultyMode(opt.id)}
-                        className={`rounded-lg border px-2 py-1 text-[10px] font-bold transition cursor-pointer ${
-                          difficultyMode === opt.id
-                            ? opt.id === 'nightmare'
-                              ? 'border-rose-400 bg-rose-500/25 text-rose-100'
-                              : opt.id === 'kaizo'
-                                ? 'border-amber-400 bg-amber-500/25 text-amber-100'
-                                : 'border-emerald-400 bg-emerald-500/20 text-emerald-100'
-                            : 'border-slate-800 bg-slate-950/80 text-slate-400 hover:text-slate-200'
-                        }`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {DIFFICULTY_ORDER.map((diffId) => {
+                      const meta = DIFFICULTY_META[diffId];
+                      return (
+                        <button
+                          key={diffId}
+                          type="button"
+                          onClick={() => setDifficultyMode(diffId)}
+                          className={`rounded-lg border px-2 py-1 text-[10px] font-bold transition cursor-pointer ${
+                            difficultyMode === diffId
+                              ? diffId === 'nightmare'
+                                ? 'border-rose-400 bg-rose-500/25 text-rose-100'
+                                : diffId === 'kaizo'
+                                  ? 'border-amber-400 bg-amber-500/25 text-amber-100'
+                                  : diffId === 'standard'
+                                    ? 'border-emerald-400 bg-emerald-500/20 text-emerald-100'
+                                    : 'border-sky-400 bg-sky-500/20 text-sky-100'
+                              : 'border-slate-800 bg-slate-950/80 text-slate-400 hover:text-slate-200'
+                          }`}
+                        >
+                          {meta.label}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
-                {/* Rank 2 Romance Anti-Diablo Tactical Scouting */}
+                {/* Rank 1 Romance Anti-Diablo Tactical Scouting (El Pelirrojo) */}
                 <div className="border-t border-white/10 pt-2">
                   {socialPerks.hasAntiDiabloScouting ? (
                     <div className="space-y-1.5 rounded-xl border border-sky-400/35 bg-sky-950/40 p-2.5">
                       <p className="flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider text-sky-200">
                         <ShieldAlert className="h-3 w-3 text-sky-400" />
-                        Scouting Anti-Diablo (Vínculo R2 Activo)
+                        Scouting Anti-Diablo (El Pelirrojo R1 Activo)
                       </p>
                       {scoutingAlerts.length > 0 ? (
                         scoutingAlerts.map((al, idx) => (
@@ -1093,7 +1131,7 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                     </div>
                   ) : (
                     <p className="text-[10px] text-slate-400">
-                      ♥ Sube un Vínculo a <strong>Rango 2</strong> (Tag 2v2) para revelar objetos y movimientos sorpresa del modo Diablo.
+                      ♥ Sube a <strong>El Pelirrojo a Rango 1</strong> para revelar objetos y movimientos sorpresa del modo Tryhard/Diablo.
                     </p>
                   )}
                 </div>

@@ -14,8 +14,10 @@ import {
   MapPin,
   Play,
   Puzzle,
+  Save,
   ShieldAlert,
   ShoppingBag,
+  Skull,
   Sparkles,
   Trophy,
   Unlock,
@@ -23,7 +25,11 @@ import {
   Wrench,
 } from 'lucide-react';
 import { CHAPTERS } from '../data/chapters';
-import { CHAPTER_UNLOCK_RULES, CURRENCY_SHORT } from '../data/economyCatalog';
+import {
+  CHAPTER_UNLOCK_RULES,
+  CURRENCY_SHORT,
+  DIFFICULTY_META,
+} from '../data/economyCatalog';
 import {
   CAMPAIGN_ROUTE_ORDER,
   CHAPTER_MAP_LOCATIONS,
@@ -32,6 +38,7 @@ import { isChapterUnlocked } from '../engine/playerProfile';
 import type {
   ChapterCategory,
   ChapterDefinition,
+  ChapterTeamPolicy,
   PlayerSaveProfile,
 } from '../types/game';
 import { PokemonSprite } from './PokemonSprite';
@@ -39,6 +46,7 @@ import { WorldWarMap } from './WorldWarMap';
 
 interface ChapterSelectProps {
   onBackHome: () => void;
+  onOpenSaveLoadModal: () => void;
   onOpenVersus: () => void;
   onOpenShop: () => void;
   onOpenTeamEditor: () => void;
@@ -125,6 +133,7 @@ function getAccentStyles(accent: string) {
 
 export const ChapterSelect: React.FC<ChapterSelectProps> = ({
   onBackHome,
+  onOpenSaveLoadModal,
   onOpenVersus,
   onOpenShop,
   onOpenTeamEditor,
@@ -139,10 +148,19 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
   const [activeFilter, setActiveFilter] = useState<'all' | ChapterCategory>(
     'all'
   );
+  const [teamPolicyFilter, setTeamPolicyFilter] = useState<
+    'all' | ChapterTeamPolicy
+  >('all');
   const [hoveredChapterId, setHoveredChapterId] = useState<string | null>(null);
   const [focusedCardId, setFocusedCardId] = useState<string | null>(null);
   const [unlockNotice, setUnlockNotice] = useState<string | null>(null);
   const progress = profile.completedChapters;
+  const activeDiffMeta =
+    DIFFICULTY_META[profile.defaultDifficulty] ?? DIFFICULTY_META.kaizo;
+  const editableCount = CHAPTERS.filter(
+    (c) => c.teamEditPolicy === 'editable'
+  ).length;
+  const fixedCount = CHAPTERS.filter((c) => c.teamEditPolicy === 'fixed').length;
 
   const unlockedChapterIds = useMemo(() => {
     const set = new Set<string>();
@@ -177,6 +195,7 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
 
   const handleFocusChapterCard = (chapterId: string) => {
     setActiveFilter('all');
+    setTeamPolicyFilter('all');
     setFocusedCardId(chapterId);
     setHoveredChapterId(chapterId);
     window.setTimeout(() => {
@@ -193,11 +212,18 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
   const visibleSections = useMemo(() => {
     return CATEGORY_META.filter(
       (sec) => activeFilter === 'all' || sec.id === activeFilter
-    ).map((sec) => ({
-      ...sec,
-      chapters: CHAPTERS.filter((ch) => ch.category === sec.id),
-    }));
-  }, [activeFilter]);
+    )
+      .map((sec) => ({
+        ...sec,
+        chapters: CHAPTERS.filter(
+          (ch) =>
+            ch.category === sec.id &&
+            (teamPolicyFilter === 'all' ||
+              ch.teamEditPolicy === teamPolicyFilter)
+        ),
+      }))
+      .filter((sec) => sec.chapters.length > 0);
+  }, [activeFilter, teamPolicyFilter]);
 
   return (
     <div className="relative min-h-screen bg-[#060a14] text-slate-100">
@@ -218,11 +244,28 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
               Inicio
             </button>
             <div>
-              <div className="flex items-center gap-2 text-amber-300">
+              <div className="flex flex-wrap items-center gap-2 text-amber-300">
                 <Crown className="h-4 w-4" />
                 <span className="text-xs font-bold uppercase tracking-[0.2em]">
-                  Crown of Galar
+                  Crown of Galar · {profile.runName || 'Exilio de Wyndon'} (Slot #{profile.activeSaveSlot ?? 1})
                 </span>
+                <span
+                  className={`rounded-md border px-1.5 py-0.2 text-[9.5px] font-extrabold ${activeDiffMeta.badgeClass}`}
+                >
+                  {activeDiffMeta.shortLabel}
+                </span>
+                {profile.ironmanMode && (
+                  <span className="inline-flex items-center gap-0.5 rounded-md border border-amber-400/50 bg-amber-500/20 px-1.5 py-0.2 text-[9.5px] font-extrabold text-amber-200">
+                    <ShieldAlert className="h-2.5 w-2.5" />
+                    Ironman
+                  </span>
+                )}
+                {profile.nuzlockePermadeath && (
+                  <span className="inline-flex items-center gap-0.5 rounded-md border border-rose-400/50 bg-rose-500/20 px-1.5 py-0.2 text-[9.5px] font-extrabold text-rose-200">
+                    <Skull className="h-2.5 w-2.5" />
+                    Nuzlocke
+                  </span>
+                )}
               </div>
               <h1 className="font-display text-2xl font-bold text-white sm:text-3xl">
                 Selector de Capítulos
@@ -231,6 +274,13 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={onOpenSaveLoadModal}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-amber-400/55 bg-amber-500/20 px-3 py-2 text-xs font-extrabold text-amber-100 hover:bg-amber-500/30 cursor-pointer"
+            >
+              <Save className="h-3.5 w-3.5 text-amber-300" />
+              Guardar / Cargar
+            </button>
             <button
               onClick={onOpenShop}
               className="inline-flex items-center gap-1.5 rounded-xl border border-amber-400/45 bg-amber-500/15 px-3 py-2 text-xs font-extrabold text-amber-200 hover:bg-amber-500/25 cursor-pointer"
@@ -352,6 +402,43 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
               })}
             </div>
 
+            {/* Team Policy Filter Bar: Modifiable Squad vs Fixed Single-Team Chapters */}
+            <div className="mb-5 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-800/90 bg-slate-900/65 px-3 py-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                Regla de Equipo:
+              </span>
+              {(
+                [
+                  { id: 'all', label: `Todos (${CHAPTERS.length})` },
+                  {
+                    id: 'editable',
+                    label: `🛠️ Equipo Modificable (${editableCount})`,
+                  },
+                  {
+                    id: 'fixed',
+                    label: `🔒 Equipo Único Fijo (${fixedCount})`,
+                  },
+                ] as const
+              ).map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setTeamPolicyFilter(opt.id)}
+                  className={`rounded-lg border px-2.5 py-1 text-[11px] font-bold transition cursor-pointer ${
+                    teamPolicyFilter === opt.id
+                      ? opt.id === 'editable'
+                        ? 'border-sky-400 bg-sky-500/20 text-sky-100'
+                        : opt.id === 'fixed'
+                          ? 'border-amber-400 bg-amber-500/20 text-amber-100'
+                          : 'border-white/40 bg-white/10 text-white'
+                      : 'border-slate-800 bg-slate-950/70 text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
             {/* Clean 4-Element Spoiler-Free Chapter Grid */}
             <div className="space-y-8">
               {visibleSections.map((section) => {
@@ -412,6 +499,22 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
                                   <span className="rounded-lg border border-slate-700/90 bg-slate-950/90 px-2 py-0.5 text-[10px] font-semibold text-slate-300">
                                     {chapter.formatLabel}
                                   </span>
+                                  <span
+                                    title={
+                                      chapter.teamEditPolicy === 'editable'
+                                        ? 'Puedes modificar y traer tu equipo de las Cajas PC antes de iniciar.'
+                                        : 'Capítulo con un único equipo fijo táctico predefinido.'
+                                    }
+                                    className={`rounded-lg border px-2 py-0.5 text-[9.5px] font-extrabold ${
+                                      chapter.teamEditPolicy === 'editable'
+                                        ? 'border-sky-400/45 bg-sky-500/15 text-sky-200'
+                                        : 'border-slate-600/70 bg-slate-950/80 text-slate-300'
+                                    }`}
+                                  >
+                                    {chapter.teamEditPolicy === 'editable'
+                                      ? '🛠️ Equipo Modificable'
+                                      : '🔒 Equipo Fijo'}
+                                  </span>
                                   {nextObjectiveChapterId === chapter.id && (
                                     <span className="rounded-lg border border-amber-400/60 bg-amber-500/20 px-2 py-0.5 text-[9.5px] font-extrabold uppercase tracking-wider text-amber-200">
                                       Objetivo Actual
@@ -436,6 +539,17 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
                                 <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-slate-300">
                                   {chapter.description}
                                 </p>
+
+                                {unlockRule?.rewardPokemon && (
+                                  <div className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-emerald-400/35 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-200">
+                                    <Sparkles className="h-3 w-3 shrink-0 text-emerald-300" />
+                                    <span>
+                                      {prog?.completed
+                                        ? `✓ Desbloqueado: ${unlockRule.rewardPokemon.species}`
+                                        : `+ Desbloquea para tu Run: ${unlockRule.rewardPokemon.species}`}
+                                    </span>
+                                  </div>
+                                )}
                               </div>
 
                               {/* 3. Single Large Spotlight Sprite (Player Ace OR Boss) */}

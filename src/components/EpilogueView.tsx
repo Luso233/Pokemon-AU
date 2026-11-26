@@ -1,12 +1,16 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   BookOpen,
+  Check,
   Coins,
+  Copy,
   Crown,
   Heart,
   Home,
+  Map,
   RefreshCw,
   RotateCcw,
+  Share2,
   ShoppingBag,
   Skull,
   Sparkles,
@@ -15,8 +19,14 @@ import {
   Wand2,
 } from 'lucide-react';
 import { CHAPTERS } from '../data/chapters';
-import { CURRENCY_NAME } from '../data/economyCatalog';
+import { CURRENCY_NAME, DIFFICULTY_META } from '../data/economyCatalog';
 import { computeActiveSocialLinkPerks } from '../data/socialLinksCatalog';
+import {
+  buildDefeatTweetText,
+  buildRunDeathSummary,
+  buildTwitterShareUrl,
+  countAliveBoxPokemon,
+} from '../engine/saveSlots';
 import type {
   AISettings,
   BattleRewardSummary,
@@ -24,8 +34,10 @@ import type {
   ChapterDefinition,
   PlayerSaveProfile,
   ResolvedBattleConfig,
+  RunDeathSummary,
 } from '../types/game';
 import { GameReviewPanel } from './GameReviewPanel';
+import { PokemonSprite } from './PokemonSprite';
 import { SceneBackdrop } from './SceneBackdrop';
 
 interface EpilogueViewProps {
@@ -35,6 +47,7 @@ interface EpilogueViewProps {
   won: boolean;
   battleSummary: BattleSnapshot | null;
   reward?: BattleRewardSummary | null;
+  deathSummary?: RunDeathSummary | null;
   attemptNumber?: number;
   aiSettings: AISettings;
   onOpenAISettings: () => void;
@@ -53,6 +66,7 @@ export const EpilogueView: React.FC<EpilogueViewProps> = ({
   won,
   battleSummary,
   reward,
+  deathSummary,
   attemptNumber,
   aiSettings,
   onOpenAISettings,
@@ -63,7 +77,44 @@ export const EpilogueView: React.FC<EpilogueViewProps> = ({
   onOpenVersus,
   onBackHome,
 }) => {
+  const [copiedTweet, setCopiedTweet] = useState(false);
   const isVersus = Boolean(config.isVersusMatch);
+  const isPrologueCh1 = chapter.id === 'ch1-wyndon-chase';
+
+  const effectiveDeathSummary = useMemo<RunDeathSummary | null>(() => {
+    if (won || isVersus) return null;
+    if (deathSummary) return deathSummary;
+    const isTotalWipe = Boolean(
+      profile?.nuzlockePermadeath && countAliveBoxPokemon(profile) === 0
+    );
+    return buildRunDeathSummary({
+      runName: profile?.runName || 'Exilio de Wyndon',
+      chapterId: chapter.id,
+      chapterLabel: `${chapter.number} · ${chapter.title}`,
+      turn: battleSummary?.turn ?? 1,
+      difficulty: config.difficultyMode ?? profile?.defaultDifficulty ?? 'kaizo',
+      ironmanMode: Boolean(profile?.ironmanMode),
+      nuzlockePermadeath: Boolean(profile?.nuzlockePermadeath),
+      isTotalNuzlockeWipe: isTotalWipe,
+      rivalName: config.rivalName || chapter.rivalProfile.name,
+      fatalBlow: battleSummary?.lastFatalBlow ?? null,
+      fallbackKillerSpecies:
+        battleSummary?.p2.party.find((m) => !m.fainted)?.species ??
+        battleSummary?.p2.party[0]?.species,
+      fallbackVictimSpecies:
+        battleSummary?.p1.party.slice().reverse().find((m) => m.fainted)
+          ?.species ?? battleSummary?.p1.party[0]?.species,
+    });
+  }, [won, isVersus, deathSummary, profile, chapter, battleSummary, config]);
+
+  const defeatTweetText = useMemo(
+    () => (effectiveDeathSummary ? buildDefeatTweetText(effectiveDeathSummary) : ''),
+    [effectiveDeathSummary]
+  );
+  const twitterShareUrl = useMemo(
+    () => (defeatTweetText ? buildTwitterShareUrl(defeatTweetText) : ''),
+    [defeatTweetText]
+  );
   const winnerLabel =
     battleSummary?.winner === 'p1'
       ? config.playerName
@@ -232,6 +283,39 @@ export const EpilogueView: React.FC<EpilogueViewProps> = ({
                 ))}
               </div>
             )}
+            {reward.rewardPokemon && reward.rewardPokemon.length > 0 && (
+              <div className="mt-3 space-y-2 border-t border-white/10 pt-3">
+                <p className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-emerald-300">
+                  <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
+                  ¡Nuevo Pokémon desbloqueado en tus Cajas PC para el resto de la run!
+                </p>
+                {reward.rewardPokemon.map((rp) => (
+                  <div
+                    key={rp.species}
+                    className="flex items-center gap-3 rounded-xl border border-emerald-400/40 bg-slate-950/75 p-2.5"
+                  >
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-emerald-400/30 bg-slate-900">
+                      <PokemonSprite
+                        species={rp.species}
+                        side="p2"
+                        className="h-12 w-12"
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-display text-sm font-extrabold text-white">
+                        {rp.species}{' '}
+                        <span className="rounded bg-emerald-500/20 px-1.5 py-0.2 text-[10px] font-bold text-emerald-200">
+                          Caja de Reserva
+                        </span>
+                      </p>
+                      <p className="mt-0.5 text-[11px] leading-snug text-slate-300">
+                        {rp.note}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
             {reward.newlyUnlockedChapterIds.length > 0 && (
               <div className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-white/10 pt-2 text-xs font-bold text-emerald-300">
                 <Unlock className="h-3.5 w-3.5" />
@@ -249,6 +333,94 @@ export const EpilogueView: React.FC<EpilogueViewProps> = ({
                 })}
               </div>
             )}
+          </div>
+        )}
+
+        {/* X / Twitter Defeat & Run-Death Share Card (ALWAYS unlocked on defeat — NOT gated by Ironman/Nuzlocke!) */}
+        {effectiveDeathSummary && (
+          <div className="mb-5 rounded-2xl border-2 border-rose-500/55 bg-gradient-to-br from-rose-950/60 via-slate-950/95 to-black p-4 shadow-xl">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-rose-200">
+                <Skull className="h-5 w-5 text-rose-400" />
+                <h2 className="font-pixel text-xs font-bold tracking-wider sm:text-sm">
+                  {effectiveDeathSummary.isTotalNuzlockeWipe
+                    ? 'RUN MUERTA · WIPE TOTAL NUZLOCKE (0 VIVOS)'
+                    : 'DERROTA REGISTRADA · COMPARTE EN X / TWITTER'}
+                </h2>
+              </div>
+              <span className="rounded-lg border border-rose-400/40 bg-rose-500/20 px-2 py-0.5 text-[10px] font-extrabold text-rose-100">
+                {DIFFICULTY_META[effectiveDeathSummary.difficulty]?.label ??
+                  effectiveDeathSummary.difficulty}
+                {effectiveDeathSummary.ironmanMode ? ' · Ironman' : ''}
+                {effectiveDeathSummary.nuzlockePermadeath ? ' · Nuzlocke' : ''}
+              </span>
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+              <div className="rounded-xl border border-white/10 bg-black/45 p-2">
+                <p className="text-[9.5px] uppercase text-slate-400">Capítulo</p>
+                <p className="truncate font-bold text-white">
+                  {effectiveDeathSummary.chapterLabel}
+                </p>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-black/45 p-2">
+                <p className="text-[9.5px] uppercase text-slate-400">Turno</p>
+                <p className="font-mono-code font-bold text-amber-300">
+                  Turno {effectiveDeathSummary.turn}
+                </p>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-black/45 p-2">
+                <p className="text-[9.5px] uppercase text-slate-400">Verdugo</p>
+                <p className="truncate font-bold text-rose-300">
+                  {effectiveDeathSummary.killerSpecies}
+                </p>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-black/45 p-2">
+                <p className="text-[9.5px] uppercase text-slate-400">Golpe Final</p>
+                <p className="truncate font-bold text-sky-200">
+                  {effectiveDeathSummary.killerMove}
+                </p>
+              </div>
+            </div>
+
+            <pre className="mt-3 whitespace-pre-wrap rounded-xl border border-slate-800 bg-black/75 p-3 font-mono-code text-[11px] leading-relaxed text-slate-200">
+              {defeatTweetText}
+            </pre>
+
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <a
+                href={twitterShareUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-sky-400/60 bg-black px-4 py-2.5 text-xs font-extrabold text-white shadow-lg transition hover:bg-slate-900"
+              >
+                <Share2 className="h-4 w-4 text-sky-400" />
+                Compartir mi derrota en 𝕏 / Twitter
+              </a>
+              <button
+                type="button"
+                onClick={() => {
+                  if (navigator.clipboard) {
+                    void navigator.clipboard.writeText(defeatTweetText);
+                  }
+                  setCopiedTweet(true);
+                  window.setTimeout(() => setCopiedTweet(false), 2000);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-2.5 text-xs font-bold text-slate-200 hover:border-amber-400/50 hover:text-white cursor-pointer"
+              >
+                {copiedTweet ? (
+                  <>
+                    <Check className="h-3.5 w-3.5 text-emerald-400" />
+                    ¡Copiado!
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-3.5 w-3.5" />
+                    Copiar texto
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         )}
 
@@ -321,8 +493,17 @@ export const EpilogueView: React.FC<EpilogueViewProps> = ({
                 onClick={onOpenChapters}
                 className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 px-5 py-3 text-sm font-bold text-slate-950 shadow-lg shadow-amber-500/20 transition hover:brightness-110 cursor-pointer"
               >
-                <BookOpen className="h-4 w-4" />
-                Selector de Capítulos
+                {isPrologueCh1 ? (
+                  <>
+                    <Map className="h-4 w-4" />
+                    Ir al Selector de Capítulos (El Juego)
+                  </>
+                ) : (
+                  <>
+                    <BookOpen className="h-4 w-4" />
+                    Selector de Capítulos
+                  </>
+                )}
               </button>
 
               <button

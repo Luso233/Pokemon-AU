@@ -9,7 +9,8 @@ import { BattleArena } from './components/BattleArena';
 import { ChapterSelect } from './components/ChapterSelect';
 import { DevModeModal } from './components/DevModeModal';
 import { EpilogueView } from './components/EpilogueView';
-import { HomePage } from './components/HomePage';
+import { HomePage, type NewRunLaunchOptions } from './components/HomePage';
+import { SaveLoadModal } from './components/SaveLoadModal';
 import { ShopView } from './components/ShopView';
 import { SocialLinksCampModal } from './components/SocialLinksCampModal';
 import { TeambuilderBriefing } from './components/TeambuilderBriefing';
@@ -17,6 +18,7 @@ import { TeamEditorView } from './components/TeamEditorView';
 import { VersusModeView } from './components/VersusModeView';
 import { VisualNovelView } from './components/VisualNovelView';
 import { loadAISettings, saveAISettings } from './engine/aiProvider';
+import { InkVNRunner } from './engine/inkRunner';
 import {
   loadCloudProfile,
   saveCloudProfile,
@@ -31,6 +33,7 @@ import {
   campHealPartyMember,
   clearNuzlockeFallenAndIronman,
   completeRomanceRank,
+  createNewConfiguredRunProfile,
   equipItemOnInstance,
   harvestCampBerry,
   loadLocalProfile,
@@ -55,6 +58,15 @@ import {
   unlockMoveSlotForSpecies,
   updatePokemonInstanceBuild,
 } from './engine/playerProfile';
+import {
+  appendRunHistoryEntry,
+  buildRunDeathSummary,
+  countAliveBoxPokemon,
+  deleteSaveSlot,
+  loadRunHistory,
+  loadSaveSlots,
+  saveProfileToSlot,
+} from './engine/saveSlots';
 import { buildRomanceChapterDefinition } from './data/romanceChapters';
 import type {
   AISettings,
@@ -70,8 +82,11 @@ import type {
   PlayerSaveProfile,
   PokemonStorageZone,
   ResolvedBattleConfig,
+  RunDeathSummary,
+  SaveSlotRecord,
   ScreenView,
   StoryFlags,
+  VnPacingMode,
 } from './types/game';
 
 export default function App() {
@@ -85,10 +100,18 @@ export default function App() {
     won: boolean;
     snapshot: BattleSnapshot | null;
     reward: BattleRewardSummary | null;
-  }>({ won: false, snapshot: null, reward: null });
+    deathSummary: RunDeathSummary | null;
+  }>({ won: false, snapshot: null, reward: null, deathSummary: null });
 
-  // Unified Player Save Profile (LocalStorage + Cloud Firestore users/{uid})
+  // Unified Player Save Profile (LocalStorage + 5 Save Slots + Cloud Firestore users/{uid})
   const [profile, setProfile] = useState<PlayerSaveProfile>(loadLocalProfile);
+  const [saveSlots, setSaveSlots] = useState<Record<number, SaveSlotRecord>>(
+    loadSaveSlots
+  );
+  const [runHistory, setRunHistory] = useState<RunDeathSummary[]>(
+    loadRunHistory
+  );
+  const [saveLoadModalOpen, setSaveLoadModalOpen] = useState(false);
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
   const [firebaseConfigEpoch, setFirebaseConfigEpoch] = useState(0);
   const [cloudSyncStatus, setCloudSyncStatus] = useState<
@@ -114,9 +137,15 @@ export default function App() {
   const profileRef = useRef(profile);
   profileRef.current = profile;
 
-  // Persist locally on every profile update
+  // Persist locally & auto-sync active save slot on every profile update once a run has started
   useEffect(() => {
     saveLocalProfile(profile);
+    const hasProgress =
+      profile.hasStartedRun ||
+      Object.values(profile.completedChapters).some((p) => p?.completed);
+    if (hasProgress) {
+      setSaveSlots(saveProfileToSlot(profile, profile.activeSaveSlot ?? 1));
+    }
   }, [profile]);
 
   // Observe Firebase Auth state & sync Firestore profile on login
@@ -182,13 +211,134 @@ export default function App() {
     setProfile((prev) => recordChapterAttemptInProfile(prev, chapterId));
   };
 
-  const startChapter = (chapter: ChapterDefinition) => {
+  const startChapter = (
+    chapter: ChapterDefinition,
+    overrideVnMode?: VnPacingMode
+  ) => {
     setPendingRomanceR1NpcId(null);
     setActiveChapter(chapter);
     setResolvedConfig(null);
     setSuspendedInkState(null);
     setPersistedPartyState(null);
+
+    const effectiveVnMode =
+      overrideVnMode ?? profileRef.current.vnPacingMode ?? 'full';
+    if (effectiveVnMode === 'skip-to-battle') {
+      const runner = new InkVNRunner(chapter.inkSource);
+      let cur = runner.step();
+      let safety = 0;
+      while (safety < 140 && !cur.isEnded && !cur.pendingBattleTrigger) {
+        if (cur.canContinue) cur = runner.step();
+        else if (cur.choices.length > 0) cur = runner.choose(0);
+        else break;
+        safety++;
+      }
+      if (cur.pendingBattleTrigger) {
+        const resolver = chapter.resolveStageBattleConfig;
+        const rawStage = resolver
+          ? resolver(cur.pendingBattleTrigger.battleId, cur.flags, undefined)
+          : chapter.resolveBattleConfig(cur.flags);
+        const npcDef = getNpcDefinition(rawStage.rivalCharId);
+        const stageConfig: ResolvedBattleConfig = {
+          ...rawStage,
+          rivalProfile: buildRivalProfileFromNpc(
+            rawStage.rivalCharId,
+            rawStage.rivalProfile ?? chapter.rivalProfile
+          ),
+          npcPersonality: rawStage.npcPersonality ?? npcDef.personality,
+          npcDialogues: rawStage.npcDialogues ?? npcDef.dialogues,
+        };
+        if (!cur.pendingBattleTrigger.persist) {
+          recordChapterAttempt(chapter.id);
+        }
+        setSuspendedInkState(
+          cur.pendingBattleTrigger.persist ? null : runner.exportStateJson()
+        );
+        setResolvedConfig(stageConfig);
+        setScreen('battle');
+        return;
+      }
+      const rawConfig = chapter.resolveBattleConfig(cur.flags);
+      const npcDef = getNpcDefinition(rawConfig.rivalCharId);
+      const config: ResolvedBattleConfig = {
+        ...rawConfig,
+        rivalProfile: buildRivalProfileFromNpc(
+          rawConfig.rivalCharId,
+          rawConfig.rivalProfile ?? chapter.rivalProfile
+        ),
+        npcPersonality: rawConfig.npcPersonality ?? npcDef.personality,
+        npcDialogues: rawConfig.npcDialogues ?? npcDef.dialogues,
+      };
+      setResolvedConfig(config);
+      setScreen('teambuilder');
+      return;
+    }
+
     setScreen('vn');
+  };
+
+  const handleContinueGame = () => {
+    const cur = profileRef.current;
+    const hasStarted =
+      cur.hasStartedRun ||
+      Object.values(cur.completedChapters).some((p) => p?.completed);
+    if (hasStarted) {
+      setScreen('chapters');
+    } else {
+      startChapter(CHAPTERS[0]);
+    }
+  };
+
+  const handleStartNewRun = (options: NewRunLaunchOptions) => {
+    const fresh = createNewConfiguredRunProfile({
+      displayName: profileRef.current.displayName,
+      email: profileRef.current.email,
+      runName: options.runName,
+      slotIndex: options.slotIndex,
+      vnPacingMode: options.vnPacingMode,
+      defaultDifficulty: options.defaultDifficulty,
+      ironmanMode: options.ironmanMode,
+      nuzlockePermadeath: options.nuzlockePermadeath,
+    });
+    profileRef.current = fresh;
+    setProfile(fresh);
+    setSaveSlots(saveProfileToSlot(fresh, options.slotIndex));
+    startChapter(CHAPTERS[0], options.vnPacingMode);
+  };
+
+  const handleSaveToSlot = (slotIndex: number, customRunName?: string) => {
+    const nextRunName =
+      customRunName?.trim() ||
+      profileRef.current.runName ||
+      `Run #${slotIndex}`;
+    const updated: PlayerSaveProfile = {
+      ...profileRef.current,
+      activeSaveSlot: slotIndex,
+      runName: nextRunName,
+      hasStartedRun: true,
+      updatedAt: new Date().toISOString(),
+    };
+    profileRef.current = updated;
+    setProfile(updated);
+    setSaveSlots(saveProfileToSlot(updated, slotIndex));
+  };
+
+  const handleLoadFromSlot = (slotIndex: number) => {
+    const rec = saveSlots[slotIndex];
+    if (!rec) return;
+    const loaded: PlayerSaveProfile = {
+      ...rec.profile,
+      activeSaveSlot: slotIndex,
+      hasStartedRun: true,
+    };
+    profileRef.current = loaded;
+    setProfile(loaded);
+    setSaveLoadModalOpen(false);
+    setScreen('chapters');
+  };
+
+  const handleDeleteSaveSlot = (slotIndex: number) => {
+    setSaveSlots(deleteSaveSlot(slotIndex));
   };
 
   const handleStartRomanceRank = (
@@ -309,6 +459,7 @@ export default function App() {
     }
 
     let earnedReward: BattleRewardSummary | null = null;
+    let deathSummary: RunDeathSummary | null = null;
     setSuspendedInkState(null);
 
     if (!resolvedConfig?.isVersusMatch) {
@@ -337,7 +488,40 @@ export default function App() {
           resolvedConfig.romanceMeta.targetRank
         );
       }
+      nextProf = { ...nextProf, hasStartedRun: true };
+      profileRef.current = nextProf;
       setProfile(nextProf);
+
+      if (!won) {
+        const isTotalNuzlockeWipe =
+          nextProf.nuzlockePermadeath && countAliveBoxPokemon(nextProf) === 0;
+        deathSummary = buildRunDeathSummary({
+          runName: nextProf.runName || 'Exilio de Wyndon',
+          chapterId: activeChapter.id,
+          chapterLabel: `${activeChapter.number} · ${activeChapter.title}`,
+          turn: snapshot.turn,
+          difficulty:
+            resolvedConfig?.difficultyMode ?? nextProf.defaultDifficulty,
+          ironmanMode: nextProf.ironmanMode,
+          nuzlockePermadeath: nextProf.nuzlockePermadeath,
+          isTotalNuzlockeWipe,
+          rivalName: resolvedConfig?.rivalName || activeChapter.rivalProfile.name,
+          fatalBlow: snapshot.lastFatalBlow ?? null,
+          fallbackKillerSpecies:
+            snapshot.p2.party.find((m) => !m.fainted)?.species ??
+            snapshot.p2.party[0]?.species,
+          fallbackVictimSpecies:
+            snapshot.p1.party.slice().reverse().find((m) => m.fainted)
+              ?.species ?? snapshot.p1.party[0]?.species,
+        });
+        setRunHistory(appendRunHistoryEntry(deathSummary));
+        setSaveSlots(
+          saveProfileToSlot(nextProf, nextProf.activeSaveSlot ?? 1, {
+            isRunDead: isTotalNuzlockeWipe,
+            lastDeath: deathSummary,
+          })
+        );
+      }
     } else if (won && resolvedConfig.p2Control !== 'human') {
       // Friendly coin bonus for winning Versus AI matches!
       setProfile((prev) => awardArcadeCoins(prev, 250));
@@ -350,7 +534,7 @@ export default function App() {
       };
     }
 
-    setBattleOutcome({ won, snapshot, reward: earnedReward });
+    setBattleOutcome({ won, snapshot, reward: earnedReward, deathSummary });
     setScreen('epilogue');
   };
 
@@ -418,6 +602,7 @@ export default function App() {
     ironmanMode?: boolean;
     nuzlockePermadeath?: boolean;
     defaultDifficulty?: BattleDifficultyMode;
+    vnPacingMode?: VnPacingMode;
   }) => {
     setProfile((prev) => toggleRunModifiers(prev, patch));
   };
@@ -510,6 +695,11 @@ export default function App() {
   if (screen === 'home') {
     view = (
       <HomePage
+        onContinueGame={handleContinueGame}
+        onStartNewRun={handleStartNewRun}
+        onLoadSaveSlot={handleLoadFromSlot}
+        onDeleteSaveSlot={handleDeleteSaveSlot}
+        onOpenSaveLoadModal={() => setSaveLoadModalOpen(true)}
         onOpenChapters={() => setScreen('chapters')}
         onOpenVersus={() => setScreen('versus')}
         onOpenShop={() => setScreen('shop')}
@@ -519,8 +709,9 @@ export default function App() {
         onOpenAISettings={() => setAiModalOpen(true)}
         onOpenDevMode={() => setDevModalOpen(true)}
         onOpenCamp={() => setCampModalOpen(true)}
-        onQuickStartMainChapter={() => startChapter(CHAPTERS[0])}
         profile={profile}
+        saveSlots={saveSlots}
+        runHistory={runHistory}
         firebaseUser={firebaseUser}
         cloudSyncStatus={cloudSyncStatus}
         aiSettings={aiSettings}
@@ -530,6 +721,7 @@ export default function App() {
     view = (
       <ChapterSelect
         onBackHome={() => setScreen('home')}
+        onOpenSaveLoadModal={() => setSaveLoadModalOpen(true)}
         onOpenVersus={() => setScreen('versus')}
         onOpenShop={() => setScreen('shop')}
         onOpenTeamEditor={() => setScreen('team-editor')}
@@ -537,7 +729,7 @@ export default function App() {
         onOpenAccount={() => setAccountModalOpen(true)}
         onOpenDevMode={() => setDevModalOpen(true)}
         onOpenCamp={() => setCampModalOpen(true)}
-        onSelectChapter={startChapter}
+        onSelectChapter={(ch) => startChapter(ch)}
         onUnlockChapterWithCoins={handleUnlockChapterWithCoins}
         profile={profile}
       />
@@ -597,6 +789,7 @@ export default function App() {
         chapter={activeChapter}
         resumeInkStateJson={suspendedInkState}
         persistedPartyState={persistedPartyState}
+        vnPacingMode={profile.vnPacingMode}
         onExitToChapters={() => setScreen('chapters')}
         onFinishStory={handleFinishVN}
         onTriggerMidStoryBattle={handleTriggerMidStoryBattle}
@@ -607,6 +800,7 @@ export default function App() {
       <TeambuilderBriefing
         config={resolvedConfig}
         profile={profile}
+        teamEditPolicy={activeChapter.teamEditPolicy}
         onReplayVN={() => setScreen('vn')}
         onOpenShop={() => setScreen('shop')}
         onOpenDevMode={() => setDevModalOpen(true)}
@@ -652,6 +846,7 @@ export default function App() {
         won={battleOutcome.won}
         battleSummary={battleOutcome.snapshot}
         reward={battleOutcome.reward}
+        deathSummary={battleOutcome.deathSummary}
         attemptNumber={
           !resolvedConfig.isVersusMatch
             ? Math.max(
@@ -665,7 +860,7 @@ export default function App() {
         onReplayChapter={() =>
           resolvedConfig.isVersusMatch
             ? setScreen('versus')
-            : startChapter(activeChapter)
+            : startChapter(activeChapter, 'full')
         }
         onRetryBattle={() => {
           if (!resolvedConfig.isVersusMatch) {
@@ -684,6 +879,15 @@ export default function App() {
   return (
     <>
       {view}
+      <SaveLoadModal
+        open={saveLoadModalOpen}
+        onClose={() => setSaveLoadModalOpen(false)}
+        profile={profile}
+        saveSlots={saveSlots}
+        onSaveToSlot={handleSaveToSlot}
+        onLoadFromSlot={handleLoadFromSlot}
+        onDeleteSlot={handleDeleteSaveSlot}
+      />
       <AISettingsModal
         open={aiModalOpen}
         settings={aiSettings}

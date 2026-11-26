@@ -1,9 +1,105 @@
-import type { CustomTeamMember, PlayerInventory } from '../types/game';
+import type {
+  BattleDifficultyMode,
+  CustomTeamMember,
+  PlayerInventory,
+  VnPacingMode,
+} from '../types/game';
 
 export const CURRENCY_NAME = 'PokéCoronas';
 export const CURRENCY_SHORT = 'PC';
 export const MAX_SHINY_CHARMS = 6;
 export const SHINY_CHARM_PRICE = 10000;
+
+export const DIFFICULTY_META: Record<
+  BattleDifficultyMode,
+  {
+    id: BattleDifficultyMode;
+    label: string;
+    shortLabel: string;
+    subtitle: string;
+    desc: string;
+    badgeClass: string;
+  }
+> = {
+  baby: {
+    id: 'baby',
+    label: 'Baby Mode',
+    shortLabel: 'Baby Mode',
+    subtitle: 'Paseo Real (-8 Nv. · IA relajada)',
+    desc: 'Rivales 8 niveles por debajo del cap, sets suavizados e IA indulgente. Ideal para disfrutar la trama sin estrés.',
+    badgeClass: 'border-sky-400/50 bg-sky-500/20 text-sky-200',
+  },
+  standard: {
+    id: 'standard',
+    label: 'Normal',
+    shortLabel: 'Normal',
+    subtitle: 'Estándar (-4 Nv. · Sets contenidos)',
+    desc: 'Sets contenidos (ej. Bubble Beam + Mystic Water) e IA directa y legible para aprender el sistema.',
+    badgeClass: 'border-emerald-400/50 bg-emerald-500/20 text-emerald-200',
+  },
+  kaizo: {
+    id: 'kaizo',
+    label: 'Difícil',
+    shortLabel: 'Difícil',
+    subtitle: 'Kaizo Canónico (Cap exacto)',
+    desc: 'Balance táctico oficial de Crown of Galar. Cada jefe juega al nivel canónico con sus trucos completos.',
+    badgeClass: 'border-amber-400/50 bg-amber-500/20 text-amber-200',
+  },
+  nightmare: {
+    id: 'nightmare',
+    label: 'Tryhard',
+    shortLabel: 'Tryhard',
+    subtitle: 'Diablo (+4 Nv. · Anti-Explotación)',
+    desc: 'Rivales sobre el level cap con overrides letales (Water Spout + Choice Specs) e IA Anti-Explotación que caza bajas.',
+    badgeClass: 'border-rose-400/60 bg-rose-500/25 text-rose-100',
+  },
+};
+
+export const DIFFICULTY_ORDER: BattleDifficultyMode[] = [
+  'baby',
+  'standard',
+  'kaizo',
+  'nightmare',
+];
+
+export const VN_PACING_META: Record<
+  VnPacingMode,
+  {
+    id: VnPacingMode;
+    label: string;
+    shortLabel: string;
+    desc: string;
+  }
+> = {
+  full: {
+    id: 'full',
+    label: 'Chutármelo todo (VN Completa)',
+    shortLabel: 'VN Completa',
+    desc: 'Lee todos los diálogos, retratos y escenas políticas línea por línea antes de cada batalla.',
+  },
+  'decisions-only': {
+    id: 'decisions-only',
+    label: 'Directo a las Decisiones',
+    shortLabel: 'Solo Decisiones',
+    desc: 'Avanza automáticamente el texto narrativo y frena justo en cada elección táctica que cambia el combate.',
+  },
+  'skip-to-battle': {
+    id: 'skip-to-battle',
+    label: 'Saltar Novela Visual',
+    shortLabel: 'Saltar VN',
+    desc: 'Aplica la ruta canónica al instante y te lleva directo al Teambuilder / Combate sin leer diálogos.',
+  },
+};
+
+export interface ChapterRewardPokemonSpec {
+  species: string;
+  ability: string;
+  nature: string;
+  teraType: string;
+  moves: string[];
+  item?: string;
+  note: string;
+}
 
 export interface ChapterUnlockRule {
   chapterId: string;
@@ -16,6 +112,8 @@ export interface ChapterUnlockRule {
   replayReward: number;
   /** Optional held item awarded directly into inventory upon first clear. */
   rewardItem?: string;
+  /** Playable Pokémon unlocked into your PC Boxes for the rest of the run upon clearing this chapter! */
+  rewardPokemon: ChapterRewardPokemonSpec;
 }
 
 export const STARTER_UNLOCKED_CHAPTERS: string[] = [
@@ -33,6 +131,14 @@ export const CHAPTER_UNLOCK_RULES: Record<string, ChapterUnlockRule> = {
     firstClearReward: 1500,
     replayReward: 350,
     rewardItem: 'Mental Herb',
+    rewardPokemon: {
+      species: 'Ceruledge',
+      ability: 'Flash Fire',
+      nature: 'Adamant',
+      teraType: 'Fire',
+      moves: ['Bitter Blade', 'Shadow Sneak', 'Close Combat', 'Protect'],
+      note: 'Espadachín espectro-fuego de los callejones de Wyndon: sustento y prioridad brutal para tu run.',
+    },
   },
   'puzzle-01-sun-trap': {
     chapterId: 'puzzle-01-sun-trap',
@@ -42,6 +148,14 @@ export const CHAPTER_UNLOCK_RULES: Record<string, ChapterUnlockRule> = {
     firstClearReward: 1500,
     replayReward: 350,
     rewardItem: 'Choice Scarf',
+    rewardPokemon: {
+      species: 'Volcarona',
+      ability: 'Flame Body',
+      nature: 'Timid',
+      teraType: 'Grass',
+      moves: ['Heat Wave', 'Quiver Dance', 'Bug Buzz', 'Giga Drain'],
+      note: 'Sweeper especial rescatado del patio solar de Miraj: Quiver Dance rompe combates largos.',
+    },
   },
   'challenge-weather-terrains': {
     chapterId: 'challenge-weather-terrains',
@@ -51,6 +165,14 @@ export const CHAPTER_UNLOCK_RULES: Record<string, ChapterUnlockRule> = {
     firstClearReward: 1800,
     replayReward: 400,
     rewardItem: 'Clear Amulet',
+    rewardPokemon: {
+      species: 'Pelipper',
+      ability: 'Drizzle',
+      nature: 'Modest',
+      teraType: 'Water',
+      moves: ['Hurricane', 'Weather Ball', 'Tailwind', 'Wide Guard'],
+      note: 'Soporte de lluvia instantánea + Tailwind + Wide Guard robado del domo climático de Tamra.',
+    },
   },
   'flashback-lc-champion': {
     chapterId: 'flashback-lc-champion',
@@ -60,6 +182,14 @@ export const CHAPTER_UNLOCK_RULES: Record<string, ChapterUnlockRule> = {
     firstClearReward: 1400,
     replayReward: 300,
     rewardItem: 'Eviolite',
+    rewardPokemon: {
+      species: 'Dragapult',
+      ability: 'Clear Body',
+      nature: 'Timid',
+      teraType: 'Ghost',
+      moves: ['Draco Meteor', 'Shadow Ball', 'Flamethrower', 'U-turn'],
+      note: 'Velocidad élite heredada del entrenamiento con La Campeona: pivote fantasma top tier.',
+    },
   },
   'ch2-monotype-banners': {
     chapterId: 'ch2-monotype-banners',
@@ -69,6 +199,14 @@ export const CHAPTER_UNLOCK_RULES: Record<string, ChapterUnlockRule> = {
     firstClearReward: 1600,
     replayReward: 350,
     rewardItem: 'Assault Vest',
+    rewardPokemon: {
+      species: 'Gholdengo',
+      ability: 'Good as Gold',
+      nature: 'Timid',
+      teraType: 'Steel',
+      moves: ['Make It Rain', 'Shadow Ball', 'Nasty Plot', 'Protect'],
+      note: 'Inmune a cualquier movimiento de Estado gracias a Good as Gold: oro puro en Ironman.',
+    },
   },
   'ch2-banquet-ambush': {
     chapterId: 'ch2-banquet-ambush',
@@ -78,6 +216,14 @@ export const CHAPTER_UNLOCK_RULES: Record<string, ChapterUnlockRule> = {
     firstClearReward: 1200,
     replayReward: 300,
     rewardItem: 'Covert Cloak',
+    rewardPokemon: {
+      species: 'Zoroark-Hisui',
+      ability: 'Illusion',
+      nature: 'Timid',
+      teraType: 'Ghost',
+      moves: ['Bitter Malice', 'Hyper Voice', 'Flamethrower', 'Protect'],
+      note: 'Trofeo del Salón de Cristal: 3 inmunidades (Normal/Lucha/Fantasma) + ilusión táctica.',
+    },
   },
   'duel-01-honor-1v1': {
     chapterId: 'duel-01-honor-1v1',
@@ -87,6 +233,14 @@ export const CHAPTER_UNLOCK_RULES: Record<string, ChapterUnlockRule> = {
     firstClearReward: 1300,
     replayReward: 300,
     rewardItem: 'Weakness Policy',
+    rewardPokemon: {
+      species: 'Iron Crown',
+      ability: 'Quark Drive',
+      nature: 'Timid',
+      teraType: 'Steel',
+      moves: ['Tachyon Cutter', 'Psychic', 'Focus Blast', 'Protect'],
+      note: 'Tachyon Cutter de doble golpe que rompe Focus Sash y Sustitutos sin fallar.',
+    },
   },
   'ch3-clandestine-tamer': {
     chapterId: 'ch3-clandestine-tamer',
@@ -96,6 +250,14 @@ export const CHAPTER_UNLOCK_RULES: Record<string, ChapterUnlockRule> = {
     firstClearReward: 1800,
     replayReward: 400,
     rewardItem: 'Silk Scarf',
+    rewardPokemon: {
+      species: 'Ursaring',
+      ability: 'Guts',
+      nature: 'Adamant',
+      teraType: 'Normal',
+      moves: ['Frustration', 'Close Combat', 'Headlong Rush', 'Protect'],
+      note: 'El Ursaring liberado del foso de Mesoa: golpea como un camión con Guts + Frustration 102 BP.',
+    },
   },
   'puzzle-02-regigigas': {
     chapterId: 'puzzle-02-regigigas',
@@ -105,6 +267,14 @@ export const CHAPTER_UNLOCK_RULES: Record<string, ChapterUnlockRule> = {
     firstClearReward: 2400,
     replayReward: 500,
     rewardItem: 'Life Orb',
+    rewardPokemon: {
+      species: 'Regigigas',
+      ability: 'Slow Start',
+      nature: 'Adamant',
+      teraType: 'Normal',
+      moves: ['Crush Grip', 'Drain Punch', 'Knock Off', 'Protect'],
+      note: '¡LO LOGRASTE! Te llevas a Regigigas para el resto de la run… sí, con Slow Start intacto (absurdo en costo/recompensa, pero graciosísimo).',
+    },
   },
   'archive-vgc-2024': {
     chapterId: 'archive-vgc-2024',
@@ -114,6 +284,14 @@ export const CHAPTER_UNLOCK_RULES: Record<string, ChapterUnlockRule> = {
     firstClearReward: 2000,
     replayReward: 450,
     rewardItem: 'Booster Energy',
+    rewardPokemon: {
+      species: 'Miraidon',
+      ability: 'Hadron Engine',
+      nature: 'Timid',
+      teraType: 'Fairy',
+      moves: ['Electro Drift', 'Draco Meteor', 'Dazzling Gleam', 'Volt Switch'],
+      note: 'Campeón Mundial de Honolulu: Motor Hadrónico + Electro Drift derriten jefes en Tryhard.',
+    },
   },
   'challenge-last-bastion': {
     chapterId: 'challenge-last-bastion',
@@ -123,6 +301,14 @@ export const CHAPTER_UNLOCK_RULES: Record<string, ChapterUnlockRule> = {
     firstClearReward: 2100,
     replayReward: 450,
     rewardItem: 'Choice Band',
+    rewardPokemon: {
+      species: 'Annihilape',
+      ability: 'Defiant',
+      nature: 'Adamant',
+      teraType: 'Fire',
+      moves: ['Rage Fist', 'Drain Punch', 'Bulk Up', 'Protect'],
+      note: 'El muro de los muelles de Wyndon: Rage Fist escala hasta borrar cualquier Raid Boss.',
+    },
   },
   'survival-galar-mines': {
     chapterId: 'survival-galar-mines',
@@ -132,6 +318,14 @@ export const CHAPTER_UNLOCK_RULES: Record<string, ChapterUnlockRule> = {
     firstClearReward: 2300,
     replayReward: 500,
     rewardItem: 'Heavy-Duty Boots',
+    rewardPokemon: {
+      species: 'Kingambit',
+      ability: 'Supreme Overlord',
+      nature: 'Adamant',
+      teraType: 'Dark',
+      moves: ['Kowtow Cleave', 'Sucker Punch', 'Iron Head', 'Swords Dance'],
+      note: 'Sobreviviste a Tarran sin curarte: Kingambit remata late-game mejor que nadie en el juego.',
+    },
   },
   'showcase-triples-phalanx': {
     chapterId: 'showcase-triples-phalanx',
@@ -141,6 +335,14 @@ export const CHAPTER_UNLOCK_RULES: Record<string, ChapterUnlockRule> = {
     firstClearReward: 2200,
     replayReward: 450,
     rewardItem: 'Choice Specs',
+    rewardPokemon: {
+      species: 'Talonflame',
+      ability: 'Gale Wings',
+      nature: 'Jolly',
+      teraType: 'Ghost',
+      moves: ['Tailwind', 'Brave Bird', 'Will-O-Wisp', 'Taunt'],
+      note: 'Tailwind con prioridad +1 de Gale Wings para robar el control de velocidad desde Turno 1.',
+    },
   },
   'challenge-three-knights': {
     chapterId: 'challenge-three-knights',
@@ -150,6 +352,14 @@ export const CHAPTER_UNLOCK_RULES: Record<string, ChapterUnlockRule> = {
     firstClearReward: 2600,
     replayReward: 550,
     rewardItem: 'Flame Orb',
+    rewardPokemon: {
+      species: 'Garchomp',
+      ability: 'Rough Skin',
+      nature: 'Jolly',
+      teraType: 'Ground',
+      moves: ['Earthquake', 'Dragon Claw', 'Swords Dance', 'Protect'],
+      note: 'Veterano del Estrecho Austral en Cordelia: presión física y castigo de contacto.',
+    },
   },
   'archive-gen1-silph': {
     chapterId: 'archive-gen1-silph',
@@ -159,6 +369,14 @@ export const CHAPTER_UNLOCK_RULES: Record<string, ChapterUnlockRule> = {
     firstClearReward: 1900,
     replayReward: 400,
     rewardItem: 'Air Balloon',
+    rewardPokemon: {
+      species: 'Mew',
+      ability: 'Synchronize',
+      nature: 'Timid',
+      teraType: 'Psychic',
+      moves: ['Psychic', 'Nasty Plot', 'Flamethrower', 'Recover'],
+      note: 'Reliquia mítica de Silph Co.: aprende prácticamente cualquier MT legal de tu inventario.',
+    },
   },
   'anime-ash-vs-tobias': {
     chapterId: 'anime-ash-vs-tobias',
@@ -168,6 +386,14 @@ export const CHAPTER_UNLOCK_RULES: Record<string, ChapterUnlockRule> = {
     firstClearReward: 3000,
     replayReward: 600,
     rewardItem: 'Light Ball',
+    rewardPokemon: {
+      species: 'Darkrai',
+      ability: 'Bad Dreams',
+      nature: 'Timid',
+      teraType: 'Dark',
+      moves: ['Dark Pulse', 'Ice Beam', 'Nasty Plot', 'Hypnosis'],
+      note: 'La pesadilla del Valle Lirio ahora pelea bajo tu estandarte por el resto de la run.',
+    },
   },
 };
 

@@ -79,9 +79,57 @@ export interface SocialLinkProgress {
   r3Done: boolean;
 }
 
+export type VnPacingMode = 'full' | 'decisions-only' | 'skip-to-battle';
+
+export type ChapterTeamPolicy = 'fixed' | 'editable';
+
+export interface BattleFatalBlow {
+  attackerSpecies: string;
+  moveName: string;
+  victimSpecies: string;
+  turn: number;
+  rivalName?: string;
+}
+
+export interface RunDeathSummary {
+  id: string;
+  runName: string;
+  chapterId: string;
+  chapterLabel: string;
+  turn: number;
+  difficulty: BattleDifficultyMode;
+  ironmanMode: boolean;
+  nuzlockePermadeath: boolean;
+  isTotalNuzlockeWipe: boolean;
+  killerSpecies: string;
+  killerMove: string;
+  rivalName: string;
+  victimSpecies: string;
+  recordedAt: string;
+}
+
+export interface SaveSlotRecord {
+  slotIndex: number;
+  runName: string;
+  savedAt: string;
+  profile: PlayerSaveProfile;
+  completedCount: number;
+  aliveCount: number;
+  isRunDead: boolean;
+  lastDeath?: RunDeathSummary | null;
+}
+
 export interface PlayerSaveProfile {
   displayName: string;
   email: string;
+  /** Human-readable run title for Save/Load slots and X/Twitter sharing. */
+  runName?: string;
+  /** Active save slot index (1..5) in PokéRogue Save/Load system. */
+  activeSaveSlot?: number;
+  /** Narrative pacing preference chosen at New Game or Settings. */
+  vnPacingMode?: VnPacingMode;
+  /** Tracks whether Prologue / Chapter 01 has been entered/cleared so "Continue" goes straight to Chapter Select. */
+  hasStartedRun?: boolean;
   coins: number;
   unlockedChapters: string[];
   completedChapters: Record<string, ChapterProgress>;
@@ -128,6 +176,7 @@ export interface BattleRewardSummary {
   lowResetBonus: number;
   newlyUnlockedChapterIds: string[];
   rewardItems?: string[];
+  rewardPokemon?: Array<{ species: string; note: string }>;
 }
 
 export type AIProviderKind = 'gemini' | 'ollama' | 'offline';
@@ -235,13 +284,16 @@ export type CharacterId =
   | 'corrupt_captain'
   | 'hammerlocke_duke'
   | 'triad_knights'
+  | 'knight_cain'
+  | 'knight_abel'
+  | 'knight_frey'
   | 'royal_archivist'
   | 'clandestine_tamer'
   | 'colossus_keeper'
   | 'tobias'
   | 'ash_ketchum';
 
-export type BattleDifficultyMode = 'standard' | 'kaizo' | 'nightmare';
+export type BattleDifficultyMode = 'baby' | 'standard' | 'kaizo' | 'nightmare';
 
 export interface NpcAiPersonality {
   styleName: string;
@@ -533,6 +585,8 @@ export interface ChapterDefinition {
   difficulty: string;
   description: string;
   accentColor: string;
+  /** Distinguishes fixed single-team chapters (puzzles/archives/flashbacks) from editable-team chapters! */
+  teamEditPolicy?: ChapterTeamPolicy;
   /** Single spoiler-free spotlight sprite shown on the Chapter Select card. */
   showcaseSprite: ChapterShowcaseSprite;
   featuredPokemon: string[];
@@ -778,4 +832,6 @@ export interface BattleSnapshot {
   triggeredScriptIds: string[];
   koCountP2: number;
   totalP2: number;
+  /** Exact rival Pokémon & move that delivered the final KO against the player (for Nuzlocke/Defeat X sharing!). */
+  lastFatalBlow?: BattleFatalBlow | null;
 }

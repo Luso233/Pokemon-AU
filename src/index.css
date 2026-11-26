@@ -5,6 +5,7 @@
     --font-display: 'Cinzel', Georgia, serif;
     --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
     --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+    --font-pixel: 'Silkscreen', 'JetBrains Mono', monospace;
   }
 
   body {
@@ -21,6 +22,38 @@
 
 .font-mono-code {
   font-family: var(--font-mono);
+}
+
+.font-pixel {
+  font-family: var(--font-pixel);
+}
+
+/* PokéRogue-inspired dark retro scanline bands & crisp crimson-framed RPG dialog boxes */
+.pokerogue-bands {
+  background-image: repeating-linear-gradient(
+    180deg,
+    #130f1e 0px,
+    #130f1e 14px,
+    #1a1428 14px,
+    #1a1428 28px
+  );
+}
+
+.pokerogue-box {
+  background: #231d30;
+  border: 3px solid #d9462f;
+  box-shadow:
+    inset 0 0 0 2px #522026,
+    0 10px 30px rgba(0, 0, 0, 0.72);
+}
+
+@keyframes pixelSplashBounce {
+  0%, 100% { transform: rotate(-9deg) scale(1); }
+  50% { transform: rotate(-9deg) scale(1.06); }
+}
+
+.animate-splash-bounce {
+  animation: pixelSplashBounce 2.2s ease-in-out infinite;
 }
 
 @keyframes floatSlow {

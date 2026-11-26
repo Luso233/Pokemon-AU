@@ -105,6 +105,10 @@ export function createDefaultProfile(
   return {
     displayName,
     email,
+    runName: 'Exilio de Wyndon',
+    activeSaveSlot: 1,
+    vnPacingMode: 'full',
+    hasStartedRun: false,
     coins: 1500,
     unlockedChapters: [...STARTER_UNLOCKED_CHAPTERS],
     completedChapters: {},
@@ -242,6 +246,23 @@ export function normalizeProfile(
   return {
     displayName: raw.displayName || base.displayName,
     email: raw.email || '',
+    runName: raw.runName || base.runName,
+    activeSaveSlot:
+      typeof raw.activeSaveSlot === 'number' &&
+      raw.activeSaveSlot >= 1 &&
+      raw.activeSaveSlot <= 5
+        ? Math.floor(raw.activeSaveSlot)
+        : 1,
+    vnPacingMode:
+      raw.vnPacingMode === 'full' ||
+      raw.vnPacingMode === 'decisions-only' ||
+      raw.vnPacingMode === 'skip-to-battle'
+        ? raw.vnPacingMode
+        : 'full',
+    hasStartedRun:
+      raw.hasStartedRun !== undefined
+        ? Boolean(raw.hasStartedRun)
+        : Object.keys(raw.completedChapters ?? {}).length > 0,
     coins: Math.max(0, Math.min(10000000, Math.floor(raw.coins ?? base.coins))),
     unlockedChapters: unlocked,
     completedChapters: raw.completedChapters
@@ -276,6 +297,7 @@ export function normalizeProfile(
     ironmanMode: Boolean(raw.ironmanMode),
     nuzlockePermadeath: Boolean(raw.nuzlockePermadeath),
     defaultDifficulty:
+      raw.defaultDifficulty === 'baby' ||
       raw.defaultDifficulty === 'standard' ||
       raw.defaultDifficulty === 'nightmare' ||
       raw.defaultDifficulty === 'kaizo'
@@ -647,9 +669,12 @@ export function applyBattleOutcomeToProfile(
     (firstClearBonus + replayBonus + lowResetBonus) * perks.victoryCoinMultiplier
   );
 
-  // Story chapter held-item reward on first clear (+ real itemStock!)
+  // Story chapter held-item reward + PLAYABLE POKÉMON reward on first clear (including hilarious Regigigas!)
   const rewardItems: string[] = [];
+  const rewardPokemon: Array<{ species: string; note: string }> = [];
   let nextItems = nextProfile.inventory.items;
+  let nextOwnedPokemon = nextProfile.inventory.pokemon;
+  let nextBox = nextProfile.pokemonBox;
   const nextItemStock = { ...nextProfile.itemStock };
   if (
     !wasAlreadyCompleted &&
@@ -660,18 +685,51 @@ export function applyBattleOutcomeToProfile(
     nextItemStock[rule.rewardItem] = (nextItemStock[rule.rewardItem] ?? 0) + 1;
     rewardItems.push(rule.rewardItem);
   }
+  if (!wasAlreadyCompleted && rule?.rewardPokemon) {
+    const rp = rule.rewardPokemon;
+    const spKey = getSpeciesKey(rp.species);
+    if (!nextOwnedPokemon.some((s) => getSpeciesKey(s) === spKey)) {
+      nextOwnedPokemon = [...nextOwnedPokemon, rp.species];
+    }
+    const alreadyInBox = nextBox.some(
+      (inst) =>
+        inst.zone !== 'graveyard' && getSpeciesKey(inst.species) === spKey
+    );
+    if (!alreadyInBox) {
+      const rewardInst: OwnedPokemonInstance = {
+        uid: `reward-${chapterId}-${spKey}`,
+        species: rp.species,
+        origin: `Recompensa · ${chapterId}`,
+        zone: 'box',
+        item: '',
+        ability: rp.ability,
+        nature: rp.nature,
+        teraType: rp.teraType,
+        moves: [...rp.moves],
+        shiny: false,
+        hp: null,
+        maxhp: null,
+        status: '',
+      };
+      nextBox = [...nextBox, rewardInst];
+    }
+    rewardPokemon.push({ species: rp.species, note: rp.note });
+  }
 
   const newlyUnlocked = computeNewlyEligibleUnlocks(nextProfile);
   nextProfile = {
     ...nextProfile,
+    hasStartedRun: true,
     coins: Math.min(10000000, nextProfile.coins + coinsEarned),
     unlockedChapters: Array.from(
       new Set([...nextProfile.unlockedChapters, chapterId, ...newlyUnlocked])
     ),
     inventory: {
       ...nextProfile.inventory,
+      pokemon: nextOwnedPokemon,
       items: nextItems,
     },
+    pokemonBox: nextBox,
     itemStock: nextItemStock,
   };
 
@@ -684,6 +742,7 @@ export function applyBattleOutcomeToProfile(
       lowResetBonus,
       newlyUnlockedChapterIds: newlyUnlocked,
       rewardItems,
+      rewardPokemon,
     },
   };
 }
@@ -1290,6 +1349,9 @@ export function toggleRunModifiers(
     ironmanMode?: boolean;
     nuzlockePermadeath?: boolean;
     defaultDifficulty?: BattleDifficultyMode;
+    vnPacingMode?: 'full' | 'decisions-only' | 'skip-to-battle';
+    runName?: string;
+    hasStartedRun?: boolean;
   }
 ): PlayerSaveProfile {
   return {
@@ -1297,6 +1359,33 @@ export function toggleRunModifiers(
     ironmanMode: patch.ironmanMode ?? profile.ironmanMode,
     nuzlockePermadeath: patch.nuzlockePermadeath ?? profile.nuzlockePermadeath,
     defaultDifficulty: patch.defaultDifficulty ?? profile.defaultDifficulty,
+    vnPacingMode: patch.vnPacingMode ?? profile.vnPacingMode,
+    runName: patch.runName ?? profile.runName,
+    hasStartedRun: patch.hasStartedRun ?? profile.hasStartedRun,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function createNewConfiguredRunProfile(params: {
+  displayName: string;
+  email: string;
+  runName: string;
+  slotIndex: number;
+  vnPacingMode: 'full' | 'decisions-only' | 'skip-to-battle';
+  defaultDifficulty: BattleDifficultyMode;
+  ironmanMode: boolean;
+  nuzlockePermadeath: boolean;
+}): PlayerSaveProfile {
+  const fresh = createDefaultProfile(params.displayName, params.email);
+  return {
+    ...fresh,
+    runName: params.runName.trim() || `Run #${params.slotIndex}`,
+    activeSaveSlot: params.slotIndex,
+    vnPacingMode: params.vnPacingMode,
+    defaultDifficulty: params.defaultDifficulty,
+    ironmanMode: params.ironmanMode,
+    nuzlockePermadeath: params.nuzlockePermadeath,
+    hasStartedRun: true,
     updatedAt: new Date().toISOString(),
   };
 }

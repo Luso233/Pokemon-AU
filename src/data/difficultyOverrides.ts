@@ -274,7 +274,7 @@ export function applyChapterDifficultyOverrides(
   const table = CHAPTER_DIFFICULTY_OVERRIDES[chapterId];
   if (!table) return { paste: rivalPaste, appliedAlerts: [] };
   const overrides =
-    difficulty === 'standard'
+    difficulty === 'baby' || difficulty === 'standard'
       ? table.standard
       : difficulty === 'nightmare'
         ? table.nightmare
@@ -336,11 +336,11 @@ export function getDiabloScoutingAlertsForChapter(
   }
 
   const list =
-    difficulty === 'standard'
+    difficulty === 'baby' || difficulty === 'standard'
       ? table.standard
       : difficulty === 'nightmare'
         ? table.nightmare
-        : table.nightmare; // In Kaizo, scouting still warns what Diablo would upgrade!
+        : table.nightmare; // In Difícil/Kaizo, scouting still warns what Tryhard/Diablo would upgrade!
 
   const alerts = (list ?? []).map((ov) => ov.scoutingAlert);
   if (difficulty === 'nightmare') {

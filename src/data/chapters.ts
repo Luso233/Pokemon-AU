@@ -55,6 +55,7 @@ export const CHAPTERS: ChapterDefinition[] = [
     description:
       'Las sirenas del palacio quedaron atrás bajo el aguacero. Solo con tu escolta diaria, tendrás que abrirte paso entre callejones cerrados mientras alguien que conoce tus pasos te pisa los talones.',
     accentColor: 'amber',
+    teamEditPolicy: 'editable',
     showcaseSprite: { species: 'Arcanine', mode: 'player-ace' },
     featuredPokemon: ['Arcanine', 'Gardevoir', 'Milotic', 'Corviknight'],
     rivalPreview: 'Asesino Carmesí',
@@ -109,6 +110,7 @@ export const CHAPTERS: ChapterDefinition[] = [
     description:
       'Apenas cruzas el canal hacia la frontera ocupada de Kalos, los pendones oscuros de la Casa Rebelde te cierran el paso invocando el decreto antiguo de linaje puro.',
     accentColor: 'slate',
+    teamEditPolicy: 'fixed',
     showcaseSprite: { species: 'Corviknight', mode: 'player-ace' },
     featuredPokemon: ['Corviknight', 'Heatran', 'Gholdengo', 'Scizor'],
     rivalPreview: 'Comandante de la Casa Rebelde',
@@ -160,6 +162,7 @@ export const CHAPTERS: ChapterDefinition[] = [
     description:
       'Fugitivo al otro lado del Atlántico, entras en un cuadrilátero clandestino de Mesoa donde un noble exiliado convierte el resentimiento en arma para los cárteles de crianza fuera del control de la CRU.',
     accentColor: 'rose',
+    teamEditPolicy: 'editable',
     showcaseSprite: { species: 'Archaludon', mode: 'player-ace' },
     featuredPokemon: ['Archaludon', 'Ursaring', 'Corviknight'],
     rivalPreview: 'Lord Vexen',
@@ -213,6 +216,7 @@ export const CHAPTERS: ChapterDefinition[] = [
     description:
       'Las lámparas de cristal mueren de golpe y una risita rasposa cruza el humo violeta. Un saboteador sin escrúpulos trae trucos prohibidos al banquete real.',
     accentColor: 'indigo',
+    teamEditPolicy: 'editable',
     showcaseSprite: { species: 'Zacian-Crowned', mode: 'player-ace' },
     featuredPokemon: ['Zacian-Crowned', 'Dragapult', 'Arcanine'],
     rivalPreview: 'El Hombre Rata',
@@ -268,6 +272,7 @@ export const CHAPTERS: ChapterDefinition[] = [
     description:
       'La aduana de Miraj arde bajo un sol abrasador mientras una voz chillona suena desde una cabina móvil con aire acondicionado. Un niño conectado a seis pantallas bloquea tu paso hacia Oriente.',
     accentColor: 'orange',
+    teamEditPolicy: 'fixed',
     showcaseSprite: { species: 'Sableye', mode: 'player-ace' },
     featuredPokemon: ['Sableye', 'Inkay', 'Ditto'],
     rivalPreview: 'El Estratega Solar',
@@ -318,6 +323,7 @@ export const CHAPTERS: ChapterDefinition[] = [
     description:
       'En el corazón salvaje de Kemetia, un ser colosal cubierto de musgo antiguo alza una llave brillante en una cámara anterior a la CRU. Cuando gira el sello, el sopor de Regigigas se evapora al instante.',
     accentColor: 'amber',
+    teamEditPolicy: 'fixed',
     showcaseSprite: { species: 'Regigigas', mode: 'boss', label: 'Jefe' },
     featuredPokemon: ['Regigigas', 'Dragapult', 'Farigiraf'],
     rivalPreview: 'Guardián del Coloso',
@@ -370,6 +376,7 @@ export const CHAPTERS: ChapterDefinition[] = [
     description:
       'Diez años atrás, en el jardín del palacio, sostienes las Poké Balls de tus primeras crías frente a la sonrisa serena de la Campeona. Su lección no conoce la piedad.',
     accentColor: 'purple',
+    teamEditPolicy: 'fixed',
     showcaseSprite: { species: 'Growlithe', mode: 'player-ace' },
     featuredPokemon: ['Growlithe', 'Larvesta', 'Ralts'],
     rivalPreview: 'La Campeona',
@@ -422,6 +429,7 @@ export const CHAPTERS: ChapterDefinition[] = [
     description:
       'En las costas indómitas de Vayra, destrozadas por las guerras proxy de Galar, una guerrera clava su lanza frente a ti. Su reto no admite relevos ni escolta: un duelo 1v1 a muerte.',
     accentColor: 'rose',
+    teamEditPolicy: 'fixed',
     showcaseSprite: { species: 'Metagross', mode: 'player-ace' },
     featuredPokemon: ['Metagross', 'Gallade', 'Primarina'],
     rivalPreview: 'La Duelista de la Frontera',
@@ -472,6 +480,7 @@ export const CHAPTERS: ChapterDefinition[] = [
     description:
       'Las pantallas del archivo real reconstruyen la gran final de Honolulu bajo reglas oficiales de torneo. Elige bando y mide tu templanza en el escenario más alto.',
     accentColor: 'sky',
+    teamEditPolicy: 'fixed',
     showcaseSprite: { species: 'Miraidon', mode: 'player-ace' },
     featuredPokemon: ['Miraidon', 'Calyrex-Ice'],
     rivalPreview: 'Finalista Mundial VGC 2024',
@@ -525,6 +534,7 @@ export const CHAPTERS: ChapterDefinition[] = [
     description:
       'En el paso montañoso entre Kalos y Paldea, el Duque despliega su caballería en formación triple clásica para impedirte zarpar hacia América. El centro manda el tablero, pero los flancos deciden la guerra.',
     accentColor: 'indigo',
+    teamEditPolicy: 'fixed',
     showcaseSprite: { species: 'Gardevoir-Mega', mode: 'player-ace' },
     featuredPokemon: ['Gardevoir-Mega', 'Hitmontop', 'Talonflame'],
     rivalPreview: 'Duque de Hammerlocke',
@@ -577,6 +587,7 @@ export const CHAPTERS: ChapterDefinition[] = [
     description:
       'El Estratega Solar secuestró un laboratorio de monzones de la CRU en Tamra para presumir los 4 climas y los 4 terrenos sin bajarse de su sillón refrigerado. Elige qué elemento enfrentar contra su preciado Castform.',
     accentColor: 'sky',
+    teamEditPolicy: 'editable',
     showcaseSprite: { species: 'Castform', mode: 'boss', label: 'As Clima' },
     featuredPokemon: ['Castform', 'Gardevoir', 'Arcanine', 'Milotic'],
     rivalPreview: 'El Estratega Solar',
@@ -638,6 +649,7 @@ export const CHAPTERS: ChapterDefinition[] = [
     description:
       'Madrugada en los muelles de Wyndon. La niebla marina cierra ambas salidas del puente de carga y solo un compañero queda en pie frente a toda la cuadrilla portuaria.',
     accentColor: 'orange',
+    teamEditPolicy: 'fixed',
     showcaseSprite: { species: 'Annihilape', mode: 'player-ace' },
     featuredPokemon: ['Annihilape'],
     rivalPreview: 'La Milicia de los Muelles',
@@ -688,16 +700,17 @@ export const CHAPTERS: ChapterDefinition[] = [
     description:
       'En los acantilados de Cordelia, tres caballeros despachados desde la base imperial de las Islas Bruma cierran media luna sobre tu barco: un solo representante contra los tres a la vez.',
     accentColor: 'rose',
+    teamEditPolicy: 'fixed',
     showcaseSprite: { species: 'Charizard-Mega-Y', mode: 'player-ace' },
     featuredPokemon: ['Charizard-Mega-Y', 'Garchomp'],
-    rivalPreview: 'Tríada de Élite',
+    rivalPreview: 'Caín, Abel y Frey (Los Tres Jinetes)',
     rivalProfile: {
-      name: 'Tríada de Élite',
-      title: 'Guardia Interior de Hammerlocke',
-      bio: 'Tres guerreros de acero entrenados para pelear al unísono en el círculo de prueba del castillo.',
+      name: 'Caín, Abel y Frey',
+      title: 'Los Tres Jinetes · Islas Bruma',
+      bio: 'Trío fornido y bigotón que se parece demasiado a sus Pokémon: Sir Caín (Escavalier), Sir Abel (Aegislash) y Sir Frey (Bisharp).',
       tacticalInsight:
-        'Sus escudos siguen una cadencia marcial muy precisa, pero uno de ellos siempre espera el momento exacto para rematar.',
-      archetypeTag: 'Desafío · 1 vs 3',
+        'Sir Abel marca el compás con su escudo mientras Sir Caín embiste de frente y Sir Frey espera el contragolpe.',
+      archetypeTag: 'Desafío · 1 vs 3 · Caín, Abel y Frey',
     },
     inkSource: challengeThreeKnightsInk,
     resolveBattleConfig: resolveThreeKnightsBattle,
@@ -740,6 +753,7 @@ export const CHAPTERS: ChapterDefinition[] = [
     description:
       'Tarran, Nivel Profundo 4. Las lámparas parpadean entre el polvo rojo del continente-prisión y dos escuadrones sellan la salida de la galería. Cada rasguño del primer choque te acompañará al segundo.',
     accentColor: 'amber',
+    teamEditPolicy: 'editable',
     showcaseSprite: { species: 'Dragapult', mode: 'player-ace' },
     featuredPokemon: ['Dragapult', 'Arcanine', 'Corviknight'],
     rivalPreview: 'Bloqueo de las Minas',
@@ -802,6 +816,7 @@ export const CHAPTERS: ChapterDefinition[] = [
     description:
       'En la bóveda subterránea del archivo, un monitor de fósforo verde despierta un registro prohibido de Kanto: las reglas originales, sin objetos ni habilidades, frente al mito de Mewtwo.',
     accentColor: 'slate',
+    teamEditPolicy: 'fixed',
     showcaseSprite: { species: 'Mewtwo', mode: 'boss', label: 'Jefe' },
     featuredPokemon: ['Mewtwo', 'Tauros', 'Alakazam'],
     rivalPreview: 'El Archivista Real',
@@ -854,6 +869,7 @@ export const CHAPTERS: ChapterDefinition[] = [
     description:
       'El estadio del Valle Lirio contiene el aliento. Un entrenador envuelto en rumores sube al podio frente a Ash y Pikachu, y nadie en las gradas sabe realmente qué guarda en su cinturón.',
     accentColor: 'purple',
+    teamEditPolicy: 'fixed',
     showcaseSprite: { species: 'Pikachu', mode: 'player-ace' },
     featuredPokemon: ['Pikachu', 'Sceptile', 'Heracross', 'Swellow'],
     rivalPreview: 'Tobías',

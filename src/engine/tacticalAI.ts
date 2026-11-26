@@ -604,6 +604,8 @@ export function chooseRivalAction(
                 score += ctx.isNuzlockeActive ? 48 : 34;
               }
               score += Math.random() * 1.5;
+            } else if (ctx.difficultyMode === 'baby') {
+              score += Math.random() * 48;
             } else if (ctx.difficultyMode === 'standard') {
               score += Math.random() * 16;
             } else {
@@ -656,9 +658,11 @@ export function chooseRivalAction(
           score +=
             ctx.difficultyMode === 'nightmare'
               ? Math.random() * 1.5
-              : ctx.difficultyMode === 'standard'
-                ? Math.random() * 16
-                : Math.random() * 8;
+              : ctx.difficultyMode === 'baby'
+                ? Math.random() * 48
+                : ctx.difficultyMode === 'standard'
+                  ? Math.random() * 16
+                  : Math.random() * 8;
           if (score > bestScore) {
             bestScore = score;
             bestCmd = `move ${mv.slot}`;

@@ -16,7 +16,12 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { CURRENCY_SHORT } from '../data/economyCatalog';
+import {
+  CURRENCY_SHORT,
+  DIFFICULTY_META,
+  DIFFICULTY_ORDER,
+  VN_PACING_META,
+} from '../data/economyCatalog';
 import {
   computeActiveSocialLinkPerks,
   PLAYABLE_ROMANCE_NPCS,
@@ -28,6 +33,7 @@ import type {
   BerryKind,
   CustomTeamMember,
   PlayerSaveProfile,
+  VnPacingMode,
 } from '../types/game';
 import { CharacterPortrait } from './CharacterPortrait';
 import { PokemonIcon } from './PokemonSprite';
@@ -44,6 +50,7 @@ interface SocialLinksCampModalProps {
     ironmanMode?: boolean;
     nuzlockePermadeath?: boolean;
     defaultDifficulty?: BattleDifficultyMode;
+    vnPacingMode?: VnPacingMode;
   }) => void;
   onCampHeal: (
     species: string,
@@ -840,55 +847,80 @@ export const SocialLinksCampModal: React.FC<SocialLinksCampModalProps> = ({
                 </button>
               </div>
 
-              {/* Global Default Difficulty Selector */}
+              {/* Global Default Difficulty Selector (4 Tiers) */}
               <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
                 <h3 className="flex items-center gap-1.5 font-display text-sm font-bold text-white">
                   <Flame className="h-4 w-4 text-rose-400" />
-                  Dificultad Global por Defecto (Overrides + IA Dinámica)
+                  Dificultad Global por Defecto (Baby Mode · Normal · Difícil · Tryhard)
                 </h3>
                 <p className="mt-1 text-xs text-slate-400">
-                  En Estándar los jefes cargan sets contenidos (ej. Bubble Beam + Mystic Water) e IA predecible. En Diablo suben sobre el level cap con sets letales (ej. Water Spout + Choice Specs) e IA Anti-Explotación que caza bajas de Nuzlocke.
+                  Escala desde Baby Mode (-8 niveles e IA relajada) hasta Tryhard/Diablo (+4 niveles sobre el cap, sets letales como Water Spout + Choice Specs e IA Anti-Explotación).
+                </p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                  {DIFFICULTY_ORDER.map((diffId) => {
+                    const meta = DIFFICULTY_META[diffId];
+                    return (
+                      <button
+                        key={diffId}
+                        type="button"
+                        onClick={() =>
+                          onToggleRunModifiers({ defaultDifficulty: diffId })
+                        }
+                        className={`rounded-xl border p-3 text-left transition cursor-pointer ${
+                          profile.defaultDifficulty === diffId
+                            ? diffId === 'nightmare'
+                              ? 'border-rose-400 bg-rose-500/20 text-white'
+                              : diffId === 'kaizo'
+                                ? 'border-amber-400 bg-amber-500/20 text-white'
+                                : diffId === 'standard'
+                                  ? 'border-emerald-400 bg-emerald-500/20 text-white'
+                                  : 'border-sky-400 bg-sky-500/20 text-white'
+                            : 'border-slate-800 bg-slate-950/75 text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        <p className="text-xs font-extrabold">{meta.label}</p>
+                        <p className="mt-0.5 text-[10px] font-semibold text-amber-200/85">
+                          {meta.subtitle}
+                        </p>
+                        <p className="mt-1 text-[10px] opacity-85">{meta.desc}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* VN Pacing Mode Selector */}
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
+                <h3 className="font-display text-sm font-bold text-white">
+                  Ritmo de Novela Visual (VN Pacing)
+                </h3>
+                <p className="mt-1 text-xs text-slate-400">
+                  Cambia en cualquier momento cómo quieres experimentar las escenas antes de cada combate.
                 </p>
                 <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                  {(
-                    [
-                      {
-                        id: 'standard',
-                        label: 'Estándar',
-                        desc: 'Sets contenidos (Bubble Beam), IA directa explotable.',
-                      },
-                      {
-                        id: 'kaizo',
-                        label: 'Kaizo (Canónico)',
-                        desc: 'Balance táctico oficial de cada capítulo.',
-                      },
-                      {
-                        id: 'nightmare',
-                        label: 'Diablo (Pesadilla)',
-                        desc: 'Over-cap + Water Spout / Choice Specs + IA Anti-Explotación.',
-                      },
-                    ] as const
-                  ).map((opt) => (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() =>
-                        onToggleRunModifiers({ defaultDifficulty: opt.id })
-                      }
-                      className={`rounded-xl border p-3 text-left transition cursor-pointer ${
-                        profile.defaultDifficulty === opt.id
-                          ? opt.id === 'nightmare'
-                            ? 'border-rose-400 bg-rose-500/20 text-white'
-                            : opt.id === 'kaizo'
-                              ? 'border-amber-400 bg-amber-500/20 text-white'
-                              : 'border-emerald-400 bg-emerald-500/20 text-white'
-                          : 'border-slate-800 bg-slate-950/75 text-slate-400 hover:text-slate-200'
-                      }`}
-                    >
-                      <p className="text-xs font-extrabold">{opt.label}</p>
-                      <p className="mt-1 text-[10.5px] opacity-85">{opt.desc}</p>
-                    </button>
-                  ))}
+                  {(['full', 'decisions-only', 'skip-to-battle'] as VnPacingMode[]).map(
+                    (modeId) => {
+                      const m = VN_PACING_META[modeId];
+                      const active = (profile.vnPacingMode ?? 'full') === modeId;
+                      return (
+                        <button
+                          key={modeId}
+                          type="button"
+                          onClick={() =>
+                            onToggleRunModifiers({ vnPacingMode: modeId })
+                          }
+                          className={`rounded-xl border p-3 text-left transition cursor-pointer ${
+                            active
+                              ? 'border-sky-400 bg-sky-500/20 text-white'
+                              : 'border-slate-800 bg-slate-950/75 text-slate-400 hover:text-slate-200'
+                          }`}
+                        >
+                          <p className="text-xs font-extrabold">{m.label}</p>
+                          <p className="mt-1 text-[10px] opacity-85">{m.desc}</p>
+                        </button>
+                      );
+                    }
+                  )}
                 </div>
               </div>
 

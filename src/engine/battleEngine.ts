@@ -302,6 +302,11 @@ export class ShowdownBattleController {
     types: string[];
   }> = [];
   private lastAttackSource: { side: 'p1' | 'p2'; slot: number } | null = null;
+  private lastEnemyAttack: {
+    species: string;
+    moveName: string;
+    turn: number;
+  } | null = null;
 
   constructor(
     config: ResolvedBattleConfig,
@@ -385,6 +390,7 @@ export class ShowdownBattleController {
       triggeredScriptIds: [],
       koCountP2: 0,
       totalP2: 0,
+      lastFatalBlow: null,
     };
   }
 
@@ -1967,6 +1973,14 @@ export class ShowdownBattleController {
         const isFromSubMove = extra.some((t) => t.startsWith('[from] '));
 
         this.lastAttackSource = { side, slot: slotIndex };
+        if (side === 'p2') {
+          const { activeMon, partyMon } = this.getTargetMons(side, slotIndex, name);
+          this.lastEnemyAttack = {
+            species: activeMon?.species || partyMon?.species || name,
+            moveName,
+            turn: Math.max(1, this.state.turn),
+          };
+        }
         this.emitCue({ attackerSide: side, attackerSlot: slotIndex });
         this.pushLog('move', `${name} usó ${moveName}!`);
 
@@ -2450,6 +2464,19 @@ export class ShowdownBattleController {
             this.emitNpcDialogue('onFirstFoeKO', 'Primera baja rival');
           }
         } else {
+          const activeP2Fallback = this.state.p2.active.find(
+            (m) => m && !m.fainted
+          );
+          this.state.lastFatalBlow = {
+            attackerSpecies:
+              this.lastEnemyAttack?.species ||
+              activeP2Fallback?.species ||
+              this.config.rivalName,
+            moveName: this.lastEnemyAttack?.moveName || 'el golpe final',
+            victimSpecies: activeMon?.species || partyMon?.species || name,
+            turn: Math.max(1, this.state.turn),
+            rivalName: this.config.rivalName,
+          };
           this.emitNpcDialogue('onPlayerFaint', 'Baja aliada');
         }
         this.pushLog('faint', `¡${name} se debilitó!`);

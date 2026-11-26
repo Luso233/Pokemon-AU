@@ -46,6 +46,7 @@ import {
   compileCustomTeamToShowdownPaste,
   completeRomanceRank,
   createDefaultProfile,
+  createNewConfiguredRunProfile,
   equipItemOnInstance,
   harvestCampBerry,
   isChapterUnlocked,
@@ -67,7 +68,16 @@ import {
   updatePokemonInstanceBuild,
 } from '../src/engine/playerProfile';
 import { getLegalLearnsetForSpecies } from '../src/engine/learnsetService';
-import { CHAPTER_UNLOCK_RULES } from '../src/data/economyCatalog';
+import {
+  CHAPTER_UNLOCK_RULES,
+  DIFFICULTY_META,
+  DIFFICULTY_ORDER,
+} from '../src/data/economyCatalog';
+import {
+  buildDefeatTweetText,
+  buildRunDeathSummary,
+  buildTwitterShareUrl,
+} from '../src/engine/saveSlots';
 import { DARK_ATLAS_LANDMARKS } from '../src/data/darkAtlas';
 import {
   computeActiveSocialLinkPerks,
@@ -1640,7 +1650,162 @@ async function main() {
     `  OK: Dark Atlas (9), 13 Romanceables + Harem Ending, Diablo Overrides (Bubble Beam->Water Spout + Choice Specs), Tag 2v2 (turns=${resTag.turn}), PC Boxes (Anti-Clone Stock + 1-HP PSN Box Rest Tech + Nuzlocke Graveyard + House Recruit) ALL VERIFIED!`
   );
 
-  console.log('\nALL 22 ENGINE, MAP, ROMANCE, IRONMAN/NUZLOCKE & PC BOX SUITES PASSED!');
+  console.log('\n=== 23. PokéRogue Run Config (4 Dificultades), Unlocks por Capítulo (Regigigas Slow Start), X/Twitter Fatal Blow & Tres Caballeros ===');
+
+  // 1) Verify all 4 difficulty tiers (baby -8, standard -4, kaizo 0, nightmare +4)
+  if (DIFFICULTY_ORDER.length !== 4 || !DIFFICULTY_META.baby) {
+    throw new Error(`Expected 4 difficulty modes including 'baby', got ${DIFFICULTY_ORDER.join(',')}`);
+  }
+  const babyRat = applyNpcRunModifiers(ratBaseCfg, 'baby', 'canonical');
+  if (!babyRat.rivalShowdownPaste.includes('Level: 110')) {
+    throw new Error(`Expected Baby Mode (-8 lvls) to scale Zoroark Lv.118 -> Lv.110!`);
+  }
+
+  // 2) Verify ALL 16 chapters have rewardPokemon & teamEditPolicy, and clearing Puzzle 02 unlocks Regigigas (Slow Start)!
+  const chaptersSource = readFileSync(resolve('src/data/chapters.ts'), 'utf8');
+  const editableMatches = chaptersSource.match(/teamEditPolicy:\s*'editable'/g) ?? [];
+  const fixedMatches = chaptersSource.match(/teamEditPolicy:\s*'fixed'/g) ?? [];
+  if (editableMatches.length + fixedMatches.length !== 16 || editableMatches.length < 4 || fixedMatches.length < 8) {
+    throw new Error(
+      `Expected all 16 chapters split between editable & fixed teamEditPolicy, got editable=${editableMatches.length}, fixed=${fixedMatches.length}`
+    );
+  }
+  for (const [cid, rule] of Object.entries(CHAPTER_UNLOCK_RULES)) {
+    if (!rule.rewardPokemon?.species || !rule.rewardPokemon.moves.length) {
+      throw new Error(`Chapter '${cid}' missing rewardPokemon spec!`);
+    }
+  }
+  const regiRule = CHAPTER_UNLOCK_RULES['puzzle-02-regigigas'];
+  if (regiRule.rewardPokemon.species !== 'Regigigas' || regiRule.rewardPokemon.ability !== 'Slow Start') {
+    throw new Error(`Expected puzzle-02-regigigas to unlock hilarious Slow Start Regigigas!`);
+  }
+
+  let runProf = createNewConfiguredRunProfile({
+    displayName: 'Luso',
+    email: 'luso@galar.com',
+    runName: 'Nuzlocke Tryhard Test',
+    slotIndex: 2,
+    vnPacingMode: 'decisions-only',
+    defaultDifficulty: 'nightmare',
+    ironmanMode: true,
+    nuzlockePermadeath: true,
+  });
+  if (
+    runProf.activeSaveSlot !== 2 ||
+    runProf.vnPacingMode !== 'decisions-only' ||
+    runProf.defaultDifficulty !== 'nightmare' ||
+    !runProf.ironmanMode ||
+    !runProf.nuzlockePermadeath
+  ) {
+    throw new Error('createNewConfiguredRunProfile failed to apply run settings!');
+  }
+  const regiClear = applyBattleOutcomeToProfile(runProf, 'puzzle-02-regigigas', true, 6);
+  runProf = regiClear.nextProfile;
+  const unlockedRegi = runProf.pokemonBox.find((m) => m.species === 'Regigigas');
+  if (
+    !unlockedRegi ||
+    unlockedRegi.ability !== 'Slow Start' ||
+    !regiClear.reward?.rewardPokemon?.some((p) => p.species === 'Regigigas')
+  ) {
+    throw new Error('Expected clearing puzzle-02-regigigas to add Slow Start Regigigas to pokemonBox & reward summary!');
+  }
+
+  // 3) Real @pkmn/sim forced defeat verifying BattleSnapshot.lastFatalBlow + X/Twitter share URL (both Nuzlocke Wipe & Regular non-Nuzlocke!)
+  const fatalBlowSimCfg = {
+    chapterId: 'test-fatal-blow',
+    format: 'singles' as const,
+    formatId: 'gen9customgame',
+    formatLabel: 'Test 1v1 Fatal Blow',
+    playerName: 'Príncipe',
+    playerCharId: 'prince' as const,
+    rivalName: 'Campeona de Galar',
+    rivalCharId: 'champion' as const,
+    rivalTitle: 'Prueba Fatal Blow',
+    arenaTheme: 'wyndon-alleys' as const,
+    playerTeamSummary: 'Magikarp Lv.5',
+    rivalTeamSummary: 'Rayquaza-Mega Lv.100',
+    playerShowdownPaste: `Magikarp\nAbility: Swift Swim\nLevel: 5\nEVs: 4 HP\nHardy Nature\n- Splash`,
+    rivalShowdownPaste: `Rayquaza-Mega\nAbility: Delta Stream\nLevel: 100\nEVs: 252 Atk / 252 Spe\nJolly Nature\n- Dragon Ascent`,
+    aiSystemPrompt: '',
+    aiStyleSummary: '',
+    rivalIntel: { visibleSpeciesCount: 1, threatLevel: 'Test', levelCap: 100, leadHint: '', tacticalWarning: '' },
+    flags: {},
+    traces: [],
+  };
+  const { finalSnap: fatalSnap } = await runFullSimMatch(
+    'Fatal Blow Defeat Tracker',
+    fatalBlowSimCfg,
+    { maxTurns: 5 }
+  );
+  if (
+    fatalSnap.winner !== 'p2' ||
+    !fatalSnap.lastFatalBlow ||
+    fatalSnap.lastFatalBlow.attackerSpecies !== 'Rayquaza-Mega' ||
+    fatalSnap.lastFatalBlow.moveName !== 'Dragon Ascent' ||
+    fatalSnap.lastFatalBlow.victimSpecies !== 'Magikarp'
+  ) {
+    throw new Error(`Expected lastFatalBlow Rayquaza-Mega/Dragon Ascent vs Magikarp, got ${JSON.stringify(fatalSnap.lastFatalBlow)}`);
+  }
+
+  const wipeSummary = buildRunDeathSummary({
+    runName: 'Mi Nuzlocke Maldito',
+    chapterId: 'ch1-wyndon-chase',
+    chapterLabel: 'CAPÍTULO 01 · Sangre en los Callejones de Wyndon',
+    turn: fatalSnap.turn,
+    difficulty: 'nightmare',
+    ironmanMode: true,
+    nuzlockePermadeath: true,
+    isTotalNuzlockeWipe: true,
+    rivalName: fatalBlowSimCfg.rivalName,
+    fatalBlow: fatalSnap.lastFatalBlow,
+  });
+  const regularDefeatSummary = buildRunDeathSummary({
+    runName: 'Partida Chill',
+    chapterId: 'ch1-wyndon-chase',
+    chapterLabel: 'CAPÍTULO 01 · Sangre en los Callejones de Wyndon',
+    turn: fatalSnap.turn,
+    difficulty: 'baby',
+    ironmanMode: false,
+    nuzlockePermadeath: false,
+    isTotalNuzlockeWipe: false,
+    rivalName: fatalBlowSimCfg.rivalName,
+    fatalBlow: fatalSnap.lastFatalBlow,
+  });
+  const wipeTweet = buildDefeatTweetText(wipeSummary);
+  const regTweet = buildDefeatTweetText(regularDefeatSummary);
+  const shareUrl = buildTwitterShareUrl(wipeTweet);
+  if (
+    !wipeTweet.includes('WIPE') && !wipeTweet.includes('NUZLOCKE MURIÓ') ||
+    !wipeTweet.includes('Rayquaza-Mega') ||
+    !wipeTweet.includes('Dragon Ascent') ||
+    !regTweet.includes('Baby Mode') ||
+    !shareUrl.startsWith('https://twitter.com/intent/tweet?text=')
+  ) {
+    throw new Error(`Unexpected Twitter share payload: wipe="${wipeTweet}", reg="${regTweet}"`);
+  }
+
+  // 4) Verify Three Knights split dialogue emits lines from Sir Caín, Sir Abel, and Sir Frey!
+  const knightsSplitInk = readFileSync(resolve('src/stories/challenge2_three_knights.ink'), 'utf8');
+  const knightsSplitRunner = new InkVNRunner(knightsSplitInk);
+  let knightsSplitFrame = knightsSplitRunner.step();
+  const seenSpeakers = new Set<string>();
+  while (!knightsSplitFrame.isEnded) {
+    if (knightsSplitFrame.currentLine?.speaker) seenSpeakers.add(knightsSplitFrame.currentLine.speaker);
+    if (knightsSplitFrame.canContinue) knightsSplitFrame = knightsSplitRunner.step();
+    else if (knightsSplitFrame.choices.length > 0) knightsSplitFrame = knightsSplitRunner.choose(0);
+    else break;
+  }
+  if (knightsSplitFrame.currentLine?.speaker) seenSpeakers.add(knightsSplitFrame.currentLine.speaker);
+  for (const requiredKnight of ['Sir Caín', 'Sir Abel', 'Sir Frey']) {
+    if (!seenSpeakers.has(requiredKnight)) {
+      throw new Error(`Expected Three Knights Ink dialogue to include speaker "${requiredKnight}", seen=[${Array.from(seenSpeakers).join(', ')}]`);
+    }
+  }
+  console.log(
+    `  OK: 4 Difficulties (Baby Lv.110..Tryhard Lv.122), 16 Chapter Pokémon Unlocks (Regigigas Slow Start!), FatalBlow (${fatalSnap.lastFatalBlow.attackerSpecies}·${fatalSnap.lastFatalBlow.moveName}) + X/Twitter Share, & Three Knights (Sir Caín, Sir Abel, Sir Frey) ALL VERIFIED!`
+  );
+
+  console.log('\nALL 23 ENGINE, MAP, ROMANCE, POKÉROGUE RUN, FATAL-BLOW & KNIGHTS SUITES PASSED!');
 }
 
 let allSuitesCompleted = false;
