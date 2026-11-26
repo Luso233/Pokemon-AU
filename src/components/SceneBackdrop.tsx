@@ -10,6 +10,80 @@ export const SceneBackdrop: React.FC<SceneBackdropProps> = ({
   theme,
   className = '',
 }) => {
+  if (theme === 'underground-ring') {
+    return (
+      <div
+        className={`pointer-events-none absolute inset-0 overflow-hidden ${className}`}
+      >
+        <div className="absolute inset-0 bg-gradient-to-b from-[#1d050b] via-[#130812] to-[#060408]" />
+        <div className="absolute top-0 left-1/2 h-80 w-[40rem] -translate-x-1/2 rounded-full bg-rose-600/22 blur-[110px]" />
+        <div className="absolute bottom-0 right-1/4 h-72 w-96 rounded-full bg-amber-600/14 blur-[100px]" />
+        <svg
+          className="absolute inset-0 h-full w-full opacity-28"
+          viewBox="0 0 1200 600"
+          preserveAspectRatio="none"
+        >
+          <polygon points="180,470 360,390 840,390 1020,470 840,545 360,545" fill="none" stroke="#fb7185" strokeOpacity="0.45" strokeWidth="3" />
+          {[220, 420, 620, 820, 980].map((x) => (
+            <line key={x} x1={x} y1="0" x2={x} y2="390" stroke="#7f1d1d" strokeOpacity="0.38" strokeWidth="4" />
+          ))}
+        </svg>
+      </div>
+    );
+  }
+
+  if (theme === 'titan-sanctum') {
+    return (
+      <div
+        className={`pointer-events-none absolute inset-0 overflow-hidden ${className}`}
+      >
+        <div className="absolute inset-0 bg-gradient-to-b from-[#13121c] via-[#1d1914] to-[#08090e]" />
+        <div className="absolute -top-24 left-1/2 h-96 w-[46rem] -translate-x-1/2 rounded-full bg-amber-400/20 blur-[120px]" />
+        <div className="absolute bottom-0 left-1/4 h-72 w-96 rounded-full bg-cyan-500/16 blur-[105px]" />
+        <svg
+          className="absolute inset-0 h-full w-full opacity-30"
+          viewBox="0 0 1200 600"
+          preserveAspectRatio="none"
+        >
+          {/* Regigigas 6-dot Braille seal motif */}
+          <circle cx="570" cy="145" r="7" fill="#fbbf24" fillOpacity="0.65" />
+          <circle cx="630" cy="145" r="7" fill="#fbbf24" fillOpacity="0.65" />
+          <circle cx="570" cy="180" r="7" fill="#38bdf8" fillOpacity="0.65" />
+          <circle cx="630" cy="180" r="7" fill="#38bdf8" fillOpacity="0.65" />
+          <circle cx="570" cy="215" r="7" fill="#fb7185" fillOpacity="0.65" />
+          <circle cx="630" cy="215" r="7" fill="#fb7185" fillOpacity="0.65" />
+          <circle cx="600" cy="180" r="95" fill="none" stroke="#fbbf24" strokeOpacity="0.35" strokeWidth="2.5" strokeDasharray="10 6" />
+          <ellipse cx="600" cy="468" rx="470" ry="52" fill="none" stroke="#fbbf24" strokeOpacity="0.4" strokeWidth="3" />
+        </svg>
+      </div>
+    );
+  }
+
+  if (theme === 'lily-of-the-valley') {
+    return (
+      <div
+        className={`pointer-events-none absolute inset-0 overflow-hidden ${className}`}
+      >
+        <div className="absolute inset-0 bg-gradient-to-b from-[#130b2e] via-[#10183a] to-[#060914]" />
+        <div className="absolute -top-24 left-1/4 h-80 w-[40rem] rounded-full bg-violet-500/24 blur-[115px]" />
+        <div className="absolute top-1/4 right-1/4 h-72 w-96 rounded-full bg-sky-400/20 blur-[100px]" />
+        <div className="absolute bottom-0 left-1/2 h-64 w-[44rem] -translate-x-1/2 rounded-full bg-amber-400/14 blur-[95px]" />
+        <svg
+          className="absolute inset-0 h-full w-full opacity-30"
+          viewBox="0 0 1200 600"
+          preserveAspectRatio="none"
+        >
+          {/* Sinnoh Lily of the Valley Conference stadium */}
+          <ellipse cx="600" cy="445" rx="480" ry="82" fill="none" stroke="#a78bfa" strokeOpacity="0.45" strokeWidth="2.5" />
+          <ellipse cx="600" cy="445" rx="230" ry="38" fill="none" stroke="#38bdf8" strokeOpacity="0.5" strokeWidth="2" />
+          <line x1="120" y1="445" x2="1080" y2="445" stroke="#e2e8f0" strokeOpacity="0.22" strokeWidth="1.5" />
+          <polygon points="220,0 480,350 340,350" fill="#a78bfa" fillOpacity="0.09" />
+          <polygon points="980,0 720,350 860,350" fill="#38bdf8" fillOpacity="0.09" />
+        </svg>
+      </div>
+    );
+  }
+
   if (theme === 'wyndon-docks') {
     return (
       <div

@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 interface TooltipPortalProps {
@@ -6,6 +6,8 @@ interface TooltipPortalProps {
   children: React.ReactElement<React.HTMLAttributes<HTMLElement>>;
   placement?: 'top' | 'bottom' | 'left' | 'right';
   disabled?: boolean;
+  /** Allows clicking the trigger to pin/unpin the tooltip in addition to hover. */
+  triggerOnClick?: boolean;
 }
 
 const VIEWPORT_PADDING = 12;
@@ -16,15 +18,46 @@ export const TooltipPortal: React.FC<TooltipPortalProps> = ({
   children,
   placement = 'top',
   disabled = false,
+  triggerOnClick = false,
 }) => {
   const triggerRef = useRef<HTMLSpanElement | null>(null);
   const tooltipRef = useRef<HTMLDivElement | null>(null);
-  const [open, setOpen] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const [pinned, setPinned] = useState(false);
   const [coords, setCoords] = useState<{ top: number; left: number; ready: boolean }>({
     top: -9999,
     left: -9999,
     ready: false,
   });
+
+  const open = hovered || pinned;
+
+  useEffect(() => {
+    if (!pinned) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setPinned(false);
+        setHovered(false);
+      }
+    };
+    const handlePointerDown = (e: MouseEvent) => {
+      const target = e.target as Node | null;
+      if (
+        target &&
+        !triggerRef.current?.contains(target) &&
+        !tooltipRef.current?.contains(target)
+      ) {
+        setPinned(false);
+        setHovered(false);
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    window.addEventListener('mousedown', handlePointerDown);
+    return () => {
+      window.removeEventListener('keydown', handleKey);
+      window.removeEventListener('mousedown', handlePointerDown);
+    };
+  }, [pinned]);
 
   useLayoutEffect(() => {
     if (!open || disabled) return;
@@ -100,10 +133,20 @@ export const TooltipPortal: React.FC<TooltipPortalProps> = ({
       <span
         ref={triggerRef}
         className="inline-flex max-w-full"
-        onMouseEnter={() => setOpen(true)}
-        onMouseLeave={() => setOpen(false)}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setOpen(false)}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        onFocus={() => setHovered(true)}
+        onBlur={() => {
+          if (!pinned) setHovered(false);
+        }}
+        onClick={
+          triggerOnClick
+            ? (e) => {
+                e.stopPropagation();
+                setPinned((v) => !v);
+              }
+            : undefined
+        }
       >
         {children}
       </span>
@@ -119,7 +162,9 @@ export const TooltipPortal: React.FC<TooltipPortalProps> = ({
               left: `${coords.left}px`,
               opacity: coords.ready ? 1 : 0,
             }}
-            className="pointer-events-none z-[100] w-max max-w-[20rem] transition-opacity duration-100"
+            className={`${
+              pinned ? 'pointer-events-auto' : 'pointer-events-none'
+            } z-[100] w-max max-w-[21rem] transition-opacity duration-100`}
           >
             {content}
           </div>,

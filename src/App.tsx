@@ -76,29 +76,66 @@ export default function App() {
     setScreen('vn');
   };
 
+  const recordChapterAttempt = (chapterId: string) => {
+    setProgress((prev) => {
+      const existing = prev[chapterId] ?? {
+        completed: false,
+        victories: 0,
+        attempts: 0,
+      };
+      return {
+        ...prev,
+        [chapterId]: {
+          ...existing,
+          attempts: (existing.attempts ?? 0) + 1,
+        },
+      };
+    });
+  };
+
   const handleFinishVN = (flags: StoryFlags) => {
     setSuspendedInkState(null);
-    const config = activeChapter.resolveBattleConfig(flags);
+    const rawConfig = activeChapter.resolveBattleConfig(flags);
+    const config: ResolvedBattleConfig = {
+      ...rawConfig,
+      rivalProfile: rawConfig.rivalProfile ?? activeChapter.rivalProfile,
+    };
     setResolvedConfig(config);
     setScreen('teambuilder');
   };
 
   const handleTriggerMidStoryBattle = (req: MidStoryBattleRequest) => {
     const resolver = activeChapter.resolveStageBattleConfig;
-    const config = resolver
+    const rawConfig = resolver
       ? resolver(
           req.battleId,
           req.flags,
           req.persist ? persistedPartyState ?? undefined : undefined
         )
       : activeChapter.resolveBattleConfig(req.flags);
+    const config: ResolvedBattleConfig = {
+      ...rawConfig,
+      rivalProfile: rawConfig.rivalProfile ?? activeChapter.rivalProfile,
+    };
+    if (!req.persist) {
+      recordChapterAttempt(activeChapter.id);
+    }
     setSuspendedInkState(req.persist ? null : req.inkStateJson);
     setResolvedConfig(config);
     setScreen('battle');
   };
 
   const handleLaunchBattle = (finalConfig: ResolvedBattleConfig) => {
-    setResolvedConfig(finalConfig);
+    const hydrated: ResolvedBattleConfig = {
+      ...finalConfig,
+      rivalProfile:
+        finalConfig.rivalProfile ??
+        (finalConfig.isVersusMatch ? undefined : activeChapter.rivalProfile),
+    };
+    if (!hydrated.isVersusMatch) {
+      recordChapterAttempt(activeChapter.id);
+    }
+    setResolvedConfig(hydrated);
     setScreen('battle');
   };
 
@@ -192,6 +229,16 @@ export default function App() {
       <BattleArena
         config={resolvedConfig}
         aiSettings={aiSettings}
+        attemptNumber={
+          !resolvedConfig.isVersusMatch
+            ? Math.max(1, progress[activeChapter.id]?.attempts ?? 1)
+            : undefined
+        }
+        onRetryAttempt={
+          !resolvedConfig.isVersusMatch
+            ? () => recordChapterAttempt(activeChapter.id)
+            : undefined
+        }
         onOpenAISettings={() => setAiModalOpen(true)}
         onExitToChapters={() =>
           setScreen(resolvedConfig.isVersusMatch ? 'versus' : 'chapters')
@@ -206,6 +253,11 @@ export default function App() {
         config={resolvedConfig}
         won={battleOutcome.won}
         battleSummary={battleOutcome.snapshot}
+        attemptNumber={
+          !resolvedConfig.isVersusMatch
+            ? Math.max(1, progress[activeChapter.id]?.attempts ?? 1)
+            : undefined
+        }
         aiSettings={aiSettings}
         onOpenAISettings={() => setAiModalOpen(true)}
         onReplayChapter={() =>
@@ -213,7 +265,12 @@ export default function App() {
             ? setScreen('versus')
             : startChapter(activeChapter)
         }
-        onRetryBattle={() => setScreen('battle')}
+        onRetryBattle={() => {
+          if (!resolvedConfig.isVersusMatch) {
+            recordChapterAttempt(activeChapter.id);
+          }
+          setScreen('battle');
+        }}
         onOpenChapters={() => setScreen('chapters')}
         onOpenVersus={() => setScreen('versus')}
         onBackHome={() => setScreen('home')}

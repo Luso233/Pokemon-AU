@@ -3,16 +3,19 @@ import { resolve } from 'node:path';
 import { Teams, TeamValidator } from '@pkmn/sim';
 import { InkVNRunner } from '../src/engine/inkRunner';
 import {
+  resolveAnimeAshVsTobiasBattle,
   resolveChampionLittleCupBattle,
   resolveChapter1ChaseBattle,
   resolveChapter2BanquetBattle,
   resolveChapter2MonotypeBattle,
+  resolveClandestineTamerBattle,
   resolveDuel1Honor1v1Battle,
   resolveGen1SilphArchiveBattle,
   resolveLastBastionBattle,
   resolveMinesWave1Battle,
   resolveMinesWave2Battle,
   resolvePuzzle1SunTrapBattle,
+  resolvePuzzle2RegigigasBattle,
   resolveThreeKnightsBattle,
   resolveTriplesPhalanxBattle,
   resolveVgcWorlds2024Battle,
@@ -787,7 +790,202 @@ async function main() {
     `  OK: Native gen1customgame (Tauros vs Mewtwo/Mew), Scripted=[${resGen1.triggeredScriptIds.join(', ')}], winner=${resGen1.winner}, turns=${resGen1.turn}`
   );
 
-  console.log('\nALL 12 CHAPTERS + PERSISTENCE + TRIPLES + GEN 1 + VERSUS + COACH TESTS PASSED!');
+  console.log('\n=== 15. CAPÍTULO 03: El Domador Clandestino (Gimmick Frustration 102 BP / Felicidad: 0) ===');
+  const tamerInk = readFileSync(resolve('src/stories/chapter3_clandestine_tamer.ink'), 'utf8');
+  const tmRunner = new InkVNRunner(tamerInk);
+  let tmFrame = tmRunner.step();
+  while (!tmFrame.isEnded) {
+    if (tmFrame.canContinue) tmFrame = tmRunner.step();
+    else if (tmFrame.choices.length > 0) tmFrame = tmRunner.choose(0); // listen + rescued_ursaring
+  }
+  const tamerCfg = resolveClandestineTamerBattle(tmFrame.flags);
+  const { finalSnap: resTamer, turn1Snap: t1Tamer } = await runFullSimMatch(
+    'Clandestine Tamer Frustration 102',
+    tamerCfg,
+    { maxTurns: 80 }
+  );
+  const playerFrust = t1Tamer?.pendingSlots[0]?.moves.find((m) => m.id === 'frustration');
+  if (
+    !playerFrust ||
+    playerFrust.basePower !== 102 ||
+    playerFrust.userHappiness !== 0 ||
+    !playerFrust.powerNote?.includes('Felicidad: 0')
+  ) {
+    throw new Error(
+      `Expected rescued Ursaring Frustration at 102 BP with Happiness: 0 note, got ${JSON.stringify(playerFrust)}`
+    );
+  }
+  if (!resTamer.triggeredScriptIds.includes('tamer-t1-fakeout')) {
+    throw new Error('Expected Kangaskhan Turn 1 Scrappy Fake Out script!');
+  }
+  console.log(
+    `  OK: Frustration basePower=${playerFrust.basePower}, happiness=${playerFrust.userHappiness}, note="${playerFrust.powerNote}", Scripted=[${resTamer.triggeredScriptIds.join(', ')}], turns=${resTamer.turn}`
+  );
+
+  console.log('\n=== 16. PUZZLE 02: El Coloso Despertado (Regigigas Raid Boss Turn 0 Injection) ===');
+  const regiInk = readFileSync(resolve('src/stories/puzzle2_regigigas_boss.ink'), 'utf8');
+  const rgRunner = new InkVNRunner(regiInk);
+  let rgFrame = rgRunner.step();
+  while (!rgFrame.isEnded) {
+    if (rgFrame.canContinue) rgFrame = rgRunner.step();
+    else if (rgFrame.choices.length > 0) rgFrame = rgRunner.choose(0); // Dragapult + Farigiraf
+  }
+  const regiCfg = resolvePuzzle2RegigigasBattle(rgFrame.flags);
+  const { finalSnap: resRegi, turn1Snap: t1Regi, turn2Snap: t2Regi } = await runFullSimMatch(
+    'Puzzle 02 Regigigas Raid Boss',
+    regiCfg,
+    {
+      maxTurns: 70,
+      customTurn1Cmd: 'move 2 +1, move 1 +1', // Dragapult Dragon Pulse (Infiltrator) + Farigiraf Psychic Noise!
+    }
+  );
+  const regiT1 = t1Regi?.p2.active[0];
+  const p2SideConds = t1Regi?.p2.sideConditions ?? [];
+  if (
+    !t1Regi?.puzzleApplied ||
+    regiT1?.species !== 'Regigigas' ||
+    !regiT1.isBossAce ||
+    regiT1.boosts.atk !== 1 ||
+    regiT1.boosts.def !== 1 ||
+    regiT1.boosts.spd !== 1 ||
+    regiT1.volatiles.some((v) => v.toLowerCase().includes('slow start')) ||
+    !regiT1.volatiles.some((v) => v.toLowerCase().includes('aqua ring')) ||
+    !regiT1.volatiles.some((v) => v.toLowerCase().includes('ingrain')) ||
+    !regiT1.volatiles.some((v) => v.toLowerCase().includes('substitute')) ||
+    !p2SideConds.some((c) => c.toLowerCase().includes('reflect')) ||
+    !p2SideConds.some((c) => c.toLowerCase().includes('light screen'))
+  ) {
+    throw new Error(
+      `Regigigas Turn 0 injection mismatch: applied=${t1Regi?.puzzleApplied} boosts=${JSON.stringify(regiT1?.boosts)} volatiles=${JSON.stringify(regiT1?.volatiles)} sideConds=${JSON.stringify(p2SideConds)}`
+    );
+  }
+  const regiT2 = t2Regi?.p2.active[0];
+  if (!regiT2 || !regiT2.volatiles.some((v) => v.toLowerCase().includes('heal block'))) {
+    throw new Error(
+      `Expected Farigiraf Psychic Noise to apply Heal Block on Regigigas by Turn 2, got volatiles=${JSON.stringify(regiT2?.volatiles)}`
+    );
+  }
+  console.log(
+    `  OK: Regigigas Nv.85 ACE (Slow Start cleared, Sub/Aqua Ring/Ingrain + Reflect/Light Screen +1/+1/+1), Psychic Noise Heal Block verified, turns=${resRegi.turn}`
+  );
+
+  console.log('\n=== 17. ARCHIVO ANIME: Liga de Sinnoh — Ash vs. Tobías (Omniboost + Baton Pass + Cresselia AI + Giratina Ace) ===');
+  const tobiasInk = readFileSync(resolve('src/stories/archive_anime_tobias.ink'), 'utf8');
+  const tbRunner = new InkVNRunner(tobiasInk);
+  let tbFrame = tbRunner.step();
+  while (!tbFrame.isEnded) {
+    if (tbFrame.canContinue) tbFrame = tbRunner.step();
+    else if (tbFrame.choices.length > 0) tbFrame = tbRunner.choose(0);
+  }
+  const tobiasCfg = resolveAnimeAshVsTobiasBattle(tbFrame.flags);
+  const {
+    finalSnap: resTobias,
+    previewSnap: pvTobias,
+    turn1Snap: t1Tobias,
+    turn2Snap: t2Tobias,
+  } = await runFullSimMatch('Ash vs Tobias 6v6', tobiasCfg, {
+    maxTurns: 90,
+    teamPreviewPick: [4], // Swellow Lead -> +2 Omniboost -> Baton Pass!
+    customTurn1Cmd: 'move 4', // Swellow Baton Pass (slot 4) -> Pikachu!
+  });
+  if (pvTobias?.teamPreview?.mode !== 'lead-1') {
+    throw new Error(`Expected Ash vs Tobias Team Preview mode=lead-1, got ${pvTobias?.teamPreview?.mode}`);
+  }
+  const swellowT1 = t1Tobias?.p1.active[0];
+  if (
+    swellowT1?.species !== 'Swellow' ||
+    swellowT1.boosts.atk !== 2 ||
+    swellowT1.boosts.def !== 2 ||
+    swellowT1.boosts.spa !== 2 ||
+    swellowT1.boosts.spd !== 2 ||
+    swellowT1.boosts.spe !== 2
+  ) {
+    throw new Error(
+      `Expected Ash chosen Lead Swellow with +2 Omniboost, got ${swellowT1?.species} boosts=${JSON.stringify(swellowT1?.boosts)}`
+    );
+  }
+  if (t1Tobias?.p2.active[0]?.species !== 'Darkrai') {
+    throw new Error(`Expected Tobias to always lead Darkrai, got ${t1Tobias?.p2.active[0]?.species}`);
+  }
+  if (!resTobias.triggeredScriptIds.includes('tobias-t1-darkvoid')) {
+    throw new Error('Expected Tobias Darkrai Turn 1 Dark Void scripted rule!');
+  }
+  // Verify Baton Pass carried +2 boosts onto the switched-in teammate on Turn 2
+  const bpRecipient = t2Tobias?.p1.active[0];
+  if (!bpRecipient || bpRecipient.species === 'Swellow' || bpRecipient.boosts.spa !== 2) {
+    throw new Error(
+      `Expected Baton Pass recipient on Turn 2 to retain +2 Omniboost, got ${bpRecipient?.species} boosts=${JSON.stringify(bpRecipient?.boosts)}`
+    );
+  }
+  // Verify Giratina-Origin is saved as the LAST Pokémon if sent out
+  const p2Order = resTobias.p2.party.map((p) => p.species);
+  const giraIdx = p2Order.findIndex((s) => s.includes('Giratina'));
+  if (giraIdx !== -1 && giraIdx !== p2Order.length - 1 && p2Order.length < 6) {
+    throw new Error(`Expected Giratina-Origin to be reserved for LAST, got reveal order [${p2Order.join(', ')}]`);
+  }
+  if (giraIdx !== -1 && p2Order.length === 6 && giraIdx !== 5) {
+    throw new Error(`Expected Giratina-Origin as 6th (last) mon, got index ${giraIdx} in [${p2Order.join(', ')}]`);
+  }
+
+  // Targeted Cresselia Psych Up + Lunar Dance + Giratina-Origin last-Ace micro-verification
+  const cressTestCfg = {
+    ...tobiasCfg,
+    interactiveTeamPreview: false,
+    preferredRivalTeamOrder: 'team 123',
+    playerShowdownPaste:
+      'Pikachu @ Light Ball\nAbility: Static\nLevel: 60\n- Thunderbolt\n- Quick Attack',
+    rivalShowdownPaste: [
+      'Cresselia @ Leftovers\nAbility: Levitate\nLevel: 60\n- Psych Up\n- Lunar Dance\n- Psyshock\n- Lunar Blessing',
+      'Darkrai @ Life Orb\nAbility: Bad Dreams\nLevel: 60\n- Dark Pulse',
+      'Giratina-Origin @ Griseous Core\nAbility: Levitate\nLevel: 60\n- Shadow Force',
+    ].join('\n\n'),
+    puzzleConditions: {
+      pokemonModifiers: [
+        { side: 'p1', slotOrSpecies: 'slot:1', boosts: { atk: 2, def: 2, spa: 2, spd: 2, spe: 2 } },
+        { side: 'p2', slotOrSpecies: 'Darkrai', hpPercent: 50 },
+      ],
+    },
+  };
+  const { finalSnap: resCress, turn2Snap: t2Cress } = await runFullSimMatch(
+    'Tobias Cresselia Psych Up + Giratina Ace',
+    cressTestCfg,
+    { maxTurns: 30, customTurn1Cmd: 'move 2' } // Quick Attack T1 so Cresselia survives & copies +2 Omniboost with Psych Up!
+  );
+  if (!resCress.triggeredScriptIds.includes('tobias-cresselia-psychup')) {
+    throw new Error(`Expected Cresselia Psych Up vs +10 boosts, got [${resCress.triggeredScriptIds.join(', ')}]`);
+  }
+  if ((t2Cress?.p2.active[0]?.boosts.spa ?? 0) !== 2) {
+    throw new Error(`Expected Cresselia to copy +2 SpA via Psych Up, got ${JSON.stringify(t2Cress?.p2.active[0]?.boosts)}`);
+  }
+  const cressRevealOrder = resCress.p2.party.map((p) => p.species);
+  if (cressRevealOrder.length === 3 && !cressRevealOrder[2].includes('Giratina')) {
+    throw new Error(`Expected Giratina-Origin strictly last in Cresselia micro-test, got [${cressRevealOrder.join(', ')}]`);
+  }
+
+  // Targeted Lunar Dance verification (Cresselia starts at 30% HP while Darkrai is injured -> prioritizes Lunar Dance!)
+  const lunarTestCfg = {
+    ...cressTestCfg,
+    puzzleConditions: {
+      pokemonModifiers: [
+        { side: 'p2' as const, slotOrSpecies: 'Cresselia', hpPercent: 30 },
+        { side: 'p2' as const, slotOrSpecies: 'Darkrai', hpPercent: 45 },
+      ],
+    },
+  };
+  const { finalSnap: resLunar } = await runFullSimMatch(
+    'Tobias Cresselia Lunar Dance',
+    lunarTestCfg,
+    { maxTurns: 20, customTurn1Cmd: 'move 2' }
+  );
+  if (!resLunar.triggeredScriptIds.includes('tobias-cresselia-lunardance')) {
+    throw new Error(`Expected Cresselia Lunar Dance at 30% HP with injured Darkrai, got [${resLunar.triggeredScriptIds.join(', ')}]`);
+  }
+
+  console.log(
+    `  OK: Ash Lead Swellow +2 Omniboost -> Baton Pass (${bpRecipient.species} +2), Darkrai Dark Void T1, Cresselia Psych Up (+2 copied) & Lunar Dance (<35% HP), Giratina-Origin last Ace [${cressRevealOrder.join(' -> ')}], turns=${resTobias.turn}`
+  );
+
+  console.log('\nALL 15 CHAPTERS + FRUSTRATION 102 + REGIGIGAS RAID + ASH VS TOBIAS + PERSISTENCE + TRIPLES + GEN 1 + VERSUS + COACH TESTS PASSED!');
 }
 
 let allSuitesCompleted = false;

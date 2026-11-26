@@ -4,8 +4,12 @@ import {
   Bomb,
   BookMarked,
   Castle,
+  Flame,
+  Landmark,
+  MoonStar,
   Shield,
   Swords,
+  Zap,
 } from 'lucide-react';
 import type { CharacterId } from '../types/game';
 
@@ -99,6 +103,42 @@ export const CHARACTER_META: Record<CharacterId, CharacterVisualMeta> = {
     emblemGradient: 'from-emerald-950 via-slate-900 to-teal-950',
     emblemAccent: 'text-emerald-300',
     emblemIcon: BookMarked,
+  },
+  clandestine_tamer: {
+    name: 'Lord Vexen',
+    role: 'Domador Clandestino',
+    accentBorder: 'border-rose-500/60',
+    accentGlow: 'drop-shadow-[0_10px_22px_rgba(244,63,94,0.34)]',
+    emblemGradient: 'from-rose-950 via-zinc-950 to-red-950',
+    emblemAccent: 'text-rose-300',
+    emblemIcon: Flame,
+  },
+  colossus_keeper: {
+    name: 'Custodio del Coloso',
+    role: 'Vanguardia del Templo Puntaneva',
+    accentBorder: 'border-amber-400/60',
+    accentGlow: 'drop-shadow-[0_10px_24px_rgba(251,191,36,0.32)]',
+    emblemGradient: 'from-stone-800 via-amber-950 to-slate-950',
+    emblemAccent: 'text-amber-300',
+    emblemIcon: Landmark,
+  },
+  tobias: {
+    name: 'Tobías',
+    role: 'El del Action Replay · Valle Lirio',
+    accentBorder: 'border-violet-400/65',
+    accentGlow: 'drop-shadow-[0_10px_24px_rgba(167,139,250,0.38)]',
+    emblemGradient: 'from-violet-950 via-indigo-950 to-slate-950',
+    emblemAccent: 'text-violet-300',
+    emblemIcon: MoonStar,
+  },
+  ash_ketchum: {
+    name: 'Ash Ketchum',
+    role: 'Retador de Pueblo Paleta · Sinnoh',
+    accentBorder: 'border-sky-400/65',
+    accentGlow: 'drop-shadow-[0_10px_24px_rgba(56,189,248,0.34)]',
+    emblemGradient: 'from-sky-950 via-blue-950 to-amber-950',
+    emblemAccent: 'text-amber-300',
+    emblemIcon: Zap,
   },
 };
 
