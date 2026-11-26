@@ -13,6 +13,7 @@ import showcaseTriplesPhalanxInk from '../stories/showcase_triples_phalanx.ink?r
 import challengeThreeKnightsInk from '../stories/challenge2_three_knights.ink?raw';
 import archiveGen1SilphInk from '../stories/archive_gen1_silph.ink?raw';
 import archiveAnimeTobiasInk from '../stories/archive_anime_tobias.ink?raw';
+import challengeWeatherTerrainsInk from '../stories/challenge_weather_terrains.ink?raw';
 import {
   resolveAnimeAshVsTobiasBattle,
   resolveChampionLittleCupBattle,
@@ -30,6 +31,7 @@ import {
   resolveThreeKnightsBattle,
   resolveTriplesPhalanxBattle,
   resolveVgcWorlds2024Battle,
+  resolveWeatherTerrainsChallengeBattle,
 } from '../engine/teamBuilderTree';
 import type {
   ChapterDefinition,
@@ -257,47 +259,47 @@ export const CHAPTERS: ChapterDefinition[] = [
     category: 'puzzles',
     number: 'PUZZLE 01',
     title: 'La Trampa del Sol',
-    subtitle: 'Un tablero amañado bajo calor sofocante',
+    subtitle: 'Calor artificial afuera, aire acondicionado adentro',
     tag: 'PUZZLE · 3V3 DOBLES',
     format: 'doubles',
     formatId: 'gen9doublescustomgame',
     formatLabel: 'Puzzle 3v3',
     difficulty: 'Puzzle',
     description:
-      'El patio solar arde y tu escuadrón entra herido en desventaja absoluta frente a una tormenta ya desatada. Solo el ingenio puede voltear un tablero que parece perdido.',
+      'El patio solar arde a cuarenta grados mientras una voz chillona suena desde una cabina móvil con aire acondicionado a veinte metros. Un niño conectado a seis pantallas pretende usurpar el trono sin pisar jamás la arena.',
     accentColor: 'orange',
     showcaseSprite: { species: 'Sableye', mode: 'player-ace' },
     featuredPokemon: ['Sableye', 'Inkay', 'Ditto'],
-    rivalPreview: 'Estratega Solar',
+    rivalPreview: 'El Estratega Solar',
     rivalProfile: {
-      name: 'Estratega Solar',
-      title: 'Arquitecto de la Trampa',
-      bio: 'Coleccionista de escenarios imposibles que disfruta empujar a sus oponentes contra la pared desde el primer segundo.',
+      name: 'El Estratega Solar',
+      title: 'Tirano del Ladder OU · Cabina con A/C',
+      bio: 'Niño mimado en pijama, pantuflas de Snorlax y visor VR que controla a sus Pokémon a distancia desde una cabina refrigerada como si el combate real fuera un ranking en línea.',
       tacticalInsight:
-        'Todo su dominio descansa sobre el impulso que ya acumuló antes de que llegaras. Si quiebras ese impulso, su castillo se derrumba.',
-      archetypeTag: 'Puzzle · Desventaja',
+        'Todo su dominio descansa sobre el impulso que ya acumuló antes de que llegaras. Si le quiebras el guion, su cabina entera entra en pánico.',
+      archetypeTag: 'Puzzle · Sátira OU',
     },
     inkSource: puzzle1SunTrapInk,
     resolveBattleConfig: resolvePuzzle1SunTrapBattle,
     getEpilogue: (won: boolean) => {
       if (won) {
         return {
-          headline: 'La Trampa del Sol Invertida',
+          headline: 'Pantallazo Azul en la Cabina',
           subheadline:
-            'El patio solar guarda silencio cuando el tablero se vuelve contra su propio creador.',
+            'Las seis pantallas se apagan de golpe mientras el aire acondicionado escupe vapor tibia sobre el patio.',
           badgeText: 'PUZZLE 01 COMPLETADO',
           paragraphs: [
-            'Donde otros vieron una derrota matemática en el primer turno, encontraste la grieta exacta para voltear toda la partida.',
+            'Ningún visor VR reemplaza leer a un compañero a los ojos. Donde el Estratega Solar veía una partida resuelta desde su sillón, le diste la vuelta al tablero entero.',
           ],
         };
       }
       return {
         headline: 'Consumido por el Sol Intenso',
         subheadline:
-          'El impulso enemigo arrasó el patio antes de que pudieras recuperar el control.',
+          'Una risa distorsionada por el altavoz celebra desde la cabina refrigerada.',
         badgeText: 'PUZZLE FALLIDO · REINTENTAR',
         paragraphs: [
-          'Observa el patrón con el que abren sus piezas y vuelve a intentarlo; cada movimiento en tu equipo está ahí por una razón.',
+          'Observa el patrón repetitivo que programa desde su joystick y vuelve a intentarlo; cada pieza en tu equipo existe para desarmar su truco barato.',
         ],
       };
     },
@@ -307,25 +309,25 @@ export const CHAPTERS: ChapterDefinition[] = [
     category: 'puzzles',
     number: 'PUZZLE 02',
     title: 'El Coloso Despertado',
-    subtitle: 'Seis luces despiertan en la cámara sellada',
+    subtitle: 'La llave rúnica rompe el sopor milenario',
     tag: 'PUZZLE · JEFE RAID',
     format: 'doubles',
     formatId: 'gen9doublescustomgame',
     formatLabel: 'Jefe 6v6 Dobles',
     difficulty: 'Puzzle Jefe',
     description:
-      'Las puertas rúnicas ceden con un estruendo sísmico. El antiguo coloso Regigigas ya se ha puesto de pie en el centro del santuario, sostenido por un coro silencioso de guardianes.',
+      'Un ser colosal, pálido y cubierto de musgo antiguo alza una llave brillante en el centro del santuario. Cuando gira el sello, el sopor de Regigigas se evapora al instante.',
     accentColor: 'amber',
     showcaseSprite: { species: 'Regigigas', mode: 'boss', label: 'Jefe' },
     featuredPokemon: ['Regigigas', 'Dragapult', 'Farigiraf'],
-    rivalPreview: 'Custodio del Coloso',
+    rivalPreview: 'Guardián del Coloso',
     rivalProfile: {
-      name: 'Custodio del Coloso',
-      title: 'Guardián del Santuario Sellado',
-      bio: 'Sacerdote que preparó durante horas el despertar del titán antes de que alcanzaras la cámara subterránea.',
+      name: 'Guardián del Coloso',
+      title: 'Ente Antiguo · Portador de la Llave Rúnica',
+      bio: 'Gigante no humano de piel pálida, musgo vivo y mente ancestral. Empuña la llave que anula las ataduras de Regigigas y lo desata como soberano absoluto del santuario.',
       tacticalInsight:
-        'Atacar al titán sin desmontar primero el sostén que lo rodea solo alargará la agonía.',
-      archetypeTag: 'Jefe · Santuario',
+        'Atacar al titán sin desmontar primero las capas y el sostén que el Guardián teje a su alrededor solo alargará la caída.',
+      archetypeTag: 'Jefe · Santuario Antiguo',
     },
     inkSource: puzzle2RegigigasInk,
     resolveBattleConfig: resolvePuzzle2RegigigasBattle,
@@ -334,20 +336,20 @@ export const CHAPTERS: ChapterDefinition[] = [
         return {
           headline: 'El Coloso Regresa al Reposo',
           subheadline:
-            'Las runas del santuario se apagan lentamente mientras el titán inclina la rodilla.',
+            'El Guardián inclina su martillo de piedra mientras las runas de la llave se apagan en silencio.',
           badgeText: 'PUZZLE 02 COMPLETADO',
           paragraphs: [
-            'Desarmaste capa por capa a una fortaleza viviente treinta niveles por encima de los tuyos. El eco de la cámara guarda silencio por fin.',
+            'Desarmaste capa por capa a una fortaleza viviente treinta niveles por encima de los tuyos. El ente antiguo asiente una sola vez antes de fundirse de nuevo con la penumbra del templo.',
           ],
         };
       }
       return {
         headline: 'El Titán Sigue en Pie',
         subheadline:
-          'La cámara entera parece restaurar al coloso tras cada golpe.',
+          'El brillo de la llave rúnica restaura la postura del coloso tras cada golpe.',
         badgeText: 'PUZZLE FALLIDO · REINTENTAR',
         paragraphs: [
-          'Estudia qué mantiene en pie al coloso y aprovecha el Teambuilder si necesitas abrir un ángulo distinto antes de volver a desafiarlo.',
+          'Estudia qué mantiene en pie al coloso y aprovecha el Teambuilder si necesitas abrir un ángulo distinto antes de volver a desafiar al Guardián.',
         ],
       };
     },
@@ -411,47 +413,47 @@ export const CHAPTERS: ChapterDefinition[] = [
     category: 'showcases',
     number: 'DUELO 01',
     title: 'Duelo de Honor',
-    subtitle: 'Tres Poké Balls sobre el terciopelo, una sola oportunidad',
-    tag: 'SHOWCASE · 1V1',
+    subtitle: 'Una lanza de bronce contra la corona imperial',
+    tag: 'SHOWCASE · 1V1 A MUERTE',
     format: 'singles',
     formatId: 'gen91v1',
     formatLabel: '1v1 · Pick 1',
     difficulty: 'Competitivo',
     description:
-      'El protocolo aristocrático prohíbe relevos y segundas oportunidades. Frente al círculo de piedra, leer el pulso de tu rival antes de que suene la campana lo es todo.',
+      'Una guerrera que cruzó medio continente para acabar con la subyugación de su pueblo clava su lanza frente a las puertas de la corte. Su reto no admite relevos ni marcha atrás: un duelo 1v1 a muerte.',
     accentColor: 'rose',
     showcaseSprite: { species: 'Metagross', mode: 'player-ace' },
     featuredPokemon: ['Metagross', 'Gallade', 'Primarina'],
-    rivalPreview: 'Duelista de la Corte',
+    rivalPreview: 'La Duelista de la Frontera',
     rivalProfile: {
-      name: 'Duelista de la Corte',
-      title: 'Espadachín del Círculo de Honor',
-      bio: 'Aristócrata habituado a zanjar disputas políticas en duelos sin banca ni marcha atrás.',
+      name: 'La Duelista de la Frontera',
+      title: 'Guerrera Insumisa · Duelo a Muerte 1v1',
+      bio: 'Guerrera curtida que viajó hasta Galar para cobrarle al heredero del imperio décadas de sometimiento sobre su tierra.',
       tacticalInsight:
-        'Todo el duelo se juega en los segundos previos a lanzar la Poké Ball. Un gesto mínimo puede valer la victoria.',
-      archetypeTag: 'Competitivo · 1v1',
+        'Todo el duelo se decide en los segundos previos a lanzar la Poké Ball. Un solo gesto en su postura delata su jugada.',
+      archetypeTag: 'Duelo a Muerte · 1v1',
     },
     inkSource: duel1HonorInk,
     resolveBattleConfig: resolveDuel1Honor1v1Battle,
     getEpilogue: (won: boolean) => {
       if (won) {
         return {
-          headline: 'Honor Reivindicado en el Círculo',
+          headline: 'El Círculo Dicta Tregua',
           subheadline:
-            'La sala entera murmura mientras tu rival guarda su Poké Ball en silencio.',
+            'La guerrera apoya la rodilla sobre la piedra tibia sin bajar jamás la mirada.',
           badgeText: 'VICTORIA · DUELO 01',
           paragraphs: [
-            'En un duelo sin relevos, la batalla termina antes de que se lance el primer ataque. Tu lectura fue limpia de principio a fin.',
+            'Respetaste su desafío sin escudo ni escolta y ganaste en muerte súbita. Cuando retiras la orden de arresto y le abres paso hacia la mesa de paz, la frontera entera escucha el eco del duelo.',
           ],
         };
       }
       return {
         headline: 'Sentenciado en Muerte Súbita',
         subheadline:
-          'El duelista acertó el cruce decisivo en el instante que sonó la campana.',
+          'La Duelista de la Frontera leyó tu apertura y cerró el duelo de un solo golpe.',
         badgeText: 'DERROTA · REINTENTAR',
         paragraphs: [
-          'En el círculo de honor no hay margen para el impulso. Vuelve a leer el encuentro y ajusta tu elección.',
+          'Frente a alguien que pelea por la libertad de su pueblo no hay margen para dudar. Vuelve a leer su postura antes de que suene la campana.',
         ],
       };
     },
@@ -561,6 +563,67 @@ export const CHAPTERS: ChapterDefinition[] = [
   },
 
   /* ===================== DESAFÍOS ===================== */
+  {
+    id: 'challenge-weather-terrains',
+    category: 'challenges',
+    number: 'DESAFÍO CLIMA',
+    title: 'La Cabina de los 8 Elementos',
+    subtitle: 'Cuatro climas, cuatro terrenos y un Castform con complejo de dios',
+    tag: 'DESAFÍO · CLIMAS Y TERRENOS',
+    format: 'doubles',
+    formatId: 'gen9doublescustomgame',
+    formatLabel: '4v4 · 8 Modos',
+    difficulty: 'Desafío',
+    description:
+      'El Estratega Solar hackeó un domo entero para presumir los 4 climas y los 4 terrenos sin bajarse de su sillón refrigerado. Elige qué elemento enfrentar y demuestra que su preciado Castform no manda aquí.',
+    accentColor: 'sky',
+    showcaseSprite: { species: 'Castform', mode: 'boss', label: 'As Clima' },
+    featuredPokemon: ['Castform', 'Gardevoir', 'Arcanine', 'Milotic'],
+    rivalPreview: 'El Estratega Solar',
+    rivalProfile: {
+      name: 'El Estratega Solar',
+      title: 'Tirano del Ladder OU · 8 Elementos',
+      bio: 'Niño mimado en pijama manchada, pantuflas de Snorlax y visor VR que controla proyectores de Sol, Lluvia, Arena, Nieve y los 4 Terrenos desde su cabina.',
+      tacticalInsight:
+        'Cada simulación enseña reglas clave de clima o terreno, y siempre reserva a su sobrevalorado Castform ★ como remate final.',
+      archetypeTag: 'Desafío · 4 Climas / 4 Terrenos',
+    },
+    inkSource: challengeWeatherTerrainsInk,
+    resolveBattleConfig: resolveWeatherTerrainsChallengeBattle,
+    getEpilogue: (won: boolean, flags: StoryFlags) => {
+      const modeNames: Record<string, string> = {
+        sun: 'Sol Intenso',
+        rain: 'Lluvia Torrencial',
+        sand: 'Tormenta de Arena',
+        snow: 'Nieve Helada',
+        electric: 'Campo Eléctrico',
+        grassy: 'Campo de Hierba',
+        psychic: 'Campo Psíquico',
+        misty: 'Campo de Niebla',
+      };
+      const label = modeNames[String(flags.climate_mode ?? 'sun')] ?? 'Simulación Climática';
+      if (won) {
+        return {
+          headline: `${label} Bajo Control`,
+          subheadline:
+            'El Estratega Solar arroja una lata vacía contra su monitor al ver caer a su preciado Castform.',
+          badgeText: 'VICTORIA · 8 ELEMENTOS',
+          paragraphs: [
+            `Dominaste la simulación de ${label} sin recurrir a pantallas ni atajos. Puedes volver al domo cuando quieras para probar cualquiera de los otros siete climas y terrenos.`,
+          ],
+        };
+      }
+      return {
+        headline: `Superado por ${label}`,
+        subheadline:
+          'Los proyectores del domo amplificaron la ventaja ambiental de la cabina rival.',
+        badgeText: 'DERROTA · REINTENTAR',
+        paragraphs: [
+          `Cada clima y terreno cambia por completo las reglas del combate. Aprovecha lo que acabas de ver en ${label} o prueba otra simulación del domo antes de volver a retarlo.`,
+        ],
+      };
+    },
+  },
   {
     id: 'challenge-last-bastion',
     category: 'challenges',

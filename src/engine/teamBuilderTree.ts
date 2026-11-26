@@ -2,6 +2,7 @@ import type {
   DecisionTraceItem,
   PersistedPartyState,
   ResolvedBattleConfig,
+  SceneBackdropId,
   ScriptedEnemyRule,
   StoryFlags,
 } from '../types/game';
@@ -977,7 +978,7 @@ export function resolvePuzzle1SunTrapBattle(
       forceMoveId: 'heatwave',
       once: true,
       description: 'Turno 1 scripteado: Volcarona (+2 SpA/+2 Spe bajo Sol) usa Heat Wave.',
-      tauntLine: '«¡El sol quema todo! ¡Volcarona, arrasa el campo con Onda Ígnea!»',
+      tauntLine: '«¡Jajaja, qué calor hace allá afuera! ¡Yo aquí con el aire en 18 grados! ¡Volcarona, Onda Ígnea!»',
     },
     {
       id: 'puzzle1-t1-metagross-mash',
@@ -987,7 +988,7 @@ export function resolvePuzzle1SunTrapBattle(
       targetSpec: 'species:Inkay',
       once: true,
       description: 'Turno 1 scripteado: Mega Metagross (+2 Atk/+1 Spe) lanza Meteor Mash sobre Inkay.',
-      tauntLine: '«Eliminen a ese pequeño calamar primero. ¡Mega Metagross, Puño Meteoro a Inkay!»',
+      tauntLine: '«Cámara 1 fijada en ese calamar nivel tutorial. ¡Mega Metagross, Puño Meteoro a Inkay!»',
     },
     {
       id: 'puzzle1-t2-metagross-bp',
@@ -997,7 +998,7 @@ export function resolvePuzzle1SunTrapBattle(
       targetSpec: 'species:Inkay',
       once: true,
       description: 'Turno 2 scripteado: Mega Metagross remata a Inkay con Bullet Punch.',
-      tauntLine: '«¿Sigues de pie por tu Banda Focus? ¡Mega Metagross, Puño Bala a Inkay!»',
+      tauntLine: '«¿Banda Focus? Bro, eso es de generación pasada. ¡Puño Bala para el clip!»',
     },
     {
       id: 'puzzle1-t2-volcarona-heatwave',
@@ -1006,7 +1007,7 @@ export function resolvePuzzle1SunTrapBattle(
       forceMoveId: 'heatwave',
       once: true,
       description: 'Turno 2 scripteado: Volcarona repite Heat Wave bajo el Sol Intenso.',
-      tauntLine: '«¡No hay escapatoria del calor! ¡Otra Onda Ígnea, Volcarona!»',
+      tauntLine: '«¡Click, click, spam de Onda Ígnea! ¡Mi vínculo de fibra óptica no pierde contra nadie!»',
     },
     {
       id: 'puzzle1-t3-garchomp-eq',
@@ -1015,7 +1016,7 @@ export function resolvePuzzle1SunTrapBattle(
       forceMoveId: 'earthquake',
       once: true,
       description: 'Turno 3 scripteado: Garchomp entra presionando con Earthquake.',
-      tauntLine: '«¡Terminemos este acertijo con Terremoto!»',
+      tauntLine: '«¡Espérate, se me cayó un cheeto al joystick! ¡Garchomp, Terremoto a todo!»',
     },
   ];
 
@@ -1060,9 +1061,17 @@ export function resolvePuzzle1SunTrapBattle(
     formatLabel: 'Puzzle 3v3 Dobles',
     playerName: 'Príncipe Heredero',
     playerCharId: 'prince',
-    rivalName: 'Asesino Carmesí',
-    rivalTitle: 'Prueba Táctica · La Trampa del Sol',
-    rivalCharId: 'assassin',
+    rivalName: 'El Estratega Solar',
+    rivalTitle: 'Tirano del Ladder OU · Cabina con A/C',
+    rivalCharId: 'solar_strategist',
+    rivalProfile: {
+      name: 'El Estratega Solar',
+      title: 'Tirano del Ladder OU · Cabina con A/C',
+      bio: 'Niño mimado en pijama manchada, pantuflas de Snorlax, visor VR y seis pantallas dentro de una cabina móvil con aire acondicionado. Obsesionado con el brainrot y los rankings de OU, pretende tomar el trono sin forjar jamás un vínculo real.',
+      tacticalInsight:
+        'Calcula sinergias de clima y boosts desde su sillón motorizado como si fuera una hoja de Excel, pero entra en pánico en cuanto le inviertes el guion.',
+      archetypeTag: 'Puzzle · Sátira OU',
+    },
     arenaTheme: 'sunlit-courtyard',
     playerTeamSummary: 'Inkay (Focus Sash), Sableye (65% PS), Ditto (Choice Scarf)',
     rivalTeamSummary: 'Mega Metagross (+2/+1), Volcarona (+2/+2/+2), Garchomp',
@@ -1442,7 +1451,7 @@ export function resolveDuel1Honor1v1Battle(
       forceMoveId: 'tachyoncutter',
       once: true,
       description: 'Turno 1 1v1: Iron Crown presiona con doble golpe Tachyon Cutter.',
-      tauntLine: '«Sin cambios ni excusas: ¡Iron Crown, Taquión Cortante!»',
+      tauntLine: '«¡Por cada frontera que tu imperio sometió! ¡Iron Crown, Taquión Cortante!»',
     },
     {
       id: 'duel1v1-t1-skeledirge',
@@ -1451,7 +1460,7 @@ export function resolveDuel1Honor1v1Battle(
       forceMoveId: 'torchsong',
       once: true,
       description: 'Turno 1 1v1: Skeledirge activa Throat Spray con Torch Song.',
-      tauntLine: '«¡Quema su honor con Canto Ardiente, Skeledirge!»',
+      tauntLine: '«¡Que el fuego de los nuestros queme tu trono! ¡Skeledirge, Canto Ardiente!»',
     },
     {
       id: 'duel1v1-t1-urshifu',
@@ -1460,7 +1469,7 @@ export function resolveDuel1Honor1v1Battle(
       forceMoveId: 'wickedblow',
       once: true,
       description: 'Turno 1 1v1: Urshifu busca OHKO crítico con Wicked Blow.',
-      tauntLine: '«Un golpe basta en 1v1. ¡Urshifu, Golpe Oscuro!»',
+      tauntLine: '«En un duelo a muerte basta un solo golpe limpio. ¡Urshifu, Golpe Oscuro!»',
     },
   ];
 
@@ -1474,9 +1483,17 @@ export function resolveDuel1Honor1v1Battle(
     preferredRivalTeamOrder: `team ${rivalSlot}`,
     playerName: 'Príncipe Heredero',
     playerCharId: 'prince',
-    rivalName: 'Asesino Carmesí',
-    rivalTitle: 'Duelista de la Corte · Formato 1v1',
-    rivalCharId: 'assassin',
+    rivalName: 'La Duelista de la Frontera',
+    rivalTitle: 'Guerrera Insumisa · Duelo a Muerte 1v1',
+    rivalCharId: 'court_duelist',
+    rivalProfile: {
+      name: 'La Duelista de la Frontera',
+      title: 'Guerrera Insumisa · Duelo a Muerte 1v1',
+      bio: 'Guerrera curtida que cruzó medio continente hasta Galar para terminar con la subyugación de su pueblo. Desafía al heredero del imperio a un duelo 1v1 a muerte sin relevos ni clemencia.',
+      tacticalInsight:
+        'Pelea con convicción absoluta y cero miedo a arriesgarlo todo en el primer cruce. Si lees mal su postura antes de la campana, no habrá segundo turno.',
+      archetypeTag: 'Duelo a Muerte · 1v1',
+    },
     arenaTheme: 'honor-duel-hall',
     playerTeamSummary: 'Trío Real: Gallade, Primarina, Metagross (Elige 1)',
     rivalTeamSummary: 'Trío Rival: Iron Crown, Skeledirge, Urshifu (Elige 1)',
@@ -3506,16 +3523,16 @@ export function resolvePuzzle2RegigigasBattle(
     formatLabel: 'Puzzle 6v6 Dobles · Raid Boss',
     playerName: 'Príncipe Heredero',
     playerCharId: 'prince',
-    rivalName: 'Custodio del Coloso',
-    rivalTitle: 'Guardián del Templo Puntaneva',
+    rivalName: 'Guardián del Coloso',
+    rivalTitle: 'Ente Antiguo · Portador de la Llave Rúnica',
     rivalCharId: 'colossus_keeper',
     rivalProfile: {
-      name: 'Custodio del Coloso',
-      title: 'Guardián del Templo Puntaneva',
-      bio: 'Sacerdote de la cámara sellada que transfirió cinco auras ancestrales a Regigigas antes de abrir las puertas del santuario.',
+      name: 'Guardián del Coloso',
+      title: 'Ente Antiguo · Portador de la Llave Rúnica',
+      bio: 'Ser colosal, pálido y no humano cubierto de musgo vivo y runas doradas. Posee una inteligencia ancestral y la llave que rompe las ataduras de Regigigas, anulando su sopor.',
       tacticalInsight:
-        'Su formación gira en torno a un coloso ya despertado y blindado. Romper sus barreras será inútil si no cortas su regeneración.',
-      archetypeTag: 'Puzzle: Raid Boss',
+        'Su mente fría dirige al coro de guardianes con precisión absoluta para mantener inmortal al Coloso despertado. Romper sus barreras será inútil si no cortas su regeneración.',
+      archetypeTag: 'Jefe · Santuario Antiguo',
     },
     arenaTheme: 'titan-sanctum',
     playerTeamSummary:
@@ -3807,6 +3824,707 @@ export function resolveAnimeAshVsTobiasBattle(
         effectTitle: 'Omniboost +2 al Líder elegido en Team Preview',
         effectDetail:
           'Puedes liderar directo con Heracross (Sleep Talk contra Dark Void) o pasar el +2 desde Swellow/Torkoal con Baton Pass.',
+      },
+    ],
+    flags,
+  };
+}
+
+/* ===================== DESAFÍO CLIMA: La Cabina de los 8 Elementos (4 Climas + 4 Terrenos · Castform ★ Ace) ===================== */
+
+type WeatherTerrainModeKey =
+  | 'sun'
+  | 'rain'
+  | 'sand'
+  | 'snow'
+  | 'electric'
+  | 'grassy'
+  | 'psychic'
+  | 'misty';
+
+interface WeatherTerrainSpec {
+  key: WeatherTerrainModeKey;
+  label: string;
+  shortTag: string;
+  arenaTheme: SceneBackdropId;
+  weather?: 'sunnyday' | 'raindance' | 'sandstorm' | 'snow';
+  terrain?: 'electricterrain' | 'grassyterrain' | 'psychicterrain' | 'mistyterrain';
+  bannerLog: string;
+  lessonNote: string;
+  rivalSummary: string;
+  rivalBlocks: ShowdownSetBlock[];
+  scriptedRules: ScriptedEnemyRule[];
+}
+
+export function resolveWeatherTerrainsChallengeBattle(
+  flags: StoryFlags
+): ResolvedBattleConfig {
+  const rawMode = String(flags.climate_mode ?? 'sun').toLowerCase();
+  const modeKey: WeatherTerrainModeKey = (
+    ['sun', 'rain', 'sand', 'snow', 'electric', 'grassy', 'psychic', 'misty'].includes(rawMode)
+      ? rawMode
+      : 'sun'
+  ) as WeatherTerrainModeKey;
+
+  const playerBlocks: ShowdownSetBlock[] = [
+    {
+      species: 'Gardevoir',
+      item: 'Light Clay',
+      ability: 'Trace',
+      level: 100,
+      teraType: 'Fairy',
+      evs: '252 HP / 100 Def / 156 SpA',
+      nature: 'Modest',
+      ivs: '0 Atk',
+      moves: ['Moonblast', 'Psychic', 'Light Screen', 'Protect'],
+    },
+    {
+      species: 'Arcanine',
+      item: 'Sitrus Berry',
+      ability: 'Intimidate',
+      level: 100,
+      teraType: 'Water',
+      evs: '244 HP / 4 Atk / 108 Def / 116 SpD / 36 Spe',
+      nature: 'Careful',
+      moves: ['Flare Blitz', 'Snarl', 'Will-O-Wisp', 'Protect'],
+    },
+    {
+      species: 'Milotic',
+      item: 'Leftovers',
+      ability: 'Competitive',
+      level: 100,
+      teraType: 'Grass',
+      evs: '252 HP / 172 Def / 84 SpA',
+      nature: 'Bold',
+      ivs: '0 Atk',
+      moves: ['Scald', 'Icy Wind', 'Recover', 'Protect'],
+    },
+    {
+      species: 'Corviknight',
+      item: 'Rocky Helmet',
+      ability: 'Mirror Armor',
+      level: 100,
+      teraType: 'Dragon',
+      evs: '252 HP / 252 Def / 4 SpD',
+      nature: 'Impish',
+      moves: ['Brave Bird', 'Body Press', 'Tailwind', 'Roost'],
+    },
+  ];
+
+  const makeCastformAce = (
+    teraType: string,
+    moves: string[]
+  ): ShowdownSetBlock => ({
+    nickname: 'Castform ★',
+    species: 'Castform',
+    item: 'Life Orb',
+    ability: 'Forecast',
+    level: 105,
+    teraType,
+    evs: '4 HP / 252 SpA / 252 Spe',
+    nature: 'Timid',
+    ivs: '0 Atk',
+    moves,
+  });
+
+  const modeCatalog: Record<WeatherTerrainModeKey, WeatherTerrainSpec> = {
+    sun: {
+      key: 'sun',
+      label: 'Sol Intenso',
+      shortTag: 'Clima 1/4 · Sol',
+      arenaTheme: 'sunlit-courtyard',
+      weather: 'sunnyday',
+      bannerLog:
+        '☀️ ¡Proyector Solar Activo! Los ataques de Fuego ganan x1.5, Agua baja a x0.5, Clorofila duplica Velocidad y Castform muta a Forma Sol.',
+      lessonNote:
+        'Sol Intenso potencia Fuego (+50%), debilita Agua (-50%), activa Clorofila/Protosíntesis y permite Rayo Solar en un solo turno.',
+      rivalSummary: 'Torkoal · Venusaur (Clorofila) · Walking Wake · Castform ★ Nv.105',
+      rivalBlocks: [
+        {
+          species: 'Torkoal',
+          item: 'Heat Rock',
+          ability: 'Drought',
+          level: 96,
+          teraType: 'Fire',
+          evs: '252 HP / 252 SpA / 4 SpD',
+          nature: 'Modest',
+          ivs: '0 Atk',
+          moves: ['Heat Wave', 'Earth Power', 'Yawn', 'Protect'],
+        },
+        {
+          species: 'Venusaur',
+          item: 'Focus Sash',
+          ability: 'Chlorophyll',
+          level: 96,
+          teraType: 'Grass',
+          evs: '4 HP / 252 SpA / 252 Spe',
+          nature: 'Timid',
+          ivs: '0 Atk',
+          moves: ['Solar Beam', 'Sludge Bomb', 'Weather Ball', 'Sleep Powder'],
+        },
+        {
+          species: 'Walking Wake',
+          item: 'Booster Energy',
+          ability: 'Protosynthesis',
+          level: 96,
+          teraType: 'Water',
+          evs: '4 HP / 252 SpA / 252 Spe',
+          nature: 'Timid',
+          ivs: '0 Atk',
+          moves: ['Hydro Steam', 'Draco Meteor', 'Flamethrower', 'Protect'],
+        },
+        makeCastformAce('Fire', ['Weather Ball', 'Solar Beam', 'Thunderbolt', 'Protect']),
+      ],
+      scriptedRules: [
+        {
+          id: 'wx-sun-t1-torkoal',
+          turn: 1,
+          actorSpecies: 'Torkoal',
+          forceMoveId: 'heatwave',
+          once: true,
+          description: 'Apertura Sol: Torkoal presiona ambos flancos con Heat Wave potenciado por Sol.',
+          tauntLine: '«¡Aire acondicionado en 17 grados mientras allá te rostizas! ¡Torkoal, Onda Ígnea!»',
+        },
+        {
+          id: 'wx-sun-castform-entry',
+          actorSpecies: 'Castform',
+          onFirstActiveTurn: true,
+          forceMoveId: 'weatherball',
+          once: true,
+          description: 'Entrada del As Castform ★: dispara Meteorobola de Fuego (100 BP + STAB + Sol).',
+          tauntLine: '«¡Mira esa Forma Sol, npc! ¡Castform, Meteorobola para el montage!»',
+        },
+      ],
+    },
+    rain: {
+      key: 'rain',
+      label: 'Lluvia Torrencial',
+      shortTag: 'Clima 2/4 · Lluvia',
+      arenaTheme: 'wyndon-alleys',
+      weather: 'raindance',
+      bannerLog:
+        '🌧️ ¡Proyector de Diluvio Activo! Agua gana x1.5, Fuego cae a x0.5, Trueno y Vendaval nunca fallan y Nado Rápido duplica Velocidad.',
+      lessonNote:
+        'Lluvia Torrencial potencia Agua (+50%), debilita Fuego (-50%), da 100% de precisión a Hurricane/Thunder y activa Swift Swim.',
+      rivalSummary: 'Pelipper · Barraskewda · Archaludon · Castform ★ Nv.105',
+      rivalBlocks: [
+        {
+          species: 'Pelipper',
+          item: 'Damp Rock',
+          ability: 'Drizzle',
+          level: 96,
+          teraType: 'Water',
+          evs: '252 HP / 252 SpA / 4 SpD',
+          nature: 'Modest',
+          ivs: '0 Atk',
+          moves: ['Hurricane', 'Weather Ball', 'Tailwind', 'Protect'],
+        },
+        {
+          species: 'Barraskewda',
+          item: 'Choice Band',
+          ability: 'Swift Swim',
+          level: 96,
+          teraType: 'Water',
+          evs: '4 HP / 252 Atk / 252 Spe',
+          nature: 'Adamant',
+          moves: ['Liquidation', 'Close Combat', 'Aqua Jet', 'Flip Turn'],
+        },
+        {
+          species: 'Archaludon',
+          item: 'Assault Vest',
+          ability: 'Stamina',
+          level: 96,
+          teraType: 'Steel',
+          evs: '252 HP / 252 SpA / 4 SpD',
+          nature: 'Modest',
+          ivs: '0 Atk',
+          moves: ['Electro Shot', 'Flash Cannon', 'Draco Meteor', 'Body Press'],
+        },
+        makeCastformAce('Water', ['Weather Ball', 'Hurricane', 'Thunder', 'Protect']),
+      ],
+      scriptedRules: [
+        {
+          id: 'wx-rain-t1-pelipper',
+          turn: 1,
+          actorSpecies: 'Pelipper',
+          forceMoveId: 'tailwind',
+          once: true,
+          description: 'Apertura Lluvia: Pelipper asegura velocidad total con Tailwind.',
+          tauntLine: '«¡Lluvia gratis + Viento Afín! ¡A ver cómo alcanzas a mis cámaras!»',
+        },
+        {
+          id: 'wx-rain-castform-entry',
+          actorSpecies: 'Castform',
+          onFirstActiveTurn: true,
+          forceMoveId: 'weatherball',
+          once: true,
+          description: 'Entrada del As Castform ★: Forma Lluvia dispara Meteorobola de Agua.',
+          tauntLine: '«¡Forma Lluvia activada! ¡Castform, Meteorobola con 100% de estilo!»',
+        },
+      ],
+    },
+    sand: {
+      key: 'sand',
+      label: 'Tormenta de Arena',
+      shortTag: 'Clima 3/4 · Arena',
+      arenaTheme: 'banner-battlefield',
+      weather: 'sandstorm',
+      bannerLog:
+        '🏜️ ¡Proyector de Arena Activo! Los tipo Roca ganan +50% Defensa Especial, el resto sufre desgaste cada turno e Ímpetu Arena duplica Velocidad.',
+      lessonNote:
+        'Tormenta de Arena da +50% SpD a los tipo Roca, daña 1/16 de PS por turno a quienes no sean Roca/Tierra/Acero y activa Sand Rush.',
+      rivalSummary: 'Tyranitar · Excadrill (Sand Rush) · Gastrodon · Castform ★ Nv.105',
+      rivalBlocks: [
+        {
+          species: 'Tyranitar',
+          item: 'Smooth Rock',
+          ability: 'Sand Stream',
+          level: 96,
+          teraType: 'Flying',
+          evs: '252 HP / 252 Atk / 4 SpD',
+          nature: 'Adamant',
+          moves: ['Rock Slide', 'Crunch', 'Low Kick', 'Protect'],
+        },
+        {
+          species: 'Excadrill',
+          item: 'Focus Sash',
+          ability: 'Sand Rush',
+          level: 96,
+          teraType: 'Ground',
+          evs: '4 HP / 252 Atk / 252 Spe',
+          nature: 'Adamant',
+          moves: ['High Horsepower', 'Iron Head', 'Rock Slide', 'Protect'],
+        },
+        {
+          species: 'Gastrodon',
+          item: 'Sitrus Berry',
+          ability: 'Storm Drain',
+          level: 96,
+          teraType: 'Fire',
+          evs: '252 HP / 140 Def / 116 SpD',
+          nature: 'Calm',
+          ivs: '0 Atk',
+          moves: ['Earth Power', 'Ice Beam', 'Recover', 'Protect'],
+        },
+        makeCastformAce('Rock', ['Weather Ball', 'Shadow Ball', 'Ice Beam', 'Protect']),
+      ],
+      scriptedRules: [
+        {
+          id: 'wx-sand-t1-ttar',
+          turn: 1,
+          actorSpecies: 'Tyranitar',
+          forceMoveId: 'rockslide',
+          once: true,
+          description: 'Apertura Arena: Tyranitar busca flinch doble con Rock Slide.',
+          tauntLine: '«¡SpD gratis para Roca y Avalancha doble! ¡Qué rico se siente el RNG en OU!»',
+        },
+        {
+          id: 'wx-sand-castform-entry',
+          actorSpecies: 'Castform',
+          onFirstActiveTurn: true,
+          forceMoveId: 'weatherball',
+          once: true,
+          description: 'Entrada del As Castform ★: dispara Meteorobola de Roca (100 BP).',
+          tauntLine: '«¡Aunque Game Freak nunca le dio forma de arena, mi Castform igual te deletea con Meteorobola Roca!»',
+        },
+      ],
+    },
+    snow: {
+      key: 'snow',
+      label: 'Nieve Helada',
+      shortTag: 'Clima 4/4 · Nieve',
+      arenaTheme: 'titan-sanctum',
+      weather: 'snow',
+      bannerLog:
+        '❄️ ¡Proyector de Nieve Activo! Los tipo Hielo ganan +50% Defensa Física, Ventisca nunca falla, Velo Aurora reduce todo el daño y Castform muta a Forma Nieve.',
+      lessonNote:
+        'Nieve (Gen 9) otorga +50% Defensa a los tipo Hielo, permite Velo Aurora (pantallas dobles en 1 turno) y da 100% de precisión a Blizzard.',
+      rivalSummary: 'Ninetales-Alola · Cetitan (Slush Rush) · Baxcalibur · Castform ★ Nv.105',
+      rivalBlocks: [
+        {
+          species: 'Ninetales-Alola',
+          item: 'Light Clay',
+          ability: 'Snow Warning',
+          level: 96,
+          teraType: 'Ice',
+          evs: '4 HP / 252 SpA / 252 Spe',
+          nature: 'Timid',
+          ivs: '0 Atk',
+          moves: ['Aurora Veil', 'Blizzard', 'Moonblast', 'Protect'],
+        },
+        {
+          species: 'Cetitan',
+          item: 'Sitrus Berry',
+          ability: 'Slush Rush',
+          level: 96,
+          teraType: 'Ice',
+          evs: '4 HP / 252 Atk / 252 Spe',
+          nature: 'Adamant',
+          moves: ['Icicle Crash', 'High Horsepower', 'Ice Shard', 'Protect'],
+        },
+        {
+          species: 'Baxcalibur',
+          item: 'Loaded Dice',
+          ability: 'Thermal Exchange',
+          level: 96,
+          teraType: 'Dragon',
+          evs: '4 HP / 252 Atk / 252 Spe',
+          nature: 'Jolly',
+          moves: ['Icicle Spear', 'Glaive Rush', 'Ice Shard', 'Protect'],
+        },
+        makeCastformAce('Ice', ['Weather Ball', 'Blizzard', 'Thunderbolt', 'Protect']),
+      ],
+      scriptedRules: [
+        {
+          id: 'wx-snow-t1-ninetales',
+          turn: 1,
+          actorSpecies: 'Ninetales-Alola',
+          forceMoveId: 'auroraveil',
+          once: true,
+          description: 'Apertura Nieve: Ninetales-Alola levanta Velo Aurora (Reflejo + Pantalla de Luz).',
+          tauntLine: '«¡Velo Aurora en un solo clic y +50% Defensa! ¡Ninetales, congela este lobby!»',
+        },
+        {
+          id: 'wx-snow-castform-entry',
+          actorSpecies: 'Castform',
+          onFirstActiveTurn: true,
+          forceMoveId: 'blizzard',
+          once: true,
+          description: 'Entrada del As Castform ★: Forma Nieve lanza Ventisca con 100% precisión.',
+          tauntLine: '«¡Forma Nieve + Ventisca sin fallar! ¡Clippeado en 4K, Alteza!»',
+        },
+      ],
+    },
+    electric: {
+      key: 'electric',
+      label: 'Campo Eléctrico',
+      shortTag: 'Terreno 1/4 · Eléctrico',
+      arenaTheme: 'vgc-worlds-stage',
+      terrain: 'electricterrain',
+      bannerLog:
+        '⚡ ¡Campo Eléctrico Activo! Impide dormir en tierra, potencia ataques Eléctricos (+30%) y despierta Carga Cuark (Quark Drive) en los Pokémon Paradoja.',
+      lessonNote:
+        'Campo Eléctrico bloquea el sueño a Pokémon en tierra, aumenta +30% el daño Eléctrico y activa Quark Drive / Hadron Engine.',
+      rivalSummary: 'Pincurchin · Iron Bundle · Iron Hands · Castform ★ Nv.105',
+      rivalBlocks: [
+        {
+          species: 'Pincurchin',
+          item: 'Terrain Extender',
+          ability: 'Electric Surge',
+          level: 96,
+          teraType: 'Electric',
+          evs: '252 HP / 252 SpA / 4 SpD',
+          nature: 'Quiet',
+          ivs: '0 Atk / 0 Spe',
+          moves: ['Discharge', 'Scald', 'Sucker Punch', 'Protect'],
+        },
+        {
+          species: 'Iron Bundle',
+          item: 'Focus Sash',
+          ability: 'Quark Drive',
+          level: 96,
+          teraType: 'Ice',
+          evs: '4 HP / 252 SpA / 252 Spe',
+          nature: 'Timid',
+          ivs: '0 Atk',
+          moves: ['Freeze-Dry', 'Hydro Pump', 'Icy Wind', 'Protect'],
+        },
+        {
+          species: 'Iron Hands',
+          item: 'Assault Vest',
+          ability: 'Quark Drive',
+          level: 96,
+          teraType: 'Grass',
+          evs: '252 HP / 252 Atk / 4 SpD',
+          nature: 'Adamant',
+          moves: ['Wild Charge', 'Drain Punch', 'Fake Out', 'Heavy Slam'],
+        },
+        makeCastformAce('Electric', ['Thunderbolt', 'Ice Beam', 'Flamethrower', 'Protect']),
+      ],
+      scriptedRules: [
+        {
+          id: 'wx-elec-t1-bundle',
+          turn: 1,
+          actorSpecies: 'Iron Bundle',
+          forceMoveId: 'icywind',
+          once: true,
+          description: 'Apertura Eléctrica: Iron Bundle (Quark Drive +Spe) controla velocidad con Icy Wind.',
+          tauntLine: '«¡Carga Cuark gratis por el terreno! ¡Iron Bundle, Viento Hielo y speed control!»',
+        },
+        {
+          id: 'wx-elec-castform-entry',
+          actorSpecies: 'Castform',
+          onFirstActiveTurn: true,
+          forceMoveId: 'thunderbolt',
+          once: true,
+          description: 'Entrada del As Castform ★: dispara Rayo potenciado por el Campo Eléctrico.',
+          tauntLine: '«¡Castform Tera Eléctrico bajo Campo Eléctrico! ¡A ver si tu vínculo aguanta este voltaje!»',
+        },
+      ],
+    },
+    grassy: {
+      key: 'grassy',
+      label: 'Campo de Hierba',
+      shortTag: 'Terreno 2/4 · Hierba',
+      arenaTheme: 'royal-training-ground',
+      terrain: 'grassyterrain',
+      bannerLog:
+        '🌿 ¡Campo de Hierba Activo! Cura 1/16 de PS cada turno, potencia Planta (+30%), reduce Terremoto a la mitad y da prioridad a Fitoimpulso.',
+      lessonNote:
+        'Campo de Hierba regenera PS cada turno a Pokémon en tierra, potencia Planta (+30%), debilita Earthquake a la mitad y da prioridad +1 a Grassy Glide.',
+      rivalSummary: 'Rillaboom · Sneasler (Semilla) · Heatran · Castform ★ Nv.105',
+      rivalBlocks: [
+        {
+          species: 'Rillaboom',
+          item: 'Miracle Seed',
+          ability: 'Grassy Surge',
+          level: 96,
+          teraType: 'Grass',
+          evs: '252 HP / 252 Atk / 4 SpD',
+          nature: 'Adamant',
+          moves: ['Grassy Glide', 'Wood Hammer', 'Fake Out', 'U-turn'],
+        },
+        {
+          species: 'Sneasler',
+          item: 'Grassy Seed',
+          ability: 'Unburden',
+          level: 96,
+          teraType: 'Flying',
+          evs: '4 HP / 252 Atk / 252 Spe',
+          nature: 'Adamant',
+          moves: ['Close Combat', 'Dire Claw', 'Acrobatics', 'Protect'],
+        },
+        {
+          species: 'Heatran',
+          item: 'Leftovers',
+          ability: 'Flash Fire',
+          level: 96,
+          teraType: 'Grass',
+          evs: '252 HP / 252 SpA / 4 SpD',
+          nature: 'Modest',
+          ivs: '0 Atk',
+          moves: ['Heat Wave', 'Earth Power', 'Flash Cannon', 'Protect'],
+        },
+        makeCastformAce('Grass', ['Energy Ball', 'Flamethrower', 'Ice Beam', 'Protect']),
+      ],
+      scriptedRules: [
+        {
+          id: 'wx-grassy-t1-rilla',
+          turn: 1,
+          actorSpecies: 'Rillaboom',
+          forceMoveId: 'fakeout',
+          targetSpec: 'slot:1',
+          once: true,
+          description: 'Apertura Hierba: Rillaboom frena al Slot 1 con Fake Out mientras Sneasler activa Unburden.',
+          tauntLine: '«¡Semilla Hierba + Liviano + Sorpresa! ¡Combo de libro de OU mientras me tomo mi bebida energética!»',
+        },
+        {
+          id: 'wx-grassy-castform-entry',
+          actorSpecies: 'Castform',
+          onFirstActiveTurn: true,
+          forceMoveId: 'energyball',
+          once: true,
+          description: 'Entrada del As Castform ★: dispara Energibola potenciada por el Campo de Hierba.',
+          tauntLine: '«¡Cura gratis cada turno y Energibola Tera Planta! ¡Castform es el verdadero rey del meta!»',
+        },
+      ],
+    },
+    psychic: {
+      key: 'psychic',
+      label: 'Campo Psíquico',
+      shortTag: 'Terreno 3/4 · Psíquico',
+      arenaTheme: 'honor-duel-hall',
+      terrain: 'psychicterrain',
+      bannerLog:
+        '🔮 ¡Campo Psíquico Activo! Bloquea toda prioridad contra Pokémon en tierra, potencia Psíquico (+30%) y convierte Vasta Fuerza (Expanding Force) en un ataque de área brutal.',
+      lessonNote:
+        'Campo Psíquico anula movimientos con prioridad (Fake Out, Sucker Punch, Extreme Speed) y multiplica Expanding Force convirtiéndolo en ataque doble.',
+      rivalSummary: 'Indeedee-F · Armarouge · Hatterene · Castform ★ Nv.105',
+      rivalBlocks: [
+        {
+          species: 'Indeedee-F',
+          item: 'Psychic Seed',
+          ability: 'Psychic Surge',
+          level: 96,
+          teraType: 'Fairy',
+          evs: '252 HP / 252 Def / 4 SpD',
+          nature: 'Bold',
+          ivs: '0 Atk',
+          moves: ['Follow Me', 'Helping Hand', 'Dazzling Gleam', 'Trick Room'],
+        },
+        {
+          species: 'Armarouge',
+          item: 'Focus Sash',
+          ability: 'Flash Fire',
+          level: 96,
+          teraType: 'Psychic',
+          evs: '4 HP / 252 SpA / 252 Spe',
+          nature: 'Modest',
+          ivs: '0 Atk',
+          moves: ['Expanding Force', 'Heat Wave', 'Armor Cannon', 'Protect'],
+        },
+        {
+          species: 'Hatterene',
+          item: 'Life Orb',
+          ability: 'Magic Bounce',
+          level: 96,
+          teraType: 'Psychic',
+          evs: '252 HP / 252 SpA / 4 SpD',
+          nature: 'Quiet',
+          ivs: '0 Atk / 0 Spe',
+          moves: ['Expanding Force', 'Dazzling Gleam', 'Mystical Fire', 'Protect'],
+        },
+        makeCastformAce('Psychic', ['Shadow Ball', 'Flamethrower', 'Ice Beam', 'Protect']),
+      ],
+      scriptedRules: [
+        {
+          id: 'wx-psy-t1-indeedee',
+          turn: 1,
+          actorSpecies: 'Indeedee-F',
+          forceMoveId: 'helpinghand',
+          once: true,
+          description: 'Apertura Psíquica: Indeedee-F potencia el Expanding Force en área de Armarouge.',
+          tauntLine: '«¡Psicospam de VGC en un botón! ¡Indeedee Refuerzo + Armarouge Vasta Fuerza!»',
+        },
+        {
+          id: 'wx-psy-t1-arma',
+          turn: 1,
+          actorSpecies: 'Armarouge',
+          forceMoveId: 'expandingforce',
+          once: true,
+          description: 'Apertura Psíquica: Armarouge dispara Expanding Force en área bajo Campo Psíquico.',
+          tauntLine: '«¡Adiós a tus prioridades! ¡Vasta Fuerza doble a todo el campo!»',
+        },
+        {
+          id: 'wx-psy-castform-entry',
+          actorSpecies: 'Castform',
+          onFirstActiveTurn: true,
+          forceMoveId: 'shadowball',
+          once: true,
+          description: 'Entrada del As Castform ★: cobertura especial protegida contra prioridad.',
+          tauntLine: '«¡Ni con golpes prioritarios puedes tocar a mi Castform en Campo Psíquico!»',
+        },
+      ],
+    },
+    misty: {
+      key: 'misty',
+      label: 'Campo de Niebla',
+      shortTag: 'Terreno 4/4 · Niebla',
+      arenaTheme: 'banquet-hall',
+      terrain: 'mistyterrain',
+      bannerLog:
+        '🌫️ ¡Campo de Niebla Activo! Bloquea todos los problemas de estado en tierra (quemadura, parálisis, sueño, veneno) y reduce a la mitad el daño Dragón.',
+      lessonNote:
+        'Campo de Niebla vuelve inmunes a estados alterados a los Pokémon en tierra (inutilizando Will-O-Wisp/Spore) y corta a la mitad el daño de tipo Dragón.',
+      rivalSummary: 'Weezing-Galar · Goodra-Hisui · Grimmsnarl · Castform ★ Nv.105',
+      rivalBlocks: [
+        {
+          species: 'Weezing-Galar',
+          item: 'Sitrus Berry',
+          ability: 'Misty Surge',
+          level: 96,
+          teraType: 'Steel',
+          evs: '252 HP / 172 Def / 84 SpD',
+          nature: 'Bold',
+          ivs: '0 Atk',
+          moves: ['Strange Steam', 'Sludge Bomb', 'Taunt', 'Protect'],
+        },
+        {
+          species: 'Goodra-Hisui',
+          item: 'Leftovers',
+          ability: 'Shell Armor',
+          level: 96,
+          teraType: 'Water',
+          evs: '252 HP / 252 Def / 4 SpD',
+          nature: 'Bold',
+          ivs: '0 Atk',
+          moves: ['Heavy Slam', 'Body Press', 'Shelter', 'Protect'],
+        },
+        {
+          species: 'Grimmsnarl',
+          item: 'Light Clay',
+          ability: 'Prankster',
+          level: 96,
+          teraType: 'Fairy',
+          evs: '252 HP / 128 Def / 128 SpD',
+          nature: 'Careful',
+          moves: ['Reflect', 'Light Screen', 'Spirit Break', 'Parting Shot'],
+        },
+        makeCastformAce('Fairy', ['Flamethrower', 'Ice Beam', 'Thunderbolt', 'Protect']),
+      ],
+      scriptedRules: [
+        {
+          id: 'wx-misty-t1-weezing',
+          turn: 1,
+          actorSpecies: 'Weezing-Galar',
+          forceMoveId: 'strangesteam',
+          once: true,
+          description: 'Apertura Niebla: Weezing-Galar presiona mientras la niebla bloquea quemaduras y venenos.',
+          tauntLine: '«¿Intentas quemarme con Fuego Fatuo? ¡La niebla cancela estados, bro! ¡Weezing, Cautivapor!»',
+        },
+        {
+          id: 'wx-misty-castform-entry',
+          actorSpecies: 'Castform',
+          onFirstActiveTurn: true,
+          forceMoveId: 'icebeam',
+          once: true,
+          description: 'Entrada del As Castform ★: cobertura BoltBeam libre de problemas de estado.',
+          tauntLine: '«¡Inmune a estados y con cobertura perfecta! ¡Mi Castform es nivel Uber en el corazón!»',
+        },
+      ],
+    },
+  };
+
+  const spec = modeCatalog[modeKey];
+
+  return {
+    chapterId: 'challenge-weather-terrains',
+    format: 'doubles',
+    formatId: 'gen9doublescustomgame',
+    formatLabel: `4v4 Dobles · ${spec.label}`,
+    reserveAsLastAceSpecies: 'Castform',
+    playerName: 'Príncipe Heredero',
+    playerCharId: 'prince',
+    rivalName: 'El Estratega Solar',
+    rivalTitle: `Domo de Simulación · ${spec.shortTag}`,
+    rivalCharId: 'solar_strategist',
+    rivalProfile: {
+      name: 'El Estratega Solar',
+      title: `Tirano del Ladder OU · ${spec.label}`,
+      bio: 'Niño mimado en pijama manchada, pantuflas de Snorlax, visor VR y seis pantallas dentro de una cabina con aire acondicionado. Jura que Castform es el verdadero dios del metagame.',
+      tacticalInsight: spec.lessonNote,
+      archetypeTag: `Desafío · ${spec.shortTag}`,
+    },
+    arenaTheme: spec.arenaTheme,
+    playerTeamSummary: 'Escuadrón Versátil de Galar (Gardevoir, Arcanine, Milotic, Corviknight)',
+    rivalTeamSummary: spec.rivalSummary,
+    playerShowdownPaste: buildShowdownPaste(playerBlocks),
+    rivalShowdownPaste: buildShowdownPaste(spec.rivalBlocks),
+    rivalIntel: {
+      visibleSpeciesCount: 4,
+      totalSlots: 4,
+      intelLabel: `${spec.shortTag} · 4/4 Especies`,
+      intelNote: spec.lessonNote,
+      levelCap: 100,
+      hasBossAce: true,
+      bossAceWarning: 'Castform ★ (Nv. 105 · Predicción) sale al final como el As pretencioso de su cabina.',
+      aiScriptHint: `Condición inicial activa desde el Turno 0: ${spec.label}. Aprovecha o neutraliza sus multiplicadores.`,
+    },
+    puzzleConditions: {
+      weather: spec.weather,
+      terrain: spec.terrain,
+      bannerLog: spec.bannerLog,
+    },
+    scriptedEnemyRules: spec.scriptedRules,
+    traces: [
+      {
+        id: 'weather-terrain-mode',
+        category: 'rival-team',
+        choiceLabel: `Simulación elegida: ${spec.label}`,
+        flagKey: 'climate_mode',
+        flagValue: spec.key,
+        effectTitle: `${spec.shortTag} + As Castform ★ (Nv. 105)`,
+        effectDetail: spec.lessonNote,
       },
     ],
     flags,

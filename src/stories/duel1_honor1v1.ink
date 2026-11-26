@@ -3,28 +3,31 @@ VAR rival_read = "ironcrown"
 -> salon_duelo
 
 === salon_duelo ===
-Las puertas de roble de la Sala de Juicio se cierran con un eco largo que recorre el mármol. El protocolo de la corte es antiguo y seco: tres Poké Balls sobre el terciopelo, pero solo una tocará la arena. # bg: honor-duel-hall # speaker: Narrador # char: prince # side: left # pokemon: gallade # mood: serious
-Sin relevos, sin banca, sin segundas oportunidades. Cuando suene la campana, el primero que caiga pierde el reclamo ante el consejo. # bg: honor-duel-hall # speaker: Narrador # char: prince # side: left # pokemon: metagross # mood: serious
-Frente a ti, el Duelista de la Corte acomoda sus tres cápsulas con precisión ensayada y levanta la barbilla con serenidad aristocrática. # bg: honor-duel-hall # speaker: Narrador # char: assassin # side: right # pokemon: none # mood: smug
-«Tres cartas sobre la mesa, Alteza, y una sola jugada. Si parpadeas antes de la campana, el juicio habrá terminado antes del segundo respiro.» # bg: honor-duel-hall # speaker: Duelista de la Corte # char: assassin # side: right # pokemon: none # mood: smug
-Apenas quedan unos segundos de silencio. Sus dedos rozan apenas el borde del cinturón, traicionando una mínima preferencia en su postura. ¿En qué gesto decides fijar tu atención? # bg: honor-duel-hall # speaker: Narrador # char: prince # side: left # pokemon: primarina # mood: serious
+Las puertas de roble de la Sala de Juicio se abren de golpe, interrumpiendo la audiencia del consejo. El sonido seco de una lanza al golpear el mármol apaga todas las conversaciones del salón. # bg: honor-duel-hall # speaker: Narrador # char: prince # side: left # pokemon: none # mood: serious
+Al centro del pasillo permanece de pie una guerrera de armadura bronceada y cintas carmesí, con el emblema dorado de Falinks sobre el hombro izquierdo. Trae polvo de caminos largos en las botas y una determinación sin fisuras en la mirada. # bg: honor-duel-hall # speaker: Narrador # char: court_duelist # side: right # pokemon: none # mood: serious
+«Viajé tres semanas desde las tierras sometidas del sur para mirar a la cara al heredero de este imperio.» Apunta la lanza hacia el estrado real sin que le tiemble el pulso. «Tu corona se alimenta de los tributos de mi pueblo mientras aquí se brindan discursos elegantes.» # bg: honor-duel-hall # speaker: La Duelista de la Frontera # char: court_duelist # side: right # pokemon: none # mood: fierce
+Los guardias avanzan con las manos en sus Poké Balls, pero levantas un brazo para detenerlos. La ley antigua de la corte es clara: un agravio de sangre no puede ser rechazado por quien aspira al trono. # bg: honor-duel-hall # speaker: Narrador # char: prince # side: left # pokemon: gallade # mood: serious
+«Si vienes a cobrar la deuda de mi casa, hazlo conmigo, no con la guardia.» Desciendes las escaleras de mármol hasta el círculo de piedra. «Dime tus términos.» # bg: honor-duel-hall # speaker: Príncipe Heredero # char: prince # side: left # pokemon: metagross # mood: serious
+Ella arroja tres Poké Balls sobre el terciopelo negro del altar, dejando claro el viejo código: tres representantes a la vista, pero solo uno entra al círculo. Sin relevos, sin clemencia y sin salida para quien caiga. # bg: honor-duel-hall # speaker: Narrador # char: court_duelist # side: right # pokemon: none # mood: serious
+«Un combate uno contra uno hasta el final, heredero. Si caigo aquí, mi sangre cierra la cuenta. Pero si te derroto frente a tu propia corte, mi pueblo jamás volverá a arrodillarse ante Galar.» # bg: honor-duel-hall # speaker: La Duelista de la Frontera # char: court_duelist # side: right # pokemon: none # mood: fierce
+El salón queda en un silencio absoluto antes de la campana. Ella no se esconde tras máscaras ni burlas, pero cada fibra de su postura delata qué clase de golpe piensa lanzar en el primer respiro. ¿Qué detalle observas antes de elegir? # bg: honor-duel-hall # speaker: Narrador # char: prince # side: left # pokemon: primarina # mood: serious
 
-* [Observar el brillo frío que oculta cerca de su mano derecha]
+* [Fijar la vista en la cápsula metálica fría que roza su guante derecho]
     ~ rival_read = "ironcrown"
-    Un reflejo metálico casi imperceptible se escapa entre sus dedos enguantados; no busca aguantar, sino acelerar el pulso desde el primer segundo. # bg: honor-duel-hall # speaker: Narrador # char: prince # side: left # pokemon: metagross # mood: confident
-    «Entiendo... apuesta por la frialdad del metal.» # bg: honor-duel-hall # speaker: Príncipe Heredero # char: prince # side: left # pokemon: metagross # mood: confident
+    Un reflejo helado parpadea junto a sus nudillos: no busca un intercambio largo, sino cortar la distancia con una ráfaga veloz y quirúrgica desde el primer instante. # bg: honor-duel-hall # speaker: Narrador # char: prince # side: left # pokemon: metagross # mood: confident
+    «Entiendo. Viene decidida a quebrar cualquier guardia con velocidad fría.» # bg: honor-duel-hall # speaker: Príncipe Heredero # char: prince # side: left # pokemon: metagross # mood: confident
     -> cierre_1v1
-* [Escuchar la calma pesada de su respiración al centro del círculo]
+* [Escuchar el ritmo sereno de su respiración mientras afirma las botas en el centro]
     ~ rival_read = "skeledirge"
-    Su peso descansa sobre los talones, sin prisa alguna; la postura de alguien que planea quedarse quieto y ver cómo te desgastas contra su muro. # bg: honor-duel-hall # speaker: Narrador # char: prince # side: left # pokemon: primarina # mood: confident
-    «Quiere que nos desesperemos contra su resistencia. No le daremos ese gusto.» # bg: honor-duel-hall # speaker: Príncipe Heredero # char: prince # side: left # pokemon: primarina # mood: confident
+    No inclina el cuerpo hacia adelante; planta los pies con la calma de quien piensa aguantar el primer choque y desgastarte poco a poco hasta que el fuego te consuma. # bg: honor-duel-hall # speaker: Narrador # char: prince # side: left # pokemon: primarina # mood: confident
+    «No tiene prisa. Piensa resistir nuestra embestida y devolverla multiplicada.» # bg: honor-duel-hall # speaker: Príncipe Heredero # char: prince # side: left # pokemon: primarina # mood: confident
     -> cierre_1v1
-* [Vigilar la inclinación tensa de su hombro izquierdo hacia adelante]
+* [Vigilar la tensión contenida en su hombro izquierdo, lista para una estocada brutal]
     ~ rival_read = "urshifu"
-    Aprieta la mandíbula y apoya el peso en la punta de los pies, listo para lanzarse de cabeza a romper cualquier defensa de un solo golpe seco. # bg: honor-duel-hall # speaker: Narrador # char: prince # side: left # pokemon: gallade # mood: confident
-    «Fuerza bruta sin rodeos... si acierta el primer golpe, se acaba.» # bg: honor-duel-hall # speaker: Príncipe Heredero # char: prince # side: left # pokemon: gallade # mood: confident
+    Aprieta el mango de la lanza contra el suelo y baja el mentón: toda su apuesta está puesta en un solo impacto devastador capaz de partir cualquier escudo de cuajo. # bg: honor-duel-hall # speaker: Narrador # char: prince # side: left # pokemon: gallade # mood: confident
+    «Un solo golpe para cerrar la historia... si dudamos un segundo, termina ahí.» # bg: honor-duel-hall # speaker: Príncipe Heredero # char: prince # side: left # pokemon: gallade # mood: confident
     -> cierre_1v1
 
 === cierre_1v1 ===
-La campana de bronce resuena en la bóveda. Ambos contendientes toman su decisión final con la vista fija en el contrario. # bg: honor-duel-hall # speaker: Narrador # char: prince # side: left # pokemon: none # mood: serious
+La campana de bronce retumba en la sala del consejo. El heredero del imperio y la guerrera de la frontera eligen a su único campeón. # bg: honor-duel-hall # speaker: Narrador # char: court_duelist # side: right # pokemon: none # mood: serious
 -> END

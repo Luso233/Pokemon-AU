@@ -17,6 +17,7 @@ import {
   Wand2,
   Wrench,
 } from 'lucide-react';
+import { CHAPTERS } from '../data/chapters';
 import { getActiveProviderLabel } from '../engine/aiProvider';
 import { CharacterPortrait } from './CharacterPortrait';
 import type { AISettings, PlayerSaveProfile } from '../types/game';
@@ -150,7 +151,7 @@ export const HomePage: React.FC<HomePageProps> = ({
             onClick={onOpenChapters}
             className="rounded-xl border border-slate-700/80 bg-slate-900/70 px-3.5 py-2 text-xs font-semibold text-slate-200 transition hover:border-amber-400/50 hover:text-amber-200 cursor-pointer"
           >
-            Capítulos ({completedCount}/15)
+            Capítulos ({completedCount}/{CHAPTERS.length})
           </button>
         </div>
       </header>

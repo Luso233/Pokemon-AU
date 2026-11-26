@@ -19,6 +19,7 @@ import {
   resolveThreeKnightsBattle,
   resolveTriplesPhalanxBattle,
   resolveVgcWorlds2024Battle,
+  resolveWeatherTerrainsChallengeBattle,
 } from '../src/engine/teamBuilderTree';
 import {
   computeSpeedRange,
@@ -1226,7 +1227,92 @@ async function main() {
     `  OK: Rat-Man (Shedinja Tera Electric + Air Balloon + Prankster Smeargle + Mega Sableye + Wobbuffet + Zoroark Lv.118), Difficulty (114/118/122), Variants & Reactive Dialogues verified (turns=${resRat.turn})`
   );
 
-  console.log('\nALL 20 ENGINE, ECONOMY, TEAMBUILDER & NPC PERSONALITY SUITES PASSED!');
+  console.log('\n=== 21. Nuevos Personajes (Duelista, Estratega Solar, Guardián) & Desafío 8 Climas/Terrenos (Castform ★) ===');
+  const duelNewCfg = resolveDuel1Honor1v1Battle({ rival_read: 'ironcrown' });
+  const sunNewCfg = resolvePuzzle1SunTrapBattle({ puzzle_hint: 'show' });
+  const regiNewCfg = resolvePuzzle2RegigigasBattle({ puzzle2_lead: 'dragapult_farigiraf' });
+  if (
+    duelNewCfg.rivalCharId !== 'court_duelist' ||
+    sunNewCfg.rivalCharId !== 'solar_strategist' ||
+    regiNewCfg.rivalCharId !== 'colossus_keeper' ||
+    regiNewCfg.rivalName !== 'Guardián del Coloso'
+  ) {
+    throw new Error(
+      `Expected updated rival identities, got duel=${duelNewCfg.rivalCharId}, sun=${sunNewCfg.rivalCharId}, regi=${regiNewCfg.rivalCharId}/${regiNewCfg.rivalName}`
+    );
+  }
+
+  // Test Ink branching for challenge_weather_terrains.ink -> pick Rain (choice 0 -> choice 1)
+  const wxInk = readFileSync(resolve('src/stories/challenge_weather_terrains.ink'), 'utf8');
+  const wxRunner = new InkVNRunner(wxInk);
+  let wxFrame = wxRunner.step();
+  let wxStepIdx = 0;
+  while (!wxFrame.isEnded) {
+    if (wxFrame.canContinue) wxFrame = wxRunner.step();
+    else if (wxFrame.choices.length > 0) {
+      // First menu: 0 = 4 Climas; Second menu: 1 = Lluvia Torrencial
+      wxFrame = wxRunner.choose(wxStepIdx === 0 ? 0 : 1);
+      wxStepIdx++;
+    }
+  }
+  if (wxFrame.flags.climate_mode !== 'rain') {
+    throw new Error(`Expected climate_mode="rain" from Ink choices, got ${String(wxFrame.flags.climate_mode)}`);
+  }
+
+  // Run 3 distinct weather/terrain simulations in @pkmn/sim: rain, snow, psychic!
+  const wxRainCfg = applyNpcRunModifiers(
+    resolveWeatherTerrainsChallengeBattle({ climate_mode: 'rain' }),
+    'kaizo',
+    'canonical'
+  );
+  const { turn1Snap: t1WxRain, finalSnap: resWxRain } = await runFullSimMatch(
+    '8 Elements — Rain + Castform Ace',
+    wxRainCfg,
+    { maxTurns: 35 }
+  );
+  if (
+    wxRainCfg.rivalCharId !== 'solar_strategist' ||
+    wxRainCfg.reserveAsLastAceSpecies !== 'Castform' ||
+    !wxRainCfg.rivalShowdownPaste.includes('Level: 105') ||
+    !t1WxRain?.weather.includes('Lluvia')
+  ) {
+    throw new Error(
+      `Rain challenge failed: char=${wxRainCfg.rivalCharId} ace=${wxRainCfg.reserveAsLastAceSpecies} weather=${t1WxRain?.weather}`
+    );
+  }
+
+  const wxSnowCfg = resolveWeatherTerrainsChallengeBattle({ climate_mode: 'snow' });
+  const { turn1Snap: t1WxSnow } = await runFullSimMatch(
+    '8 Elements — Snow + Castform Ace',
+    wxSnowCfg,
+    { maxTurns: 25 }
+  );
+  if (!t1WxSnow?.weather.includes('Nieve')) {
+    throw new Error(`Snow challenge expected weather 'Nieve', got '${t1WxSnow?.weather}'`);
+  }
+
+  const wxPsyCfg = resolveWeatherTerrainsChallengeBattle({ climate_mode: 'psychic' });
+  const { turn1Snap: t1WxPsy } = await runFullSimMatch(
+    '8 Elements — Psychic Terrain + Castform Ace',
+    wxPsyCfg,
+    { maxTurns: 25 }
+  );
+  if (!t1WxPsy?.terrain.includes('Psíquico')) {
+    throw new Error(`Psychic terrain challenge expected terrain 'Campo Psíquico', got '${t1WxPsy?.terrain}'`);
+  }
+
+  // Also ensure all 8 modes resolve cleanly with Castform ★ Lv.105
+  for (const mode of ['sun', 'rain', 'sand', 'snow', 'electric', 'grassy', 'psychic', 'misty']) {
+    const cfg = resolveWeatherTerrainsChallengeBattle({ climate_mode: mode });
+    if (!cfg.rivalShowdownPaste.includes('Castform ★ (Castform)') || !cfg.rivalShowdownPaste.includes('Level: 105')) {
+      throw new Error(`Expected Castform ★ Lv.105 in climate_mode=${mode}`);
+    }
+  }
+  console.log(
+    `  OK: Duelista/Estratega Solar/Guardián verified + all 8 Weather/Terrain modes (Rain='${t1WxRain.weather}', Snow='${t1WxSnow.weather}', Psychic='${t1WxPsy.terrain}', Castform ★ Nv.105 Ace, turns=${resWxRain.turn})`
+  );
+
+  console.log('\nALL 21 ENGINE, ECONOMY, TEAMBUILDER, NPC & WEATHER/TERRAIN SUITES PASSED!');
 }
 
 let allSuitesCompleted = false;

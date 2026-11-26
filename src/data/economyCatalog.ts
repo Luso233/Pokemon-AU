@@ -43,6 +43,15 @@ export const CHAPTER_UNLOCK_RULES: Record<string, ChapterUnlockRule> = {
     replayReward: 350,
     rewardItem: 'Choice Scarf',
   },
+  'challenge-weather-terrains': {
+    chapterId: 'challenge-weather-terrains',
+    prerequisiteChapterIds: ['puzzle-01-sun-trap'],
+    unlockCostCoins: 1100,
+    requirementLabel: 'Completa el Puzzle 01',
+    firstClearReward: 1800,
+    replayReward: 400,
+    rewardItem: 'Clear Amulet',
+  },
   'flashback-lc-champion': {
     chapterId: 'flashback-lc-champion',
     unlockedByDefault: true,

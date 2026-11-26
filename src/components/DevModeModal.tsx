@@ -9,7 +9,7 @@ import {
   X,
   Zap,
 } from 'lucide-react';
-import { CURRENCY_SHORT } from '../data/economyCatalog';
+import { CHAPTER_UNLOCK_RULES, CURRENCY_SHORT } from '../data/economyCatalog';
 import type { PlayerSaveProfile } from '../types/game';
 
 interface DevModeModalProps {
@@ -36,6 +36,7 @@ export const DevModeModal: React.FC<DevModeModalProps> = ({
 
   if (!open) return null;
 
+  const totalChapters = Object.keys(CHAPTER_UNLOCK_RULES).length;
   const completedCount = Object.values(profile.completedChapters).filter(
     (p) => p.completed
   ).length;
@@ -76,7 +77,7 @@ export const DevModeModal: React.FC<DevModeModalProps> = ({
           <div>
             <p className="text-[10px] uppercase text-slate-500">Capítulos</p>
             <p className="font-mono-code text-sm font-bold text-sky-300">
-              {profile.unlockedChapters.length}/15 ({completedCount} ✓)
+              {profile.unlockedChapters.length}/{totalChapters} ({completedCount} ✓)
             </p>
           </div>
           <div>

@@ -3,11 +3,12 @@ VAR puzzle2_lead = "dragapult_farigiraf"
 -> camara_sellada
 
 === camara_sellada ===
-Las puertas rúnicas de la cámara subterránea se abren con un estruendo grave que suelta polvo centenario del techo. En la oscuridad helada, seis puntos de luz se encienden uno tras otro y el suelo entero retumba con un solo paso. # bg: titan-sanctum # speaker: Narrador # char: prince # side: left # pokemon: none
-Al centro del santuario se alza Regigigas. No parece adormecido ni lento: las marcas antiguas en su torso ya palpitan a pleno ritmo, envueltas en un velo traslúcido, anillos de agua y raíces luminosas que beben directamente de la piedra. # bg: titan-sanctum # speaker: Narrador # char: colossus_keeper # side: right # pokemon: regigigas
-«Llegaste tarde, heredero.» El Custodio inclina la capucha desde el altar superior mientras cinco siluetas menores se arrodillan en círculo alrededor del coloso. «El despertar ya terminó. Ahora la cámara entera respira para mantenerlo en pie.» # bg: titan-sanctum # speaker: Custodio del Coloso # char: colossus_keeper # side: right # pokemon: regigigas
-El aire vibra con una presión casi física. Golpear a ciegas a un titán así solo servirá para ver cómo sus heridas se cierran una y otra vez. # bg: titan-sanctum # speaker: Narrador # char: prince # side: left # pokemon: dragapult
-Miras tus seis Poké Balls. Cada compañero del escuadrón domina un recurso distinto para desarmar el ritual; solo queda elegir quién cruza primero el umbral. # bg: titan-sanctum # speaker: Príncipe Heredero # char: prince # side: left # pokemon: farigiraf
+Las puertas rúnicas de la cámara subterránea se abren con un estruendo grave que suelta polvo milenario del techo. En la penumbra helada, seis puntos de luz se encienden uno tras otro... y una segunda silueta, casi igual de inmensa, da un paso hacia adelante. # bg: titan-sanctum # speaker: Narrador # char: prince # side: left # pokemon: none
+No es un humano. Es un ente colosal, pálido como el mármol antiguo, cubierto de musgo vivo, runas incandescentes grabadas en la piel y hombreras de piedra incrustadas con las mismas gemas del titán. Sus ojos dorados te observan con una lucidez serena y abrumadora. # bg: titan-sanctum # speaker: Narrador # char: colossus_keeper # side: right # pokemon: none
+En su mano derecha gira suspendida una llave rúnica radiante; en la izquierda descansa un martillo de piedra capaz de quebrar columnas. Detrás de él, Regigigas ya está de pie, libre de su sopor ancestral, envuelto en anillos de agua, raíces vivas y un velo traslúcido que late al ritmo de la cámara. # bg: titan-sanctum # speaker: Narrador # char: colossus_keeper # side: right # pokemon: regigigas
+«Llegas tarde, hijo de reyes.» Su voz no suena a furia ni a locura, sino a la calma pesada de las montañas que vieron nacer los continentes. «He girado la llave. Las ataduras que adormecían al Coloso ya no existen.» # bg: titan-sanctum # speaker: Guardián del Coloso # char: colossus_keeper # side: right # pokemon: regigigas
+Cinco presencias menores flotan en silencio alrededor del santuario, respondiendo a un leve movimiento de los dedos del Guardián. «No te subestimo, mortal. Si tu mente es tan afilada como presumen las coronas, desarma cada capa de mi obra antes de que el peso del titán te aplaste.» # bg: titan-sanctum # speaker: Guardián del Coloso # char: colossus_keeper # side: right # pokemon: regigigas
+El aire vibra con una presión casi física. Golpear a ciegas a una fortaleza así solo servirá para ver cómo sus heridas se cierran una y otra vez. Miras tus seis Poké Balls: solo queda decidir quién cruza primero el umbral. # bg: titan-sanctum # speaker: Narrador # char: prince # side: left # pokemon: dragapult
 
 * [Entrar con Dragapult y Farigiraf para cortar el pulso del santuario desde el inicio]
     ~ puzzle2_lead = "dragapult_farigiraf"
@@ -25,5 +26,5 @@ Miras tus seis Poké Balls. Cada compañero del escuadrón domina un recurso dis
     -> inicio_puzzle
 
 === inicio_puzzle ===
-El Custodio levanta el báculo de piedra y el rugido mecánico de Regigigas sacude las columnas del templo. # bg: titan-sanctum # speaker: Narrador # char: colossus_keeper # side: right # pokemon: regigigas
+El Guardián alza la llave rúnica hacia la bóveda; las cadenas ancestrales se deshacen en polvo luminoso y el rugido de Regigigas sacude todo el santuario. # bg: titan-sanctum # speaker: Narrador # char: colossus_keeper # side: right # pokemon: regigigas
 -> END

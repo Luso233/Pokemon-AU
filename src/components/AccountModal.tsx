@@ -28,6 +28,7 @@ import {
   type FirebaseWebConfig,
 } from '../engine/firebaseClient';
 import type { PlayerSaveProfile } from '../types/game';
+import { CHAPTER_UNLOCK_RULES } from '../data/economyCatalog';
 
 interface AccountModalProps {
   open: boolean;
@@ -175,7 +176,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
           <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-2.5">
             <p className="text-[10px] uppercase text-slate-400">Capítulos</p>
             <p className="font-mono-code mt-0.5 text-sm font-extrabold text-emerald-300">
-              {profile.unlockedChapters.length}/15
+              {profile.unlockedChapters.length}/{Object.keys(CHAPTER_UNLOCK_RULES).length}
             </p>
           </div>
           <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-2.5">

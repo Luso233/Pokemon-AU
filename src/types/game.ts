@@ -155,6 +155,8 @@ export type CharacterId =
   | 'champion'
   | 'dark_commander'
   | 'rat_saboteur'
+  | 'court_duelist'
+  | 'solar_strategist'
   | 'dock_militia'
   | 'mine_sapper'
   | 'corrupt_captain'

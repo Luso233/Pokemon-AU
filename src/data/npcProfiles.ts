@@ -521,23 +521,140 @@ export const NPC_REGISTRY: Record<CharacterId, NpcDefinition> = {
 
   colossus_keeper: {
     id: 'colossus_keeper',
-    name: 'Custodio del Coloso',
-    title: 'Guardián del Santuario Sellado',
-    bio: 'Sacerdote que preparó el despertar del titán con cinco acólitos dedicados a mantenerlo inmortal.',
-    tacticalInsight: 'Todos sus acompañantes existen solo para curar, blindar y alimentar al coloso.',
-    archetypeTag: 'Jefe · Santuario',
+    name: 'Guardián del Coloso',
+    title: 'Ente Antiguo · Portador de la Llave Rúnica',
+    bio: 'Ser colosal, pálido y no humano cubierto de musgo vivo y runas doradas. Posee una inteligencia ancestral y la llave que rompe las ataduras de Regigigas, anulando su sopor.',
+    tacticalInsight:
+      'Su mente fría dirige al coro de guardianes con precisión absoluta para mantener inmortal al Coloso despertado.',
+    archetypeTag: 'Jefe · Santuario Antiguo',
     personality: {
-      styleName: 'Coro del Titán',
-      aggression: 0.55,
-      disruptionBias: 0.75,
-      protectBias: 0.72,
-      switchDiscipline: 0.45,
-      directiveSummary: 'Prioriza curar y potenciar al coloso sobre cualquier daño menor.',
+      styleName: 'Despertar del Titán',
+      aggression: 0.58,
+      disruptionBias: 0.78,
+      protectBias: 0.74,
+      switchDiscipline: 0.55,
+      directiveSummary:
+        'Blindaje rúnico y curación sincronizada para sostener a Regigigas liberado.',
+    },
+    socialLink: {
+      bondTrack: 'legend',
+      bondNote: 'Guardián milenario · Más antiguo que la Corona de Galar',
     },
     dialogues: {
-      onBattleStart: ['«El santuario entero respira por el Titán. Tu esfuerzo se disolverá contra la piedra.»'],
-      onSuperEffective: ['«Las runas absorberán incluso ese impacto... mientras el coro siga cantando.»'],
-      onDefeat: ['«Las seis luces se apagan... el coloso vuelve al sueño.»'],
+      onBattleStart: [
+        '«Las cadenas del sopor se han roto. Mide tu voluntad contra el peso de los continentes.»',
+      ],
+      onFirstFoeKO: [
+        '«Un eco se apaga, pero el corazón de piedra sigue latiendo sin freno.»',
+      ],
+      onPlayerFaint: [
+        '«La carne mortal cede rápido cuando intenta empujar una montaña.»',
+      ],
+      onSuperEffective: [
+        '«Ingenioso, hijo de reyes. Sin embargo, las runas aún responden a mi mano.»',
+      ],
+      onLowHp: [
+        '«Incluso agrietado, el Coloso no se arrodilla ante una corona joven.»',
+      ],
+      onDefeat: [
+        '«...Extraordinario. Has doblegado al titán sin sus cadenas. La llave volverá al silencio.»',
+      ],
+      onVictory: [
+        '«El santuario vuelve a cerrarse. Regresa cuando tu mente iguale tu ambición.»',
+      ],
+    },
+  },
+
+  court_duelist: {
+    id: 'court_duelist',
+    name: 'La Duelista de la Frontera',
+    title: 'Guerrera Insumisa · Duelo a Muerte 1v1',
+    bio: 'Guerrera curtida que cruzó medio continente hasta Galar para terminar con la subyugación de su pueblo. Desafía al heredero del imperio a un duelo 1v1 a muerte sin relevos ni clemencia.',
+    tacticalInsight:
+      'Pelea con convicción absoluta y cero miedo a arriesgarlo todo en el primer cruce. Si lees mal su postura antes de la campana, no habrá segundo turno.',
+    archetypeTag: 'Duelo a Muerte · 1v1',
+    personality: {
+      styleName: 'Estocada sin Retorno',
+      aggression: 0.88,
+      disruptionBias: 0.48,
+      protectBias: 0.25,
+      switchDiscipline: 0.5,
+      directiveSummary:
+        'Busca el golpe definitivo en duelos cerrados 1v1 sin concesiones.',
+    },
+    socialLink: {
+      bondTrack: 'noble-house',
+      canTagPartner: true,
+      bondNote: 'Líder fronteriza · Su respeto solo se gana en combate limpio',
+    },
+    dialogues: {
+      onBattleStart: [
+        '«Por mi tierra y por cada tributo que nos arrancó tu imperio... ¡demuestra si mereces esa corona!»',
+      ],
+      onPlayerFaint: [
+        '«Se acabó. Mi pueblo ya no bajará la cabeza ante Galar.»',
+      ],
+      onSuperEffective: [
+        '«¡Bien! Al menos el heredero sí sabe sostener una mirada cuando sangra.»',
+      ],
+      onLowHp: [
+        '«¡Mientras quede un aliento en pie, mi lanza no cae!»',
+      ],
+      onDefeat: [
+        '«...Me venciste limpio. No voy a olvidar este duelo, Príncipe. Asegúrate de que tu trono valga lo que cuesta.»',
+      ],
+      onVictory: [
+        '«Tu corte tiembla en silencio. Dile a tu imperio que la frontera despertó.»',
+      ],
+    },
+  },
+
+  solar_strategist: {
+    id: 'solar_strategist',
+    name: 'El Estratega Solar',
+    title: 'Tirano del Ladder OU · Cabina con A/C',
+    bio: 'Niño mimado en pijama manchada, pantuflas de Snorlax, visor VR y seis pantallas dentro de una cabina móvil con aire acondicionado. Obsesionado con el brainrot y los rankings de OU, pretende tomar el trono sin forjar jamás un vínculo real.',
+    tacticalInsight:
+      'Calcula sinergias de clima y terreno desde su sillón motorizado como si fuera una hoja de Excel, pero entra en pánico en cuanto le rompes el guion.',
+    archetypeTag: 'Sátira · Ladder OU & Climas',
+    personality: {
+      styleName: 'Tryhard de Cabina VR',
+      aggression: 0.78,
+      disruptionBias: 0.72,
+      protectBias: 0.45,
+      switchDiscipline: 0.62,
+      directiveSummary:
+        'Explota climas, terrenos y sinergias automáticas de ladder antes de sacar a su Castform presumido.',
+    },
+    socialLink: {
+      bondTrack: 'antagonist',
+      bondNote: 'Amenaza cómica · Cero vínculo, puro Wi-Fi y bebidas energéticas',
+    },
+    dialogues: {
+      onBattleStart: [
+        '«¡JAJA! ¡Bro, literalmente tengo aire acondicionado a 16 grados y seis cámaras HD! ¡Skill issue, Alteza!»',
+      ],
+      onFirstFoeKO: [
+        '«¡¿QUÉ?! ¡Eso fue hax puro! ¡Seguro estás usando trucos de palacio, qué cringe!»',
+      ],
+      onPlayerFaint: [
+        '«¡Ratio + L + te vas para el lobby! ¡El poder de la amistad no sirve contra mi setup!»',
+      ],
+      onSuperEffective: [
+        '«¡Oye, cálmate! ¡Se me derramó la bebida energética encima del joystick!»',
+      ],
+      onAceEntry: [
+        '«¡Prepárate para el verdadero dios incomprendido del clima! ¡Sal ya, Castform, humíllalo para mi stream!»',
+      ],
+      onLowHp: [
+        '«¡Lag! ¡Hay lag en el visor VR, eso no cuenta!»',
+      ],
+      onDefeat: [
+        '«¡NOOO! ¡Mi ELO! ¡Mi racha invicta! ¡Voy a reportar a la Corona en los foros!»',
+      ],
+      onVictory: [
+        '«¡GG EZ! ¡Ya tráiganme la corona aquí a la cabina que no me voy a parar del sillón!»',
+      ],
     },
   },
 
