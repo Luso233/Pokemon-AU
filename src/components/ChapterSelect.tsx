@@ -23,7 +23,10 @@ import {
 } from 'lucide-react';
 import { CHAPTERS } from '../data/chapters';
 import { CHAPTER_UNLOCK_RULES, CURRENCY_SHORT } from '../data/economyCatalog';
-import { CHAPTER_MAP_LOCATIONS } from '../data/worldGeopolitics';
+import {
+  CAMPAIGN_ROUTE_ORDER,
+  CHAPTER_MAP_LOCATIONS,
+} from '../data/worldGeopolitics';
 import { isChapterUnlocked } from '../engine/playerProfile';
 import type {
   ChapterCategory,
@@ -154,6 +157,21 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
     return set;
   }, [progress]);
 
+  // First unlocked & uncompleted chapter along the canonical Exile Campaign Route
+  const nextObjectiveChapterId = useMemo(() => {
+    for (const routeId of CAMPAIGN_ROUTE_ORDER) {
+      if (unlockedChapterIds.has(routeId) && !completedChapterIds.has(routeId)) {
+        return routeId;
+      }
+    }
+    for (const ch of CHAPTERS) {
+      if (unlockedChapterIds.has(ch.id) && !completedChapterIds.has(ch.id)) {
+        return ch.id;
+      }
+    }
+    return CHAPTERS[0]?.id ?? null;
+  }, [unlockedChapterIds, completedChapterIds]);
+
   const handleFocusChapterCard = (chapterId: string) => {
     setActiveFilter('all');
     setFocusedCardId(chapterId);
@@ -185,9 +203,9 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
         <div className="absolute bottom-0 left-1/4 h-96 w-[36rem] rounded-full bg-sky-600/10 blur-[120px]" />
       </div>
 
-      <div className="relative z-10 mx-auto max-w-[1440px] px-5 py-7 sm:px-6">
+      <div className="relative z-10 mx-auto max-w-[1440px] px-5 py-5 sm:px-6">
         {/* Header */}
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-slate-800/80 pb-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-3.5">
           <div className="flex items-center gap-4">
             <button
               onClick={onBackHome}
@@ -277,10 +295,11 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
         {/* Split War Room Layout: Sticky Civilization World Map (Left) + Scrollable Mission Grid (Right) */}
         <div className="grid gap-6 xl:grid-cols-12 xl:items-start">
           {/* Sticky Interactive Civilization Map */}
-          <div className="xl:sticky xl:top-5 xl:col-span-6">
+          <div className="xl:sticky xl:top-4 xl:col-span-6">
             <WorldWarMap
               chapters={CHAPTERS}
               hoveredChapterId={hoveredChapterId}
+              nextObjectiveChapterId={nextObjectiveChapterId}
               onHoverChapterPin={setHoveredChapterId}
               onFocusChapterCard={handleFocusChapterCard}
               onLaunchChapter={onSelectChapter}
@@ -373,7 +392,7 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
                             {/* Top Row: Clean Header + Single Large Spotlight Sprite */}
                             <div className="flex items-start justify-between gap-4">
                               <div className="min-w-0 flex-1">
-                                {/* 1. Clean Header: Chapter Label + 1 Format Badge */}
+                                {/* 1. Clean Header: Chapter Label + 1 Format Badge + Active Objective Pill */}
                                 <div className="mb-2 flex flex-wrap items-center gap-1.5">
                                   <span
                                     className={`rounded-lg px-2 py-0.5 text-[10px] font-bold tracking-wider ${accent.badge}`}
@@ -383,6 +402,11 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
                                   <span className="rounded-lg border border-slate-700/90 bg-slate-950/90 px-2 py-0.5 text-[10px] font-semibold text-slate-300">
                                     {chapter.formatLabel}
                                   </span>
+                                  {nextObjectiveChapterId === chapter.id && (
+                                    <span className="rounded-lg border border-amber-400/60 bg-amber-500/20 px-2 py-0.5 text-[9.5px] font-extrabold uppercase tracking-wider text-amber-200">
+                                      Objetivo Actual
+                                    </span>
+                                  )}
                                 </div>
 
                                 <h3 className="font-display text-lg font-bold leading-snug text-white">

@@ -4,7 +4,7 @@ VAR wave1_alive = 4
 -> tunel_entrada
 
 === tunel_entrada ===
-Minas de Galar, Nivel Profundo 4. Las lámparas de gas tiemblan colgadas de vigas viejas mientras el polvo de carbón flota espeso bajo la bóveda de roca. Más adelante, una barricada improvisada de barriles y vagonetas volcadas sella el túnel de escape. # bg: galar-mines # speaker: Narrador # char: prince # side: left # pokemon: arcanine # mood: serious
+Colonia Penal del Sur, Galerías Mineras de Kalgoorlie, Nivel Profundo 4. Las lámparas de gas tiemblan colgadas de vigas viejas mientras el polvo rojo flota espeso bajo la bóveda de roca. Más adelante, una barricada improvisada de barriles y vagonetas volcadas sella el túnel de escape hacia el desierto australiano. # bg: galar-mines # speaker: Narrador # char: prince # side: left # pokemon: arcanine # mood: serious
 Entre las sombras del andén surgen cascos tiznados y mechas encendidas chisporroteando en el suelo. El jefe de los zapadores apoya la bota sobre un cajón marcado con pólvora y silba hacia el fondo del corredor. # bg: galar-mines # speaker: Narrador # char: mine_sapper # side: right # pokemon: none # mood: confident
 «Hasta aquí llegó su paseo subterráneo, Alteza. Si no logra pasar por encima de nosotros, derrumbaremos el túnel entero sobre sus cabezas.» # bg: galar-mines # speaker: Jefe Zapador Rebelde # char: mine_sapper # side: right # pokemon: none # mood: confident
 Al fondo de la galería, más allá del polvo, se distinguen linternas disciplinadas y el golpe acompasado de botas militares acercándose por la boca de salida. Si rompes esta barricada, no habrá un segundo para detenerse ni curar heridas antes del siguiente choque. # bg: galar-mines # speaker: Narrador # char: prince # side: left # pokemon: dragapult # mood: serious

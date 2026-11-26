@@ -3,7 +3,7 @@ VAR steel_doctrine = "scarf_gholdengo"
 -> campo_estandartes
 
 === campo_estandartes ===
-El viento de las tierras altas hace restallar los estandartes de acero dorado frente a los pendones negros de la Casa Rebelde. Ningún tambor suena: en el viejo protocolo de Galar, los duelos entre linajes se libran bajo el silencio del cielo gris. # bg: banner-battlefield # speaker: Narrador # char: prince # side: left # pokemon: corviknight # mood: serious
+Apenas cruzas el canal hacia la frontera ocupada de Kalos, el viento costero hace restallar los estandartes de acero dorado frente a los pendones negros de la Casa Rebelde. Ningún tambor suena: incluso en el exilio, los viejos decretos de Galar se cobran bajo el silencio del cielo gris. # bg: banner-battlefield # speaker: Narrador # char: prince # side: left # pokemon: corviknight # mood: serious
 El decreto antiguo no admite excepciones. Cada casa debe responder únicamente con Pokémon que compartan el linaje de su insignia: Acero por la Corona, Siniestro por la rebelión. # bg: banner-battlefield # speaker: Narrador # char: dark_commander # side: right # pokemon: none # mood: ominous
 Al otro lado del llano, el Comandante Siniestro ajusta sus anteojos con guantes negros y apoya el peso en su bastón de cráneo, estudiando tu línea con cortesía glacial. # bg: banner-battlefield # speaker: Narrador # char: dark_commander # side: right # pokemon: none # mood: smug
 «Acero real contra estandarte negro, Alteza. Veamos si su armadura reluciente sigue pesando igual cuando el terreno empiece a morderles los talones.» # bg: banner-battlefield # speaker: Comandante Siniestro # char: dark_commander # side: right # pokemon: none # mood: smug
