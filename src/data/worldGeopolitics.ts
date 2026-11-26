@@ -63,7 +63,7 @@ export interface WorldBlocDefinition {
   center: [number, number];
   /** Label anchor [lon, lat] in global view. */
   labelCoords: [number, number];
-  /** Optional Atlantic/Pacific callout leader target [lon, lat] to keep Europe & Japan crisp. */
+  /** Optional Atlantic/Pacific callout leader target [lon, lat] to keep Europe & Tohjo crisp. */
   leaderTarget?: [number, number];
   /** Label text-anchor alignment when pulled out via leader line. */
   labelAlign?: 'start' | 'middle' | 'end';
@@ -85,27 +85,87 @@ export interface ChapterMapLocation {
   coords: [number, number];
   /** Camera zoom factor when hovering/selecting this chapter. */
   zoom: number;
-  /** Optional curved strategic arc from another point on Earth (e.g. Malvinas Naval Garrison or Hologram Link). */
+  /** Optional curved strategic arc from another point on Earth (e.g. Islas Bruma Naval Garrison or Hologram Link). */
   originArcFrom?: [number, number];
   originArcLabel?: string;
 }
+
+export interface WorldHistoryAct {
+  actNumber: number;
+  eraTag: string;
+  title: string;
+  summary: string;
+  keyConsequences: string[];
+}
+
+/**
+ * 4-Act Geopolitical Cohesion Chronicle:
+ * How Galar and the Compañía Real de Ultramar (CRU — dark precursor to Macro Cosmos)
+ * rotted the Pokémon world over 200 years, setting up the Golden-Hearted Prince vs. the Elder Bastard Brother.
+ */
+export const WORLD_HISTORY_ACTS: WorldHistoryAct[] = [
+  {
+    actNumber: 1,
+    eraTag: 'Hace 200 años',
+    title: 'Acto I · La Era del Saqueo y la Compañía Real de Ultramar (CRU)',
+    summary:
+      'Galar industrializa la energía Dinamax antes que nadie y delega el saqueo planetario a la Compañía Real de Ultramar (CRU), mega-corporación con ejército privado y precursora oscura de Macro Cosmos.',
+    keyConsequences: [
+      'Caída de Tamra: la CRU llegó como comerciante, desmanteló sus reinos y exportó masivamente a sus Copperajah como mano de obra esclava hacia Galar.',
+      'Fractura de Kemetia y Kalos: la CRU partió el corredor de Kemetia para saquear fósiles y especies salvajes, mientras humilló a Kalos en guerra y prohibió la Megaevolución.',
+    ],
+  },
+  {
+    actNumber: 2,
+    eraTag: 'Hace 80 años',
+    title: 'Acto II · Las Guerras de Extinción y el Monopolio del Último Ditto',
+    summary:
+      'Kovaria, Shentai y una joven Teselia intentaron frenar a Galar usando Pokémon como armas de destrucción masiva. El resultado fue un colapso ecológico global que dejó a la fauna al borde de la extinción.',
+    keyConsequences: [
+      'El Golpe Maestro de la CRU: capturaron al Último Ditto y levantaron el Black Site de Isla Æos para clonar especies con Energía Æos. Tener un Pokémon fuerte pasó de derecho a lujo vendido por la Corona.',
+      'Nacimiento de la Confederación Tohjo: al ver caer a Tamra, Kanto, Johto, Hoenn, Sinnoh y Kitakami enterraron sus rivalidades (estilo Restauración Meiji) y cerraron fronteras con ecosistemas de Silph Co. y Devon.',
+    ],
+  },
+  {
+    actNumber: 3,
+    eraTag: 'Hace 30 años – Actualidad',
+    title: 'Acto III · La Era de las Guerras Proxy y el Atlas Oscuro',
+    summary:
+      'Con el mundo fracturado, Galar dejó de invadir de frente para financiar guerras sucias y dictaduras que mantienen ocupados a sus rivales mientras la CRU vacía las arcas desde Pokétopia.',
+    keyConsequences: [
+      'Infierno en Vayra e Islas Naranja: para contener a Shentai, Galar convirtió Vayra en un tablero proxy; el colapso dio paso a la dictadura agraria genocida de las Islas Naranja.',
+      'Guerra Civil Teselia vs. Aura (Orre): Teselia explotó sin piedad su oeste desértico hasta desatar la rebelión de los Pokémon Oscuros; la Unión Ranger fue declarada ecoterrorista y Alola solo sobrevivió porque los Tapu hundieron la primera flota imperial.',
+    ],
+  },
+  {
+    actNumber: 4,
+    eraTag: 'El Presente · Campaña Principal',
+    title: 'Acto IV · El Niño de Oro frente al Hermano Bastardo',
+    summary:
+      'Tu padre, el Rey tirano, mantuvo este imperio podrido firmando cartas de corso para la CRU. Al morir, tu hermano bastardo mayor —forjado en el odio desde abajo— dio el golpe con el Consejo, corrompiendo a Zamazenta y despertando a Eternatus Gigamax.',
+    keyConsequences: [
+      'Arco del Heredero: criado en privilegio pero con corazón de oro, huyes por un planeta que odia tu apellido. Cada región saqueada (Tamra, Kemetia, Mesoa, Vayra, Tohjo, Orre) te obliga a decidir si restauras el Imperio o lo desmantelas.',
+      'Clímax y Postgame: tu hermano bastardo (Zamazenta corrompido + Eternatus Gigamax) es el Jefe Final de la historia principal; tras la Corona, solo queda la prueba definitiva del Postgame contra La Campeona de Galar y su Mega-Rayquaza.',
+    ],
+  },
+];
 
 export const FACTION_KIND_META: Record<
   GeopoliticalFactionKind,
   { label: string; dotColor: string; pillClass: string }
 > = {
   imperial_core: {
-    label: 'Metrópoli · Imperio de Galar',
+    label: 'Metrópoli · Imperio de Galar & CRU',
     dotColor: '#e11d48',
     pillClass: 'border-rose-400/50 bg-rose-500/20 text-rose-200',
   },
   imperial_colony: {
-    label: 'Colonia Subyugada · Imperio de Galar',
+    label: 'Colonia Saqueada · Imperio de Galar',
     dotColor: '#ea580c',
     pillClass: 'border-amber-400/50 bg-amber-500/20 text-amber-200',
   },
   contested: {
-    label: 'Zona Disputada · Insurgencia',
+    label: 'Zona Proxy · Insurgencia',
     dotColor: '#84cc16',
     pillClass: 'border-lime-400/50 bg-lime-500/20 text-lime-200',
   },
@@ -120,12 +180,12 @@ export const FACTION_KIND_META: Record<
     pillClass: 'border-teal-400/50 bg-teal-500/20 text-teal-200',
   },
   isolationist: {
-    label: 'Bloque Aislacionista',
+    label: 'Confederación Cerrada · Tohjo',
     dotColor: '#8b5cf6',
     pillClass: 'border-violet-400/50 bg-violet-500/20 text-violet-200',
   },
   mystery: {
-    label: 'Frontera Selvática · Amenaza al Monopolio',
+    label: 'Selva Indomable · Secreto de Mew',
     dotColor: '#059669',
     pillClass: 'border-emerald-400/50 bg-emerald-500/20 text-emerald-200',
   },
@@ -135,11 +195,11 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
   /* ===================== ACTIVE PLAYABLE EXILE BLOCS (12) ===================== */
   {
     id: 'galar_empire',
-    name: 'Imperio de Galar (Metrópoli + Malvinas)',
+    name: 'Imperio de Galar (Metrópoli + Islas Bruma)',
     shortName: 'GALAR',
     factionKind: 'imperial_core',
-    factionBadge: 'Metrópoli Imperial · Monopolio Ditto',
-    isoNumericIds: ['826', '372', '238'], // UK, Ireland, Falkland Islands (Malvinas!)
+    factionBadge: 'Metrópoli Imperial · CRU & Monopolio Ditto',
+    isoNumericIds: ['826', '372', '238'], // UK, Ireland, Islas Bruma (Falklands naval garrison)
     regionFill: '#e11d48',
     regionStroke: '#fbbf24',
     empireFill: '#e11d48',
@@ -149,11 +209,11 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
     leaderTarget: [-3.0, 54.5],
     labelAlign: 'end',
     focusZoom: 6.2,
-    statusTag: 'Prólogo y Golpe de Estado (4 misiones)',
+    statusTag: 'Prólogo, Golpe del Hermano Bastardo y Endgame (4 misiones)',
     loreSummary:
-      'Sede de la Corona y monopolio científico del Último Ditto en Wyndon. Además de la metrópoli, mantiene enclaves navales estratégicos como las Islas Malvinas frente al Cono Austral.',
-    keyResource: 'Monopolio genético del Último Ditto y flotas navales',
-    featuredCanonClue: 'Wyndon · Muelles del Támesis · Guarnición Naval de las Malvinas',
+      'La joya podrida: mientras Wyndon brilla con oro y estadios Gigamax, la Compañía Real de Ultramar (CRU) factura el saqueo al resto del planeta. Tras la muerte del Rey tirano, tu hermano bastardo tomó el trono con el Consejo, Zamazenta corrompido y Eternatus Gigamax. Mantiene además la base naval de las Islas Bruma frente a Cordelia.',
+    keyResource: 'Patentes del Último Ditto (CRU), Estrellas Deseo y Flota Naval',
+    featuredCanonClue: 'Wyndon · Sede de la CRU · Guarnición Naval de las Islas Bruma',
     combatLogistics: {
       threatLevel: 'Alto',
       threatTier: 4,
@@ -164,10 +224,10 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
   },
   {
     id: 'kalos',
-    name: 'Kalos (Frontera Ocupada · Paz Forzada)',
+    name: 'Kalos (Protectorado Humillado)',
     shortName: 'KALOS',
     factionKind: 'contested',
-    factionBadge: 'Hegemonía Tensa · Insurgencia',
+    factionBadge: 'Estado Vasallo · Megaevolución Prohibida',
     isoNumericIds: ['250', '056', '442', '528', '756'],
     regionFill: '#84cc16',
     regionStroke: '#d9f99d',
@@ -180,9 +240,9 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
     focusZoom: 5.2,
     statusTag: 'Primera Escala del Exilio',
     loreSummary:
-      'Al otro lado del canal, sometida a una paz forzada con Galar. Tras la muerte del rey, nobles rebeldes y facciones insurgentes chocan por el control de sus rutas hacia el continente.',
-    keyResource: 'Energía de Megaevolución y red ferroviaria europea',
-    featuredCanonClue: 'Frontera del Canal · Ciudad Luminalia',
+      'Reducida a estado vasallo tras una guerra brutal hace un siglo. La CRU prohibió la investigación libre de la Megaevolución por considerarla una amenaza militar a la supremacía Gigamax y confisca Megapiedras mientras sus nobles colaboran por migajas y el pueblo hierve en insurgencia.',
+    keyResource: 'Megapiedras clandestinas y corredores ferroviarios europeos',
+    featuredCanonClue: 'Frontera del Canal · Resistencia de Luminalia',
     combatLogistics: {
       threatLevel: 'Alto',
       threatTier: 3,
@@ -193,10 +253,10 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
   },
   {
     id: 'paldea',
-    name: 'Paldea (Paso Ibérico · Gran Cráter)',
+    name: 'Paldea (Frontera Aislada · Área Cero)',
     shortName: 'PALDEA',
     factionKind: 'independent',
-    factionBadge: 'Potencia Vecina · Teracristalización',
+    factionBadge: 'Estado Paranoico · Teracristalización',
     isoNumericIds: ['724', '620'],
     regionFill: '#ec4899',
     regionStroke: '#fbcfe8',
@@ -209,9 +269,9 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
     focusZoom: 5.2,
     statusTag: 'Salida hacia el Atlántico',
     loreSummary:
-      'Potencia peninsular limítrofe con Kalos que custodia el fenómeno Teracristal en el Gran Cráter. Sus pasos montañosos del norte son el último cuello de botella antes de embarcar hacia América.',
-    keyResource: 'Cristales del Área Cero y puertos atlánticos neutrales',
-    featuredCanonClue: 'Paso de los Pirineos · Gran Cráter de Paldea',
+      'Sobrevivió a la anexión imperial gracias a su geografía montañosa y al terror que le tiene la CRU a las anomalías del Área Cero. Es un estado paranoico y militarizado que vende paso seguro hacia el océano a precios absurdos mientras se pudre por dentro en burocracia.',
+    keyResource: 'Cristales del Área Cero y puertos atlánticos de peaje',
+    featuredCanonClue: 'Paso de la Cordillera · Gran Cráter de Paldea',
     combatLogistics: {
       threatLevel: 'Alto',
       threatTier: 4,
@@ -222,10 +282,10 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
   },
   {
     id: 'aztlan_caribe',
-    name: 'Aztlán-Caribe (Confederación Mesoamericana y del Caribe)',
-    shortName: 'AZTLÁN-CARIBE',
+    name: 'Mesoa (Confederación de Mercados Negros)',
+    shortName: 'MESOA',
     factionKind: 'independent',
-    factionBadge: 'Mercados Negros · Cárteles de Crianza',
+    factionBadge: 'Cárteles de Crianza · Puertos Sin Ley',
     isoNumericIds: [
       '484', '320', '084', '222', '340', '558', '188', '591',
       '170', '862', '192', '332', '214', '388', '630', '044', '780',
@@ -237,11 +297,11 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
     center: [-84.0, 16.5],
     labelCoords: [-93.0, 14.0],
     focusZoom: 3.1,
-    statusTag: 'Refugio Clandestino de Fugitivos',
+    statusTag: 'Refugio Clandestino · Primer Golpe de Realidad',
     loreSummary:
-      'De México y el Caribe hasta Colombia y Venezuela: territorio de cárteles de crianza clandestina, mercados negros de Poké Balls y puertos sin ley. El mejor sitio para desaparecer del radar imperial si tienes contactos o monedas.',
-    keyResource: 'Crianza clandestina fuera del registro de Wyndon y pasaportes falsos',
-    featuredCanonClue: 'Foso Subterráneo Portuario · Rutas del Caribe',
+      'Confederación fracturada donde la CRU destruyó las economías locales hace décadas; hoy la controlan cárteles de crianza clandestina que operan fuera del registro de Wyndon. Primer golpe de realidad para el heredero: gente brutal haciendo cosas terribles solo para sobrevivir al bloqueo imperial.',
+    keyResource: 'Poké Balls pirateadas sin sello imperial y crianza clandestina',
+    featuredCanonClue: 'Foso Portuario de Mesoa · Red de La Jefa del Mercado Negro',
     combatLogistics: {
       threatLevel: 'Muy Alto',
       threatTier: 4,
@@ -252,10 +312,10 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
   },
   {
     id: 'andes_plata',
-    name: 'Andes-Plata (El Cono Austral)',
-    shortName: 'ANDES-PLATA',
+    name: 'Cordelia (El Cono Austral)',
+    shortName: 'CORDELIA',
     factionKind: 'independent',
-    factionBadge: 'Tierras Altas & Pampas · Frente a Malvinas',
+    factionBadge: 'Tierras Altas & Pampas · Frente a Islas Bruma',
     isoNumericIds: ['604', '152', '032', '068', '218', '600', '858'],
     regionFill: '#3b82f6',
     regionStroke: '#93c5fd',
@@ -264,11 +324,11 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
     center: [-68.0, -34.0],
     labelCoords: [-72.0, -32.0],
     focusZoom: 2.8,
-    statusTag: 'Patrullaje Imperial desde Malvinas',
+    statusTag: 'Guerra Fría frente a Islas Bruma',
     loreSummary:
-      'Perú, Chile, Argentina y las cordilleras australes: tierras altas, desiertos salinos y pampas heladas con entrenadores recios y orgullosos. Justo frente a su costa sur, Galar mantiene las Islas Malvinas como base naval de vigilancia.',
-    keyResource: 'Rutas del Estrecho Austral y fortalezas andinas',
-    featuredCanonClue: 'Estrecho Austral · Base Naval Imperial de las Malvinas',
+      'Naciones orgullosas y curtidas de la cordillera austral y las pampas heladas que llevan generaciones en guerra fría contra la base naval de Galar en las Islas Bruma. Hogar de observatorios remotos y estrategias de resistencia extrema.',
+    keyResource: 'Estrecho Austral, observatorios de altura y fortalezas de piedra',
+    featuredCanonClue: 'Estrecho Austral · Base Naval de las Islas Bruma · El Astrónomo',
     combatLogistics: {
       threatLevel: 'Muy Alto',
       threatTier: 4,
@@ -279,10 +339,10 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
   },
   {
     id: 'poke_africa',
-    name: 'Poké-África (Corredor del Nilo al Cabo)',
-    shortName: 'POKÉ-ÁFRICA',
+    name: 'Kemetia (Corredor Imperial del Rift)',
+    shortName: 'KEMETIA',
     factionKind: 'imperial_colony',
-    factionBadge: 'Reserva Imperial · Minorías Oprimidas',
+    factionBadge: 'Corredor Saqueado · CRU & Reservas Cercadas',
     isoNumericIds: [
       '818', '729', '728', '404', '800', '834', '566', '288', '694',
       '270', '894', '716', '072', '710', '516', '706', '454', '426', '748',
@@ -297,8 +357,8 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
     focusZoom: 2.6,
     statusTag: 'Jefe Raid Activo · Santuario del Rift',
     loreSummary:
-      'Corredor británico de Egipto a Sudáfrica y la costa occidental. Última gran reserva biológica con especies sin clonar (Pyroar, Hippowdon, Farigiraf, Cofagrigus) y santuarios más antiguos que el propio Imperio.',
-    keyResource: 'Reservas naturales sin clonar, fósiles y piedras evolutivas',
+      'La herida más grande del Imperio: el corredor que la CRU partió en dos para saquear fósiles, piedras evolutivas y las últimas especies salvajes sin clonar (Pyroar, Hippowdon, Farigiraf, Cofagrigus). Aquí el príncipe ve de frente las reservas cercadas y los pueblos desplazados por el apellido de su padre.',
+    keyResource: 'Reservas naturales sin clonar, fósiles antiguos y piedras evolutivas',
     featuredCanonClue: 'Santuario del Gran Valle del Rift (Regigigas) · Culturas del Vínculo',
     combatLogistics: {
       threatLevel: 'Extremo',
@@ -310,10 +370,10 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
   },
   {
     id: 'sand_crescent',
-    name: 'Creciente de Arena (Medio Oriente y Magreb)',
-    shortName: 'CRECIENTE DE ARENA',
+    name: 'Miraj (Cártel del Canal de Arena)',
+    shortName: 'MIRAJ',
     factionKind: 'contested',
-    factionBadge: 'Peaje Marítimo · Canal del Desierto',
+    factionBadge: 'Cártel Energético · Aduanas del Desierto',
     isoNumericIds: [
       '504', '732', '012', '788', '434', '792', '196', '760', '422',
       '376', '275', '400', '368', '364', '004', '682', '887', '512',
@@ -327,11 +387,11 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
     center: [34.0, 29.0],
     labelCoords: [42.0, 27.5],
     focusZoom: 3.3,
-    statusTag: 'Paso Obligado hacia Oriente',
+    statusTag: 'Peaje Obligado hacia Oriente',
     loreSummary:
-      'Del Magreb al Golfo y el paso equivalente al Canal de Suez: llave marítima entre Europa, Poké-África y Poké-India. Quien paga el peaje —o sobrevive al calor extremo de sus aduanas— cruza el planeta.',
-    keyResource: 'Control de canales marítimos, comercio energético y peajes',
-    featuredCanonClue: 'Estación Solar del Canal (Calor 48°C vs. Cabina A/C)',
+      'No es colonia directa de Galar, sino un cártel energético y marítimo que controla el Canal de Arena. Cobra peajes brutales tanto a la CRU como a sus enemigos, enriqueciendo a sus jeques mientras sus aduanas a 48°C son un infierno para cualquier fugitivo.',
+    keyResource: 'Control del Canal de Arena, combustible y peajes marítimos',
+    featuredCanonClue: 'Estación Solar de Miraj (Calor 48°C vs. Cabina A/C)',
     combatLogistics: {
       threatLevel: 'Muy Alto',
       threatTier: 4,
@@ -342,10 +402,10 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
   },
   {
     id: 'poke_india',
-    name: 'Poké-India (Tierra de Copperajah)',
-    shortName: 'POKÉ-INDIA',
+    name: 'Tamra (Tierra Saqueada de Copperajah)',
+    shortName: 'TAMRA',
     factionKind: 'imperial_colony',
-    factionBadge: 'Joya de la Corona · Subyugada',
+    factionBadge: 'Joya Explotada · Saqueo de la CRU',
     isoNumericIds: ['356', '586', '050', '144', '104', '524', '064'],
     regionFill: '#d97706',
     regionStroke: '#fbbf24',
@@ -356,9 +416,9 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
     focusZoom: 3.3,
     statusTag: 'Domo de los 8 Elementos Activo',
     loreSummary:
-      'La región ancestral de donde Galar importó a Copperajah hace siglos. Densamente poblada y rica en especies Psíquico, Lucha y Acero, sometida como mano de obra y laboratorio climático para la Corona.',
-    keyResource: 'Linajes originales de Copperajah y estaciones de monzón',
-    featuredCanonClue: 'Domo Climático de los Monzones (4 Climas + 4 Terrenos)',
+      'Del sánscrito tāmra (cobre). La CRU llegó hace 200 años como «comerciante», desmanteló sus reinos, saqueó sus riquezas y exportó masivamente a sus Copperajah como mano de obra esclava hacia Galar. Hoy es una tierra explotada al límite con hambrunas y domos climáticos coloniales.',
+    keyResource: 'Linajes ancestrales de Copperajah, cobre y estaciones de monzón',
+    featuredCanonClue: 'Domo Climático de Tamra (4 Climas + 4 Terrenos)',
     combatLogistics: {
       threatLevel: 'Alto',
       threatTier: 4,
@@ -369,10 +429,10 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
   },
   {
     id: 'monsoon_archipelago',
-    name: 'Archipiélago del Monzón (Sudeste Insular)',
-    shortName: 'MONZÓN',
+    name: 'Vayra (Archipiélago del Monzón)',
+    shortName: 'VAYRA',
     factionKind: 'contested',
-    factionBadge: 'Guerrillas Selváticas · Contrabando',
+    factionBadge: 'Guerras Proxy · Duelistas 1v1',
     isoNumericIds: ['704', '764', '418', '116', '458', '096', '360', '626', '608'],
     regionFill: '#f97316',
     regionStroke: '#fed7aa',
@@ -383,9 +443,9 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
     focusZoom: 3.2,
     statusTag: 'Tierra Insumisa · Duelo 1v1',
     loreSummary:
-      'Vietnam, Tailandia, Indonesia y Filipinas: laberinto de selvas monzónicas, rutas de contrabando y guerrillas que quebraron toda tentativa de colonización. Famoso por sus duelistas implacables en combate 1v1.',
-    keyResource: 'Rutas clandestinas del Índico-Pacífico y tácticas asimétricas',
-    featuredCanonClue: 'Costa Rebelde del Monzón (Duelo a Muerte 1v1)',
+      'De Vayu (viento/monzón). Para frenar la influencia de Shentai, Galar convirtió a Vayra en un tablero de guerras proxy. Sus selvas indomables quebraron toda invasión, pero el colapso dio pie a la dictadura genocida vecina de las Islas Naranja. Hogar de los implacables duelistas 1v1.',
+    keyResource: 'Rutas clandestinas del Índico-Pacífico, bayas de guerrilla y doctrina 1v1',
+    featuredCanonClue: 'Costa Rebelde de Vayra (Duelo a Muerte 1v1 · La Duelista)',
     combatLogistics: {
       threatLevel: 'Muy Alto',
       threatTier: 4,
@@ -396,10 +456,10 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
   },
   {
     id: 'poke_australia',
-    name: 'Colonia Penal del Sur (Poké-Australia)',
-    shortName: 'COLONIA PENAL',
+    name: 'Tarran (Continente-Prisión del Sur)',
+    shortName: 'TARRAN',
     factionKind: 'imperial_colony',
-    factionBadge: 'Exilio Imperial · Minas & Desertores',
+    factionBadge: 'Colonia Penal de Galar · Desertores',
     isoNumericIds: ['036', '554', '598', '242', '090', '548', '540', '260'],
     regionFill: '#c2410c',
     regionStroke: '#fbbf24',
@@ -410,9 +470,9 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
     focusZoom: 2.9,
     statusTag: 'Supervivencia Back-to-Back Activa',
     loreSummary:
-      'Continente aislado adonde la Corona deporta a entrenadores rebeldes y desertores a picar piedra en galerías profundas. Su fauna salvaje —Kangaskhan, Komala— y sus cazarrecompensas no dan tregua.',
+      'De Terra Australis. El continente-prisión adonde la Corona y la CRU deportan a disidentes políticos, entrenadores rebeldes y desertores a picar piedra en galerías profundas rodeadas de polvo rojo, Kangaskhan salvajes y cazarrecompensas.',
     keyResource: 'Minas profundas de piedras evolutivas y clanes desertores',
-    featuredCanonClue: 'Galerías de Kalgoorlie (2 Oleadas Sin Curación)',
+    featuredCanonClue: 'Galerías de Tarran (Nivel Profundo 4 · 2 Oleadas Sin Curación)',
     combatLogistics: {
       threatLevel: 'Muy Alto',
       threatTier: 4,
@@ -423,10 +483,10 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
   },
   {
     id: 'poke_japan',
-    name: 'Bloque Aislacionista de Poké-Japón',
-    shortName: 'POKÉ-JAPÓN',
+    name: 'Confederación Tohjo (Archipiélago Cerrado)',
+    shortName: 'TOHJO',
     factionKind: 'isolationist',
-    factionBadge: 'Archipiélago Cerrado · Estilo Meiji',
+    factionBadge: 'Unión Defensiva · Estilo Meiji',
     isoNumericIds: ['392'],
     regionFill: '#8b5cf6',
     regionStroke: '#ddd6fe',
@@ -439,8 +499,8 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
     focusZoom: 4.8,
     statusTag: '2 Archivos Legendarios · Kanto & Sinnoh',
     loreSummary:
-      'Archipiélago celosamente cerrado que reúne a Kanto, Johto, Hoenn, Sinnoh y Kitakami. Rechaza toda tutela de Galar y guarda tanto las bóvedas clásicas de Silph Co. como la leyenda de la Liga de Sinnoh.',
-    keyResource: 'Ecosistemas intactos, tecnología Silph y ligas independientes',
+      'Al ver cómo Tamra fue devorada por la CRU y el mundo se quedaba sin fauna, Kanto, Johto, Hoenn, Sinnoh y Kitakami enterraron sus rivalidades y se unificaron bajo el nombre de las Cataratas Tohjo. Cerraron fronteras y usan la tecnología de Silph Co. y Devon para sostener ecosistemas independientes del Monopolio Ditto.',
+    keyResource: 'Ecosistemas autosuficientes, tecnología Silph/Devon y ligas soberanas',
     featuredCanonClue: 'Kanto (Silph Co. Gen 1) · Sinnoh (Valle Lirio) · Johto · Hoenn · Kitakami',
     combatLogistics: {
       threatLevel: 'Extremo',
@@ -452,10 +512,10 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
   },
   {
     id: 'alola',
-    name: 'Alola (Archipiélago Autónomo · Honolulu)',
+    name: 'Alola (Santuario Neutral · Los Tapu)',
     shortName: 'ALOLA',
     factionKind: 'independent',
-    factionBadge: 'Archipiélago Neutral del Pacífico',
+    factionBadge: 'Archipiélago Soberano del Pacífico',
     isoNumericIds: [],
     regionFill: '#f59e0b',
     regionStroke: '#fef08a',
@@ -466,9 +526,9 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
     focusZoom: 4.8,
     statusTag: 'Sede del Archivo Mundial VGC',
     loreSummary:
-      'Islas volcánicas soberanas en medio del Pacífico, protegidas por los Espíritus Guardianes. Sede neutral de la histórica Final Mundial VGC 2024 registrada en los archivos holográficos.',
-    keyResource: 'Recorrido Insular y santuarios de los Tapu',
-    featuredCanonClue: 'Honolulu (Final Mundial VGC 2024 · Luca vs. Yuta)',
+      'Sobrevive como santuario neutral en medio del Pacífico por una sola razón: sus Espíritus Guardianes (los Tapu) hundieron la primera flota de la CRU que intentó anexar las islas. Sede neutral de la histórica Final Mundial VGC 2024.',
+    keyResource: 'Protección ancestral de los Tapu y sede neutral de torneos',
+    featuredCanonClue: 'Honolulu / Melemele (Final Mundial VGC 2024 · Luca vs. Yuta)',
     combatLogistics: {
       threatLevel: 'Crítico',
       threatTier: 5,
@@ -481,11 +541,11 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
   /* ===================== FUTURE EXILE FRONTIERS (6 — FULL GLOBE COVERAGE!) ===================== */
   {
     id: 'amazonia_veracruz',
-    name: 'Amazonia / Vera Cruz (Imperio de la Selva)',
-    shortName: 'AMAZONIA',
+    name: 'Selva de Veridia (El Secreto de Mew)',
+    shortName: 'VERIDIA',
     factionKind: 'mystery',
-    factionBadge: 'Potencia Selvática · El Secreto de Mew',
-    isoNumericIds: ['076', '328', '740'], // Brazil, Guyana, Suriname
+    factionBadge: 'Pulmón Indomable · Amenaza al Monopolio Ditto',
+    isoNumericIds: ['076', '328', '740'],
     regionFill: '#059669',
     regionStroke: '#34d399',
     empireFill: '#059669',
@@ -493,11 +553,11 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
     center: [-53.0, -9.0],
     labelCoords: [-52.0, -10.5],
     focusZoom: 2.7,
-    statusTag: 'Rumor Mortal para el Monopolio Ditto · Próximo Arco',
+    statusTag: 'Rumor Mortal para la CRU · Próximo Arco',
     loreSummary:
-      'Brasil y las Guayanas: una potencia independiente gigantesca cuya selva impenetrable resguarda el mayor secreto político del planeta —el rumor de que ahí sobrevive Mew, capaz de romper para siempre el monopolio del Último Ditto.',
-    keyResource: 'El mito viviente de Mew y biodiversidad selvática inexplorada',
-    featuredCanonClue: 'Selvas de Guyana (Diarios de Gen 1) · Corazón de Amazonia',
+      'El pulmón indomable del sur: la CRU intentó talar y colonizar Veridia tres veces y las tres veces la selva se tragó enteras sus expediciones. En su corazón sobrevive el rumor más peligroso para Galar: la existencia de Mew, capaz de destruir para siempre el monopolio genético del Último Ditto.',
+    keyResource: 'El mito viviente de Mew y biodiversidad selvática inviolada',
+    featuredCanonClue: 'Corazón de Veridia (Diarios Antiguos de Mew)',
     combatLogistics: {
       threatLevel: 'Extremo',
       threatTier: 5,
@@ -508,10 +568,10 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
   },
   {
     id: 'unova',
-    name: 'Teselia / Unova (República Independiente)',
+    name: 'Teselia / Unova (República Capitalista)',
     shortName: 'TESELIA',
     factionKind: 'independent',
-    factionBadge: 'República Industrial Independiente',
+    factionBadge: 'Potencia Independiente · Guerra Civil vs. Aura',
     isoNumericIds: ['840'],
     regionFill: '#10b981',
     regionStroke: '#6ee7b7',
@@ -520,11 +580,11 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
     center: [-95.0, 39.0],
     labelCoords: [-98.0, 39.5],
     focusZoom: 2.8,
-    statusTag: 'Circuito Profesional Independiente · Próximo Arco',
+    statusTag: 'En Guerra Civil contra Aura (Orre) · Próximo Arco',
     loreSummary:
-      'Potencia industrial independiente anclada en su metrópoli costera y la Academia Arándano en el Atlántico. Se niega a comprar licencias genéticas a Wyndon y sostiene una frontera tensa con el Dominio Boreal.',
-    keyResource: 'Biodomos artificiales (Academia Arándano) y circuito competitivo libre',
-    featuredCanonClue: 'Costa Este (Unova) · Academia Arándano',
+      'El «Piltover» del planeta: potencia industrial independiente anclada en la Costa Este y la Academia Arándano que se negó a comprar licencias a la CRU. Sin embargo, para competir con Galar explotó sin piedad a su oeste desértico, Aura (Orre), desatando una brutal guerra civil con Pokémon Oscuros.',
+    keyResource: 'Biodomos artificiales (Academia Arándano) y circuito profesional libre',
+    featuredCanonClue: 'Costa Este (Teselia) · Frente Oeste contra Aura (Orre)',
     combatLogistics: {
       threatLevel: 'Alto',
       threatTier: 4,
@@ -535,11 +595,11 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
   },
   {
     id: 'poke_canada',
-    name: 'Dominio Boreal (Poké-Canadá)',
-    shortName: 'DOMINIO BOREAL',
+    name: 'Borelia (Dominio Helado de la Corona)',
+    shortName: 'BORELIA',
     factionKind: 'imperial_colony',
-    factionBadge: 'Dominio Imperial · Frontera Helada',
-    isoNumericIds: ['124', '304'], // Canada + Greenland Arctic Watch
+    factionBadge: 'Dominio Virreinal · Cerco al Norte de Teselia',
+    isoNumericIds: ['124', '304'],
     regionFill: '#be123c',
     regionStroke: '#fbbf24',
     empireFill: '#be123c',
@@ -547,9 +607,9 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
     center: [-96.0, 57.5],
     labelCoords: [-102.0, 59.0],
     focusZoom: 2.4,
-    statusTag: 'Guarnición del Norte · Próximo Arco',
+    statusTag: 'Guarnición Septentrional · Próximo Arco',
     loreSummary:
-      'Extenso dominio septentrional gobernado por virreyes leales a Galar. Sostiene un cerco militar y aduanero permanente sobre la frontera norte de Teselia y el Atlántico ártico.',
+      'Territorio helado al norte de Teselia bajo control directo de virreyes leales a Galar y a la CRU. Sostiene un cerco militar y aduanero permanente sobre las rutas árticas y la frontera norte teseliana.',
     keyResource: 'Rutas boreales, reservas de Hielo y acuartelamientos virreinales',
     featuredCanonClue: 'Frontera Helada al Norte de Teselia',
     combatLogistics: {
@@ -562,10 +622,10 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
   },
   {
     id: 'northern_steppe',
-    name: 'Estepa del Norte (Europa Continental y Rusia)',
-    shortName: 'ESTEPA DEL NORTE',
+    name: 'Kovaria (Bloque Blindado del Norte)',
+    shortName: 'KOVARIA',
     factionKind: 'rival_empire',
-    factionBadge: 'Bloque Militarizado · Industria Pesada',
+    factionBadge: 'Potencia Militarizada · Acero y Hielo',
     isoNumericIds: [
       '276', '616', '380', '040', '203', '703', '348', '642', '100',
       '300', '191', '705', '070', '688', '499', '807', '008', '498',
@@ -580,11 +640,11 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
     center: [62.0, 57.0],
     labelCoords: [65.0, 61.5],
     focusZoom: 2.1,
-    statusTag: 'Potencia Armada Continental · Próximo Arco',
+    statusTag: 'Contención Terrestre frente a Galar · Próximo Arco',
     loreSummary:
-      'De Alemania y Europa del Este hasta la inmensidad rusa y las estepas centrales: un bloque militarizado y frío con industria pesada propia que observa con recelo armado cualquier expansión de Galar.',
-    keyResource: 'Industria pesada de Acero/Hielo y ferrocarriles transcontinentales',
-    featuredCanonClue: 'Frontera Este de Kalos · Estepas Blindadas',
+      'Potencia industrial, fría y blindada que luchó en las Guerras de Extinción y hoy contiene por tierra cualquier ambición continental de Galar y la CRU. Sus doctrinas de Acero, Hielo y los enclaves de Ferrum no toleran debilidades.',
+    keyResource: 'Industria pesada de Acero/Hielo, Ferrum y ferrocarriles blindados',
+    featuredCanonClue: 'Frontera Este de Kalos · Complejo Militar de Ferrum',
     combatLogistics: {
       threatLevel: 'Muy Alto',
       threatTier: 4,
@@ -595,10 +655,10 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
   },
   {
     id: 'free_savanna',
-    name: 'Reinos de la Sabana (África Occidental y Central)',
-    shortName: 'SABANA LIBRE',
+    name: 'Tierra de Kora (Reinos Libres)',
+    shortName: 'KORA',
     factionKind: 'independent',
-    factionBadge: 'Tierras Libres · Resistencia Africana',
+    factionBadge: 'Reinos Libres · Resistencia Anticolonial',
     isoNumericIds: [
       '478', '686', '466', '854', '562', '148', '324', '624', '430',
       '384', '768', '204', '120', '140', '226', '266', '178', '180',
@@ -611,11 +671,11 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
     center: [12.0, 7.0],
     labelCoords: [8.0, 12.0],
     focusZoom: 2.5,
-    statusTag: 'Resistencia al Corredor Imperial · Próximo Arco',
+    statusTag: 'Frontera Libre frente a Kemetia · Próximo Arco',
     loreSummary:
-      'Tierras altas de Etiopía, selvas del Congo y costas occidentales que resistieron el corredor imperial de Galar. Sus clanes protegen rutas secretas de fauna salvaje lejos de los laboratorios de Wyndon.',
-    keyResource: 'Santuarios indómitos y alianzas de resistencia anticolonial',
-    featuredCanonClue: 'Rutas Libres frente al Corredor del Nilo',
+      'Los reinos libres que lograron frenar el avance de la CRU en el oeste y centro continental. Desconfían a muerte de cualquier acento de Wyndon; ganarse su respeto siendo un niño de la realeza de Galar será una de las pruebas más duras del exilio.',
+    keyResource: 'Santuarios indómitos y alianzas libres contra la CRU',
+    featuredCanonClue: 'Rutas Libres de Kora frente al Corredor de Kemetia',
     combatLogistics: {
       threatLevel: 'Alto',
       threatTier: 3,
@@ -626,10 +686,10 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
   },
   {
     id: 'poke_china',
-    name: 'Asia Continental (Cuatro Ruinas y Montañas de Urshifu)',
-    shortName: 'ASIA CONTINENTAL',
+    name: 'Shentai (Imperio Milenario · Cuatro Ruinas)',
+    shortName: 'SHENTAI',
     factionKind: 'rival_empire',
-    factionBadge: 'Imperio Rival · No Conquistado',
+    factionBadge: 'Coloso Rival · Jamás Conquistado',
     isoNumericIds: ['156', '496', '410', '408', '158'],
     regionFill: '#0d9488',
     regionStroke: '#5eead4',
@@ -640,9 +700,9 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
     focusZoom: 2.75,
     statusTag: 'Contrapeso Mundial de Galar · Próximo Arco',
     loreSummary:
-      'Coloso continental que Galar jamás logró someter. Tierra lejana al este de Paldea de donde provienen las Cuatro Ruinas (Chien-Pao, Chi-Yu, Ting-Lu, Wo-Chien) y las montañas marciales de Kubfu y Urshifu.',
+      'Coloso elegante y milenario que jamás cayó ante Galar ni la CRU. Tierra lejana al este de Paldea de donde provienen las Cuatro Ruinas (Chien-Pao, Chi-Yu, Ting-Lu, Wo-Chien), las montañas marciales de Kubfu/Urshifu y el reino ermitaño de Ransei.',
     keyResource: 'Artes marciales antiguas y sellos de las Cuatro Ruinas',
-    featuredCanonClue: 'Tierras de las Cuatro Ruinas · Montañas de Kubfu/Urshifu',
+    featuredCanonClue: 'Tierras de las Cuatro Ruinas · Montañas Urshifu · Ransei',
     combatLogistics: {
       threatLevel: 'Crítico',
       threatTier: 5,
@@ -698,7 +758,7 @@ export const CAMPAIGN_ROUTE_ORDER: string[] = [
 /**
  * Global narrative coordinates for all 16 playable chapters:
  * Only 4 remain in Galar (Prologue, Flashback, Banquet, Docks escape);
- * 12 are distributed across Europe, Americas, Africa, Middle East, India, SE Asia, Australia, Poké-Japan & Alola!
+ * 12 are distributed across Kalos, Paldea, Mesoa, Cordelia, Kemetia, Miraj, Tamra, Vayra, Tarran, Confederación Tohjo & Alola!
  */
 export const CHAPTER_MAP_LOCATIONS: Record<string, ChapterMapLocation> = {
   /* ---- GALAR (4: Prólogo, Recuerdo, Banquete y Fuga por el Puerto) ---- */
@@ -707,7 +767,7 @@ export const CHAPTER_MAP_LOCATIONS: Record<string, ChapterMapLocation> = {
     blocId: 'galar_empire',
     locationName: 'Callejones de Wyndon · Torre del Reloj',
     regionLabel: 'Galar · Metrópoli (Huida Inicial)',
-    theaterNote: 'Emboscada nocturna bajo la lluvia tras el golpe del Consejo.',
+    theaterNote: 'Emboscada nocturna bajo la lluvia tras el golpe de tu hermano bastardo y el Consejo.',
     coords: [-0.25, 51.55],
     zoom: 7.4,
   },
@@ -716,7 +776,7 @@ export const CHAPTER_MAP_LOCATIONS: Record<string, ChapterMapLocation> = {
     blocId: 'galar_empire',
     locationName: 'Palacio Real de Wyndon · Salón de Cristal',
     regionLabel: 'Galar · Ciudadela Real',
-    theaterNote: 'Apagón en plena cena de Estado con sabotaje sin reglas.',
+    theaterNote: 'Apagón en plena cena de Estado de la CRU con sabotaje sin reglas.',
     coords: [-0.15, 52.15],
     zoom: 7.2,
   },
@@ -725,7 +785,7 @@ export const CHAPTER_MAP_LOCATIONS: Record<string, ChapterMapLocation> = {
     blocId: 'galar_empire',
     locationName: 'Jardines del Palacio Real (Hace 10 años)',
     regionLabel: 'Galar · Recuerdo de Infancia',
-    theaterNote: 'Primera lección con crías frente a la Campeona antes de la crisis.',
+    theaterNote: 'Primera lección con crías frente a la Campeona antes del colapso.',
     coords: [-1.45, 52.45],
     zoom: 7.0,
   },
@@ -743,8 +803,8 @@ export const CHAPTER_MAP_LOCATIONS: Record<string, ChapterMapLocation> = {
   'ch2-monotype-banners': {
     chapterId: 'ch2-monotype-banners',
     blocId: 'kalos',
-    locationName: 'Frontera Ocupada de Kalos · Llanura del Canal',
-    regionLabel: 'Kalos · Territorio Disputado',
+    locationName: 'Protectorado de Kalos · Llanura del Canal',
+    regionLabel: 'Kalos · Protectorado Humillado',
     theaterNote: 'Nada más cruzar el canal, la Casa Rebelde invoca el decreto de estandartes.',
     coords: [0.85, 49.15],
     zoom: 5.8,
@@ -752,19 +812,19 @@ export const CHAPTER_MAP_LOCATIONS: Record<string, ChapterMapLocation> = {
   'showcase-triples-phalanx': {
     chapterId: 'showcase-triples-phalanx',
     blocId: 'paldea',
-    locationName: 'Paso de los Pirineos · Frontera Kalos–Paldea',
-    regionLabel: 'Paldea · Salida Atlántica',
+    locationName: 'Paso de la Cordillera · Frontera Kalos–Paldea',
+    regionLabel: 'Paldea · Frontera Aislada',
     theaterNote: 'La Falange del Duque bloquea el paso hacia los puertos del Atlántico en Triples.',
     coords: [-2.4, 42.3],
     zoom: 5.6,
   },
 
-  /* ---- LATINOAMÉRICA (Aztlán-Caribe & Andes-Plata frente a Malvinas) ---- */
+  /* ---- LAS AMÉRICAS (Mesoa & Cordelia frente a Islas Bruma) ---- */
   'ch3-clandestine-tamer': {
     chapterId: 'ch3-clandestine-tamer',
     blocId: 'aztlan_caribe',
-    locationName: 'Foso Portuario Clandestino · Costa Caribeña',
-    regionLabel: 'Aztlán-Caribe · Mercado Negro',
+    locationName: 'Foso Portuario Clandestino · Costa de Mesoa',
+    regionLabel: 'Mesoa · Mercado Negro',
     theaterNote: 'Fugitivo al otro lado del océano, entras en el cuadrilátero ilegal de Lord Vexen.',
     coords: [-75.55, 10.42],
     zoom: 4.2,
@@ -772,72 +832,72 @@ export const CHAPTER_MAP_LOCATIONS: Record<string, ChapterMapLocation> = {
   'challenge-three-knights': {
     chapterId: 'challenge-three-knights',
     blocId: 'andes_plata',
-    locationName: 'Estrecho Austral · Costa frente a Malvinas',
-    regionLabel: 'Andes-Plata · Cono Austral',
-    theaterNote: 'Tres caballeros despachados desde la base naval imperial de las Malvinas cierran tu paso.',
+    locationName: 'Estrecho Austral · Costa de Cordelia',
+    regionLabel: 'Cordelia · Cono Austral',
+    theaterNote: 'Tres caballeros despachados desde la base naval de Galar en las Islas Bruma cierran tu paso.',
     coords: [-67.6, -50.2],
     zoom: 4.4,
     originArcFrom: [-59.0, -51.75],
-    originArcLabel: 'Despliegue desde Base Naval Malvinas (Galar)',
+    originArcLabel: 'Despliegue desde Base Naval Islas Bruma (Galar)',
   },
 
-  /* ---- ÁFRICA & MEDIO ORIENTE (Poké-África & Creciente de Arena) ---- */
+  /* ---- KEMETIA & MIRAJ ---- */
   'puzzle-02-regigigas': {
     chapterId: 'puzzle-02-regigigas',
     blocId: 'poke_africa',
     locationName: 'Santuario Rúnico del Gran Valle del Rift',
-    regionLabel: 'Poké-África · Reserva Ancestral',
-    theaterNote: 'El Guardián no humano gira la llave que despierta al Coloso en una cámara anterior al Imperio.',
+    regionLabel: 'Kemetia · Corredor Imperial',
+    theaterNote: 'El Guardián no humano gira la llave que despierta al Coloso en una cámara anterior a la CRU.',
     coords: [35.4, -1.6],
     zoom: 4.2,
   },
   'puzzle-01-sun-trap': {
     chapterId: 'puzzle-01-sun-trap',
     blocId: 'sand_crescent',
-    locationName: 'Estación Solar del Canal · Aduana del Desierto',
-    regionLabel: 'Creciente de Arena · Ruta de Suez',
+    locationName: 'Estación Solar del Canal · Aduana de Miraj',
+    regionLabel: 'Miraj · Canal de Arena',
     theaterNote: '48°C afuera sobre la arena mientras el niño de OU manda macros desde su cabina con A/C.',
     coords: [32.55, 29.95],
     zoom: 4.8,
   },
 
-  /* ---- ASIA & OCEANÍA (Poké-India, Archipiélago del Monzón & Colonia Penal) ---- */
+  /* ---- TAMRA, VAYRA & TARRAN ---- */
   'challenge-weather-terrains': {
     chapterId: 'challenge-weather-terrains',
     blocId: 'poke_india',
-    locationName: 'Domo Climático de los Monzones · Deccan',
-    regionLabel: 'Poké-India · Joya de la Corona',
-    theaterNote: 'El Estratega Solar secuestró el laboratorio climático colonial para presumir a Castform ★.',
+    locationName: 'Domo Climático de los Monzones · Tamra',
+    regionLabel: 'Tamra · Tierra Saqueada por la CRU',
+    theaterNote: 'El Estratega Solar secuestró el laboratorio climático colonial de Tamra para presumir a Castform ★.',
     coords: [77.2, 20.4],
     zoom: 4.2,
   },
   'duel-01-honor-1v1': {
     chapterId: 'duel-01-honor-1v1',
     blocId: 'monsoon_archipelago',
-    locationName: 'Círculo de Piedra · Costa Rebelde del Monzón',
-    regionLabel: 'Archipiélago del Monzón · Tierra Insumisa',
-    theaterNote: 'La Duelista de la Frontera exige cobrar en un duelo 1v1 a muerte la opresión imperial.',
+    locationName: 'Círculo de Piedra · Costa Rebelde de Vayra',
+    regionLabel: 'Vayra · Guerras Proxy',
+    theaterNote: 'La Duelista de Vayra exige cobrar en un duelo 1v1 a muerte décadas de saqueo imperial.',
     coords: [108.1, 15.9],
     zoom: 4.4,
     originArcFrom: [78.5, 21.5],
-    originArcLabel: 'Eco de las Fronteras Subyugadas',
+    originArcLabel: 'Eco de las Tierras Saqueadas (Tamra → Vayra)',
   },
   'survival-galar-mines': {
     chapterId: 'survival-galar-mines',
     blocId: 'poke_australia',
-    locationName: 'Galerías de Kalgoorlie · Nivel Profundo 4',
-    regionLabel: 'Colonia Penal · Poké-Australia',
+    locationName: 'Galerías de Tarran · Nivel Profundo 4',
+    regionLabel: 'Tarran · Continente-Prisión',
     theaterNote: 'Fuga subterránea en dos oleadas sin curación frente a zapadores desertores y la guardia corrupta.',
     coords: [121.48, -30.75],
     zoom: 4.2,
   },
 
-  /* ---- PACÍFICO & ARCHIPIÉLAGO CERRADO (Poké-Japón & Alola) ---- */
+  /* ---- CONFEDERACIÓN TOHJO & ALOLA ---- */
   'archive-gen1-silph': {
     chapterId: 'archive-gen1-silph',
     blocId: 'poke_japan',
     locationName: 'Bóveda de Silph Co. · Ciudad Azafrán',
-    regionLabel: 'Kanto · Bloque Poké-Japón',
+    regionLabel: 'Kanto · Confederación Tohjo',
     theaterNote: 'Cinta sellada de la Era Antigua frente al mito de Mewtwo.',
     coords: [139.75, 35.68],
     zoom: 5.8,
@@ -846,7 +906,7 @@ export const CHAPTER_MAP_LOCATIONS: Record<string, ChapterMapLocation> = {
     chapterId: 'anime-ash-vs-tobias',
     blocId: 'poke_japan',
     locationName: 'Estadio del Valle Lirio · Semifinales',
-    regionLabel: 'Sinnoh Este · Bloque Poké-Japón',
+    regionLabel: 'Sinnoh Este · Confederación Tohjo',
     theaterNote: 'La semifinal legendaria de la Liga de Sinnoh.',
     coords: [144.35, 43.15],
     zoom: 5.8,
@@ -855,7 +915,7 @@ export const CHAPTER_MAP_LOCATIONS: Record<string, ChapterMapLocation> = {
     chapterId: 'archive-vgc-2024',
     blocId: 'alola',
     locationName: 'Estadio de Honolulu · Archivo Mundial',
-    regionLabel: 'Alola · Archipiélago del Pacífico',
+    regionLabel: 'Alola · Santuario Neutral',
     theaterNote: 'Simulación oficial de la Final Mundial VGC 2024 (Luca vs. Yuta).',
     coords: [-157.85, 21.31],
     zoom: 4.8,
@@ -864,7 +924,7 @@ export const CHAPTER_MAP_LOCATIONS: Record<string, ChapterMapLocation> = {
   },
 };
 
-/** Subtle regional micro-labels rendered when zoomed in (including Malvinas Imperial Base!). */
+/** Subtle regional micro-labels rendered when zoomed in (including Islas Bruma Imperial Base!). */
 export const ZOOM_LANDMARKS: Array<{
   id: string;
   label: string;
@@ -872,17 +932,17 @@ export const ZOOM_LANDMARKS: Array<{
   minZoom: number;
   color: string;
 }> = [
-  { id: 'lm-malvinas', label: '♛ MALVINAS (GALAR)', coords: [-43.0, -49.5], minZoom: 1.0, color: '#fda4af' },
+  { id: 'lm-islas-bruma', label: '♛ ISLAS BRUMA (GALAR)', coords: [-43.0, -49.5], minZoom: 1.0, color: '#fda4af' },
   { id: 'lm-sinnoh', label: 'SINNOH', coords: [142.8, 43.8], minZoom: 3.2, color: '#c4b5fd' },
   { id: 'lm-kitakami', label: 'KITAKAMI', coords: [140.8, 39.4], minZoom: 3.8, color: '#a78bfa' },
   { id: 'lm-kanto', label: 'KANTO', coords: [139.6, 36.1], minZoom: 3.2, color: '#fde047' },
   { id: 'lm-johto', label: 'JOHTO', coords: [135.8, 35.1], minZoom: 3.6, color: '#67e8f9' },
   { id: 'lm-hoenn', label: 'HOENN', coords: [131.0, 32.8], minZoom: 3.6, color: '#86efac' },
   { id: 'lm-crown-tundra', label: 'NIEVES CORONA', coords: [-4.3, 57.2], minZoom: 4.5, color: '#fca5a5' },
-  { id: 'lm-wyndon', label: 'WYNDON', coords: [-0.25, 51.1], minZoom: 4.5, color: '#fde68a' },
+  { id: 'lm-wyndon', label: 'WYNDON · CRU', coords: [-0.25, 51.1], minZoom: 4.5, color: '#fde68a' },
   { id: 'lm-blueberry', label: 'ACADEMIA ARÁNDANO', coords: [-70.5, 37.8], minZoom: 2.4, color: '#6ee7b7' },
-  { id: 'lm-guyana-mew', label: 'SELVA DE GUYANA (¿MEW?)', coords: [-58.8, 4.9], minZoom: 1.8, color: '#6ee7b7' },
+  { id: 'lm-veridia-mew', label: 'SELVA DE VERIDIA (¿MEW?)', coords: [-58.8, 4.9], minZoom: 1.8, color: '#6ee7b7' },
   { id: 'lm-four-ruins', label: 'CUATRO RUINAS', coords: [115.0, 36.0], minZoom: 2.0, color: '#5eead4' },
   { id: 'lm-kubfu', label: 'MONTAÑAS URSHIFU', coords: [112.0, 26.5], minZoom: 2.0, color: '#5eead4' },
-  { id: 'lm-suez', label: 'CANAL DE ARENA', coords: [32.5, 31.8], minZoom: 2.8, color: '#fef08a' },
+  { id: 'lm-miraj-canal', label: 'CANAL DE MIRAJ', coords: [32.5, 31.8], minZoom: 2.8, color: '#fef08a' },
 ];

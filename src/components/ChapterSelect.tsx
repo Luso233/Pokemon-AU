@@ -8,6 +8,7 @@ import {
   Crown,
   Flame,
   Gamepad2,
+  Heart,
   History,
   Lock,
   MapPin,
@@ -44,6 +45,7 @@ interface ChapterSelectProps {
   onOpenArcade: () => void;
   onOpenAccount: () => void;
   onOpenDevMode: () => void;
+  onOpenCamp: () => void;
   onSelectChapter: (chapter: ChapterDefinition) => void;
   onUnlockChapterWithCoins: (chapterId: string) => {
     ok: boolean;
@@ -129,6 +131,7 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
   onOpenArcade,
   onOpenAccount,
   onOpenDevMode,
+  onOpenCamp,
   onSelectChapter,
   onUnlockChapterWithCoins,
   profile,
@@ -249,6 +252,13 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
               Dev
             </button>
             <button
+              onClick={onOpenCamp}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-fuchsia-400/50 bg-fuchsia-500/15 px-3 py-2 text-xs font-extrabold text-fuchsia-200 hover:bg-fuchsia-500/25 cursor-pointer"
+            >
+              <Heart className="h-3.5 w-3.5 fill-fuchsia-400/60 text-fuchsia-300" />
+              Vínculos
+            </button>
+            <button
               onClick={onOpenShop}
               className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-bold text-slate-200 hover:border-amber-400/50 cursor-pointer"
             >
@@ -260,7 +270,7 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
               className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-bold text-slate-200 hover:border-sky-400/50 cursor-pointer"
             >
               <Wrench className="h-3.5 w-3.5 text-sky-300" />
-              Equipo
+              Cajas PC
             </button>
             <button
               onClick={onOpenArcade}

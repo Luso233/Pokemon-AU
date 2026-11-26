@@ -205,7 +205,7 @@ export const STARTER_INVENTORY: PlayerInventory = {
     'Sylveon',
     'Rotom',
   ],
-  items: ['Leftovers', 'Sitrus Berry', 'Focus Sash', 'Light Clay', 'Rocky Helmet'],
+  items: ['Leftovers', 'Sitrus Berry', 'Focus Sash', 'Light Clay', 'Rocky Helmet', 'Throat Spray'],
   tms: [
     'Protect',
     'Will-O-Wisp',
@@ -258,7 +258,7 @@ export const STARTER_CUSTOM_TEAM: CustomTeamMember[] = [
   },
   {
     species: 'Sylveon',
-    item: 'Leftovers',
+    item: 'Throat Spray',
     ability: 'Pixilate',
     nature: 'Modest',
     teraType: 'Fire',

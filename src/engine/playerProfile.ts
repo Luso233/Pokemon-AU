@@ -11,11 +11,23 @@ import {
   STARTER_INVENTORY,
   STARTER_UNLOCKED_CHAPTERS,
 } from '../data/economyCatalog';
+import {
+  computeActiveSocialLinkPerks,
+  getRomanceNpcById,
+} from '../data/socialLinksCatalog';
 import type {
+  BattleDifficultyMode,
   BattleRewardSummary,
+  BerryKind,
+  CampBerryPlot,
   ChapterProgress,
   CustomTeamMember,
+  OwnedPokemonInstance,
+  PersistedPartyState,
   PlayerSaveProfile,
+  PokemonStorageZone,
+  SocialLinkProgress,
+  SocialLinkRank,
   StoryFlags,
 } from '../types/game';
 import {
@@ -41,10 +53,55 @@ const EXTRA_DEV_ITEMS = [
   'Griseous Core',
 ];
 
+function buildStarterPokemonBox(): OwnedPokemonInstance[] {
+  return STARTER_CUSTOM_TEAM.map((m, idx) => ({
+    uid: `starter-${idx}-${getSpeciesKey(m.species)}`,
+    species: m.species,
+    origin: 'Escolta Real de Galar',
+    zone: 'party' as const,
+    item: m.item,
+    ability: m.ability,
+    nature: m.nature,
+    teraType: m.teraType,
+    moves: [...m.moves],
+    shiny: false,
+    hp: null,
+    maxhp: null,
+    status: '',
+  }));
+}
+
+function buildStarterItemStock(): Record<string, number> {
+  const stock: Record<string, number> = {};
+  for (const item of STARTER_INVENTORY.items) {
+    stock[item] = Math.max(1, stock[item] ?? 0);
+  }
+  for (const m of STARTER_CUSTOM_TEAM) {
+    if (m.item) stock[m.item] = Math.max(1, stock[m.item] ?? 0);
+  }
+  return stock;
+}
+
+export function syncCustomTeamFromBox(
+  box: OwnedPokemonInstance[]
+): CustomTeamMember[] {
+  const party = box.filter((m) => m.zone === 'party').slice(0, 6);
+  return party.map((m) => ({
+    species: m.species,
+    item: m.item,
+    ability: m.ability,
+    nature: m.nature,
+    teraType: m.teraType,
+    moves: [...m.moves],
+    shiny: m.shiny,
+  }));
+}
+
 export function createDefaultProfile(
   displayName = 'Invitado de Galar',
   email = ''
 ): PlayerSaveProfile {
+  const starterBox = buildStarterPokemonBox();
   return {
     displayName,
     email,
@@ -57,15 +114,27 @@ export function createDefaultProfile(
       tms: [...STARTER_INVENTORY.tms],
       shinyCharms: STARTER_INVENTORY.shinyCharms,
     },
-    customTeam: STARTER_CUSTOM_TEAM.map((m) => ({
-      ...m,
-      moves: [...m.moves],
-    })),
+    customTeam: syncCustomTeamFromBox(starterBox),
     useCustomTeamInStory: false,
     unlockedMoveSlots: {},
     customMoves: {},
     customItems: {},
     devModeEnabled: false,
+    socialLinks: {},
+    firstRomanceMaxedId: null,
+    ironmanMode: false,
+    nuzlockePermadeath: false,
+    defaultDifficulty: 'kaizo',
+    ironmanPartyState: null,
+    fallenPokemon: [],
+    campGarden: [
+      { plotIndex: 0, berry: null, battlesLeft: 0 },
+      { plotIndex: 1, berry: null, battlesLeft: 0 },
+    ],
+    campBerries: { lum: 2, sitrus: 2, leppa: 1 },
+    freeEmergencyHeals: 0,
+    pokemonBox: starterBox,
+    itemStock: buildStarterItemStock(),
     updatedAt: new Date().toISOString(),
   };
 }
@@ -196,6 +265,138 @@ export function normalizeProfile(
     customMoves: normalizeCustomMoves(raw.customMoves),
     customItems: normalizeCustomItems(raw.customItems),
     devModeEnabled: Boolean(raw.devModeEnabled),
+    socialLinks:
+      raw.socialLinks && typeof raw.socialLinks === 'object'
+        ? { ...raw.socialLinks }
+        : {},
+    firstRomanceMaxedId:
+      typeof raw.firstRomanceMaxedId === 'string' && raw.firstRomanceMaxedId
+        ? raw.firstRomanceMaxedId
+        : null,
+    ironmanMode: Boolean(raw.ironmanMode),
+    nuzlockePermadeath: Boolean(raw.nuzlockePermadeath),
+    defaultDifficulty:
+      raw.defaultDifficulty === 'standard' ||
+      raw.defaultDifficulty === 'nightmare' ||
+      raw.defaultDifficulty === 'kaizo'
+        ? raw.defaultDifficulty
+        : 'kaizo',
+    ironmanPartyState: raw.ironmanPartyState ?? null,
+    fallenPokemon: Array.isArray(raw.fallenPokemon)
+      ? Array.from(new Set(raw.fallenPokemon.map((s) => getSpeciesKey(s))))
+      : [],
+    campGarden:
+      Array.isArray(raw.campGarden) && raw.campGarden.length >= 2
+        ? raw.campGarden.map((p, idx) => ({
+            plotIndex: idx,
+            berry:
+              p?.berry === 'lum' || p?.berry === 'sitrus' || p?.berry === 'leppa'
+                ? p.berry
+                : null,
+            battlesLeft: Math.max(0, Math.floor(Number(p?.battlesLeft ?? 0))),
+          }))
+        : base.campGarden,
+    campBerries: {
+      lum: Math.max(0, Math.floor(Number(raw.campBerries?.lum ?? 2))),
+      sitrus: Math.max(0, Math.floor(Number(raw.campBerries?.sitrus ?? 2))),
+      leppa: Math.max(0, Math.floor(Number(raw.campBerries?.leppa ?? 1))),
+    },
+    freeEmergencyHeals: Math.max(
+      0,
+      Math.floor(Number(raw.freeEmergencyHeals ?? 0))
+    ),
+    pokemonBox: (() => {
+      if (Array.isArray(raw.pokemonBox) && raw.pokemonBox.length > 0) {
+        const seenUids = new Set<string>();
+        const cleaned: OwnedPokemonInstance[] = [];
+        for (let i = 0; i < raw.pokemonBox.length; i++) {
+          const inst = raw.pokemonBox[i];
+          if (!inst || !inst.species) continue;
+          const uid = inst.uid && !seenUids.has(inst.uid) ? inst.uid : `mon-${i}-${getSpeciesKey(inst.species)}`;
+          seenUids.add(uid);
+          cleaned.push({
+            uid,
+            species: inst.species,
+            nickname: inst.nickname,
+            origin: inst.origin || 'Escolta Real de Galar',
+            zone:
+              inst.zone === 'party' ||
+              inst.zone === 'box' ||
+              inst.zone === 'house' ||
+              inst.zone === 'graveyard'
+                ? inst.zone
+                : 'box',
+            item: inst.item || '',
+            ability: inst.ability || '',
+            nature: inst.nature || 'Adamant',
+            teraType: inst.teraType || 'Normal',
+            moves:
+              Array.isArray(inst.moves) && inst.moves.length > 0
+                ? inst.moves.slice(0, 4)
+                : ['Protect'],
+            shiny: Boolean(inst.shiny),
+            hp: typeof inst.hp === 'number' ? inst.hp : null,
+            maxhp: typeof inst.maxhp === 'number' ? inst.maxhp : null,
+            status: inst.status || '',
+            ppByMoveId: inst.ppByMoveId ? { ...inst.ppByMoveId } : undefined,
+            epitaph: inst.epitaph,
+          });
+        }
+        return cleaned;
+      }
+      // Migrate legacy flat save into unique per-individual PC Box instances!
+      const migrated: OwnedPokemonInstance[] = normalizedTeam.map((m, idx) => ({
+        uid: `starter-${idx}-${getSpeciesKey(m.species)}`,
+        species: m.species,
+        origin: 'Escolta Real de Galar',
+        zone: 'party' as const,
+        item: m.item,
+        ability: m.ability,
+        nature: m.nature,
+        teraType: m.teraType,
+        moves: [...m.moves],
+        shiny: m.shiny,
+        hp: null,
+        maxhp: null,
+        status: '',
+      }));
+      const inPartySpecies = new Set(migrated.map((m) => getSpeciesKey(m.species)));
+      for (const sp of inv?.pokemon ?? []) {
+        if (!inPartySpecies.has(getSpeciesKey(sp))) {
+          const def = buildDefaultMemberForSpecies(sp);
+          migrated.push({
+            uid: `shop-${getSpeciesKey(sp)}`,
+            species: def.species,
+            origin: 'Tienda de Wyndon',
+            zone: 'box',
+            item: '',
+            ability: def.ability,
+            nature: def.nature,
+            teraType: def.teraType,
+            moves: [...def.moves],
+            shiny: false,
+            hp: null,
+            maxhp: null,
+            status: '',
+          });
+          inPartySpecies.add(getSpeciesKey(sp));
+        }
+      }
+      return migrated;
+    })(),
+    itemStock: (() => {
+      const stock: Record<string, number> = { ...buildStarterItemStock() };
+      for (const it of inv?.items ?? []) {
+        stock[it] = Math.max(1, stock[it] ?? 0);
+      }
+      if (raw.itemStock && typeof raw.itemStock === 'object') {
+        for (const [k, v] of Object.entries(raw.itemStock)) {
+          const qty = Math.max(0, Math.min(99, Math.floor(Number(v ?? 0))));
+          if (qty > 0) stock[k] = qty;
+        }
+      }
+      return stock;
+    })(),
     updatedAt: raw.updatedAt || new Date().toISOString(),
   };
 }
@@ -436,22 +637,27 @@ export function applyBattleOutcomeToProfile(
   }
 
   const rule = CHAPTER_UNLOCK_RULES[chapterId];
+  const perks = computeActiveSocialLinkPerks(nextProfile);
   const firstClearBonus = !wasAlreadyCompleted
     ? rule?.firstClearReward ?? 1500
     : 0;
   const replayBonus = wasAlreadyCompleted ? rule?.replayReward ?? 350 : 0;
   const lowResetBonus = !wasAlreadyCompleted && attempts <= 2 ? 400 : 0;
-  const coinsEarned = firstClearBonus + replayBonus + lowResetBonus;
+  const coinsEarned = Math.round(
+    (firstClearBonus + replayBonus + lowResetBonus) * perks.victoryCoinMultiplier
+  );
 
-  // Story chapter held-item reward on first clear
+  // Story chapter held-item reward on first clear (+ real itemStock!)
   const rewardItems: string[] = [];
   let nextItems = nextProfile.inventory.items;
+  const nextItemStock = { ...nextProfile.itemStock };
   if (
     !wasAlreadyCompleted &&
     rule?.rewardItem &&
     !nextItems.includes(rule.rewardItem)
   ) {
     nextItems = [...nextItems, rule.rewardItem];
+    nextItemStock[rule.rewardItem] = (nextItemStock[rule.rewardItem] ?? 0) + 1;
     rewardItems.push(rule.rewardItem);
   }
 
@@ -466,6 +672,7 @@ export function applyBattleOutcomeToProfile(
       ...nextProfile.inventory,
       items: nextItems,
     },
+    itemStock: nextItemStock,
   };
 
   return {
@@ -520,6 +727,22 @@ export function purchasePokemon(
   if (profile.coins < entry.price) {
     return { ok: false, error: 'PokéCoronas insuficientes.', nextProfile: profile };
   }
+  const def = buildDefaultMemberForSpecies(species);
+  const newInstance: OwnedPokemonInstance = {
+    uid: `shop-${getSpeciesKey(species)}-${profile.pokemonBox.length}`,
+    species: def.species,
+    origin: 'Tienda de Wyndon',
+    zone: 'box',
+    item: '',
+    ability: def.ability,
+    nature: def.nature,
+    teraType: def.teraType,
+    moves: [...def.moves],
+    shiny: false,
+    hp: null,
+    maxhp: null,
+    status: '',
+  };
   return {
     ok: true,
     nextProfile: {
@@ -529,6 +752,7 @@ export function purchasePokemon(
         ...profile.inventory,
         pokemon: [...profile.inventory.pokemon, species],
       },
+      pokemonBox: [...profile.pokemonBox, newInstance],
       updatedAt: new Date().toISOString(),
     },
   };
@@ -540,12 +764,16 @@ export function purchaseHeldItem(
 ): { ok: boolean; error?: string; nextProfile: PlayerSaveProfile } {
   const entry = SHOP_ITEMS.find((i) => i.name === itemName);
   if (!entry) return { ok: false, error: 'Objeto no encontrado.', nextProfile: profile };
-  if (profile.inventory.items.includes(itemName)) {
-    return { ok: false, error: 'Ya tienes este objeto.', nextProfile: profile };
+  const currentQty = profile.itemStock[itemName] ?? (profile.inventory.items.includes(itemName) ? 1 : 0);
+  if (currentQty >= 6) {
+    return { ok: false, error: 'Stock máximo alcanzado (6 copias).', nextProfile: profile };
   }
   if (profile.coins < entry.price) {
     return { ok: false, error: 'PokéCoronas insuficientes.', nextProfile: profile };
   }
+  const nextItems = profile.inventory.items.includes(itemName)
+    ? profile.inventory.items
+    : [...profile.inventory.items, itemName];
   return {
     ok: true,
     nextProfile: {
@@ -553,7 +781,11 @@ export function purchaseHeldItem(
       coins: profile.coins - entry.price,
       inventory: {
         ...profile.inventory,
-        items: [...profile.inventory.items, itemName],
+        items: nextItems,
+      },
+      itemStock: {
+        ...profile.itemStock,
+        [itemName]: currentQty + 1,
       },
       updatedAt: new Date().toISOString(),
     },
@@ -658,7 +890,11 @@ export function unlockMoveSlotForSpecies(
   if (current.includes(slotIndex)) {
     return { ok: true, nextProfile: profile };
   }
-  const cost = profile.devModeEnabled ? 0 : getMoveSlotUnlockCost(slotIndex);
+  const perks = computeActiveSocialLinkPerks(profile);
+  const cost =
+    profile.devModeEnabled || perks.hasFreeTutoringPerk
+      ? 0
+      : getMoveSlotUnlockCost(slotIndex);
   if (profile.coins < cost) {
     return {
       ok: false,
@@ -1044,4 +1280,775 @@ export function applyShinySlotsToPaste(
     shiny: allowed.has(idx) ? true : undefined,
   }));
   return Teams.export(updated).trim();
+}
+
+/* ================= Romance Affinity, Ironman Camp, Berry Garden & Nuzlocke Permadeath ================= */
+
+export function toggleRunModifiers(
+  profile: PlayerSaveProfile,
+  patch: {
+    ironmanMode?: boolean;
+    nuzlockePermadeath?: boolean;
+    defaultDifficulty?: BattleDifficultyMode;
+  }
+): PlayerSaveProfile {
+  return {
+    ...profile,
+    ironmanMode: patch.ironmanMode ?? profile.ironmanMode,
+    nuzlockePermadeath: patch.nuzlockePermadeath ?? profile.nuzlockePermadeath,
+    defaultDifficulty: patch.defaultDifficulty ?? profile.defaultDifficulty,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function completeRomanceRank(
+  profile: PlayerSaveProfile,
+  npcId: string,
+  targetRank: 1 | 2 | 3
+): PlayerSaveProfile {
+  const prev: SocialLinkProgress = profile.socialLinks[npcId] ?? {
+    rank: 0,
+    r1Done: false,
+    r2Done: false,
+    r3Done: false,
+  };
+  const nextRank = Math.max(prev.rank, targetRank) as SocialLinkRank;
+  const nextLinks: Record<string, SocialLinkProgress> = {
+    ...profile.socialLinks,
+    [npcId]: {
+      rank: nextRank,
+      r1Done: prev.r1Done || targetRank >= 1,
+      r2Done: prev.r2Done || targetRank >= 2,
+      r3Done: prev.r3Done || targetRank >= 3,
+    },
+  };
+
+  // First NPC to hit Rank 3 sets the default Romantic Ending and is NEVER overwritten!
+  const nextFirstMaxed =
+    nextRank === 3 && !profile.firstRomanceMaxedId
+      ? npcId
+      : profile.firstRomanceMaxedId;
+
+  // Award immediate Rank perks (items + real stock on Duelist R2, unique House Pokémon instances in zone='house' on R3!)
+  const nextItems = new Set(profile.inventory.items);
+  const nextPokemon = new Set(profile.inventory.pokemon);
+  const nextItemStock = { ...profile.itemStock };
+  const nextBox = [...profile.pokemonBox];
+
+  if (npcId === 'court_duelist' && targetRank >= 2 && !prev.r2Done) {
+    nextItems.add('Focus Sash');
+    nextItems.add('Choice Band');
+    nextItemStock['Focus Sash'] = (nextItemStock['Focus Sash'] ?? 0) + 1;
+    nextItemStock['Choice Band'] = (nextItemStock['Choice Band'] ?? 0) + 1;
+  }
+  const npcDef = getRomanceNpcById(npcId);
+  if (npcDef && targetRank === 3) {
+    for (const mon of npcDef.housePokemon) {
+      nextPokemon.add(mon.species);
+      if (mon.item) {
+        nextItems.add(mon.item);
+        nextItemStock[mon.item] = Math.max(1, (nextItemStock[mon.item] ?? 0) + (prev.r3Done ? 0 : 1));
+      }
+      const houseUid = `house-${npcId}-${getSpeciesKey(mon.species)}`;
+      if (!nextBox.some((b) => b.uid === houseUid)) {
+        nextBox.push({
+          uid: houseUid,
+          species: mon.species,
+          origin: `Casa · ${npcDef.name} (R3)`,
+          zone: 'house',
+          item: mon.item,
+          ability: mon.ability,
+          nature: mon.nature,
+          teraType: mon.teraType,
+          moves: [...mon.moves],
+          shiny: false,
+          hp: null,
+          maxhp: null,
+          status: '',
+        });
+      }
+    }
+  }
+
+  let nextProfile: PlayerSaveProfile = {
+    ...profile,
+    socialLinks: nextLinks,
+    firstRomanceMaxedId: nextFirstMaxed,
+    inventory: {
+      ...profile.inventory,
+      items: Array.from(nextItems),
+      pokemon: Array.from(nextPokemon),
+    },
+    itemStock: nextItemStock,
+    pokemonBox: nextBox,
+    freeEmergencyHeals:
+      npcId === 'champion' && targetRank >= 1
+        ? Math.max(1, profile.freeEmergencyHeals)
+        : profile.freeEmergencyHeals,
+    updatedAt: new Date().toISOString(),
+  };
+
+  // Expand camp berry garden plots to match active Rank 1 perks!
+  const perks = computeActiveSocialLinkPerks(nextProfile);
+  const nextGarden: CampBerryPlot[] = [...nextProfile.campGarden];
+  while (nextGarden.length < perks.maxBerryPlots) {
+    nextGarden.push({
+      plotIndex: nextGarden.length,
+      berry: null,
+      battlesLeft: 0,
+    });
+  }
+  nextProfile = { ...nextProfile, campGarden: nextGarden };
+  return nextProfile;
+}
+
+/**
+ * Updates Ironman persistent HP/Status/PP, ticks Camp Berry Garden growth,
+ * applies Rank 1 passive PP regen / Champion free emergency heal,
+ * and records permadeath casualties in Ultra Nuzlocke Diablo mode!
+ */
+export function recordPostBattleSurvivalState(
+  profile: PlayerSaveProfile,
+  exportedState: PersistedPartyState | null | undefined,
+  won: boolean,
+  battleContext?: { chapterTitle?: string; rivalName?: string; turn?: number }
+): PlayerSaveProfile {
+  const perks = computeActiveSocialLinkPerks(profile);
+
+  // Tick berry plots down by 1 battle
+  const nextGarden = profile.campGarden.map((plot) =>
+    plot.berry && plot.battlesLeft > 0
+      ? { ...plot, battlesLeft: Math.max(0, plot.battlesLeft - 1) }
+      : plot
+  );
+
+  // Record permadeath casualties if Ultra Nuzlocke is active
+  const fallenSet = new Set(profile.fallenPokemon);
+  if (profile.nuzlockePermadeath && exportedState) {
+    for (const mon of exportedState.pokemon) {
+      if (mon.fainted) {
+        fallenSet.add(getSpeciesKey(mon.species));
+      }
+    }
+  }
+
+  // Persist Ironman party state + optional passive PP regen (Duelist Rank 1 perk)
+  let nextIronmanState = profile.ironmanPartyState;
+  if (profile.ironmanMode && exportedState) {
+    nextIronmanState = {
+      ...exportedState,
+      pokemon: exportedState.pokemon.map((mon) => {
+        if (mon.fainted || perks.passivePpRegen <= 0) return mon;
+        const nextMoveSlots = mon.moveSlots.map((ms) => ({
+          ...ms,
+          pp: Math.min(ms.maxpp, ms.pp + perks.passivePpRegen),
+        }));
+        const nextPpMap: Record<string, number> = {};
+        for (const ms of nextMoveSlots) nextPpMap[ms.id] = ms.pp;
+        return { ...mon, moveSlots: nextMoveSlots, ppByMoveId: nextPpMap };
+      }),
+    };
+  }
+
+  // Sync exact post-battle HP/status/PP onto matching active party instances in pokemonBox!
+  // In Ultra Nuzlocke Diablo, any fainted instance moves permanently to zone='graveyard' with epitaph!
+  let nextBox = profile.pokemonBox;
+  if (exportedState && (profile.ironmanMode || profile.nuzlockePermadeath)) {
+    const bySpecies = new Map(
+      (nextIronmanState ?? exportedState).pokemon.map((p) => [
+        getSpeciesKey(p.species),
+        p,
+      ])
+    );
+    nextBox = profile.pokemonBox.map((inst) => {
+      if (inst.zone !== 'party') return inst;
+      const match = bySpecies.get(getSpeciesKey(inst.species));
+      if (!match) return inst;
+      if (match.fainted && profile.nuzlockePermadeath) {
+        return {
+          ...inst,
+          zone: 'graveyard' as const,
+          hp: 0,
+          maxhp: match.maxhp,
+          status: '',
+          item: '', // drop item back into stock when a mon falls
+          epitaph: {
+            chapterTitle: battleContext?.chapterTitle || 'Combate de Campaña',
+            rivalName: battleContext?.rivalName || 'Adversario',
+            turn: battleContext?.turn ?? exportedState.capturedAtTurn ?? 1,
+            fallenAt: new Date().toISOString(),
+          },
+        };
+      }
+      if (!profile.ironmanMode) return inst;
+      return {
+        ...inst,
+        hp: match.fainted ? 0 : match.hp,
+        maxhp: match.maxhp,
+        status: match.fainted ? '' : match.status,
+        ppByMoveId: { ...match.ppByMoveId },
+      };
+    });
+  }
+
+  const nextEmergencyHeals =
+    perks.hasFreeEmergencyHealPerk && won
+      ? Math.min(3, profile.freeEmergencyHeals + 1)
+      : profile.freeEmergencyHeals;
+
+  return {
+    ...profile,
+    campGarden: nextGarden,
+    fallenPokemon: Array.from(fallenSet),
+    ironmanPartyState: nextIronmanState,
+    pokemonBox: nextBox,
+    customTeam:
+      nextBox !== profile.pokemonBox
+        ? syncCustomTeamFromBox(nextBox)
+        : profile.customTeam,
+    freeEmergencyHeals: nextEmergencyHeals,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function plantCampBerry(
+  profile: PlayerSaveProfile,
+  plotIndex: number,
+  berry: BerryKind
+): { ok: boolean; error?: string; nextProfile: PlayerSaveProfile } {
+  const plot = profile.campGarden[plotIndex];
+  if (!plot) return { ok: false, error: 'Parcela inválida.', nextProfile: profile };
+  if (plot.berry) {
+    return {
+      ok: false,
+      error: 'Esta parcela ya tiene una baya creciendo.',
+      nextProfile: profile,
+    };
+  }
+  const seedCost = 100;
+  if (profile.coins < seedCost) {
+    return {
+      ok: false,
+      error: `Necesitas ${seedCost} PC para plantar semillas.`,
+      nextProfile: profile,
+    };
+  }
+  const nextGarden = profile.campGarden.map((p, idx) =>
+    idx === plotIndex ? { ...p, berry, battlesLeft: 1 } : p
+  );
+  return {
+    ok: true,
+    nextProfile: {
+      ...profile,
+      coins: profile.coins - seedCost,
+      campGarden: nextGarden,
+      updatedAt: new Date().toISOString(),
+    },
+  };
+}
+
+export function harvestCampBerry(
+  profile: PlayerSaveProfile,
+  plotIndex: number
+): { ok: boolean; error?: string; nextProfile: PlayerSaveProfile } {
+  const plot = profile.campGarden[plotIndex];
+  if (!plot || !plot.berry) {
+    return { ok: false, error: 'No hay baya en esta parcela.', nextProfile: profile };
+  }
+  if (plot.battlesLeft > 0) {
+    return {
+      ok: false,
+      error: `Falta(n) ${plot.battlesLeft} combate(s) para cosechar.`,
+      nextProfile: profile,
+    };
+  }
+  const harvested = plot.berry;
+  const nextGarden = profile.campGarden.map((p, idx) =>
+    idx === plotIndex ? { ...p, berry: null, battlesLeft: 0 } : p
+  );
+  return {
+    ok: true,
+    nextProfile: {
+      ...profile,
+      campGarden: nextGarden,
+      campBerries: {
+        ...profile.campBerries,
+        [harvested]: (profile.campBerries[harvested] ?? 0) + 2,
+      },
+      updatedAt: new Date().toISOString(),
+    },
+  };
+}
+
+export function campHealPartyMember(
+  profile: PlayerSaveProfile,
+  species: string,
+  action: 'potion' | 'full_heal' | 'emergency_free' | 'lum' | 'sitrus' | 'leppa'
+): { ok: boolean; error?: string; nextProfile: PlayerSaveProfile } {
+  const state = profile.ironmanPartyState;
+  if (!state) {
+    return {
+      ok: false,
+      error: 'Tu escuadrón ya está sano (sin heridas persistentes de Ironman).',
+      nextProfile: profile,
+    };
+  }
+  const spKey = getSpeciesKey(species);
+  const idx = state.pokemon.findIndex((p) => getSpeciesKey(p.species) === spKey);
+  if (idx === -1) {
+    return { ok: false, error: 'Pokémon no encontrado en el escuadrón.', nextProfile: profile };
+  }
+  const mon = state.pokemon[idx];
+  if (mon.fainted && profile.nuzlockePermadeath) {
+    return {
+      ok: false,
+      error: `${mon.species} cayó en Ultra Nuzlocke (Permadeath). No puede ser revivido.`,
+      nextProfile: profile,
+    };
+  }
+
+  const perks = computeActiveSocialLinkPerks(profile);
+  const discount = 1 - perks.campHealDiscountPct / 100;
+  let nextCoins = profile.coins;
+  let nextEmergency = profile.freeEmergencyHeals;
+  const nextBerries = { ...profile.campBerries };
+  let updatedMon = { ...mon };
+
+  if (action === 'potion') {
+    const cost = Math.round(250 * discount);
+    if (nextCoins < cost) {
+      return { ok: false, error: `Necesitas ${cost} PC.`, nextProfile: profile };
+    }
+    nextCoins -= cost;
+    updatedMon.hp = Math.min(mon.maxhp, mon.hp + Math.round(mon.maxhp * 0.5));
+    updatedMon.fainted = false;
+  } else if (action === 'full_heal') {
+    const cost = Math.round(550 * discount);
+    if (nextCoins < cost) {
+      return { ok: false, error: `Necesitas ${cost} PC.`, nextProfile: profile };
+    }
+    nextCoins -= cost;
+    updatedMon.hp = mon.maxhp;
+    updatedMon.status = '';
+    updatedMon.fainted = false;
+    updatedMon.moveSlots = mon.moveSlots.map((ms) => ({ ...ms, pp: ms.maxpp }));
+    updatedMon.ppByMoveId = Object.fromEntries(
+      updatedMon.moveSlots.map((ms) => [ms.id, ms.maxpp])
+    );
+  } else if (action === 'emergency_free') {
+    if (nextEmergency <= 0) {
+      return {
+        ok: false,
+        error: 'No tienes cargas gratuitas de Curación de Emergencia.',
+        nextProfile: profile,
+      };
+    }
+    nextEmergency -= 1;
+    updatedMon.hp = mon.maxhp;
+    updatedMon.status = '';
+    updatedMon.fainted = false;
+  } else if (action === 'lum') {
+    if ((nextBerries.lum ?? 0) <= 0) {
+      return { ok: false, error: 'Sin Bayas Lum. Plántalas en el huerto.', nextProfile: profile };
+    }
+    nextBerries.lum -= 1;
+    updatedMon.status = '';
+  } else if (action === 'sitrus') {
+    if ((nextBerries.sitrus ?? 0) <= 0) {
+      return { ok: false, error: 'Sin Bayas Sitrus. Plántalas en el huerto.', nextProfile: profile };
+    }
+    nextBerries.sitrus -= 1;
+    updatedMon.hp = Math.min(mon.maxhp, mon.hp + Math.round(mon.maxhp * 0.4));
+    updatedMon.fainted = false;
+  } else if (action === 'leppa') {
+    if ((nextBerries.leppa ?? 0) <= 0) {
+      return { ok: false, error: 'Sin Bayas Leppa. Plántalas en el huerto.', nextProfile: profile };
+    }
+    nextBerries.leppa -= 1;
+    updatedMon.moveSlots = mon.moveSlots.map((ms) => ({
+      ...ms,
+      pp: Math.min(ms.maxpp, ms.pp + 10),
+    }));
+    updatedMon.ppByMoveId = Object.fromEntries(
+      updatedMon.moveSlots.map((ms) => [ms.id, ms.pp])
+    );
+  }
+
+  const nextParty = [...state.pokemon];
+  nextParty[idx] = updatedMon;
+  // Also reflect the camp heal onto the matching PC Box instance!
+  const nextBox = profile.pokemonBox.map((inst) =>
+    inst.zone !== 'graveyard' && getSpeciesKey(inst.species) === spKey
+      ? {
+          ...inst,
+          hp: updatedMon.hp,
+          maxhp: updatedMon.maxhp,
+          status: updatedMon.status,
+          ppByMoveId: { ...updatedMon.ppByMoveId },
+        }
+      : inst
+  );
+  return {
+    ok: true,
+    nextProfile: {
+      ...profile,
+      coins: nextCoins,
+      freeEmergencyHeals: nextEmergency,
+      campBerries: nextBerries,
+      ironmanPartyState: { ...state, pokemon: nextParty },
+      pokemonBox: nextBox,
+      updatedAt: new Date().toISOString(),
+    },
+  };
+}
+
+export function recruitHousePokemonToCustomSlot(
+  profile: PlayerSaveProfile,
+  houseMon: CustomTeamMember,
+  slotIndex: number
+): PlayerSaveProfile {
+  const nextOwned = Array.from(new Set([...profile.inventory.pokemon, houseMon.species]));
+  const houseMatch = profile.pokemonBox.find(
+    (b) =>
+      b.zone === 'house' &&
+      getSpeciesKey(b.species) === getSpeciesKey(houseMon.species)
+  );
+  if (houseMatch) {
+    // Move existing House instance cleanly into Party (swapping out slotIndex into Box without healing!)
+    const partyInsts = profile.pokemonBox.filter((b) => b.zone === 'party');
+    const swappedOutUid =
+      partyInsts.length >= 6 ? partyInsts[Math.min(slotIndex, partyInsts.length - 1)]?.uid : null;
+    const nextBox = profile.pokemonBox.map((b) => {
+      if (b.uid === houseMatch.uid) return { ...b, zone: 'party' as const };
+      if (swappedOutUid && b.uid === swappedOutUid) return { ...b, zone: 'box' as const };
+      return b;
+    });
+    return {
+      ...profile,
+      inventory: { ...profile.inventory, pokemon: nextOwned },
+      pokemonBox: nextBox,
+      customTeam: syncCustomTeamFromBox(nextBox),
+      useCustomTeamInStory: true,
+      updatedAt: new Date().toISOString(),
+    };
+  }
+  const nextTeam = [...profile.customTeam];
+  const targetIdx = Math.max(0, Math.min(5, slotIndex));
+  nextTeam[targetIdx] = {
+    ...houseMon,
+    moves: [...houseMon.moves],
+    shiny: false,
+  };
+  return {
+    ...profile,
+    inventory: { ...profile.inventory, pokemon: nextOwned },
+    customTeam: nextTeam,
+    useCustomTeamInStory: true,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function clearNuzlockeFallenAndIronman(
+  profile: PlayerSaveProfile
+): PlayerSaveProfile {
+  const restoredBox = profile.pokemonBox.map((inst) => ({
+    ...inst,
+    zone: inst.zone === 'graveyard' ? ('box' as const) : inst.zone,
+    hp: null,
+    maxhp: null,
+    status: '' as const,
+    ppByMoveId: undefined,
+    epitaph: undefined,
+  }));
+  return {
+    ...profile,
+    ironmanPartyState: null,
+    fallenPokemon: [],
+    pokemonBox: restoredBox,
+    customTeam: syncCustomTeamFromBox(restoredBox),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+/* ================= Per-Instance PC Box Manager (Party / Reserve Box / House / Graveyard + Real Item Stock) ================= */
+
+export function getItemUsageInfo(
+  profile: PlayerSaveProfile,
+  itemName: string,
+  excludeUid?: string
+): { stock: number; used: number; holders: OwnedPokemonInstance[] } {
+  const stock =
+    profile.itemStock[itemName] ??
+    (profile.inventory.items.includes(itemName) ? 1 : 0);
+  const holders = profile.pokemonBox.filter(
+    (b) =>
+      b.zone !== 'graveyard' &&
+      b.uid !== excludeUid &&
+      b.item === itemName
+  );
+  return { stock, used: holders.length, holders };
+}
+
+/**
+ * Moves a unique Pokémon instance (`uid`) between 'party', 'box', and 'house'.
+ * - NEVER heals when parked in 'box' (enabling the Run & Bun 1-HP poisoned + Rest tech!).
+ * - Enforces max 6 in 'party', Species Clause in 'party', and permadeath lock on 'graveyard'.
+ */
+export function movePokemonInstanceZone(
+  profile: PlayerSaveProfile,
+  uid: string,
+  targetZone: Exclude<PokemonStorageZone, 'graveyard'>
+): { ok: boolean; error?: string; nextProfile: PlayerSaveProfile } {
+  const target = profile.pokemonBox.find((b) => b.uid === uid);
+  if (!target) {
+    return { ok: false, error: 'Instancia no encontrada en tus Cajas.', nextProfile: profile };
+  }
+  if (target.zone === 'graveyard') {
+    return {
+      ok: false,
+      error: `${target.species} descansa en el Cementerio (Permadeath). No puede salir.`,
+      nextProfile: profile,
+    };
+  }
+  if (target.zone === targetZone) {
+    return { ok: true, nextProfile: profile };
+  }
+
+  const currentParty = profile.pokemonBox.filter((b) => b.zone === 'party');
+  if (targetZone === 'party') {
+    if (currentParty.length >= 6) {
+      return {
+        ok: false,
+        error: 'Tu Equipo Activo ya tiene 6 Pokémon. Guarda primero a uno en la Caja de Reserva.',
+        nextProfile: profile,
+      };
+    }
+    // Species Clause: prevents cloning 6 Arcanines into the active party!
+    const dup = currentParty.find(
+      (b) => getSpeciesKey(b.species) === getSpeciesKey(target.species)
+    );
+    if (dup) {
+      return {
+        ok: false,
+        error: `Cláusula de Especie: ya tienes a ${dup.species} en tu Equipo Activo.`,
+        nextProfile: profile,
+      };
+    }
+  } else if (target.zone === 'party' && currentParty.length <= 1) {
+    return {
+      ok: false,
+      error: 'Debes mantener al menos 1 Pokémon en tu Equipo Activo.',
+      nextProfile: profile,
+    };
+  }
+
+  const nextBox = profile.pokemonBox.map((b) =>
+    b.uid === uid ? { ...b, zone: targetZone } : b
+  );
+  return {
+    ok: true,
+    nextProfile: {
+      ...profile,
+      pokemonBox: nextBox,
+      customTeam: syncCustomTeamFromBox(nextBox),
+      updatedAt: new Date().toISOString(),
+    },
+  };
+}
+
+/**
+ * Equips an item onto a specific Pokémon instance while strictly enforcing real `itemStock`.
+ * If stock is exhausted (e.g. only 1 Sitrus Berry), automatically unequips from the previous holder!
+ */
+export function equipItemOnInstance(
+  profile: PlayerSaveProfile,
+  uid: string,
+  itemName: string
+): {
+  ok: boolean;
+  error?: string;
+  transferredFrom?: string;
+  nextProfile: PlayerSaveProfile;
+} {
+  const target = profile.pokemonBox.find((b) => b.uid === uid);
+  if (!target || target.zone === 'graveyard') {
+    return { ok: false, error: 'No puedes equipar objetos en esta instancia.', nextProfile: profile };
+  }
+  if (!itemName) {
+    const nextBox = profile.pokemonBox.map((b) =>
+      b.uid === uid ? { ...b, item: '' } : b
+    );
+    return {
+      ok: true,
+      nextProfile: {
+        ...profile,
+        pokemonBox: nextBox,
+        customTeam: syncCustomTeamFromBox(nextBox),
+        updatedAt: new Date().toISOString(),
+      },
+    };
+  }
+
+  const usage = getItemUsageInfo(profile, itemName, uid);
+  if (usage.stock <= 0) {
+    return {
+      ok: false,
+      error: `No tienes ${itemName} en tu inventario. Cómpralo en la Tienda.`,
+      nextProfile: profile,
+    };
+  }
+
+  let transferredFrom: string | undefined;
+  let stealUid: string | null = null;
+  if (usage.used >= usage.stock && usage.holders.length > 0) {
+    stealUid = usage.holders[0].uid;
+    transferredFrom = usage.holders[0].species;
+  }
+
+  const nextBox = profile.pokemonBox.map((b) => {
+    if (b.uid === uid) return { ...b, item: itemName };
+    if (stealUid && b.uid === stealUid) return { ...b, item: '' };
+    return b;
+  });
+
+  return {
+    ok: true,
+    transferredFrom,
+    nextProfile: {
+      ...profile,
+      pokemonBox: nextBox,
+      customTeam: syncCustomTeamFromBox(nextBox),
+      updatedAt: new Date().toISOString(),
+    },
+  };
+}
+
+/**
+ * Updates moves (including teaching Rest while parked in the Box!), ability, nature, teraType, or Shiny
+ * on a unique `OwnedPokemonInstance`.
+ */
+export function updatePokemonInstanceBuild(
+  profile: PlayerSaveProfile,
+  uid: string,
+  patch: Partial<
+    Pick<
+      OwnedPokemonInstance,
+      'ability' | 'nature' | 'teraType' | 'moves' | 'shiny' | 'nickname'
+    >
+  >
+): { ok: boolean; error?: string; nextProfile: PlayerSaveProfile } {
+  const target = profile.pokemonBox.find((b) => b.uid === uid);
+  if (!target || target.zone === 'graveyard') {
+    return { ok: false, error: 'Instancia no modificable.', nextProfile: profile };
+  }
+
+  if (patch.shiny === true && !target.shiny) {
+    const currentShinies = profile.pokemonBox.filter(
+      (b) => b.zone !== 'graveyard' && b.shiny
+    ).length;
+    if (currentShinies >= profile.inventory.shinyCharms) {
+      return {
+        ok: false,
+        error: `Solo tienes ${profile.inventory.shinyCharms} Amuleto(s) Variocolor.`,
+        nextProfile: profile,
+      };
+    }
+  }
+
+  const nextBox = profile.pokemonBox.map((b) =>
+    b.uid === uid
+      ? {
+          ...b,
+          ...patch,
+          moves: patch.moves ? patch.moves.filter(Boolean).slice(0, 4) : b.moves,
+        }
+      : b
+  );
+  return {
+    ok: true,
+    nextProfile: {
+      ...profile,
+      pokemonBox: nextBox,
+      customTeam: syncCustomTeamFromBox(nextBox),
+      updatedAt: new Date().toISOString(),
+    },
+  };
+}
+
+/**
+ * Builds a PersistedPartyState directly from frozen Ironman per-instance state inside `pokemonBox`
+ * (falling back to `ironmanPartyState`), so a 1-HP poisoned Pokémon pulled out of the Reserve Box
+ * enters battle with EXACTLY 1 HP + PSN (enabling the Run & Bun Turn-1 Rest tech!).
+ */
+export function buildIronmanPersistedStateForBattle(
+  profile: PlayerSaveProfile,
+  playerPaste: string
+): PersistedPartyState | undefined {
+  if (!profile.ironmanMode) return undefined;
+  const sets = Teams.import(playerPaste) ?? [];
+  if (sets.length === 0) return profile.ironmanPartyState ?? undefined;
+
+  const boxBySpecies = new Map<string, OwnedPokemonInstance>();
+  for (const inst of profile.pokemonBox) {
+    if (inst.zone === 'party') {
+      boxBySpecies.set(getSpeciesKey(inst.species), inst);
+    }
+  }
+  const legacyBySpecies = new Map(
+    (profile.ironmanPartyState?.pokemon ?? []).map((p) => [
+      getSpeciesKey(p.species),
+      p,
+    ])
+  );
+
+  let anyModified = false;
+  const pokemon = sets.map((s) => {
+    const spKey = getSpeciesKey(s.species);
+    const inst = boxBySpecies.get(spKey);
+    const leg = legacyBySpecies.get(spKey);
+    if (inst && inst.hp !== null && inst.maxhp !== null) {
+      anyModified = true;
+      return {
+        species: s.species,
+        name: s.name || s.species,
+        hp: inst.hp,
+        maxhp: inst.maxhp,
+        fainted: inst.hp <= 0,
+        status: inst.status,
+        moveSlots: (s.moves ?? []).map((mv) => {
+          const mvId = mv.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const maxpp = Dex.moves.get(mv).pp ? Math.floor((Dex.moves.get(mv).pp * 8) / 5) : 16;
+          return {
+            id: mvId,
+            move: mv,
+            pp: inst.ppByMoveId?.[mvId] ?? maxpp,
+            maxpp,
+          };
+        }),
+        ppByMoveId: inst.ppByMoveId ? { ...inst.ppByMoveId } : {},
+      };
+    }
+    if (leg) {
+      anyModified = true;
+      return leg;
+    }
+    // Untouched full-HP mon
+    return {
+      species: s.species,
+      name: s.name || s.species,
+      hp: 9999,
+      maxhp: 9999,
+      fainted: false,
+      status: '' as const,
+      moveSlots: [],
+      ppByMoveId: {},
+    };
+  });
+
+  if (!anyModified) return undefined;
+  return {
+    sourceBattleId: 'ironman-box-state',
+    capturedAtTurn: 0,
+    pokemon: pokemon.filter((p) => p.maxhp !== 9999),
+  };
 }

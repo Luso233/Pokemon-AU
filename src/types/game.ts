@@ -20,12 +20,63 @@ export interface CustomTeamMember {
   shiny: boolean;
 }
 
+export type PokemonStorageZone = 'party' | 'box' | 'house' | 'graveyard';
+
+export interface PokemonEpitaph {
+  chapterTitle: string;
+  rivalName: string;
+  turn: number;
+  fallenAt: string;
+}
+
+export interface OwnedPokemonInstance {
+  uid: string;
+  species: string;
+  nickname?: string;
+  origin: string;
+  zone: PokemonStorageZone;
+  item: string;
+  ability: string;
+  nature: string;
+  teraType: string;
+  moves: string[];
+  shiny: boolean;
+  /** Persistent Ironman health/status/PP frozen on this exact individual (Box NEVER heals!). */
+  hp: number | null;
+  maxhp: number | null;
+  status: '' | 'par' | 'brn' | 'psn' | 'tox' | 'slp' | 'frz';
+  ppByMoveId?: Record<string, number>;
+  /** Populated when fainted permanently in Ultra Nuzlocke Diablo mode. */
+  epitaph?: PokemonEpitaph;
+}
+
 export interface PlayerInventory {
   pokemon: string[];
   items: string[];
   tms: string[];
   /** Max 6 Shiny Charms (one per team slot). */
   shinyCharms: number;
+}
+
+export type BerryKind = 'lum' | 'sitrus' | 'leppa';
+
+export interface CampBerryPlot {
+  plotIndex: number;
+  berry: BerryKind | null;
+  /** Number of battles remaining until harvestable (0 = ready!). */
+  battlesLeft: number;
+}
+
+export type SocialLinkRank = 0 | 1 | 2 | 3;
+
+export interface SocialLinkProgress {
+  rank: SocialLinkRank;
+  /** Rank 1 VN event completed */
+  r1Done: boolean;
+  /** Rank 2 2v2 Tag-Team battle completed */
+  r2Done: boolean;
+  /** Rank 3 Unfair Rematch completed */
+  r3Done: boolean;
 }
 
 export interface PlayerSaveProfile {
@@ -45,6 +96,28 @@ export interface PlayerSaveProfile {
   customItems: Record<string, string>;
   /** Dev Mode sandbox toggle (free move slots + debug tools). */
   devModeEnabled: boolean;
+  /** Affinity / Romance ranks per romanceable NPC ID (0..3). */
+  socialLinks: Record<string, SocialLinkProgress>;
+  /** First romanceable NPC to reach Rank 3 (never overwritten; defines default Romantic Ending). */
+  firstRomanceMaxedId: string | null;
+  /** Survival Run Modifiers: Ironman (persistent HP/PP/status across chapters) & Ultra Nuzlocke Diablo (permadeath). */
+  ironmanMode: boolean;
+  nuzlockePermadeath: boolean;
+  defaultDifficulty: BattleDifficultyMode;
+  /** Persistent party HP/Status/PP carried between chapters when Ironman Mode is active. */
+  ironmanPartyState: PersistedPartyState | null;
+  /** Species keys of permanently fallen Pokémon when Ultra Nuzlocke Diablo is active. */
+  fallenPokemon: string[];
+  /** Camp Berry Garden plots (base 2 + extra plots from Romance Rank 1 perks). */
+  campGarden: CampBerryPlot[];
+  /** Harvested camp berries ready to cure HP, status, or PP in Ironman mode. */
+  campBerries: Record<BerryKind, number>;
+  /** Free emergency camp heal charges remaining (granted by Champion Rank 1 perk). */
+  freeEmergencyHeals: number;
+  /** Unique per-individual Pokémon PC Boxes (party / box / house / graveyard) with frozen Ironman state. */
+  pokemonBox: OwnedPokemonInstance[];
+  /** Real held-item quantities (prevents cloning 6 Sitrus Berries when you only own 1!). */
+  itemStock: Record<string, number>;
   updatedAt: string;
 }
 
@@ -417,6 +490,18 @@ export interface ResolvedBattleConfig {
   /** Selected or randomized NPC team variant ID. */
   selectedVariantId?: string;
   selectedVariantLabel?: string;
+  /** Romance Social Link battle metadata (Rank 2 Tag 2v2 or Rank 3 Unfair Rematch). */
+  romanceMeta?: {
+    npcId: CharacterId;
+    targetRank: 2 | 3;
+    mode: 'tag-2v2' | 'unfair-rematch';
+    partnerLabel?: string;
+  };
+  /** Rank 2 Romance Anti-Diablo scouting alerts revealed in Teambuilder. */
+  diabloScoutingAlerts?: string[];
+  /** Indicates active Ironman / Nuzlocke run rules for Diablo AI context & post-battle persistence. */
+  isIronmanActive?: boolean;
+  isNuzlockeActive?: boolean;
   arenaTheme: SceneBackdropId;
   playerTeamSummary: string;
   rivalTeamSummary: string;

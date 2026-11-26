@@ -1221,6 +1221,9 @@ export class ShowdownBattleController {
             npcPersonality:
               this.config.npcPersonality ??
               getNpcDefinition(this.config.rivalCharId).personality,
+            difficultyMode: this.config.difficultyMode,
+            isIronmanActive: this.config.isIronmanActive,
+            isNuzlockeActive: this.config.isNuzlockeActive,
           });
 
           if (decision && this.streams && !this.destroyed && !this.isEnded()) {

@@ -8,6 +8,7 @@ import {
   Crown,
   Gamepad2,
   GitBranch,
+  Heart,
   Play,
   Settings2,
   Shield,
@@ -31,6 +32,7 @@ interface HomePageProps {
   onOpenAccount: () => void;
   onOpenAISettings: () => void;
   onOpenDevMode: () => void;
+  onOpenCamp: () => void;
   onQuickStartMainChapter: () => void;
   profile: PlayerSaveProfile;
   firebaseUser: User | null;
@@ -47,6 +49,7 @@ export const HomePage: React.FC<HomePageProps> = ({
   onOpenAccount,
   onOpenAISettings,
   onOpenDevMode,
+  onOpenCamp,
   onQuickStartMainChapter,
   profile,
   firebaseUser,
@@ -99,6 +102,14 @@ export const HomePage: React.FC<HomePageProps> = ({
             <span className="font-mono-code">
               {profile.coins.toLocaleString()} PC
             </span>
+          </button>
+
+          <button
+            onClick={onOpenCamp}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-fuchsia-400/50 bg-fuchsia-500/15 px-3 py-2 text-xs font-extrabold text-fuchsia-200 transition hover:bg-fuchsia-500/25 cursor-pointer"
+          >
+            <Heart className="h-3.5 w-3.5 fill-fuchsia-400/60 text-fuchsia-300" />
+            Vínculos & Camp
           </button>
 
           <button

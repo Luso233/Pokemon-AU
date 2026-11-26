@@ -14,16 +14,20 @@ import {
   Eye,
   EyeOff,
   Flame,
+  Heart,
   HelpCircle,
   Lock,
   RotateCcw,
   Search,
+  ShieldAlert,
   Sparkles,
   Swords,
   Unlock,
   Wrench,
 } from 'lucide-react';
+import { getDiabloScoutingAlertsForChapter } from '../data/difficultyOverrides';
 import { CURRENCY_SHORT } from '../data/economyCatalog';
+import { computeActiveSocialLinkPerks } from '../data/socialLinksCatalog';
 import {
   applyNpcRunModifiers,
   getNpcDefinition,
@@ -59,6 +63,7 @@ interface TeambuilderBriefingProps {
   onReplayVN: () => void;
   onOpenShop: () => void;
   onOpenDevMode: () => void;
+  onOpenCamp?: () => void;
   onUnlockMoveSlot: (
     species: string,
     slotIndex: number
@@ -79,6 +84,7 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
   onReplayVN,
   onOpenShop,
   onOpenDevMode,
+  onOpenCamp,
   onUnlockMoveSlot,
   onSetCustomMove,
   onSetCustomItem,
@@ -124,10 +130,22 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
   const [rivalPaste, setRivalPaste] = useState(config.rivalShowdownPaste);
   const [showTeamsheet, setShowTeamsheet] = useState(false);
   const [difficultyMode, setDifficultyMode] = useState<BattleDifficultyMode>(
-    config.difficultyMode ?? 'kaizo'
+    config.difficultyMode ?? profile.defaultDifficulty ?? 'kaizo'
   );
   const [selectedVariantId, setSelectedVariantId] = useState<string>(
     config.selectedVariantId ?? 'canonical'
+  );
+
+  const socialPerks = useMemo(
+    () => computeActiveSocialLinkPerks(profile),
+    [profile]
+  );
+  const scoutingAlerts = useMemo(
+    () =>
+      socialPerks.hasAntiDiabloScouting
+        ? getDiabloScoutingAlertsForChapter(config.chapterId, difficultyMode)
+        : [],
+    [socialPerks.hasAntiDiabloScouting, config.chapterId, difficultyMode]
   );
 
   const npcDef = useMemo(
@@ -378,6 +396,16 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                 {profile.coins.toLocaleString()} {CURRENCY_SHORT}
               </span>
             </button>
+
+            {onOpenCamp && (
+              <button
+                onClick={onOpenCamp}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-fuchsia-400/45 bg-fuchsia-500/15 px-3 py-2 text-xs font-bold text-fuchsia-200 hover:bg-fuchsia-500/25 cursor-pointer"
+              >
+                <Heart className="h-3.5 w-3.5 text-fuchsia-300" />
+                Vínculos & Campamento
+              </button>
+            )}
 
             <button
               onClick={onOpenDevMode}
@@ -707,7 +735,10 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                             activeSet.species,
                             slotIdx
                           );
-                        const slotCost = getMoveSlotUnlockCost(slotIdx);
+                        const slotCost =
+                          profile.devModeEnabled || socialPerks.hasFreeTutoringPerk
+                            ? 0
+                            : getMoveSlotUnlockCost(slotIdx);
                         const canonicalMove =
                           canonicalActiveSet?.moves?.[slotIdx] ?? mvName;
                         const isCustomized =
@@ -769,7 +800,9 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                                     className="inline-flex items-center gap-1 rounded-lg border border-amber-400/45 bg-amber-500/15 px-2 py-0.5 text-[10px] font-extrabold text-amber-200 transition hover:bg-amber-500/25 disabled:cursor-not-allowed disabled:opacity-45 cursor-pointer"
                                   >
                                     <Lock className="h-3 w-3" />
-                                    Abrir · {slotCost.toLocaleString()} {CURRENCY_SHORT}
+                                    {slotCost === 0
+                                      ? 'Abrir · GRATIS (Campeona R1)'
+                                      : `Abrir · ${slotCost.toLocaleString()} ${CURRENCY_SHORT}`}
                                   </button>
                                 ))}
                             </div>
@@ -1012,7 +1045,7 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                       [
                         { id: 'standard', label: 'Estándar' },
                         { id: 'kaizo', label: 'Kaizo' },
-                        { id: 'nightmare', label: 'Pesadilla' },
+                        { id: 'nightmare', label: 'Diablo' },
                       ] as const
                     ).map((opt) => (
                       <button
@@ -1033,6 +1066,36 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                       </button>
                     ))}
                   </div>
+                </div>
+
+                {/* Rank 2 Romance Anti-Diablo Tactical Scouting */}
+                <div className="border-t border-white/10 pt-2">
+                  {socialPerks.hasAntiDiabloScouting ? (
+                    <div className="space-y-1.5 rounded-xl border border-sky-400/35 bg-sky-950/40 p-2.5">
+                      <p className="flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider text-sky-200">
+                        <ShieldAlert className="h-3 w-3 text-sky-400" />
+                        Scouting Anti-Diablo (Vínculo R2 Activo)
+                      </p>
+                      {scoutingAlerts.length > 0 ? (
+                        scoutingAlerts.map((al, idx) => (
+                          <p
+                            key={idx}
+                            className="text-[10.5px] leading-snug text-amber-100"
+                          >
+                            {al}
+                          </p>
+                        ))
+                      ) : (
+                        <p className="text-[10.5px] text-sky-200/80">
+                          Sin overrides ocultos en esta dificultad. Vigila el patrón de Turno 1.
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-[10px] text-slate-400">
+                      ♥ Sube un Vínculo a <strong>Rango 2</strong> (Tag 2v2) para revelar objetos y movimientos sorpresa del modo Diablo.
+                    </p>
+                  )}
                 </div>
 
                 {/* Variant / Random Run Selector when NPC has multiple teams */}

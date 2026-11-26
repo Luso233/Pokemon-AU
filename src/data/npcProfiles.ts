@@ -1,4 +1,5 @@
 import { Teams } from '@pkmn/sim';
+import { applyChapterDifficultyOverrides } from './difficultyOverrides';
 import type {
   BattleDifficultyMode,
   CharacterId,
@@ -797,6 +798,15 @@ export function applyNpcRunModifiers(
     }
   }
 
+  // Declarative per-chapter species/item/move overrides (e.g. Bubble Beam + Mystic Water -> Water Spout + Choice Specs in Diablo!)
+  const overrideRes = applyChapterDifficultyOverrides(
+    baseConfig.chapterId,
+    rivalPaste,
+    difficulty,
+    !isOfficialFixedCap
+  );
+  rivalPaste = overrideRes.paste;
+
   // Scale NPC AI personality directives according to difficulty
   const basePers: NpcAiPersonality = baseConfig.npcPersonality ?? npc.personality;
   const scaledPersonality: NpcAiPersonality = {
@@ -841,5 +851,9 @@ export function applyNpcRunModifiers(
     difficultyMode: difficulty,
     selectedVariantId: chosenVariant?.id ?? 'canonical',
     selectedVariantLabel: chosenVariant?.label,
+    diabloScoutingAlerts:
+      overrideRes.appliedAlerts.length > 0
+        ? overrideRes.appliedAlerts
+        : baseConfig.diabloScoutingAlerts,
   };
 }

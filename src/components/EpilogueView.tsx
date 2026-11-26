@@ -3,10 +3,12 @@ import {
   BookOpen,
   Coins,
   Crown,
+  Heart,
   Home,
   RefreshCw,
   RotateCcw,
   ShoppingBag,
+  Skull,
   Sparkles,
   Trophy,
   Unlock,
@@ -14,11 +16,13 @@ import {
 } from 'lucide-react';
 import { CHAPTERS } from '../data/chapters';
 import { CURRENCY_NAME } from '../data/economyCatalog';
+import { computeActiveSocialLinkPerks } from '../data/socialLinksCatalog';
 import type {
   AISettings,
   BattleRewardSummary,
   BattleSnapshot,
   ChapterDefinition,
+  PlayerSaveProfile,
   ResolvedBattleConfig,
 } from '../types/game';
 import { GameReviewPanel } from './GameReviewPanel';
@@ -27,6 +31,7 @@ import { SceneBackdrop } from './SceneBackdrop';
 interface EpilogueViewProps {
   chapter: ChapterDefinition;
   config: ResolvedBattleConfig;
+  profile?: PlayerSaveProfile;
   won: boolean;
   battleSummary: BattleSnapshot | null;
   reward?: BattleRewardSummary | null;
@@ -44,6 +49,7 @@ interface EpilogueViewProps {
 export const EpilogueView: React.FC<EpilogueViewProps> = ({
   chapter,
   config,
+  profile,
   won,
   battleSummary,
   reward,
@@ -123,6 +129,56 @@ export const EpilogueView: React.FC<EpilogueViewProps> = ({
             <p key={idx}>{p}</p>
           ))}
         </div>
+
+        {/* Romance / Harem Ending & Ultra Nuzlocke Survival Banner */}
+        {!isVersus && profile && (() => {
+          const perks = computeActiveSocialLinkPerks(profile);
+          const fallenInBattle =
+            profile.nuzlockePermadeath && battleSummary
+              ? battleSummary.p1.party.filter((p) => p.fainted).map((p) => p.species)
+              : [];
+          return (
+            <div className="mb-5 space-y-3">
+              {won && perks.activeEndingKind === 'harem' && (
+                <div className="rounded-2xl border border-amber-300/65 bg-gradient-to-r from-fuchsia-950/70 via-amber-950/50 to-rose-950/70 p-4">
+                  <div className="flex items-center gap-2 text-amber-200">
+                    <Crown className="h-4 w-4 text-amber-300" />
+                    <span className="font-display text-sm font-extrabold uppercase tracking-wider">
+                      👑 Ending Secreto Desbloqueado: Harem — Corona de Vínculos
+                    </span>
+                  </div>
+                  <p className="mt-1.5 text-xs leading-relaxed text-amber-100/90">
+                    Maxeaste Rango 3 con todos los aliados romanceables del Batch 1 (El Pelirrojo, La Duelista y La Campeona). Ningún trono se sostiene solo: la nueva corona de Galar nace de cada pacto forjado durante el exilio.
+                  </p>
+                </div>
+              )}
+              {won && perks.activeEndingKind === 'single' && perks.activeEndingNpc && (
+                <div className="rounded-2xl border border-fuchsia-400/45 bg-fuchsia-950/35 p-4">
+                  <div className="flex items-center gap-2 text-fuchsia-200">
+                    <Heart className="h-4 w-4 fill-fuchsia-400 text-fuchsia-400" />
+                    <span className="font-display text-sm font-extrabold">
+                      {perks.activeEndingNpc.endingTitle}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-200">
+                    {perks.activeEndingNpc.endingSummary}
+                  </p>
+                </div>
+              )}
+              {fallenInBattle.length > 0 && (
+                <div className="rounded-2xl border border-rose-500/50 bg-rose-950/45 p-3.5 text-xs text-rose-100">
+                  <div className="flex items-center gap-1.5 font-extrabold text-rose-300">
+                    <Skull className="h-4 w-4" />
+                    Bajas permanentes de Ultra Nuzlocke Diablo ({fallenInBattle.length}):
+                  </div>
+                  <p className="mt-1 text-[11px] text-rose-200/90">
+                    {fallenInBattle.join(', ')} han sido trasladados al Cementerio del Exilio. Revisa tus Cajas PC o la Casa de Aliados (R3) para cubrir los huecos.
+                  </p>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Battle Coin Rewards & Chapter Unlocks Banner */}
         {reward && reward.coinsEarned > 0 && (

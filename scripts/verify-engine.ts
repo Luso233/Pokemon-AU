@@ -41,27 +41,47 @@ import {
   applyChapterProgressionToPaste,
   applyDevUnlockEverything,
   awardArcadeCoins,
+  buildIronmanPersistedStateForBattle,
+  campHealPartyMember,
   compileCustomTeamToShowdownPaste,
+  completeRomanceRank,
   createDefaultProfile,
+  equipItemOnInstance,
+  harvestCampBerry,
   isChapterUnlocked,
   isMoveSlotUnlocked,
+  movePokemonInstanceZone,
+  plantCampBerry,
   purchaseHeldItem,
   purchasePokemon,
   purchaseShinyCharm,
   purchaseTM,
+  recordPostBattleSurvivalState,
   resetStoryProgress,
   setCustomItemForSpecies,
   setCustomMoveForSpecies,
+  toggleRunModifiers,
   unlockChapterWithCoins,
   unlockMoveSlotForSpecies,
   updateCustomTeamSlot,
+  updatePokemonInstanceBuild,
 } from '../src/engine/playerProfile';
 import { getLegalLearnsetForSpecies } from '../src/engine/learnsetService';
 import { CHAPTER_UNLOCK_RULES } from '../src/data/economyCatalog';
+import { DARK_ATLAS_LANDMARKS } from '../src/data/darkAtlas';
+import {
+  computeActiveSocialLinkPerks,
+  ROMANCE_ROSTER,
+} from '../src/data/socialLinksCatalog';
+import {
+  resolveRomanceRematchBattle,
+  resolveRomanceTagBattle,
+} from '../src/engine/romanceBattles';
 import {
   BLOC_BY_ID,
   CHAPTER_MAP_LOCATIONS,
   WORLD_BLOCS,
+  WORLD_HISTORY_ACTS,
 } from '../src/data/worldGeopolitics';
 import {
   applyNpcRunModifiers,
@@ -1325,7 +1345,302 @@ async function main() {
     `  OK: Duelista/Estratega Solar/Guardián verified + all 8 Weather/Terrain modes (Rain='${t1WxRain.weather}', Snow='${t1WxSnow.weather}', Psychic='${t1WxPsy.terrain}', Castform ★ Nv.105 Ace, turns=${resWxRain.turn}) + WorldWarMap (${WORLD_BLOCS.length} blocs, ${allChapterIds.length}/${allChapterIds.length} chapters mapped)`
   );
 
-  console.log('\nALL 21 ENGINE, ECONOMY, TEAMBUILDER, NPC & WEATHER/TERRAIN SUITES PASSED!');
+  console.log('\n=== 22. Regiones Pokémon Auténticas + Crónica CRU (4 Actos), Atlas Oscuro, Batch 1/2 (Mega-Rayquaza, 1v1, Waifus/Husbandos), Diablo & Cajas PC ===');
+  if (
+    DARK_ATLAS_LANDMARKS.length !== 9 ||
+    ROMANCE_ROSTER.length !== 13 ||
+    WORLD_HISTORY_ACTS.length !== 4
+  ) {
+    throw new Error(
+      `Expected 9 Dark Atlas landmarks, 13 Romance NPCs & 4 CRU History Acts, got dark=${DARK_ATLAS_LANDMARKS.length}, romance=${ROMANCE_ROSTER.length}, acts=${WORLD_HISTORY_ACTS.length}`
+    );
+  }
+
+  // 0) Verify ZERO real-world placeholder names remain in WORLD_BLOCS and all new Pokémon names are present!
+  const allBlocText = WORLD_BLOCS.map((b) => `${b.name} ${b.shortName} ${b.loreSummary}`).join(' ');
+  const bannedPlaceholders = [
+    'Poké-India',
+    'Poké-África',
+    'Poké-Japón',
+    'Poké-Australia',
+    'Poké-Canadá',
+    'Estepa del Norte',
+    'Aztlán-Caribe',
+    'Andes-Plata',
+    'Malvinas',
+    'Asia Continental',
+  ];
+  for (const banned of bannedPlaceholders) {
+    if (allBlocText.includes(banned)) {
+      throw new Error(`Found banned real-world placeholder "${banned}" inside WORLD_BLOCS!`);
+    }
+  }
+  const requiredNames = [
+    'Mesoa',
+    'Cordelia',
+    'Veridia',
+    'Kemetia',
+    'Kora',
+    'Miraj',
+    'Tamra',
+    'Kovaria',
+    'Shentai',
+    'Tohjo',
+    'Vayra',
+    'Tarran',
+    'Borelia',
+    'Islas Bruma',
+  ];
+  for (const reqName of requiredNames) {
+    if (!allBlocText.includes(reqName)) {
+      throw new Error(`Missing authentic Pokémon region name "${reqName}" in WORLD_BLOCS!`);
+    }
+  }
+  // Verify Batch 2 Waifus & Husbandos carry narrative Boss-Rule Aces!
+  for (const b2Id of [
+    'cordelia_astronomer',
+    'mesoa_boss',
+    'poketopia_croupier',
+    'ranger_commander',
+    'aeos_geneticist',
+  ]) {
+    const npc = ROMANCE_ROSTER.find((n) => n.id === b2Id);
+    if (!npc || !npc.bossAceRule) {
+      throw new Error(`Expected Batch 2 Waifu/Husbando "${b2Id}" with narrative bossAceRule!`);
+    }
+  }
+
+  // 1) Declarative Difficulty Overrides + Mega-Rayquaza AG: Normal (Bubble Beam + Mystic Water) -> Diablo (Water Spout + Choice Specs + Mega-Rayquaza)
+  const champRematchBase = resolveRomanceRematchBattle('champion');
+  const champStd = applyNpcRunModifiers(champRematchBase, 'standard', 'canonical');
+  const champDiablo = applyNpcRunModifiers(champRematchBase, 'nightmare', 'canonical');
+  if (
+    !champStd.rivalShowdownPaste.includes('Bubble Beam') ||
+    !champStd.rivalShowdownPaste.includes('Mystic Water') ||
+    !champDiablo.rivalShowdownPaste.includes('Water Spout') ||
+    !champDiablo.rivalShowdownPaste.includes('Choice Specs') ||
+    !champDiablo.rivalShowdownPaste.includes('Rayquaza-Mega')
+  ) {
+    throw new Error('Champion AG Rematch (Mega-Rayquaza + Kyogre Normal->Diablo override) failed!');
+  }
+
+  // 2a) Run real 2v2 Human Tag-Team battle with El Pelirrojo (3 yours + 3 Edgy Sweepers vs 6 Orre Bounty Hunters)
+  const tagAssassinCfg = applyNpcRunModifiers(
+    resolveRomanceTagBattle('assassin'),
+    'nightmare',
+    'canonical'
+  );
+  const { turn1Snap: t1Tag, finalSnap: resTag } = await runFullSimMatch(
+    'Romance Rank 2 Tag-Team 2v2 — Orre (El Pelirrojo)',
+    tagAssassinCfg,
+    { maxTurns: 30 }
+  );
+  if (
+    t1Tag?.p1.party.length !== 6 ||
+    !t1Tag?.p1.active[1]?.name.includes('[Aliado]')
+  ) {
+    throw new Error(
+      `Expected 2v2 Tag-Team shoulder-to-shoulder lead (Slot 1=Player, Slot 2=[Aliado]), got active=[${t1Tag?.p1.active.map((a) => a?.name).join(', ')}]`
+    );
+  }
+
+  // 2b) Run Champion Rank 2 Tag-Team WITH MEGA-RAYQUAZA ON YOUR SIDE in @pkmn/sim!
+  const tagChampCfg = resolveRomanceTagBattle('champion');
+  const { turn1Snap: t1ChampTag } = await runFullSimMatch(
+    'Romance Rank 2 Tag-Team 2v2 — Champion + Mega-Rayquaza',
+    tagChampCfg,
+    { maxTurns: 25 }
+  );
+  if (
+    !t1ChampTag?.p1.active[1]?.name.includes('Mega-Rayquaza') ||
+    t1ChampTag?.p1.active[1]?.species !== 'Rayquaza-Mega'
+  ) {
+    throw new Error(
+      `Expected Mega-Rayquaza fighting on player's side in Champion R2 Tag 2v2, got ${JSON.stringify(t1ChampTag?.p1.active[1])}`
+    );
+  }
+
+  // 2c) Run Duelist Rank 3 Rematch in PURE gen91v1 (Bring 3, Pick 1!)
+  const duelist1v1Cfg = resolveRomanceRematchBattle('court_duelist');
+  const { previewSnap: pvDuelistR3, finalSnap: resDuelistR3 } = await runFullSimMatch(
+    'Romance Rank 3 — Duelist Pure gen91v1',
+    duelist1v1Cfg,
+    { maxTurns: 25, teamPreviewPick: [1] }
+  );
+  if (
+    duelist1v1Cfg.formatId !== 'gen91v1' ||
+    pvDuelistR3?.teamPreview?.mode !== 'pick-1' ||
+    resDuelistR3.status !== 'ended'
+  ) {
+    throw new Error(
+      `Expected Duelist R3 Rematch in pure gen91v1 (pick-1), got format=${duelist1v1Cfg.formatId}, preview=${pvDuelistR3?.teamPreview?.mode}, status=${resDuelistR3.status}`
+    );
+  }
+
+  // 3) Romance 3-Rank Progression (3 Ironman Pillars at R1!) + First Romance Ending + Harem Ending + House PC
+  let romProf = createDefaultProfile('Exiliado', 'exile@galar.com');
+  // Verify starter itemStock has zero duplicate Leftovers conflict (Sylveon uses Throat Spray!)
+  const starterSylveon = romProf.pokemonBox.find((b) => b.species === 'Sylveon');
+  if (starterSylveon?.item !== 'Throat Spray') {
+    throw new Error(`Expected starter Sylveon holding Throat Spray (no Leftovers clone), got ${starterSylveon?.item}`);
+  }
+  romProf = toggleRunModifiers(romProf, {
+    ironmanMode: true,
+    nuzlockePermadeath: true,
+    defaultDifficulty: 'nightmare',
+  });
+  romProf = completeRomanceRank(romProf, 'assassin', 1);
+  if (!computeActiveSocialLinkPerks(romProf).hasAntiDiabloScouting) {
+    throw new Error('Expected El Pelirrojo R1 (Red de Inteligencia) to unlock Anti-Diablo Scouting immediately!');
+  }
+  romProf = completeRomanceRank(romProf, 'court_duelist', 1);
+  romProf = completeRomanceRank(romProf, 'champion', 1);
+  const r1Perks = computeActiveSocialLinkPerks(romProf);
+  if (
+    !r1Perks.hasAntiDiabloScouting ||
+    r1Perks.campHealDiscountPct !== 35 ||
+    r1Perks.maxBerryPlots !== 5 ||
+    r1Perks.passivePpRegen !== 2 ||
+    !r1Perks.hasFreeTutoringPerk ||
+    r1Perks.victoryCoinMultiplier !== 1.3
+  ) {
+    throw new Error(`Rank 1 Ironman 3-Pillar perks mismatch: ${JSON.stringify(r1Perks)}`);
+  }
+  // Verify Champion R1 Doctrina Real makes Move Slot unlocking FREE (0 PC)!
+  const coinsBeforeTutor = romProf.coins;
+  const freeSlotRes = unlockMoveSlotForSpecies(romProf, 'Arcanine', 0);
+  if (!freeSlotRes.ok || freeSlotRes.nextProfile.coins !== coinsBeforeTutor) {
+    throw new Error('Expected Champion R1 Doctrina Real to unlock Move Slot for 0 PC!');
+  }
+  romProf = freeSlotRes.nextProfile;
+
+  // Plant + tick + harvest camp berry
+  const plantRes = plantCampBerry(romProf, 0, 'lum');
+  if (!plantRes.ok) throw new Error('Expected camp berry planting to succeed!');
+  romProf = plantRes.nextProfile;
+  romProf = recordPostBattleSurvivalState(romProf, null, true);
+  const harvestRes = harvestCampBerry(romProf, 0);
+  if (!harvestRes.ok || harvestRes.nextProfile.campBerries.lum !== 4) {
+    throw new Error('Expected camp berry harvest (+2 Lum -> 4) to succeed!');
+  }
+  romProf = harvestRes.nextProfile;
+
+  // Max Duelist FIRST -> locks firstRomanceMaxedId='court_duelist'; then max all 3 -> triggers Harem Ending!
+  romProf = completeRomanceRank(romProf, 'court_duelist', 2);
+  romProf = completeRomanceRank(romProf, 'court_duelist', 3);
+  if (romProf.firstRomanceMaxedId !== 'court_duelist') {
+    throw new Error(`Expected firstRomanceMaxedId='court_duelist', got ${romProf.firstRomanceMaxedId}`);
+  }
+  romProf = completeRomanceRank(romProf, 'assassin', 3);
+  romProf = completeRomanceRank(romProf, 'champion', 3);
+  const maxPerks = computeActiveSocialLinkPerks(romProf);
+  if (
+    romProf.firstRomanceMaxedId !== 'court_duelist' ||
+    !maxPerks.isHaremUnlocked ||
+    maxPerks.unlockedHousePokemon.length !== 9 ||
+    romProf.pokemonBox.filter((b) => b.zone === 'house').length !== 9
+  ) {
+    throw new Error(
+      `Expected Harem Ending + 9 House PC instances, got first=${romProf.firstRomanceMaxedId}, harem=${maxPerks.isHaremUnlocked}, house=${romProf.pokemonBox.filter((b) => b.zone === 'house').length}`
+    );
+  }
+
+  // 4) PC Box System: Anti-Clone Item Stock Transfer + Box NO-HEAL 1-HP Poisoned Rest Tech + Nuzlocke Permadeath Graveyard!
+  const arcInst = romProf.pokemonBox.find((b) => b.zone === 'party' && b.species === 'Arcanine');
+  const gardInst = romProf.pokemonBox.find((b) => b.zone === 'party' && b.species === 'Gardevoir');
+  if (!arcInst || !gardInst) throw new Error('Expected starter Arcanine & Gardevoir in party box!');
+  // Stock of Sitrus Berry is 1 (held by Arcanine). Equipping on Gardevoir MUST transfer it away from Arcanine!
+  const equipRes = equipItemOnInstance(romProf, gardInst.uid, 'Sitrus Berry');
+  if (
+    !equipRes.ok ||
+    equipRes.transferredFrom !== 'Arcanine' ||
+    equipRes.nextProfile.pokemonBox.find((b) => b.uid === arcInst.uid)?.item !== '' ||
+    equipRes.nextProfile.pokemonBox.find((b) => b.uid === gardInst.uid)?.item !== 'Sitrus Berry'
+  ) {
+    throw new Error('Expected real itemStock enforcement (transfer Sitrus Berry without cloning)!');
+  }
+  romProf = equipRes.nextProfile;
+
+  // Simulate Ironman + Nuzlocke battle aftermath: Arcanine survives at 1 HP + PSN; Gardevoir faints -> Graveyard!
+  romProf = recordPostBattleSurvivalState(
+    romProf,
+    {
+      sourceBattleId: 'test-ironman',
+      capturedAtTurn: 7,
+      pokemon: [
+        {
+          species: 'Arcanine',
+          name: 'Arcanine',
+          hp: 1,
+          maxhp: 382,
+          fainted: false,
+          status: 'psn',
+          moveSlots: [{ id: 'flareblitz', move: 'Flare Blitz', pp: 10, maxpp: 15 }],
+          ppByMoveId: { flareblitz: 10 },
+        },
+        {
+          species: 'Gardevoir',
+          name: 'Gardevoir',
+          hp: 0,
+          maxhp: 340,
+          fainted: true,
+          status: '',
+          moveSlots: [],
+          ppByMoveId: {},
+        },
+      ],
+    },
+    true,
+    { chapterTitle: 'Prueba Diablo', rivalName: 'El Pelirrojo', turn: 7 }
+  );
+
+  // Verify Gardevoir moved permanently to graveyard & cannot return to party!
+  const deadGard = romProf.pokemonBox.find((b) => b.uid === gardInst.uid);
+  const reviveBlocked = movePokemonInstanceZone(romProf, gardInst.uid, 'party');
+  if (deadGard?.zone !== 'graveyard' || !deadGard.epitaph || reviveBlocked.ok) {
+    throw new Error('Expected Ultra Nuzlocke fainted Gardevoir locked in graveyard with epitaph!');
+  }
+
+  // Run & Bun Rest Tech: Park 1-HP PSN Arcanine in Box -> verify ZERO healing -> teach Rest -> return to party -> inject 1 HP PSN!
+  const parkArc = movePokemonInstanceZone(romProf, arcInst.uid, 'box');
+  if (!parkArc.ok) throw new Error('Expected parking Arcanine in Box to succeed!');
+  romProf = parkArc.nextProfile;
+  const boxedArc = romProf.pokemonBox.find((b) => b.uid === arcInst.uid);
+  if (boxedArc?.zone !== 'box' || boxedArc.hp !== 1 || boxedArc.status !== 'psn') {
+    throw new Error(`Expected Box to preserve frozen 1 HP PSN without healing, got hp=${boxedArc?.hp} status=${boxedArc?.status}`);
+  }
+  const teachRest = updatePokemonInstanceBuild(romProf, arcInst.uid, {
+    moves: ['Rest', 'Flare Blitz', 'Snarl', 'Protect'],
+  });
+  if (!teachRest.ok) throw new Error('Expected teaching Rest to boxed Arcanine to succeed!');
+  romProf = teachRest.nextProfile;
+  const unparkArc = movePokemonInstanceZone(romProf, arcInst.uid, 'party');
+  if (!unparkArc.ok) throw new Error('Expected moving Arcanine back to party to succeed!');
+  romProf = unparkArc.nextProfile;
+  const ironmanInjected = buildIronmanPersistedStateForBattle(
+    romProf,
+    compileCustomTeamToShowdownPaste(romProf.customTeam, 100)
+  );
+  const injArc = ironmanInjected?.pokemon.find((p) => p.species === 'Arcanine');
+  if (!injArc || injArc.hp !== 1 || injArc.status !== 'psn') {
+    throw new Error(`Expected Ironman battle injection to preserve 1 HP PSN for Rest tech, got ${JSON.stringify(injArc)}`);
+  }
+  // Verify Camp Lum Berry cures Arcanine's PSN!
+  const lumCure = campHealPartyMember(romProf, 'Arcanine', 'lum');
+  if (!lumCure.ok || lumCure.nextProfile.pokemonBox.find((b) => b.uid === arcInst.uid)?.status !== '') {
+    throw new Error('Expected Camp Lum Berry to cure Arcanine PSN cleanly!');
+  }
+  // Verify Rank 3 House Pokémon (Urshifu) can fill Gardevoir's empty party slot!
+  const houseUrshifu = romProf.pokemonBox.find((b) => b.zone === 'house' && b.species === 'Urshifu');
+  if (!houseUrshifu) throw new Error('Expected Urshifu in House PC!');
+  const deployHouse = movePokemonInstanceZone(romProf, houseUrshifu.uid, 'party');
+  if (!deployHouse.ok) throw new Error(`Expected House Urshifu to replace fallen Gardevoir: ${deployHouse.error}`);
+
+  console.log(
+    `  OK: Dark Atlas (9), 13 Romanceables + Harem Ending, Diablo Overrides (Bubble Beam->Water Spout + Choice Specs), Tag 2v2 (turns=${resTag.turn}), PC Boxes (Anti-Clone Stock + 1-HP PSN Box Rest Tech + Nuzlocke Graveyard + House Recruit) ALL VERIFIED!`
+  );
+
+  console.log('\nALL 22 ENGINE, MAP, ROMANCE, IRONMAN/NUZLOCKE & PC BOX SUITES PASSED!');
 }
 
 let allSuitesCompleted = false;

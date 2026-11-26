@@ -4,9 +4,11 @@ import { feature, merge } from 'topojson-client';
 import type { GeometryCollection, Topology } from 'topojson-specification';
 import worldAtlasRaw from 'world-atlas/countries-110m.json';
 import {
+  BookOpen,
   Compass,
   Crown,
   Crosshair,
+  Eye,
   Globe2,
   Layers,
   Lock,
@@ -21,6 +23,14 @@ import {
   ZoomOut,
 } from 'lucide-react';
 import {
+  DARK_ATLAS_BY_ID,
+  DARK_ATLAS_LANDMARKS,
+  ORRE_CIVIL_WAR_POLYGON_COORDS,
+  ORRE_TESELIA_FRONTLINE_COORDS,
+  type DarkAtlasLandmark,
+  type DarkAtlasLandmarkId,
+} from '../data/darkAtlas';
+import {
   BLOC_BY_ID,
   CAMPAIGN_ROUTE_ORDER,
   CHAPTER_MAP_LOCATIONS,
@@ -28,6 +38,7 @@ import {
   ISO_TO_BLOC,
   NAME_TO_BLOC,
   WORLD_BLOCS,
+  WORLD_HISTORY_ACTS,
   ZOOM_LANDMARKS,
   type ThreatLevelLabel,
   type WorldBlocDefinition,
@@ -127,7 +138,11 @@ export const WorldWarMap: React.FC<WorldWarMapProps> = ({
 }) => {
   const [lens, setLens] = useState<MapLensMode>('regions');
   const [showRoutes, setShowRoutes] = useState<boolean>(true);
+  const [showDarkAtlas, setShowDarkAtlas] = useState<boolean>(true);
+  const [showChronicle, setShowChronicle] = useState<boolean>(false);
   const [selectedBlocId, setSelectedBlocId] = useState<WorldBlocId | null>(null);
+  const [selectedDarkId, setSelectedDarkId] =
+    useState<DarkAtlasLandmarkId | null>(null);
   const [hoveredBlocId, setHoveredBlocId] = useState<WorldBlocId | null>(null);
   const [manualZoomDelta, setManualZoomDelta] = useState<number>(0);
 
@@ -208,6 +223,25 @@ export const WorldWarMap: React.FC<WorldWarMapProps> = ({
 
     const malvinasCenter = projection([-59.0, -51.75]) ?? [285, 420];
 
+    const orrePolyPts = ORRE_CIVIL_WAR_POLYGON_COORDS.map(
+      (c) => projection(c) ?? [180, 200]
+    );
+    const orrePolygonPath =
+      orrePolyPts
+        .map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p[0].toFixed(1)} ${p[1].toFixed(1)}`)
+        .join(' ') + ' Z';
+    const orreFrontPts = ORRE_TESELIA_FRONTLINE_COORDS.map(
+      (c) => projection(c) ?? [200, 200]
+    );
+    const orreFrontlinePath = orreFrontPts
+      .map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p[0].toFixed(1)} ${p[1].toFixed(1)}`)
+      .join(' ');
+
+    const projectedDarkLandmarks = DARK_ATLAS_LANDMARKS.map((lm) => {
+      const pt = projection(lm.coords) ?? [MAP_WIDTH / 2, MAP_HEIGHT / 2];
+      return { landmark: lm, x: pt[0], y: pt[1] };
+    });
+
     const alolaIslands: AlolaIslandItem[] = [];
     for (const isl of ALOLA_ISLANDS_GEO) {
       const pt = projection(isl.coords);
@@ -230,6 +264,9 @@ export const WorldWarMap: React.FC<WorldWarMapProps> = ({
       alolaIslands,
       alolaCenter,
       malvinasCenter,
+      orrePolygonPath,
+      orreFrontlinePath,
+      projectedDarkLandmarks,
       projectPoint,
     };
   }, []);
@@ -316,6 +353,10 @@ export const WorldWarMap: React.FC<WorldWarMapProps> = ({
     ? CHAPTER_MAP_LOCATIONS[nextObjectiveChapterId] ?? null
     : null;
 
+  const activeDarkLandmark: DarkAtlasLandmark | null = selectedDarkId
+    ? DARK_ATLAS_BY_ID[selectedDarkId]
+    : null;
+
   const activeBloc: WorldBlocDefinition | null = hoveredLocation
     ? BLOC_BY_ID[hoveredLocation.blocId]
     : selectedBlocId
@@ -331,6 +372,9 @@ export const WorldWarMap: React.FC<WorldWarMapProps> = ({
     if (hoveredLocation) {
       targetCoords = hoveredLocation.coords;
       baseZoom = hoveredLocation.zoom;
+    } else if (activeDarkLandmark) {
+      targetCoords = activeDarkLandmark.coords;
+      baseZoom = activeDarkLandmark.zoom;
     } else if (selectedBlocId) {
       const bloc = BLOC_BY_ID[selectedBlocId];
       targetCoords = bloc.center;
@@ -349,7 +393,7 @@ export const WorldWarMap: React.FC<WorldWarMapProps> = ({
     const ty = clamp(rawTy, MAP_HEIGHT - MAP_HEIGHT * z, 0);
 
     return { z, tx, ty };
-  }, [geoBundle, hoveredLocation, selectedBlocId, manualZoomDelta]);
+  }, [geoBundle, hoveredLocation, activeDarkLandmark, selectedBlocId, manualZoomDelta]);
 
   // Global Clustering rule: at global zoom (< 2.2x) with no individual mission hovered,
   // collapse crowded Europe/Japan pins into clean numeric cluster badges!
@@ -477,6 +521,39 @@ export const WorldWarMap: React.FC<WorldWarMapProps> = ({
 
           <button
             type="button"
+            title="Mostrar u ocultar Atlas Oscuro (Orre, Islas Naranja, Pokétopia, Ranger, Pasio, Æos, Ryme, Ransei, Ferrum)"
+            onClick={() => {
+              setShowDarkAtlas((v) => {
+                if (v) setSelectedDarkId(null);
+                return !v;
+              });
+            }}
+            className={`inline-flex items-center gap-1 rounded-xl border px-2 py-1 text-[10px] font-bold transition cursor-pointer ${
+              showDarkAtlas
+                ? 'border-fuchsia-400/50 bg-fuchsia-500/20 text-fuchsia-200'
+                : 'border-slate-800 bg-slate-900/90 text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Eye className="h-3 w-3" />
+            Atlas Oscuro
+          </button>
+
+          <button
+            type="button"
+            title="Mostrar u ocultar Crónica del Mundo en 4 Actos (CRU, Guerras de Extinción y El Hermano Bastardo)"
+            onClick={() => setShowChronicle((v) => !v)}
+            className={`inline-flex items-center gap-1 rounded-xl border px-2 py-1 text-[10px] font-bold transition cursor-pointer ${
+              showChronicle
+                ? 'border-amber-300/70 bg-amber-500/25 text-amber-100'
+                : 'border-slate-800 bg-slate-900/90 text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <BookOpen className="h-3 w-3" />
+            Crónica
+          </button>
+
+          <button
+            type="button"
             title="Mostrar u ocultar Rutas de Exilio"
             onClick={() => setShowRoutes((v) => !v)}
             className={`inline-flex items-center gap-1 rounded-xl border px-2 py-1 text-[10px] font-bold transition cursor-pointer ${
@@ -511,6 +588,7 @@ export const WorldWarMap: React.FC<WorldWarMapProps> = ({
               title="Vista Global"
               onClick={() => {
                 setSelectedBlocId(null);
+                setSelectedDarkId(null);
                 setManualZoomDelta(0);
               }}
               className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold text-amber-200 hover:bg-amber-500/20 cursor-pointer"
@@ -716,6 +794,107 @@ export const WorldWarMap: React.FC<WorldWarMapProps> = ({
               })}
             </g>
 
+            {/* Dark Atlas Overlay: Orre Civil War Zone (Zaun vs Piltover/Teselia) + 9 Spin-off Landmarks! */}
+            {showDarkAtlas && (
+              <g>
+                {/* Aura (Orre) Southwest US Civil War Territory + Burning Frontline vs Teselia */}
+                <path
+                  d={geoBundle.orrePolygonPath}
+                  fill="#7e22ce"
+                  fillOpacity={selectedDarkId === 'orre' ? 0.62 : 0.36}
+                  stroke="#d8b4fe"
+                  strokeOpacity={0.7}
+                  strokeWidth={0.9 * strokeScale}
+                  className="cursor-pointer transition-[fill-opacity] duration-300"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedBlocId(null);
+                    setManualZoomDelta(0);
+                    setSelectedDarkId((prev) => (prev === 'orre' ? null : 'orre'));
+                  }}
+                >
+                  <title>Aura (Orre) — Guerra Civil contra Teselia (Pokémon Oscuros)</title>
+                </path>
+                <path
+                  d={geoBundle.orreFrontlinePath}
+                  fill="none"
+                  stroke="#f43f5e"
+                  strokeWidth={1.6 * strokeScale}
+                  strokeDasharray={`${3.2 * strokeScale} ${2 * strokeScale}`}
+                  pointerEvents="none"
+                />
+
+                {/* 9 Clickable Dark Atlas Landmark Beacons */}
+                {geoBundle.projectedDarkLandmarks.map(({ landmark, x, y }) => {
+                  const isSel = selectedDarkId === landmark.id;
+                  return (
+                    <g
+                      key={`dark-${landmark.id}`}
+                      transform={`translate(${x.toFixed(1)}, ${y.toFixed(1)}) scale(${invScale.toFixed(3)})`}
+                      className="cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedBlocId(null);
+                        setManualZoomDelta(0);
+                        setSelectedDarkId((prev) =>
+                          prev === landmark.id ? null : landmark.id
+                        );
+                      }}
+                    >
+                      {isSel && (
+                        <circle
+                          r="12"
+                          fill={landmark.accentColor}
+                          fillOpacity="0.22"
+                          stroke={landmark.accentColor}
+                          strokeWidth="1.4"
+                          className="animate-ping"
+                        />
+                      )}
+                      {/* Diamond Dark-Lore Beacon */}
+                      <rect
+                        x={isSel ? -4.5 : -3.2}
+                        y={isSel ? -4.5 : -3.2}
+                        width={isSel ? 9 : 6.4}
+                        height={isSel ? 9 : 6.4}
+                        rx="1"
+                        transform="rotate(45)"
+                        fill="#090414"
+                        stroke={landmark.accentColor}
+                        strokeWidth={isSel ? '1.8' : '1.35'}
+                      />
+                      <circle r={isSel ? 1.8 : 1.2} fill={landmark.accentColor} />
+                      {(isSel || camera.z >= 2.2) && (
+                        <g transform="translate(0, -8)">
+                          <text
+                            textAnchor="middle"
+                            fill="#020617"
+                            stroke="#020617"
+                            strokeWidth="2.8"
+                            fontSize="6.8"
+                            fontWeight="800"
+                            letterSpacing="0.08em"
+                          >
+                            {landmark.shortName}
+                          </text>
+                          <text
+                            textAnchor="middle"
+                            fill={landmark.accentColor}
+                            fontSize="6.8"
+                            fontWeight="800"
+                            letterSpacing="0.08em"
+                          >
+                            {landmark.shortName}
+                          </text>
+                        </g>
+                      )}
+                      <title>{`${landmark.name} (${landmark.originGame}) — ${landmark.threatBadge}`}</title>
+                    </g>
+                  );
+                })}
+              </g>
+            )}
+
             {/* Islas Malvinas — Galar Imperial Naval Outpost right off Andes-Plata */}
             <g
               className="cursor-pointer"
@@ -744,7 +923,7 @@ export const WorldWarMap: React.FC<WorldWarMapProps> = ({
                 stroke="#fde047"
                 strokeWidth={0.8 * strokeScale}
               >
-                <title>Islas Malvinas (Archipiélago Austral) — Base Naval del Imperio de Galar</title>
+                <title>Islas Bruma (Archipiélago Austral) — Base Naval del Imperio de Galar</title>
               </circle>
             </g>
 
@@ -1191,9 +1370,11 @@ export const WorldWarMap: React.FC<WorldWarMapProps> = ({
             <Crosshair className="h-3 w-3 text-amber-400" />
             {hoveredLocation
               ? hoveredLocation.locationName
-              : selectedBlocId
-                ? BLOC_BY_ID[selectedBlocId].shortName
-                : `VISTA GLOBAL · ${WORLD_BLOCS.length} BLOQUES`}
+              : activeDarkLandmark
+                ? `ATLAS OSCURO: ${activeDarkLandmark.shortName}`
+                : selectedBlocId
+                  ? BLOC_BY_ID[selectedBlocId].shortName
+                  : `VISTA GLOBAL · ${WORLD_BLOCS.length} BLOQUES + 9 OSCUROS`}
           </span>
           {camera.z > 1.05 && (
             <span className="font-mono-code rounded-lg border border-slate-700/90 bg-slate-950/88 px-1.5 py-1 text-[10px] font-bold text-sky-300 backdrop-blur-sm">
@@ -1341,9 +1522,108 @@ export const WorldWarMap: React.FC<WorldWarMapProps> = ({
         })}
       </div>
 
-      {/* Geopolitical Dossier + Combat Threat Logistics */}
+      {/* Geopolitical Dossier + Dark Atlas Dossier + 4-Act CRU Chronicle */}
       <div className="border-t border-slate-800/90 bg-slate-950/90 px-3.5 py-3">
-        {activeBloc ? (
+        {showChronicle ? (
+          <div className="space-y-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1 rounded-md border border-amber-400/50 bg-amber-500/20 px-2 py-0.5 text-[9.5px] font-extrabold text-amber-200">
+                  <BookOpen className="h-2.5 w-2.5" />
+                  CRÓNICA DEL MUNDO · 4 ACTOS
+                </span>
+                <span className="text-xs font-bold text-white">
+                  Cómo Galar y la Compañía Real de Ultramar (CRU) pudrieron el planeta
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowChronicle(false)}
+                className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-[10px] font-semibold text-slate-300 hover:border-amber-400/50 hover:text-white cursor-pointer"
+              >
+                Cerrar Crónica
+              </button>
+            </div>
+            <div className="grid gap-2 md:grid-cols-2">
+              {WORLD_HISTORY_ACTS.map((act) => (
+                <div
+                  key={act.actNumber}
+                  className="rounded-xl border border-slate-800 bg-slate-900/80 p-2.5 text-[10.5px]"
+                >
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="font-extrabold text-amber-200">
+                      {act.title}
+                    </span>
+                    <span className="shrink-0 rounded bg-slate-950 px-1.5 py-0.5 text-[9px] font-bold text-sky-300">
+                      {act.eraTag}
+                    </span>
+                  </div>
+                  <p className="mt-1 leading-relaxed text-slate-300">
+                    {act.summary}
+                  </p>
+                  <ul className="mt-1.5 space-y-1 text-[10px] text-slate-400">
+                    {act.keyConsequences.map((c, idx) => (
+                      <li key={idx} className="leading-snug">
+                        • {c}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : activeDarkLandmark && !hoveredLocation ? (
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="inline-flex items-center gap-1 rounded-md border border-fuchsia-400/50 bg-fuchsia-500/20 px-2 py-0.5 text-[9.5px] font-extrabold text-fuchsia-200">
+                    <Eye className="h-2.5 w-2.5" />
+                    ATLAS OSCURO · {activeDarkLandmark.originGame}
+                  </span>
+                  <span className="rounded-md border border-rose-400/45 bg-rose-500/15 px-2 py-0.5 text-[9.5px] font-extrabold text-rose-200">
+                    {activeDarkLandmark.threatBadge}
+                  </span>
+                </div>
+                <h3 className="mt-1 font-display text-sm font-bold text-white">
+                  {activeDarkLandmark.name}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedDarkId(null);
+                  setManualZoomDelta(0);
+                }}
+                className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-[10px] font-semibold text-slate-300 hover:border-fuchsia-400/50 hover:text-white cursor-pointer"
+              >
+                Soltar enfoque
+              </button>
+            </div>
+            <p className="text-[11.5px] leading-relaxed text-slate-300">
+              {activeDarkLandmark.auDestiny}
+            </p>
+            <div className="grid gap-1.5 text-[10.5px] sm:grid-cols-2">
+              <div className="rounded-xl border border-fuchsia-500/25 bg-fuchsia-950/20 px-2.5 py-1.5">
+                <span className="block text-[9px] font-extrabold uppercase tracking-wider text-fuchsia-300">
+                  Secreto / Tecnología Oscura
+                </span>
+                <span className="text-slate-200">
+                  {activeDarkLandmark.keySecret}
+                </span>
+              </div>
+              <div className="rounded-xl border border-amber-500/25 bg-amber-950/15 px-2.5 py-1.5">
+                <span className="block text-[9px] font-extrabold uppercase tracking-wider text-amber-300">
+                  Conexión con Vínculos / Campaña
+                </span>
+                <span className="text-slate-200">
+                  {activeDarkLandmark.relatedNpcNote ??
+                    `Anclado dentro de ${BLOC_BY_ID[activeDarkLandmark.hostBlocId].name}`}
+                </span>
+              </div>
+            </div>
+          </div>
+        ) : activeBloc ? (
           <div className="space-y-2">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>

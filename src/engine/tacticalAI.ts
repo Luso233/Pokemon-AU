@@ -1,6 +1,7 @@
 import { Dex, toID } from '@pkmn/sim';
 import type {
   AISettings,
+  BattleDifficultyMode,
   BattleFormat,
   NpcAiPersonality,
   ScriptedEnemyRule,
@@ -67,6 +68,9 @@ export interface OpponentContext {
   preferredTeamPreviewOrder?: string;
   reserveAsLastAceSpecies?: string;
   npcPersonality?: NpcAiPersonality;
+  difficultyMode?: BattleDifficultyMode;
+  isIronmanActive?: boolean;
+  isNuzlockeActive?: boolean;
 }
 
 export interface RivalActionDecision {
@@ -593,7 +597,18 @@ export function chooseRivalAction(
             if (mv.id === 'explosion' || mv.id === 'selfdestruct') {
               score = parseHpRatio(selfMon.condition) < 0.35 ? 140 : 15;
             }
-            score += Math.random() * 8;
+            // Diablo Anti-Exploit AI: relentlessly hunts weakened Pokémon to force Nuzlocke deaths!
+            if (ctx.difficultyMode === 'nightmare') {
+              const foeHp = ctx.foeActiveHpPercent?.[foeIdx];
+              if (typeof foeHp === 'number' && foeHp > 0 && foeHp <= 55 && mult > 0) {
+                score += ctx.isNuzlockeActive ? 48 : 34;
+              }
+              score += Math.random() * 1.5;
+            } else if (ctx.difficultyMode === 'standard') {
+              score += Math.random() * 16;
+            } else {
+              score += Math.random() * 8;
+            }
             if (score > bestScore) {
               bestScore = score;
               bestCmd = `move ${mv.slot} +${foeIdx + 1}`;
@@ -622,13 +637,28 @@ export function chooseRivalAction(
             avgMult = sum / spreadReachable.length;
           }
           let score = bp * stab * avgMult;
-          if (mv.id === 'makeitrain' || mv.id === 'heatwave' || mv.id === 'hypervoice') {
-            score *= 1.15;
+          if (
+            mv.id === 'makeitrain' ||
+            mv.id === 'heatwave' ||
+            mv.id === 'hypervoice' ||
+            mv.id === 'waterspout' ||
+            mv.id === 'eruption'
+          ) {
+            score *=
+              (mv.id === 'waterspout' || mv.id === 'eruption') &&
+              parseHpRatio(selfMon.condition) > 0.75
+                ? 1.38
+                : 1.15;
           }
           if (mv.id === 'explosion' || mv.id === 'selfdestruct') {
             score = parseHpRatio(selfMon.condition) < 0.35 ? 140 : 15;
           }
-          score += Math.random() * 8;
+          score +=
+            ctx.difficultyMode === 'nightmare'
+              ? Math.random() * 1.5
+              : ctx.difficultyMode === 'standard'
+                ? Math.random() * 16
+                : Math.random() * 8;
           if (score > bestScore) {
             bestScore = score;
             bestCmd = `move ${mv.slot}`;
@@ -832,6 +862,9 @@ export class LLMBattleController implements RivalBattleController {
     const compactBoard = {
       turn: ctx.turn,
       format: ctx.format,
+      difficulty: ctx.difficultyMode ?? 'kaizo',
+      ironmanPersistentHp: Boolean(ctx.isIronmanActive),
+      nuzlockePermadeath: Boolean(ctx.isNuzlockeActive),
       field: {
         weather: ctx.weather || 'none',
         terrain: ctx.terrain || 'none',
@@ -844,6 +877,7 @@ export class LLMBattleController implements RivalBattleController {
         species: sp ?? 'empty',
         hpPercent: ctx.foeActiveHpPercent?.[i] ?? null,
         status: ctx.foeActiveStatus[i] ?? 'none',
+        boosts: ctx.foeActiveBoosts?.[i] ?? {},
       })),
       myActiveSlots: perSlotOptions.map((s) => ({
         slot: s.slotIdx + 1,
@@ -853,17 +887,23 @@ export class LLMBattleController implements RivalBattleController {
       })),
     };
 
+    const dynamicSystemPrompt =
+      ctx.difficultyMode === 'nightmare'
+        ? 'You are a ruthless DIABLO-difficulty competitive Pokemon Showdown master AI. Given the compact board state (including persistent Ironman HP, boosts, and Nuzlocke permadeath stakes), predict player switches, NEVER grant free setup turns, punish obvious Protect baits by double-targeting the partner or setting up, and relentlessly snipe the weakest/wounded player Pokemon to score permadeath KOs. Choose optimal legalOption index per slot (-1 for FAINTED). Never pick duplicate switches. Keep rationale under 12 words in Spanish.'
+        : ctx.difficultyMode === 'standard'
+          ? 'You are a straightforward Pokemon battle opponent. Play aggressively and prioritize direct attacking moves. Choose a legalOption index per slot (-1 for FAINTED). Keep rationale under 10 words in Spanish.'
+          : 'You are an elite competitive Pokemon Showdown AI opponent. Given the compact current board state JSON, choose the optimal legalOption index for each active slot (use -1 for FAINTED slots). Do not pick the same switch target for two slots. Keep rationale under 12 words in Spanish.';
+
     try {
       const llmRes = await callStructuredLLM<{
         slotOptionIndices: number[];
         rationale: string;
       }>({
         settings: this.settings,
-        systemInstruction:
-          'You are an elite competitive Pokemon Showdown AI opponent. Given the compact current board state JSON, choose the optimal legalOption index for each active slot (use -1 for FAINTED slots). Do not pick the same switch target for two slots. Keep rationale under 12 words in Spanish.',
+        systemInstruction: dynamicSystemPrompt,
         userPrompt: JSON.stringify(compactBoard),
         jsonSchema: LLM_TURN_CHOICE_SCHEMA,
-        temperature: 0.25,
+        temperature: ctx.difficultyMode === 'nightmare' ? 0.12 : 0.25,
         timeoutMs: 12000,
       });
 

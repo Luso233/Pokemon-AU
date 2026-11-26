@@ -11,6 +11,7 @@ import { DevModeModal } from './components/DevModeModal';
 import { EpilogueView } from './components/EpilogueView';
 import { HomePage } from './components/HomePage';
 import { ShopView } from './components/ShopView';
+import { SocialLinksCampModal } from './components/SocialLinksCampModal';
 import { TeambuilderBriefing } from './components/TeambuilderBriefing';
 import { TeamEditorView } from './components/TeamEditorView';
 import { VersusModeView } from './components/VersusModeView';
@@ -26,32 +27,48 @@ import {
   applyBattleOutcomeToProfile,
   applyDevUnlockEverything,
   awardArcadeCoins,
+  buildIronmanPersistedStateForBattle,
+  campHealPartyMember,
+  clearNuzlockeFallenAndIronman,
+  completeRomanceRank,
+  equipItemOnInstance,
+  harvestCampBerry,
   loadLocalProfile,
   mergeCloudAndLocalProfiles,
+  movePokemonInstanceZone,
+  plantCampBerry,
   purchaseHeldItem,
   purchasePokemon,
   purchaseShinyCharm,
   purchaseTM,
   recordChapterAttemptInProfile,
+  recordPostBattleSurvivalState,
+  recruitHousePokemonToCustomSlot,
   resetSpeciesCustomizations,
   resetStoryProgress,
   saveLocalProfile,
   setCustomItemForSpecies,
   setCustomMoveForSpecies,
   setDevModeEnabled,
+  toggleRunModifiers,
   unlockChapterWithCoins,
   unlockMoveSlotForSpecies,
-  updateCustomTeamSlot,
+  updatePokemonInstanceBuild,
 } from './engine/playerProfile';
+import { buildRomanceChapterDefinition } from './data/romanceChapters';
 import type {
   AISettings,
+  BattleDifficultyMode,
   BattleRewardSummary,
   BattleSnapshot,
+  BerryKind,
   ChapterDefinition,
   CustomTeamMember,
   MidStoryBattleRequest,
+  OwnedPokemonInstance,
   PersistedPartyState,
   PlayerSaveProfile,
+  PokemonStorageZone,
   ResolvedBattleConfig,
   ScreenView,
   StoryFlags,
@@ -79,6 +96,10 @@ export default function App() {
   >('local');
   const [accountModalOpen, setAccountModalOpen] = useState(false);
   const [devModalOpen, setDevModalOpen] = useState(false);
+  const [campModalOpen, setCampModalOpen] = useState(false);
+  const [pendingRomanceR1NpcId, setPendingRomanceR1NpcId] = useState<
+    string | null
+  >(null);
 
   const [aiSettings, setAiSettings] = useState<AISettings>(() =>
     loadAISettings()
@@ -162,6 +183,7 @@ export default function App() {
   };
 
   const startChapter = (chapter: ChapterDefinition) => {
+    setPendingRomanceR1NpcId(null);
     setActiveChapter(chapter);
     setResolvedConfig(null);
     setSuspendedInkState(null);
@@ -169,8 +191,30 @@ export default function App() {
     setScreen('vn');
   };
 
+  const handleStartRomanceRank = (
+    npcId: 'assassin' | 'court_duelist' | 'champion',
+    targetRank: 1 | 2 | 3
+  ) => {
+    const ch = buildRomanceChapterDefinition(npcId, targetRank);
+    setActiveChapter(ch);
+    setResolvedConfig(null);
+    setSuspendedInkState(null);
+    setPersistedPartyState(null);
+    setPendingRomanceR1NpcId(targetRank === 1 ? npcId : null);
+    setScreen('vn');
+  };
+
   const handleFinishVN = (flags: StoryFlags) => {
     setSuspendedInkState(null);
+    // Rank 1 Romance scenes are VN-only (no combat): award Rank 1 & return to Camp/Vínculos!
+    if (pendingRomanceR1NpcId) {
+      const doneNpc = pendingRomanceR1NpcId;
+      setPendingRomanceR1NpcId(null);
+      setProfile((prev) => completeRomanceRank(prev, doneNpc, 1));
+      setScreen('chapters');
+      setCampModalOpen(true);
+      return;
+    }
     const rawConfig = activeChapter.resolveBattleConfig(flags);
     const npcDef = getNpcDefinition(rawConfig.rivalCharId);
     const config: ResolvedBattleConfig = {
@@ -215,8 +259,22 @@ export default function App() {
 
   const handleLaunchBattle = (finalConfig: ResolvedBattleConfig) => {
     const npcDef = getNpcDefinition(finalConfig.rivalCharId);
+    const curProf = profileRef.current;
+    const ironmanPersisted =
+      !finalConfig.isVersusMatch &&
+      curProf.ironmanMode &&
+      !finalConfig.persistedPartyState
+        ? buildIronmanPersistedStateForBattle(
+            curProf,
+            finalConfig.playerShowdownPaste
+          )
+        : finalConfig.persistedPartyState;
+
     const hydrated: ResolvedBattleConfig = {
       ...finalConfig,
+      persistedPartyState: ironmanPersisted,
+      isIronmanActive: !finalConfig.isVersusMatch && curProf.ironmanMode,
+      isNuzlockeActive: !finalConfig.isVersusMatch && curProf.nuzlockePermadeath,
       rivalProfile: finalConfig.isVersusMatch
         ? finalConfig.rivalProfile
         : buildRivalProfileFromNpc(
@@ -262,7 +320,24 @@ export default function App() {
         resolvedConfig?.flags
       );
       earnedReward = res.reward;
-      setProfile(res.nextProfile);
+      let nextProf = recordPostBattleSurvivalState(
+        res.nextProfile,
+        snapshot.exportedPartyState,
+        won,
+        {
+          chapterTitle: activeChapter.title,
+          rivalName: resolvedConfig?.rivalName,
+          turn: snapshot.turn,
+        }
+      );
+      if (won && resolvedConfig?.romanceMeta) {
+        nextProf = completeRomanceRank(
+          nextProf,
+          resolvedConfig.romanceMeta.npcId,
+          resolvedConfig.romanceMeta.targetRank
+        );
+      }
+      setProfile(nextProf);
     } else if (won && resolvedConfig.p2Control !== 'human') {
       // Friendly coin bonus for winning Versus AI matches!
       setProfile((prev) => awardArcadeCoins(prev, 250));
@@ -310,13 +385,73 @@ export default function App() {
     return res;
   };
 
-  const handleUpdateCustomSlot = (
-    slotIndex: number,
-    member: CustomTeamMember
+  const handleMoveInstanceZone = (
+    uid: string,
+    targetZone: Exclude<PokemonStorageZone, 'graveyard'>
   ) => {
-    const res = updateCustomTeamSlot(profileRef.current, slotIndex, member);
+    const res = movePokemonInstanceZone(profileRef.current, uid, targetZone);
     if (res.ok) setProfile(res.nextProfile);
     return res;
+  };
+
+  const handleEquipInstanceItem = (uid: string, itemName: string) => {
+    const res = equipItemOnInstance(profileRef.current, uid, itemName);
+    if (res.ok) setProfile(res.nextProfile);
+    return res;
+  };
+
+  const handleUpdateInstanceBuild = (
+    uid: string,
+    patch: Partial<
+      Pick<
+        OwnedPokemonInstance,
+        'ability' | 'nature' | 'teraType' | 'moves' | 'shiny' | 'nickname'
+      >
+    >
+  ) => {
+    const res = updatePokemonInstanceBuild(profileRef.current, uid, patch);
+    if (res.ok) setProfile(res.nextProfile);
+    return res;
+  };
+
+  const handleToggleRunModifiers = (patch: {
+    ironmanMode?: boolean;
+    nuzlockePermadeath?: boolean;
+    defaultDifficulty?: BattleDifficultyMode;
+  }) => {
+    setProfile((prev) => toggleRunModifiers(prev, patch));
+  };
+
+  const handleCampHeal = (
+    species: string,
+    action: 'potion' | 'full_heal' | 'emergency_free' | 'lum' | 'sitrus' | 'leppa'
+  ) => {
+    const res = campHealPartyMember(profileRef.current, species, action);
+    if (res.ok) setProfile(res.nextProfile);
+    return res;
+  };
+
+  const handlePlantBerry = (plotIndex: number, berry: BerryKind) => {
+    const res = plantCampBerry(profileRef.current, plotIndex, berry);
+    if (res.ok) setProfile(res.nextProfile);
+    return res;
+  };
+
+  const handleHarvestBerry = (plotIndex: number) => {
+    const res = harvestCampBerry(profileRef.current, plotIndex);
+    if (res.ok) setProfile(res.nextProfile);
+    return res;
+  };
+
+  const handleRecruitHousePokemon = (
+    mon: CustomTeamMember,
+    slotIndex: number
+  ) => {
+    setProfile((prev) => recruitHousePokemonToCustomSlot(prev, mon, slotIndex));
+  };
+
+  const handleResetSurvivalState = () => {
+    setProfile((prev) => clearNuzlockeFallenAndIronman(prev));
   };
 
   const handleAwardArcadeCoins = useCallback((coins: number) => {
@@ -383,6 +518,7 @@ export default function App() {
         onOpenAccount={() => setAccountModalOpen(true)}
         onOpenAISettings={() => setAiModalOpen(true)}
         onOpenDevMode={() => setDevModalOpen(true)}
+        onOpenCamp={() => setCampModalOpen(true)}
         onQuickStartMainChapter={() => startChapter(CHAPTERS[0])}
         profile={profile}
         firebaseUser={firebaseUser}
@@ -400,6 +536,7 @@ export default function App() {
         onOpenArcade={() => setScreen('arcade')}
         onOpenAccount={() => setAccountModalOpen(true)}
         onOpenDevMode={() => setDevModalOpen(true)}
+        onOpenCamp={() => setCampModalOpen(true)}
         onSelectChapter={startChapter}
         onUnlockChapterWithCoins={handleUnlockChapterWithCoins}
         profile={profile}
@@ -424,7 +561,9 @@ export default function App() {
         profile={profile}
         onBackHome={() => setScreen('home')}
         onOpenShop={() => setScreen('shop')}
-        onUpdateSlot={handleUpdateCustomSlot}
+        onMoveInstanceZone={handleMoveInstanceZone}
+        onEquipInstanceItem={handleEquipInstanceItem}
+        onUpdateInstanceBuild={handleUpdateInstanceBuild}
         onToggleUseCustomTeam={(enabled) =>
           setProfile((prev) => ({
             ...prev,
@@ -471,6 +610,7 @@ export default function App() {
         onReplayVN={() => setScreen('vn')}
         onOpenShop={() => setScreen('shop')}
         onOpenDevMode={() => setDevModalOpen(true)}
+        onOpenCamp={() => setCampModalOpen(true)}
         onUnlockMoveSlot={handleUnlockMoveSlot}
         onSetCustomMove={handleSetCustomMove}
         onSetCustomItem={handleSetCustomItem}
@@ -508,6 +648,7 @@ export default function App() {
       <EpilogueView
         chapter={activeChapter}
         config={resolvedConfig}
+        profile={profile}
         won={battleOutcome.won}
         battleSummary={battleOutcome.snapshot}
         reward={battleOutcome.reward}
@@ -566,6 +707,18 @@ export default function App() {
         onAddMillionCoins={handleDevAddMillionCoins}
         onToggleDevMode={handleDevToggle}
         onResetStoryProgress={handleResetStory}
+      />
+      <SocialLinksCampModal
+        open={campModalOpen}
+        onClose={() => setCampModalOpen(false)}
+        profile={profile}
+        onStartRomanceRank={handleStartRomanceRank}
+        onToggleRunModifiers={handleToggleRunModifiers}
+        onCampHeal={handleCampHeal}
+        onPlantBerry={handlePlantBerry}
+        onHarvestBerry={handleHarvestBerry}
+        onRecruitHousePokemon={handleRecruitHousePokemon}
+        onResetSurvivalState={handleResetSurvivalState}
       />
     </>
   );
