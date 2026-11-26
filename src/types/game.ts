@@ -8,11 +8,14 @@ export type ScreenView =
 
 export type BattleFormat = 'singles' | 'doubles';
 
+export type ChapterCategory = 'story' | 'puzzles' | 'flashbacks' | 'showcases';
+
 export type SupportedFormatId =
   | 'gen9doublescustomgame'
   | 'gen9customgame'
   | 'gen91v1'
   | 'gen9monotype'
+  | 'gen9vgc2024regg'
   | 'gen9lc'
   | (string & {});
 
@@ -24,6 +27,9 @@ export type SceneBackdropId =
   | 'aqueduct-tunnels'
   | 'sunlit-courtyard'
   | 'royal-training-ground'
+  | 'vgc-worlds-stage'
+  | 'honor-duel-hall'
+  | 'banner-battlefield'
   | 'royal-pond'
   | 'banquet-hall';
 
@@ -65,7 +71,6 @@ export type BoostsTable = Partial<Record<BoostStatKey, number>>;
 
 export interface PuzzlePokemonModifier {
   side: 'p1' | 'p2';
-  /** Active slot ('0', '1', 'slot:1', 'slot:2') or species/nickname (e.g. 'Sableye', 'Metagross-Mega', 'Volcarona'). */
   slotOrSpecies: string;
   hpPercent?: number;
   boosts?: BoostsTable;
@@ -102,8 +107,13 @@ export interface ResolvedBattleConfig {
   chapterId: string;
   format: BattleFormat;
   formatId: SupportedFormatId;
-  /** Friendly format label displayed in the top battle bar (e.g. "Puzzle 3v3 Dobles", "Little Cup Nv. 5"). */
   formatLabel?: string;
+  /** Enables interactive Team Preview inside BattleArena (Pick 1 of 3 in 1v1, Pick 4 of 6 in VGC, Lead 1 of 6 in Monotype). */
+  interactiveTeamPreview?: boolean;
+  /** Enables Open Teamsheet inspection modal (full rival sets visible like Worlds VGC!). */
+  openTeamsheet?: boolean;
+  /** Optional preferred Showdown `team ...` order for Rival AI during Team Preview (e.g. 'team 5631' for Yuta). */
+  preferredRivalTeamOrder?: string;
   playerName: string;
   playerCharId: CharacterId;
   rivalName: string;
@@ -123,6 +133,7 @@ export interface ResolvedBattleConfig {
 
 export interface ChapterDefinition {
   id: string;
+  category: ChapterCategory;
   number: string;
   title: string;
   subtitle: string;
@@ -135,6 +146,7 @@ export interface ChapterDefinition {
   accentColor: string;
   featuredPokemon: string[];
   rivalPreview: string;
+  monotypeMatchup?: { playerType: string; rivalType: string };
   inkSource: string;
   resolveBattleConfig: (flags: StoryFlags) => ResolvedBattleConfig;
   getEpilogue: (won: boolean, flags: StoryFlags) => EpilogueContent;
@@ -226,11 +238,36 @@ export interface PartyPokemonState {
   isBossAce?: boolean;
 }
 
+export interface OpenTeamsheetEntry {
+  species: string;
+  level: number;
+  item: string;
+  ability: string;
+  teraType: string;
+  moves: string[];
+  types: string[];
+}
+
+export interface TeamPreviewState {
+  active: boolean;
+  mode: 'pick-1' | 'pick-4' | 'lead-1';
+  pickCount: number;
+  playerRoster: PartyPokemonState[];
+  rivalRoster: Array<{
+    species: string;
+    level: number;
+    gender: string;
+    types: string[];
+    openSheet?: OpenTeamsheetEntry;
+  }>;
+}
+
 export interface FieldSideState {
   playerName: string;
   active: (PartyPokemonState | null)[];
   party: PartyPokemonState[];
   sideConditions: string[];
+  sideTimers: Record<string, number>;
 }
 
 export interface BattleLogEntry {
@@ -286,15 +323,29 @@ export interface EnemyTauntBanner {
 }
 
 export interface BattleSnapshot {
-  status: 'initializing' | 'awaiting-choice' | 'resolving' | 'ended';
+  status:
+    | 'initializing'
+    | 'team-preview'
+    | 'awaiting-choice'
+    | 'resolving'
+    | 'ended';
   format: BattleFormat;
   formatId: SupportedFormatId;
   formatLabel: string;
   turn: number;
   weather: string;
+  weatherTurnsLeft: number | null;
   terrain: string;
+  terrainTurnsLeft: number | null;
+  trickRoomTurnsLeft: number | null;
   levelCap: number;
   puzzleApplied: boolean;
+  teamPreview: TeamPreviewState | null;
+  openTeamsheet: {
+    enabled: boolean;
+    player: OpenTeamsheetEntry[];
+    rival: OpenTeamsheetEntry[];
+  };
   p1: FieldSideState;
   p2: FieldSideState;
   pendingSlots: PendingDecisionSlot[];

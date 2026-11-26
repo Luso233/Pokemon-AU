@@ -32,6 +32,7 @@ interface ShowdownRequestSidePokemon {
 export interface ShowdownRequest {
   wait?: boolean;
   teamPreview?: boolean;
+  maxChosenTeamSize?: number;
   forceSwitch?: boolean[];
   active?: (ShowdownRequestActive | null)[];
   side: {
@@ -49,6 +50,7 @@ export interface OpponentContext {
   turn: number;
   scriptedRules: ScriptedEnemyRule[];
   triggeredRuleIds: Set<string>;
+  preferredTeamPreviewOrder?: string;
 }
 
 export interface RivalActionDecision {
@@ -140,7 +142,12 @@ export function chooseRivalAction(
   ctx: OpponentContext
 ): RivalActionDecision | null {
   if (request.wait) return null;
-  if (request.teamPreview) return { command: 'default', triggeredRules: [] };
+  if (request.teamPreview) {
+    return {
+      command: ctx.preferredTeamPreviewOrder || 'default',
+      triggeredRules: [],
+    };
+  }
 
   const party = request.side?.pokemon ?? [];
 
@@ -216,13 +223,25 @@ export function chooseRivalAction(
           (targetType === 'normal' ||
             targetType === 'any' ||
             targetType === 'adjacentFoe');
+        const needsAllyTarget =
+          ctx.format === 'doubles' && targetType === 'adjacentAlly';
 
-        const suffix = resolveScriptedTarget(
-          rule.targetSpec,
-          needsFoeTarget,
-          ctx,
-          aliveFoeSlots
-        );
+        let suffix = '';
+        if (needsAllyTarget) {
+          const allySlot = slotIdx === 0 ? 1 : 0;
+          const allyMon = party[allySlot];
+          if (!allyMon || isFainted(allyMon.condition)) {
+            continue;
+          }
+          suffix = ` -${allySlot + 1}`;
+        } else {
+          suffix = resolveScriptedTarget(
+            rule.targetSpec,
+            needsFoeTarget,
+            ctx,
+            aliveFoeSlots
+          );
+        }
         matchedCommand = `move ${forced.slot}${suffix}`;
         ctx.triggeredRuleIds.add(rule.id);
         triggeredRules.push(rule);

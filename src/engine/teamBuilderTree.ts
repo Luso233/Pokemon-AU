@@ -595,6 +595,8 @@ export function resolveChapter1ChaseBattle(
   };
 }
 
+
+
 /* ===================== Chapter 02 Bonus: Banquet Ambush (<=400 BST Showdown Dirty Sets) ===================== */
 
 export function resolveChapter2BanquetBattle(
@@ -856,6 +858,8 @@ export function resolveChapter2BanquetBattle(
   };
 }
 
+
+
 /* ===================== Puzzle 01: La Trampa del Sol (3v3 Dobles con PuzzleConditions) ===================== */
 
 export function resolvePuzzle1SunTrapBattle(
@@ -1064,6 +1068,8 @@ export function resolvePuzzle1SunTrapBattle(
     flags,
   };
 }
+
+
 
 /* ===================== Flashback Little Cup: Príncipe 6 años (Nv. 5) vs La Campeona (Nv. 6–7) ===================== */
 
@@ -1302,6 +1308,631 @@ export function resolveChampionLittleCupBattle(
     },
     scriptedEnemyRules,
     traces,
+    flags,
+  };
+}
+
+
+
+/* ===================== Duelo 01: Duelo de Honor (gen91v1 · Bring 3, Pick 1) ===================== */
+
+export function resolveDuel1Honor1v1Battle(
+  flags: StoryFlags
+): ResolvedBattleConfig {
+  const rivalRead = String(flags.rival_read ?? 'ironcrown');
+  const rivalSlot =
+    rivalRead === 'skeledirge' ? 2 : rivalRead === 'urshifu' ? 3 : 1;
+
+  const playerBlocks: ShowdownSetBlock[] = [
+    {
+      species: 'Gallade',
+      item: 'Choice Band',
+      ability: 'Sharpness',
+      level: 100,
+      evs: '252 Atk / 4 SpD / 252 Spe',
+      nature: 'Jolly',
+      moves: ['Sacred Sword', 'Psycho Cut', 'Leaf Blade', 'Aqua Cutter'],
+    },
+    {
+      species: 'Primarina',
+      item: 'Choice Specs',
+      ability: 'Torrent',
+      level: 100,
+      evs: '248 HP / 120 Def / 140 SpA',
+      nature: 'Modest',
+      ivs: '0 Atk',
+      moves: ['Hydro Cannon', 'Moonblast', 'Psychic Noise', 'Icy Wind'],
+    },
+    {
+      species: 'Metagross',
+      item: 'Weakness Policy',
+      ability: 'Clear Body',
+      level: 100,
+      evs: '252 HP / 176 Atk / 80 Def',
+      nature: 'Adamant',
+      moves: ['Meteor Mash', 'Earthquake', 'Bullet Punch', 'Iron Defense'],
+    },
+  ];
+
+  const rivalBlocks: ShowdownSetBlock[] = [
+    {
+      species: 'Iron Crown',
+      item: 'Booster Energy',
+      ability: 'Quark Drive',
+      level: 100,
+      evs: '4 HP / 252 SpA / 252 Spe',
+      nature: 'Timid',
+      ivs: '20 Atk',
+      moves: ['Tachyon Cutter', 'Psychic', 'Focus Blast', 'Calm Mind'],
+    },
+    {
+      species: 'Skeledirge',
+      item: 'Throat Spray',
+      ability: 'Unaware',
+      level: 100,
+      evs: '248 HP / 84 Def / 176 SpA',
+      nature: 'Modest',
+      ivs: '0 Atk',
+      moves: ['Torch Song', 'Shadow Ball', 'Slack Off', 'Encore'],
+    },
+    {
+      species: 'Urshifu',
+      item: 'Choice Band',
+      ability: 'Unseen Fist',
+      level: 100,
+      evs: '252 Atk / 4 SpD / 252 Spe',
+      nature: 'Jolly',
+      moves: ['Wicked Blow', 'Close Combat', 'Sucker Punch', 'Iron Head'],
+    },
+  ];
+
+  const readNames: Record<string, string> = {
+    ironcrown: 'Iron Crown (Booster Energy)',
+    skeledirge: 'Skeledirge (Unaware)',
+    urshifu: 'Urshifu (Choice Band)',
+  };
+
+  const scriptedEnemyRules: ScriptedEnemyRule[] = [
+    {
+      id: 'duel1v1-t1-ironcrown',
+      turn: 1,
+      actorSpecies: 'Iron Crown',
+      forceMoveId: 'tachyoncutter',
+      once: true,
+      description: 'Turno 1 1v1: Iron Crown presiona con doble golpe Tachyon Cutter.',
+      tauntLine: '«Sin cambios ni excusas: ¡Iron Crown, Taquión Cortante!»',
+    },
+    {
+      id: 'duel1v1-t1-skeledirge',
+      turn: 1,
+      actorSpecies: 'Skeledirge',
+      forceMoveId: 'torchsong',
+      once: true,
+      description: 'Turno 1 1v1: Skeledirge activa Throat Spray con Torch Song.',
+      tauntLine: '«¡Quema su honor con Canto Ardiente, Skeledirge!»',
+    },
+    {
+      id: 'duel1v1-t1-urshifu',
+      turn: 1,
+      actorSpecies: 'Urshifu',
+      forceMoveId: 'wickedblow',
+      once: true,
+      description: 'Turno 1 1v1: Urshifu busca OHKO crítico con Wicked Blow.',
+      tauntLine: '«Un golpe basta en 1v1. ¡Urshifu, Golpe Oscuro!»',
+    },
+  ];
+
+  return {
+    chapterId: 'duel-01-honor-1v1',
+    format: 'singles',
+    formatId: 'gen91v1',
+    formatLabel: '1v1 · Bring 3, Pick 1',
+    interactiveTeamPreview: true,
+    openTeamsheet: true,
+    preferredRivalTeamOrder: `team ${rivalSlot}`,
+    playerName: 'Príncipe Heredero',
+    playerCharId: 'prince',
+    rivalName: 'Asesino Carmesí',
+    rivalTitle: 'Duelista de la Corte · Formato 1v1',
+    rivalCharId: 'assassin',
+    arenaTheme: 'honor-duel-hall',
+    playerTeamSummary: 'Trío Real: Gallade, Primarina, Metagross (Elige 1)',
+    rivalTeamSummary: 'Trío Rival: Iron Crown, Skeledirge, Urshifu (Elige 1)',
+    playerShowdownPaste: buildShowdownPaste(playerBlocks),
+    rivalShowdownPaste: buildShowdownPaste(rivalBlocks),
+    rivalIntel: {
+      visibleSpeciesCount: 3,
+      totalSlots: 3,
+      intelLabel: 'Team Preview 1v1 · 3/3 Especies',
+      intelNote:
+        'En 1v1 ves los 3 Pokémon del rival y eliges solo 1 para combate a muerte súbita sin cambios. También puedes consultar el Teamsheet.',
+      levelCap: 100,
+      hasBossAce: false,
+      aiScriptHint: `Pista de la escena Ink: todo indica que el rival elegirá a ${readNames[rivalRead] ?? 'Iron Crown'} en el Team Preview.`,
+    },
+    scriptedEnemyRules,
+    traces: [
+      {
+        id: '1v1-read',
+        category: 'ai-script',
+        choiceLabel: `Pista observada: ${readNames[rivalRead] ?? 'Iron Crown'}`,
+        flagKey: 'rival_read',
+        flagValue: rivalRead,
+        effectTitle: 'Lectura de Team Preview 1v1',
+        effectDetail:
+          'Elige el counter adecuado entre Gallade, Primarina y Metagross durante la selección interactiva 1 de 3.',
+      },
+      {
+        id: '1v1-format',
+        category: 'player-set',
+        choiceLabel: 'Reglas oficiales gen91v1',
+        flagKey: 'format',
+        flagValue: 'gen91v1',
+        effectTitle: 'Sin cambios · Objetos de burst y aguante',
+        effectDetail:
+          'Choice Band Gallade, Choice Specs Primarina y Weakness Policy Metagross forman un triángulo táctico completo.',
+      },
+    ],
+    flags,
+  };
+}
+
+/* ===================== Capítulo 02: Choque de Estandartes (gen9monotype · Acero vs Siniestro) ===================== */
+
+export function resolveChapter2MonotypeBattle(
+  flags: StoryFlags
+): ResolvedBattleConfig {
+  const doctrine = String(flags.steel_doctrine ?? 'scarf_gholdengo');
+
+  const playerBlocks: ShowdownSetBlock[] = [
+    {
+      species: 'Corviknight',
+      item: 'Rocky Helmet',
+      ability: 'Pressure',
+      level: 100,
+      evs: '252 HP / 252 Def / 4 SpD',
+      nature: 'Impish',
+      moves: ['Brave Bird', 'Body Press', 'Defog', 'Roost'],
+    },
+    {
+      species: 'Heatran',
+      item: doctrine === 'bulky_steel' ? 'Leftovers' : 'Air Balloon',
+      ability: 'Flash Fire',
+      level: 100,
+      evs:
+        doctrine === 'bulky_steel'
+          ? '252 HP / 4 SpA / 252 SpD'
+          : '252 SpA / 4 SpD / 252 Spe',
+      nature: doctrine === 'bulky_steel' ? 'Calm' : 'Timid',
+      ivs: '0 Atk',
+      moves:
+        doctrine === 'bulky_steel'
+          ? ['Magma Storm', 'Earth Power', 'Protect', 'Stealth Rock']
+          : ['Magma Storm', 'Earth Power', 'Flash Cannon', 'Stealth Rock'],
+    },
+    {
+      species: 'Gholdengo',
+      item: doctrine === 'bulky_steel' ? 'Leftovers' : 'Choice Scarf',
+      ability: 'Good as Gold',
+      level: 100,
+      evs: '252 SpA / 4 SpD / 252 Spe',
+      nature: 'Timid',
+      ivs: '0 Atk',
+      moves:
+        doctrine === 'bulky_steel'
+          ? ['Make It Rain', 'Shadow Ball', 'Nasty Plot', 'Recover']
+          : ['Make It Rain', 'Shadow Ball', 'Focus Blast', 'Trick'],
+    },
+    {
+      species: 'Archaludon',
+      item: 'Assault Vest',
+      ability: 'Stamina',
+      level: 100,
+      evs: '252 HP / 4 Def / 252 SpA',
+      nature: 'Modest',
+      ivs: '0 Atk',
+      moves: ['Draco Meteor', 'Flash Cannon', 'Body Press', 'Thunderbolt'],
+    },
+    {
+      species: 'Iron Treads',
+      item: 'Leftovers',
+      ability: 'Quark Drive',
+      level: 100,
+      evs: '252 Atk / 4 SpD / 252 Spe',
+      nature: 'Jolly',
+      moves: ['Earthquake', 'Iron Head', 'Rapid Spin', 'Knock Off'],
+    },
+    {
+      species: 'Scizor',
+      item: 'Choice Band',
+      ability: 'Technician',
+      level: 100,
+      evs: '252 Atk / 4 Def / 252 Spe',
+      nature: 'Adamant',
+      moves: ['Bullet Punch', 'U-turn', 'Close Combat', 'Knock Off'],
+    },
+  ];
+
+  const rivalBlocks: ShowdownSetBlock[] = [
+    {
+      species: 'Samurott-Hisui',
+      item: 'Focus Sash',
+      ability: 'Sharpness',
+      level: 100,
+      evs: '252 Atk / 4 SpD / 252 Spe',
+      nature: 'Jolly',
+      moves: ['Ceaseless Edge', 'Razor Shell', 'Sacred Sword', 'Aqua Jet'],
+    },
+    {
+      species: 'Ting-Lu',
+      item: 'Leftovers',
+      ability: 'Vessel of Ruin',
+      level: 100,
+      evs: '252 HP / 4 Def / 252 SpD',
+      nature: 'Careful',
+      moves: ['Earthquake', 'Ruination', 'Stealth Rock', 'Whirlwind'],
+    },
+    {
+      species: 'Meowscarada',
+      item: 'Choice Scarf',
+      ability: 'Protean',
+      level: 100,
+      evs: '252 Atk / 4 SpD / 252 Spe',
+      nature: 'Jolly',
+      moves: ['Flower Trick', 'Knock Off', 'U-turn', 'Triple Axel'],
+    },
+    {
+      species: 'Mandibuzz',
+      item: 'Heavy-Duty Boots',
+      ability: 'Overcoat',
+      level: 100,
+      evs: '248 HP / 252 Def / 8 SpD',
+      nature: 'Impish',
+      moves: ['Foul Play', 'U-turn', 'Defog', 'Roost'],
+    },
+    {
+      species: 'Greninja',
+      item: 'Life Orb',
+      ability: 'Protean',
+      level: 100,
+      evs: '252 SpA / 4 SpD / 252 Spe',
+      nature: 'Timid',
+      ivs: '0 Atk',
+      moves: ['Hydro Pump', 'Dark Pulse', 'Ice Beam', 'Extrasensory'],
+    },
+    {
+      species: 'Sableye',
+      item: 'Leftovers',
+      ability: 'Prankster',
+      level: 100,
+      evs: '252 HP / 252 Def / 4 SpD',
+      nature: 'Impish',
+      moves: ['Will-O-Wisp', 'Knock Off', 'Encore', 'Recover'],
+    },
+  ];
+
+  const scriptedEnemyRules: ScriptedEnemyRule[] = [
+    {
+      id: 'mono-t1-samurott-edge',
+      turn: 1,
+      actorSpecies: 'Samurott-Hisui',
+      forceMoveId: 'ceaselessedge',
+      once: true,
+      description: 'Turno 1 Monotype: Samurott-Hisui abre colocando Púas con Ceaseless Edge.',
+      tauntLine: '«¡Llenen el campo de púas! ¡Samurott, Tajo Metralla!»',
+    },
+    {
+      id: 'mono-tinglu-sr',
+      actorSpecies: 'Ting-Lu',
+      forceMoveId: 'stealthrock',
+      once: true,
+      description: 'Entrada de Ting-Lu: busca colocar Stealth Rock contra tu equipo Acero.',
+      tauntLine: '«Tu armadura pesará el doble con Trampa Rocas. ¡Ting-Lu!»',
+    },
+  ];
+
+  return {
+    chapterId: 'ch2-monotype-banners',
+    format: 'singles',
+    formatId: 'gen9monotype',
+    formatLabel: '6v6 Singles · Monotype',
+    interactiveTeamPreview: true,
+    openTeamsheet: false,
+    playerName: 'Príncipe Heredero',
+    playerCharId: 'prince',
+    rivalName: 'Asesino Carmesí',
+    rivalTitle: 'Estandarte Siniestro (Monotype Dark)',
+    rivalCharId: 'assassin',
+    arenaTheme: 'banner-battlefield',
+    playerTeamSummary: 'Monotype Acero: Corviknight, Heatran, Gholdengo, Archaludon, Iron Treads, Scizor',
+    rivalTeamSummary: 'Monotype Siniestro (6 especies visibles en Team Preview)',
+    playerShowdownPaste: buildShowdownPaste(playerBlocks),
+    rivalShowdownPaste: buildShowdownPaste(rivalBlocks),
+    rivalIntel: {
+      visibleSpeciesCount: 6,
+      totalSlots: 6,
+      intelLabel: 'Monotype Acero vs. Siniestro',
+      intelNote:
+        'En gen9monotype oficial ambos equipos comparten un único tipo obligatorio. Elegirás tu Lead (1 de 6) en Team Preview.',
+      levelCap: 100,
+      hasBossAce: false,
+      aiScriptHint:
+        'Samurott-Hisui suele abrir con Ceaseless Edge para poner Púas en Turno 1; Corviknight (Defog) o Iron Treads (Rapid Spin) limpian el terreno.',
+    },
+    scriptedEnemyRules,
+    traces: [
+      {
+        id: 'mono-doctrine',
+        category: 'player-set',
+        choiceLabel:
+          doctrine === 'bulky_steel'
+            ? 'Doctrina Muralla (Desgaste)'
+            : 'Doctrina Velocidad (Scarf + Band)',
+        flagKey: 'steel_doctrine',
+        flagValue: doctrine,
+        effectTitle:
+          doctrine === 'bulky_steel'
+            ? 'Heatran Leftovers + Gholdengo Nasty Plot'
+            : 'Heatran Air Balloon + Gholdengo Choice Scarf',
+        effectDetail:
+          doctrine === 'bulky_steel'
+            ? 'Prioriza recuperación y aguante prolongado frente a Ting-Lu y Mandibuzz.'
+            : 'Outspeedea a Greninja/Meowscarada y absorbe Earthquake con Globo Helio.',
+      },
+      {
+        id: 'mono-matchup',
+        category: 'rival-team',
+        choiceLabel: 'Decreto Monotype (gen9monotype)',
+        flagKey: 'monotype',
+        flagValue: 'steel-vs-dark',
+        effectTitle: 'Acero vs. Siniestro (100% legal en Showdown)',
+        effectDetail:
+          'Ambos equipos superan el TeamValidator oficial de gen9monotype.',
+      },
+    ],
+    flags,
+  };
+}
+
+/* ===================== Archivo VGC: Final Mundial 2024 — Luca Ceribelli vs. Yuta Ishigaki ===================== */
+
+export function resolveVgcWorlds2024Battle(
+  flags: StoryFlags
+): ResolvedBattleConfig {
+  const yutaPlan = String(flags.yuta_plan ?? 'game1');
+
+  const lucaBlocks: ShowdownSetBlock[] = [
+    {
+      species: 'Miraidon',
+      item: 'Choice Specs',
+      ability: 'Hadron Engine',
+      level: 50,
+      teraType: 'Fairy',
+      evs: '44 HP / 4 Def / 244 SpA / 12 SpD / 204 Spe',
+      nature: 'Modest',
+      moves: ['Electro Drift', 'Draco Meteor', 'Volt Switch', 'Dazzling Gleam'],
+    },
+    {
+      species: 'Whimsicott',
+      item: 'Covert Cloak',
+      ability: 'Prankster',
+      level: 50,
+      teraType: 'Dark',
+      evs: '236 HP / 164 SpD / 108 Spe',
+      nature: 'Timid',
+      ivs: '0 Atk',
+      moves: ['Moonblast', 'Tailwind', 'Light Screen', 'Encore'],
+    },
+    {
+      species: 'Urshifu-Rapid-Strike',
+      item: 'Focus Sash',
+      ability: 'Unseen Fist',
+      level: 50,
+      teraType: 'Stellar',
+      evs: '252 Atk / 4 SpD / 252 Spe',
+      nature: 'Adamant',
+      moves: ['Surging Strikes', 'Close Combat', 'Aqua Jet', 'Detect'],
+    },
+    {
+      species: 'Ogerpon-Hearthflame',
+      item: 'Hearthflame Mask',
+      ability: 'Mold Breaker',
+      level: 50,
+      teraType: 'Fire',
+      evs: '188 HP / 76 Atk / 52 Def / 4 SpD / 188 Spe',
+      nature: 'Adamant',
+      moves: ['Ivy Cudgel', 'Wood Hammer', 'Follow Me', 'Spiky Shield'],
+    },
+    {
+      species: 'Iron Hands',
+      item: 'Assault Vest',
+      ability: 'Quark Drive',
+      level: 50,
+      teraType: 'Bug',
+      evs: '76 HP / 180 Atk / 12 Def / 236 SpD',
+      nature: 'Brave',
+      ivs: '0 Spe',
+      moves: ['Drain Punch', 'Wild Charge', 'Fake Out', 'Low Kick'],
+    },
+    {
+      species: 'Farigiraf',
+      item: 'Electric Seed',
+      ability: 'Armor Tail',
+      level: 50,
+      teraType: 'Water',
+      evs: '204 HP / 164 Def / 4 SpA / 108 SpD / 28 Spe',
+      nature: 'Bold',
+      ivs: '6 Atk',
+      moves: ['Psychic Noise', 'Foul Play', 'Helping Hand', 'Trick Room'],
+    },
+  ];
+
+  const yutaBlocks: ShowdownSetBlock[] = [
+    {
+      species: 'Calyrex-Ice',
+      item: 'Clear Amulet',
+      ability: 'As One (Glastrier)',
+      level: 50,
+      teraType: 'Grass',
+      evs: '252 HP / 172 Atk / 84 SpD',
+      nature: 'Brave',
+      ivs: '1 Spe',
+      moves: ['Glacial Lance', 'High Horsepower', 'Protect', 'Trick Room'],
+    },
+    {
+      species: 'Urshifu-Rapid-Strike',
+      item: 'Focus Sash',
+      ability: 'Unseen Fist',
+      level: 50,
+      teraType: 'Water',
+      evs: '252 Atk / 4 SpD / 252 Spe',
+      nature: 'Adamant',
+      moves: ['Surging Strikes', 'Close Combat', 'Aqua Jet', 'Detect'],
+    },
+    {
+      species: 'Pelipper',
+      item: 'Life Orb',
+      ability: 'Drizzle',
+      level: 50,
+      teraType: 'Grass',
+      evs: '252 HP / 252 SpA / 4 SpD',
+      nature: 'Modest',
+      ivs: '0 Atk',
+      moves: ['Weather Ball', 'Hurricane', 'Helping Hand', 'Wide Guard'],
+    },
+    {
+      species: 'Amoonguss',
+      item: 'Rocky Helmet',
+      ability: 'Regenerator',
+      level: 50,
+      teraType: 'Fire',
+      evs: '236 HP / 228 Def / 44 SpD',
+      nature: 'Relaxed',
+      ivs: '0 Atk / 0 Spe',
+      moves: ['Spore', 'Rage Powder', 'Clear Smog', 'Pollen Puff'],
+    },
+    {
+      species: 'Iron Valiant',
+      item: 'Booster Energy',
+      ability: 'Quark Drive',
+      level: 50,
+      teraType: 'Ghost',
+      evs: '204 HP / 4 Atk / 100 Def / 28 SpD / 172 Spe',
+      nature: 'Jolly',
+      moves: ['Spirit Break', 'Coaching', 'Wide Guard', 'Encore'],
+    },
+    {
+      species: 'Landorus',
+      item: 'Choice Scarf',
+      ability: 'Sheer Force',
+      level: 50,
+      teraType: 'Ghost',
+      evs: '4 HP / 252 SpA / 252 Spe',
+      nature: 'Modest',
+      moves: ['Earth Power', 'Sandsear Storm', 'Sludge Bomb', 'U-turn'],
+    },
+  ];
+
+  // Yuta opens Iron Valiant (5) + Landorus (6), with Pelipper (3) or Amoonguss (4) + Calyrex-Ice (1) in back!
+  const yutaTeamOrder = yutaPlan === 'game2' ? 'team 5641' : 'team 5631';
+
+  const scriptedEnemyRules: ScriptedEnemyRule[] = [
+    {
+      id: 'vgc-t1-valiant-spiritbreak',
+      turn: 1,
+      actorSpecies: 'Iron Valiant',
+      forceMoveId: 'spiritbreak',
+      targetSpec: 'species:Miraidon',
+      once: true,
+      description: 'Final Mundial T1: Iron Valiant presiona con Spirit Break para bajar el SpA de Miraidon.',
+      tauntLine: '«¡Presión directa sobre Miraidon! ¡Iron Valiant, Choque Anímico!»',
+    },
+    {
+      id: 'vgc-t1-landorus-sandsear',
+      turn: 1,
+      actorSpecies: 'Landorus',
+      forceMoveId: 'sandsearstorm',
+      once: true,
+      description: 'Final Mundial T1: Landorus Choice Scarf presiona en área con Sandsear Storm.',
+      tauntLine: '«¡Control total del centro! ¡Landorus, Simún de Arena!»',
+    },
+    {
+      id: 'vgc-calyrex-tr',
+      actorSpecies: 'Calyrex-Ice',
+      forceMoveId: 'trickroom',
+      once: true,
+      description: 'Mid-game Mundial: Calyrex-Ice intenta invertir velocidades con Trick Room.',
+      tauntLine: '«Es hora de invertir el ritmo de la final. ¡Calyrex, Espacio Raro!»',
+    },
+    {
+      id: 'vgc-pelipper-wideguard',
+      actorSpecies: 'Pelipper',
+      condition: 'playerHasSpecies',
+      requiredPlayerSpecies: 'Miraidon',
+      forceMoveId: 'helpinghand',
+      once: true,
+      description: 'Sinergia Mundial: Pelipper potencia a su compañero con Helping Hand bajo Lluvia.',
+      tauntLine: '«¡Lluvia y Refuerzo de Pelipper para asegurar el KO!»',
+    },
+  ];
+
+  return {
+    chapterId: 'archive-vgc-2024',
+    format: 'doubles',
+    formatId: 'gen9vgc2024regg',
+    formatLabel: 'VGC Reg G · Dobles 4v4 Nv. 50',
+    interactiveTeamPreview: true,
+    openTeamsheet: true,
+    preferredRivalTeamOrder: yutaTeamOrder,
+    playerName: 'Luca Ceribelli',
+    playerCharId: 'prince',
+    rivalName: 'Yuta Ishigaki',
+    rivalTitle: 'Final Mundial VGC 2024 · Honolulu',
+    rivalCharId: 'champion',
+    arenaTheme: 'vgc-worlds-stage',
+    playerTeamSummary: 'Luca Ceribelli (Miraidon, Whimsicott, Urshifu-R, Ogerpon-H, Iron Hands, Farigiraf)',
+    rivalTeamSummary: 'Yuta Ishigaki (Calyrex-Ice, Urshifu-R, Pelipper, Amoonguss, Iron Valiant, Landorus)',
+    playerShowdownPaste: buildShowdownPaste(lucaBlocks),
+    rivalShowdownPaste: buildShowdownPaste(yutaBlocks),
+    rivalIntel: {
+      visibleSpeciesCount: 6,
+      totalSlots: 6,
+      intelLabel: 'Open Teamsheets Oficiales · 6/6',
+      intelNote:
+        'Reglamento oficial de Campeonato Mundial: ambos equipos tienen Open Teamsheets visibles (objetos, habilidades, teratipos y movimientos). Elige 4 de 6 en Team Preview.',
+      levelCap: 50,
+      hasBossAce: false,
+      aiScriptHint:
+        yutaPlan === 'game2'
+          ? 'Plan Juego 2: Yuta abre con Iron Valiant + Landorus y reserva Amoonguss + Calyrex-Ice (Espacio Raro).'
+          : 'Plan Juego 1: Yuta abre con Iron Valiant + Landorus y reserva Pelipper (Lluvia) + Calyrex-Ice (Espacio Raro).',
+    },
+    scriptedEnemyRules,
+    traces: [
+      {
+        id: 'vgc-plan',
+        category: 'ai-script',
+        choiceLabel:
+          yutaPlan === 'game2'
+            ? 'Simulación Juego 2 (Amoonguss + Calyrex-Ice)'
+            : 'Simulación Juego 1 (Pelipper + Calyrex-Ice)',
+        flagKey: 'yuta_plan',
+        flagValue: yutaPlan,
+        effectTitle: 'Apertura oficial de Yuta Ishigaki',
+        effectDetail:
+          'Iron Valiant + Landorus en Turno 1, con pivote mid-game hacia Calyrex-Ice (Trick Room).',
+      },
+      {
+        id: 'vgc-rules',
+        category: 'player-roster',
+        choiceLabel: 'gen9vgc2024regg (Bring 6, Pick 4)',
+        flagKey: 'format',
+        flagValue: 'gen9vgc2024regg',
+        effectTitle: 'Open Teamsheets + Nivel 50 + Tera Activo',
+        effectDetail:
+          'Equipos verificados 100% legales con los EVs/IVs exactos de la Final Mundial 2024.',
+      },
+    ],
     flags,
   };
 }

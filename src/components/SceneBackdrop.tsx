@@ -10,6 +10,74 @@ export const SceneBackdrop: React.FC<SceneBackdropProps> = ({
   theme,
   className = '',
 }) => {
+  if (theme === 'vgc-worlds-stage') {
+    return (
+      <div
+        className={`pointer-events-none absolute inset-0 overflow-hidden ${className}`}
+      >
+        <div className="absolute inset-0 bg-gradient-to-b from-[#160b2c] via-[#0c1d3a] to-[#060a14]" />
+        <div className="absolute -top-24 left-1/3 h-80 w-[44rem] -translate-x-1/2 rounded-full bg-rose-500/20 blur-[110px]" />
+        <div className="absolute top-1/4 right-1/4 h-72 w-96 rounded-full bg-sky-400/20 blur-[100px]" />
+        <div className="absolute bottom-0 left-1/2 h-64 w-[48rem] -translate-x-1/2 rounded-full bg-amber-400/12 blur-[90px]" />
+        <svg
+          className="absolute inset-0 h-full w-full opacity-30"
+          viewBox="0 0 1200 600"
+          preserveAspectRatio="none"
+        >
+          {/* Championship stadium arena rings */}
+          <ellipse cx="600" cy="430" rx="490" ry="95" fill="none" stroke="#38bdf8" strokeOpacity="0.4" strokeWidth="2.5" />
+          <ellipse cx="600" cy="430" rx="220" ry="44" fill="none" stroke="#fbbf24" strokeOpacity="0.5" strokeWidth="2.5" />
+          <circle cx="600" cy="430" r="36" fill="none" stroke="#f43f5e" strokeOpacity="0.5" strokeWidth="2" />
+          <line x1="110" y1="430" x2="1090" y2="430" stroke="#e2e8f0" strokeOpacity="0.22" strokeWidth="1.5" />
+          {/* Overhead broadcast spotlights */}
+          <polygon points="180,0 440,340 310,340" fill="#38bdf8" fillOpacity="0.08" />
+          <polygon points="1020,0 760,340 890,340" fill="#f43f5e" fillOpacity="0.08" />
+        </svg>
+      </div>
+    );
+  }
+
+  if (theme === 'honor-duel-hall') {
+    return (
+      <div
+        className={`pointer-events-none absolute inset-0 overflow-hidden ${className}`}
+      >
+        <div className="absolute inset-0 bg-gradient-to-b from-[#1a0d16] via-[#121226] to-[#06070f]" />
+        <div className="absolute top-0 left-1/2 h-80 w-[40rem] -translate-x-1/2 rounded-full bg-amber-400/18 blur-[110px]" />
+        <div className="absolute bottom-0 right-1/4 h-72 w-80 rounded-full bg-rose-600/18 blur-[95px]" />
+        <svg
+          className="absolute inset-0 h-full w-full opacity-25"
+          viewBox="0 0 1200 600"
+          preserveAspectRatio="none"
+        >
+          <ellipse cx="600" cy="475" rx="340" ry="42" fill="none" stroke="#fbbf24" strokeOpacity="0.55" strokeWidth="3" />
+          <line x1="600" y1="80" x2="600" y2="520" stroke="#fbbf24" strokeOpacity="0.18" strokeDasharray="6 6" />
+        </svg>
+      </div>
+    );
+  }
+
+  if (theme === 'banner-battlefield') {
+    return (
+      <div
+        className={`pointer-events-none absolute inset-0 overflow-hidden ${className}`}
+      >
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0b1320] via-[#141b2c] to-[#070a12]" />
+        <div className="absolute top-0 left-1/4 h-80 w-96 rounded-full bg-slate-300/14 blur-[100px]" />
+        <div className="absolute bottom-0 right-1/4 h-80 w-96 rounded-full bg-purple-700/20 blur-[100px]" />
+        <svg
+          className="absolute inset-0 h-full w-full opacity-25"
+          viewBox="0 0 1200 600"
+          preserveAspectRatio="none"
+        >
+          <path d="M120 80 L220 80 L220 340 L170 300 L120 340 Z" fill="#94a3b8" fillOpacity="0.35" />
+          <path d="M980 80 L1080 80 L1080 340 L1030 300 L980 340 Z" fill="#7c3aed" fillOpacity="0.35" />
+          <line x1="0" y1="455" x2="1200" y2="455" stroke="#94a3b8" strokeOpacity="0.28" />
+        </svg>
+      </div>
+    );
+  }
+
   if (theme === 'sunlit-courtyard') {
     return (
       <div

@@ -5,11 +5,13 @@ import type {
   BattleFormat,
   BattleLogEntry,
   BattleSnapshot,
+  OpenTeamsheetEntry,
   PartyPokemonState,
   PendingDecisionSlot,
   PuzzlePokemonModifier,
   ResolvedBattleConfig,
   SpeedRange,
+  TeamPreviewState,
 } from '../types/game';
 import { chooseRivalAction, type ShowdownRequest } from './tacticalAI';
 
@@ -24,8 +26,9 @@ export function getFormatDisplayLabel(
   const map: Record<string, string> = {
     gen9doublescustomgame: 'Dobles 2v2',
     gen9customgame: 'Individuales',
-    gen91v1: '1v1 Duelo de Honor',
-    gen9monotype: 'Monotype',
+    gen91v1: '1v1 · Bring 3, Pick 1',
+    gen9monotype: '6v6 Singles · Monotype',
+    gen9vgc2024regg: 'VGC Reg G · Dobles 4v4 Nv. 50',
     gen9lc: 'Little Cup Nv. 5',
   };
   return map[formatId] ?? (format === 'doubles' ? 'Dobles 2v2' : 'Individuales');
@@ -96,6 +99,25 @@ export function computeSpeedRange(
   }
 
   return { min, max, baseMin, baseMax, modifiers };
+}
+
+function buildOpenTeamsheetFromPaste(
+  paste: string,
+  defaultLevel = 100
+): OpenTeamsheetEntry[] {
+  const sets = Teams.import(paste) ?? [];
+  return sets.map((s) => {
+    const sp = Dex.species.get(s.species);
+    return {
+      species: sp.exists ? sp.name : s.species,
+      level: s.level || defaultLevel,
+      item: s.item || 'Ninguno',
+      ability: s.ability || sp.abilities?.[0] || '—',
+      teraType: s.teraType || sp.types?.[0] || 'Normal',
+      moves: s.moves || [],
+      types: sp.types ? [...sp.types] : ['Normal'],
+    };
+  });
 }
 
 function parseCondition(condition: string): {
@@ -237,6 +259,12 @@ export class ShowdownBattleController {
   private destroyed = false;
   private puzzleConditionsApplied = false;
   private triggeredRuleIds = new Set<string>();
+  private rivalPreviewPokes: Array<{
+    species: string;
+    level: number;
+    gender: string;
+    types: string[];
+  }> = [];
   private lastAttackSource: { side: 'p1' | 'p2'; slot: number } | null = null;
 
   constructor(
@@ -246,6 +274,7 @@ export class ShowdownBattleController {
     this.config = config;
     this.listener = onUpdate;
     const activeCount = config.format === 'doubles' ? 2 : 1;
+    const defaultLevel = config.formatId === 'gen9vgc2024regg' ? 50 : 100;
 
     this.state = {
       status: 'initializing',
@@ -258,20 +287,36 @@ export class ShowdownBattleController {
       ),
       turn: 0,
       weather: '',
+      weatherTurnsLeft: null,
       terrain: '',
-      levelCap: config.rivalIntel?.levelCap ?? 100,
+      terrainTurnsLeft: null,
+      trickRoomTurnsLeft: null,
+      levelCap: config.rivalIntel?.levelCap ?? defaultLevel,
       puzzleApplied: false,
+      teamPreview: null,
+      openTeamsheet: {
+        enabled: Boolean(config.openTeamsheet),
+        player: buildOpenTeamsheetFromPaste(
+          config.playerShowdownPaste,
+          defaultLevel
+        ),
+        rival: config.openTeamsheet
+          ? buildOpenTeamsheetFromPaste(config.rivalShowdownPaste, defaultLevel)
+          : [],
+      },
       p1: {
         playerName: config.playerName,
         active: Array(activeCount).fill(null),
         party: [],
         sideConditions: [],
+        sideTimers: {},
       },
       p2: {
         playerName: config.rivalName,
         active: Array(activeCount).fill(null),
         party: [],
         sideConditions: [],
+        sideTimers: {},
       },
       pendingSlots: [],
       isForceSwitch: false,
@@ -312,17 +357,51 @@ export class ShowdownBattleController {
   private cloneSnapshot(): BattleSnapshot {
     return {
       ...this.state,
+      teamPreview: this.state.teamPreview
+        ? {
+            ...this.state.teamPreview,
+            playerRoster: this.state.teamPreview.playerRoster.map((m) =>
+              this.cloneMon(m)
+            ),
+            rivalRoster: this.state.teamPreview.rivalRoster.map((r) => ({
+              ...r,
+              types: [...r.types],
+              openSheet: r.openSheet
+                ? {
+                    ...r.openSheet,
+                    moves: [...r.openSheet.moves],
+                    types: [...r.openSheet.types],
+                  }
+                : undefined,
+            })),
+          }
+        : null,
+      openTeamsheet: {
+        enabled: this.state.openTeamsheet.enabled,
+        player: this.state.openTeamsheet.player.map((e) => ({
+          ...e,
+          moves: [...e.moves],
+          types: [...e.types],
+        })),
+        rival: this.state.openTeamsheet.rival.map((e) => ({
+          ...e,
+          moves: [...e.moves],
+          types: [...e.types],
+        })),
+      },
       p1: {
         ...this.state.p1,
         active: this.state.p1.active.map((m) => (m ? this.cloneMon(m) : null)),
         party: this.state.p1.party.map((m) => this.cloneMon(m)),
         sideConditions: [...this.state.p1.sideConditions],
+        sideTimers: { ...this.state.p1.sideTimers },
       },
       p2: {
         ...this.state.p2,
         active: this.state.p2.active.map((m) => (m ? this.cloneMon(m) : null)),
         party: this.state.p2.party.map((m) => this.cloneMon(m)),
         sideConditions: [...this.state.p2.sideConditions],
+        sideTimers: { ...this.state.p2.sideTimers },
       },
       pendingSlots: this.state.pendingSlots.map((s) => ({
         ...s,
@@ -455,12 +534,28 @@ export class ShowdownBattleController {
     }
   }
 
-  /**
-   * Injects PuzzleConditions directly into @pkmn/sim's live Battle instance
-   * right after Turn 0 deployment so Weather, Terrain, Side Conditions,
-   * HP damage, Boosts, Statuses, Volatiles, and pre-Mega states take effect
-   * inside the real Showdown math AND update the UI state immediately.
-   */
+  private decrementTurnTimers(): void {
+    if (this.state.turn <= 1) return;
+    if (this.state.weatherTurnsLeft != null && this.state.weatherTurnsLeft > 1) {
+      this.state.weatherTurnsLeft -= 1;
+    }
+    if (this.state.terrainTurnsLeft != null && this.state.terrainTurnsLeft > 1) {
+      this.state.terrainTurnsLeft -= 1;
+    }
+    if (
+      this.state.trickRoomTurnsLeft != null &&
+      this.state.trickRoomTurnsLeft > 1
+    ) {
+      this.state.trickRoomTurnsLeft -= 1;
+    }
+    for (const sideKey of ['p1', 'p2'] as const) {
+      const timers = this.state[sideKey].sideTimers;
+      for (const k of Object.keys(timers)) {
+        if (timers[k] > 1) timers[k] -= 1;
+      }
+    }
+  }
+
   private applyPuzzleConditionsIfNeeded(): void {
     if (this.puzzleConditionsApplied) return;
     const puzzle = this.config.puzzleConditions;
@@ -502,13 +597,14 @@ export class ShowdownBattleController {
       }
     }
 
-    // Sentinel marks exact point when all puzzle protocol events have been parsed into state
     battle.add('-message', '__PUZZLE_READY__');
     battle.sendUpdates();
   }
 
   private applySinglePokemonModifier(
-    battle: NonNullable<InstanceType<typeof BattleStreams.BattleStream>['battle']>,
+    battle: NonNullable<
+      InstanceType<typeof BattleStreams.BattleStream>['battle']
+    >,
     mod: PuzzlePokemonModifier,
     fallbackSource: NonNullable<
       InstanceType<typeof BattleStreams.BattleStream>['battle']
@@ -543,7 +639,6 @@ export class ShowdownBattleController {
 
     if (!targetMon) return;
 
-    // 1. Pre-Mega evolution from Turn 1
     if (mod.preMega && !targetMon.species.isMega) {
       const megaSpecies = Dex.species.get(`${targetMon.baseSpecies.name}-Mega`);
       if (megaSpecies.exists) {
@@ -566,8 +661,11 @@ export class ShowdownBattleController {
       }
     }
 
-    // 2. Starting HP percentage (e.g. Sableye injured to 65% in VN)
-    if (typeof mod.hpPercent === 'number' && mod.hpPercent > 0 && mod.hpPercent < 100) {
+    if (
+      typeof mod.hpPercent === 'number' &&
+      mod.hpPercent > 0 &&
+      mod.hpPercent < 100
+    ) {
       const targetHp = Math.max(
         1,
         Math.floor((targetMon.maxhp * mod.hpPercent) / 100)
@@ -575,7 +673,6 @@ export class ShowdownBattleController {
       targetMon.sethp(targetHp);
       battle.add('-damage', targetMon, targetMon.getHealth, '[from] Puzzle');
 
-      // Immediately reflect exact HP in p1 snapshot state & pendingSlots too
       if (mod.side === 'p1') {
         const pct = Math.round((targetMon.hp / targetMon.maxhp) * 100);
         for (const m of [...this.state.p1.party, ...this.state.p1.active]) {
@@ -595,17 +692,14 @@ export class ShowdownBattleController {
       }
     }
 
-    // 3. Starting Stat Boosts / Unboosts
     if (mod.boosts && Object.keys(mod.boosts).length > 0) {
       battle.boost(mod.boosts, targetMon, targetMon, null, false, true);
     }
 
-    // 4. Starting Status Condition (brn, par, psn, tox, slp, frz)
     if (mod.status) {
       targetMon.setStatus(mod.status, fallbackSource);
     }
 
-    // 5. Starting Volatiles (aquaring, ingrain, focusenergy, etc.)
     if (mod.volatiles) {
       for (const vol of mod.volatiles) {
         targetMon.addVolatile(vol, targetMon);
@@ -631,7 +725,14 @@ export class ShowdownBattleController {
     const p1Packed = Teams.pack(p1Sets);
     const p2Packed = Teams.pack(p2Sets);
 
-    this.state.totalP2 = p2Sets.length;
+    // Default totalP2 (updated accurately by |teamsize|p2|N after Team Preview for 1v1 & VGC 4v4)
+    this.state.totalP2 =
+      this.config.formatId === 'gen91v1'
+        ? 1
+        : this.config.formatId === 'gen9vgc2024regg'
+          ? 4
+          : p2Sets.length;
+
     this.pushLog(
       'system',
       `Simulador @pkmn/sim iniciado (${this.state.formatLabel} · ${this.config.formatId}).`
@@ -657,6 +758,37 @@ export class ShowdownBattleController {
         `>player p1 ${JSON.stringify(p1spec)}\n` +
         `>player p2 ${JSON.stringify(p2spec)}`
     );
+  }
+
+  /**
+   * Submits interactive Team Preview selection to @pkmn/sim:
+   * - 1v1 (`pick-1`): `team 2`
+   * - VGC (`pick-4`): `team 1356`
+   * - Monotype (`lead-1`): `team 312456`
+   */
+  public async submitTeamOrder(selectedSlots: number[]): Promise<void> {
+    if (!this.streams || this.destroyed || !this.state.teamPreview) return;
+    const tp = this.state.teamPreview;
+    let cmd = 'default';
+
+    if (tp.mode === 'pick-1' && selectedSlots.length >= 1) {
+      cmd = `team ${selectedSlots[0]}`;
+    } else if (tp.mode === 'pick-4' && selectedSlots.length >= 4) {
+      cmd = `team ${selectedSlots.slice(0, 4).join('')}`;
+    } else if (tp.mode === 'lead-1' && selectedSlots.length >= 1) {
+      const lead = selectedSlots[0];
+      const total = tp.playerRoster.length;
+      const rest: number[] = [];
+      for (let i = 1; i <= total; i++) {
+        if (i !== lead) rest.push(i);
+      }
+      cmd = `team ${lead}${rest.join('')}`;
+    }
+
+    this.state.teamPreview = null;
+    this.state.status = 'resolving';
+    this.emit();
+    await this.streams.p1.write(cmd);
   }
 
   public async submitPlayerChoice(command: string): Promise<void> {
@@ -729,6 +861,13 @@ export class ShowdownBattleController {
       for await (const chunk of stream) {
         if (this.destroyed) break;
         for (const line of chunk.split('\n')) {
+          if (line.startsWith('|error|')) {
+            // Failsafe: if Showdown ever rejects an AI command, fall back to 'default' so battles never stall
+            if (this.streams && !this.destroyed && this.state.status !== 'ended') {
+              await this.streams.p2.write('default');
+            }
+            continue;
+          }
           if (!line.startsWith('|request|')) continue;
           const rawJson = line.slice('|request|'.length).trim();
           if (!rawJson) continue;
@@ -750,6 +889,7 @@ export class ShowdownBattleController {
             turn: Math.max(1, this.state.turn),
             scriptedRules: this.config.scriptedEnemyRules ?? [],
             triggeredRuleIds: this.triggeredRuleIds,
+            preferredTeamPreviewOrder: this.config.preferredRivalTeamOrder,
           });
 
           if (decision && this.streams) {
@@ -804,7 +944,6 @@ export class ShowdownBattleController {
       const prev = existingByIdent.get(mon.ident);
       const terastallized = prev?.terastallized ?? null;
 
-      // Preserve puzzle-modified exact HP if Turn 1 request arrived slightly before puzzle hook
       const usePrevHp =
         this.puzzleConditionsApplied &&
         this.state.turn <= 1 &&
@@ -871,13 +1010,64 @@ export class ShowdownBattleController {
     sideState.active = nextActive;
   }
 
+  private buildTeamPreviewState(req: ShowdownRequest): TeamPreviewState {
+    const mode: TeamPreviewState['mode'] =
+      req.maxChosenTeamSize === 1
+        ? 'pick-1'
+        : req.maxChosenTeamSize === 4
+          ? 'pick-4'
+          : 'lead-1';
+    const pickCount = mode === 'pick-4' ? 4 : 1;
+
+    // Build rival preview roster from |poke|p2| lines or parsed paste fallback
+    const rawRival =
+      this.rivalPreviewPokes.length > 0
+        ? this.rivalPreviewPokes
+        : (Teams.import(this.config.rivalShowdownPaste) ?? []).map((s) => {
+            const sp = Dex.species.get(s.species);
+            return {
+              species: sp.exists ? sp.name : s.species,
+              level:
+                s.level || (this.config.formatId === 'gen9vgc2024regg' ? 50 : 100),
+              gender: s.gender || '',
+              types: sp.types ? [...sp.types] : ['Normal'],
+            };
+          });
+
+    const rivalRoster = rawRival.map((r, idx) => ({
+      ...r,
+      openSheet: this.state.openTeamsheet.enabled
+        ? this.state.openTeamsheet.rival[idx] ??
+          this.state.openTeamsheet.rival.find(
+            (os) => toID(os.species) === toID(r.species)
+          )
+        : undefined,
+    }));
+
+    return {
+      active: true,
+      mode,
+      pickCount,
+      playerRoster: this.state.p1.party.map((m) => this.cloneMon(m)),
+      rivalRoster,
+    };
+  }
+
   private handlePlayerRequest(req: ShowdownRequest): void {
     this.syncPlayerSideFromRequest(req);
 
     if (req.teamPreview) {
-      void this.streams?.p1.write('default');
+      if (this.config.interactiveTeamPreview) {
+        this.state.teamPreview = this.buildTeamPreviewState(req);
+        this.state.status = 'team-preview';
+        this.emit();
+      } else {
+        void this.streams?.p1.write('default');
+      }
       return;
     }
+
+    this.state.teamPreview = null;
 
     if (req.wait || this.state.status === 'ended') {
       this.state.pendingSlots = [];
@@ -971,18 +1161,46 @@ export class ShowdownBattleController {
     const cmd = parts[1];
 
     switch (cmd) {
+      case 'clearpoke': {
+        this.rivalPreviewPokes = [];
+        break;
+      }
+
+      case 'poke': {
+        if (parts[2] === 'p2') {
+          const det = parseDetails(parts[3] ?? '');
+          const sp = Dex.species.get(det.species);
+          this.rivalPreviewPokes.push({
+            species: sp.exists ? sp.name : det.species,
+            level:
+              det.level ||
+              (this.config.formatId === 'gen9vgc2024regg' ? 50 : 100),
+            gender: det.gender,
+            types: sp.types ? [...sp.types] : ['Normal'],
+          });
+        }
+        break;
+      }
+
       case 'teamsize': {
         if (parts[2] === 'p2') {
           const n = Number(parts[3]);
-          if (n > 0) this.state.totalP2 = n;
+          if (n > 0) {
+            this.state.totalP2 =
+              this.config.formatId === 'gen91v1'
+                ? 1
+                : this.config.formatId === 'gen9vgc2024regg'
+                  ? 4
+                  : n;
+          }
         }
         break;
       }
 
       case 'turn': {
         this.state.turn = Number(parts[2]) || this.state.turn + 1;
+        this.decrementTurnTimers();
         this.pushLog('turn', `Turn ${this.state.turn}`);
-        // Apply PuzzleConditions automatically right as Turn 1 starts!
         if (this.state.turn === 1 && this.config.puzzleConditions) {
           this.applyPuzzleConditionsIfNeeded();
         }
@@ -1006,6 +1224,16 @@ export class ShowdownBattleController {
           this.refreshSpeedRange(side, prevInSlot);
         }
 
+        // If Open Teamsheet is active (e.g. VGC Worlds), pre-populate rival's known item/ability/tera!
+        const openRivalMatch =
+          side === 'p2' && this.state.openTeamsheet.enabled
+            ? this.state.openTeamsheet.rival.find(
+                (os) =>
+                  toID(os.species) === toID(det.species) ||
+                  toID(os.species) === toID(speciesData.baseSpecies)
+              )
+            : undefined;
+
         let existing = sideState.party.find(
           (p) => p.name === name && (p.species === det.species || side === 'p1')
         );
@@ -1023,16 +1251,17 @@ export class ShowdownBattleController {
             status: cond.status,
             fainted: cond.fainted,
             active: true,
-            item: '',
-            ability: '',
-            moves: [],
+            item: openRivalMatch?.item ?? '',
+            ability: openRivalMatch?.ability ?? '',
+            moves: openRivalMatch?.moves ?? [],
             types: speciesData.types ? [...speciesData.types] : ['Normal'],
+            teraType: openRivalMatch?.teraType,
             terastallized: null,
             boosts: {},
             revealed: true,
-            revealedAbility: null,
+            revealedAbility: openRivalMatch?.ability ?? null,
             possibleAbilities: getPossibleAbilities(det.species),
-            revealedItem: null,
+            revealedItem: openRivalMatch?.item ?? null,
             consumedItem: null,
             revealedMoves: {},
             volatiles: [],
@@ -1328,7 +1557,10 @@ export class ShowdownBattleController {
           }
           this.refreshSpeedRange(side, m);
         }
-        this.pushLog('boost', `🔄 ¡Se invirtieron todos los cambios de stats de ${name}!`);
+        this.pushLog(
+          'boost',
+          `🔄 ¡Se invirtieron todos los cambios de stats de ${name}!`
+        );
         break;
       }
 
@@ -1402,8 +1634,9 @@ export class ShowdownBattleController {
         this.inspectTagsForReveals(undefined, parts.slice(3));
         if (field.includes('Terrain')) {
           this.state.terrain = terrainLabel(field);
+          this.state.terrainTurnsLeft = 5;
         } else if (field.includes('Trick Room')) {
-          this.state.terrain = 'Espacio Raro (Trick Room)';
+          this.state.trickRoomTurnsLeft = 5;
         }
         this.pushLog('weather', `Campo activo: ${terrainLabel(field)}.`);
         break;
@@ -1411,8 +1644,11 @@ export class ShowdownBattleController {
 
       case '-fieldend': {
         const field = cleanEffectName(parts[2] ?? '');
-        if (field.includes('Terrain') || field.includes('Trick Room')) {
+        if (field.includes('Terrain')) {
           this.state.terrain = '';
+          this.state.terrainTurnsLeft = null;
+        } else if (field.includes('Trick Room')) {
+          this.state.trickRoomTurnsLeft = null;
         }
         this.pushLog('weather', `Terminó ${terrainLabel(field)}.`);
         break;
@@ -1420,10 +1656,21 @@ export class ShowdownBattleController {
 
       case '-weather': {
         const w = parts[2] ?? '';
+        const isUpkeep = Boolean(parts[3]?.includes('[upkeep]'));
         this.inspectTagsForReveals(undefined, parts.slice(3));
-        this.state.weather = w === 'none' ? '' : weatherLabel(w);
-        if (w !== 'none' && !parts[3]?.includes('[upkeep]')) {
-          this.pushLog('weather', `Clima activo: ${this.state.weather}.`);
+        if (w === 'none') {
+          this.state.weather = '';
+          this.state.weatherTurnsLeft = null;
+        } else {
+          const lbl = weatherLabel(w);
+          const isNew = !isUpkeep && this.state.weather !== lbl;
+          this.state.weather = lbl;
+          if (isNew || this.state.weatherTurnsLeft == null) {
+            this.state.weatherTurnsLeft = 5;
+          }
+          if (!isUpkeep) {
+            this.pushLog('weather', `Clima activo: ${lbl} (5 turnos).`);
+          }
         }
         break;
       }
@@ -1433,6 +1680,19 @@ export class ShowdownBattleController {
         const condName = cleanEffectName(parts[3] ?? '');
         if (condName && !this.state[side].sideConditions.includes(condName)) {
           this.state[side].sideConditions.push(condName);
+          const low = condName.toLowerCase();
+          if (low.includes('tailwind')) {
+            this.state[side].sideTimers[condName] = 4;
+          } else if (
+            low.includes('reflect') ||
+            low.includes('light screen') ||
+            low.includes('aurora veil')
+          ) {
+            const hasLightClay = this.state[side].active.some(
+              (m) => m && m.item.toLowerCase() === 'light clay'
+            );
+            this.state[side].sideTimers[condName] = hasLightClay ? 8 : 5;
+          }
           this.refreshSideSpeeds(side);
         }
         this.pushLog('status', `${this.state[side].playerName} activó ${condName}.`);
@@ -1445,6 +1705,7 @@ export class ShowdownBattleController {
         this.state[side].sideConditions = this.state[side].sideConditions.filter(
           (c) => c !== condName
         );
+        delete this.state[side].sideTimers[condName];
         this.refreshSideSpeeds(side);
         this.pushLog(
           'status',

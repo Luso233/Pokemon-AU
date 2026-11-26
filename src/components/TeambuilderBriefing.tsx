@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { Teams } from '@pkmn/sim';
+import { Dex, Teams } from '@pkmn/sim';
 import {
   AlertTriangle,
   ArrowLeft,
   CheckCircle2,
+  ClipboardList,
   Code2,
   Cpu,
   Crown,
@@ -15,8 +16,9 @@ import {
   RotateCcw,
   Swords,
 } from 'lucide-react';
-import type { ResolvedBattleConfig } from '../types/game';
+import type { OpenTeamsheetEntry, ResolvedBattleConfig } from '../types/game';
 import { CharacterPortrait } from './CharacterPortrait';
+import { OpenTeamsheetModal } from './OpenTeamsheetModal';
 import { PokemonIcon } from './PokemonSprite';
 
 interface TeambuilderBriefingProps {
@@ -34,6 +36,21 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
   const [rivalPaste, setRivalPaste] = useState(config.rivalShowdownPaste);
   const [editMode, setEditMode] = useState(false);
   const [showRivalDebugPaste, setShowRivalDebugPaste] = useState(false);
+  const [showTeamsheet, setShowTeamsheet] = useState(false);
+
+  const buildSheet = (sets: ReturnType<typeof Teams.import>): OpenTeamsheetEntry[] =>
+    (sets ?? []).map((s) => {
+      const sp = Dex.species.get(s.species);
+      return {
+        species: sp.exists ? sp.name : s.species,
+        level: s.level || (config.formatId === 'gen9vgc2024regg' ? 50 : 100),
+        item: s.item || 'Ninguno',
+        ability: s.ability || sp.abilities?.[0] || '—',
+        teraType: s.teraType || sp.types?.[0] || 'Normal',
+        moves: s.moves || [],
+        types: sp.types ? [...sp.types] : ['Normal'],
+      };
+    });
 
   const parsedPlayer = useMemo(() => {
     try {
@@ -95,6 +112,16 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
           </div>
 
           <div className="flex items-center gap-2.5">
+            {config.openTeamsheet && (
+              <button
+                onClick={() => setShowTeamsheet(true)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-sky-400/50 bg-sky-500/20 px-3.5 py-2 text-xs font-bold text-sky-100 transition hover:bg-sky-500/30 cursor-pointer"
+              >
+                <ClipboardList className="h-3.5 w-3.5" />
+                Ver Open Teamsheet
+              </button>
+            )}
+
             <button
               onClick={() => setEditMode((v) => !v)}
               className={`inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-semibold transition cursor-pointer ${
@@ -475,6 +502,16 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
           </button>
         </div>
       </div>
+
+      <OpenTeamsheetModal
+        open={showTeamsheet}
+        onClose={() => setShowTeamsheet(false)}
+        formatLabel={config.formatLabel ?? config.formatId}
+        playerName={config.playerName}
+        rivalName={config.rivalName}
+        playerSheet={buildSheet(parsedPlayer)}
+        rivalSheet={buildSheet(parsedRival)}
+      />
     </div>
   );
 };

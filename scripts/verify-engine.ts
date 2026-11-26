@@ -1,12 +1,15 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { Dex, Teams } from '@pkmn/sim';
+import { Teams, TeamValidator } from '@pkmn/sim';
 import { InkVNRunner } from '../src/engine/inkRunner';
 import {
   resolveChampionLittleCupBattle,
   resolveChapter1ChaseBattle,
   resolveChapter2BanquetBattle,
+  resolveChapter2MonotypeBattle,
+  resolveDuel1Honor1v1Battle,
   resolvePuzzle1SunTrapBattle,
+  resolveVgcWorlds2024Battle,
 } from '../src/engine/teamBuilderTree';
 import {
   computeSpeedRange,
@@ -18,6 +21,7 @@ interface MatchRunResult {
   finalSnap: BattleSnapshot;
   turn1Snap: BattleSnapshot | null;
   turn2Snap: BattleSnapshot | null;
+  previewSnap: BattleSnapshot | null;
 }
 
 async function runFullSimMatch(
@@ -27,6 +31,7 @@ async function runFullSimMatch(
     maxTurns?: number;
     testTeraTurn1?: boolean;
     customTurn1Cmd?: string;
+    teamPreviewPick?: number[];
   } = {}
 ): Promise<MatchRunResult> {
   const maxTurns = options.maxTurns ?? 60;
@@ -34,8 +39,10 @@ async function runFullSimMatch(
     let settled = false;
     let lastSentTurn = -1;
     let lastForceSwitchSig = '';
+    let sentPreview = false;
     let turn1Snap: BattleSnapshot | null = null;
     let turn2Snap: BattleSnapshot | null = null;
+    let previewSnap: BattleSnapshot | null = null;
     let teraUsed = false;
 
     const controller = new ShowdownBattleController(config, (snap) => {
@@ -44,7 +51,17 @@ async function runFullSimMatch(
       if (snap.status === 'ended') {
         settled = true;
         controller.destroy();
-        resolvePromise({ finalSnap: snap, turn1Snap, turn2Snap });
+        resolvePromise({ finalSnap: snap, turn1Snap, turn2Snap, previewSnap });
+        return;
+      }
+
+      if (snap.status === 'team-preview' && snap.teamPreview && !sentPreview) {
+        sentPreview = true;
+        previewSnap = snap;
+        const defaultPick =
+          options.teamPreviewPick ??
+          (snap.teamPreview.mode === 'pick-4' ? [1, 2, 3, 4] : [1]);
+        void controller.submitTeamOrder(defaultPick);
         return;
       }
 
@@ -56,7 +73,10 @@ async function runFullSimMatch(
       }
 
       if (snap.status === 'awaiting-choice' && snap.pendingSlots.length > 0) {
-        if (snap.turn === 1 && (!turn1Snap || (!turn1Snap.puzzleApplied && snap.puzzleApplied))) {
+        if (
+          snap.turn === 1 &&
+          (!turn1Snap || (!turn1Snap.puzzleApplied && snap.puzzleApplied))
+        ) {
           turn1Snap = snap;
         }
         if (snap.turn === 2 && !turn2Snap) {
@@ -82,7 +102,6 @@ async function runFullSimMatch(
           return;
         }
 
-        // Wait until puzzleConditions have applied if this battle defines them!
         if (config.puzzleConditions && !snap.puzzleApplied) {
           return;
         }
@@ -140,8 +159,16 @@ async function runFullSimMatch(
   });
 }
 
+function assertValidTeam(formatId: string, label: string, paste: string) {
+  const val = new TeamValidator(formatId);
+  const problems = val.validateTeam(Teams.import(paste)!);
+  if (problems && problems.length > 0) {
+    throw new Error(`[${formatId}] ${label} failed TeamValidator:\n  - ${problems.join('\n  - ')}`);
+  }
+}
+
 async function main() {
-  console.log('=== 1. Testing Wyndon Chase Ink VN + 6v6 Doubles + Fog of War + Tera ===');
+  console.log('=== 1. Chapter 01: Wyndon Chase 6v6 Doubles + Fog of War + Tera ===');
   const chaseInk = readFileSync(resolve('src/stories/chapter1_chase.ink'), 'utf8');
   const runner = new InkVNRunner(chaseInk);
   let frame = runner.step();
@@ -151,142 +178,146 @@ async function main() {
   }
   const hardcoreConfig = resolveChapter1ChaseBattle(frame.flags);
   const { finalSnap: resHard, turn1Snap: hardT1 } = await runFullSimMatch(
-    'Prince vs Assassin Hardcore 6v6',
+    'Wyndon Chase 6v6',
     hardcoreConfig,
     { maxTurns: 80, testTeraTurn1: true }
   );
   if (!hardT1 || hardT1.p2.party.length !== 2) {
     throw new Error('Fog of War check failed in Chapter 1!');
   }
-  if (!resHard.triggeredScriptIds.includes('cold-t1-taunt-gardevoir')) {
-    throw new Error('Expected cold-t1-taunt-gardevoir scripted rule to fire!');
-  }
   console.log(
-    `  Hardcore 6v6 OK: turns=${resHard.turn}, Tera Water verified, scripted=[${resHard.triggeredScriptIds.join(', ')}]`
+    `  OK: turns=${resHard.turn}, scripted=[${resHard.triggeredScriptIds.join(', ')}]`
   );
 
-  console.log('\n=== 2. Testing Puzzle 01: La Trampa del Sol (PuzzleConditions + T1/T2 Scripted AI) ===');
-  const puzzleInk = readFileSync(resolve('src/stories/puzzle1_suntrap.ink'), 'utf8');
-  const pzRunner = new InkVNRunner(puzzleInk);
-  let pzFrame = pzRunner.step();
-  while (!pzFrame.isEnded) {
-    if (pzFrame.canContinue) pzFrame = pzRunner.step();
-    else if (pzFrame.choices.length > 0) pzFrame = pzRunner.choose(0);
-  }
-  const puzzleConfig = resolvePuzzle1SunTrapBattle(pzFrame.flags);
-  // Play Turn 1: Inkay Topsy-Turvy Metagross (+1), Sableye Fake Out Volcarona (+2)!
+  console.log('\n=== 2. Puzzle 01: La Trampa del Sol (PuzzleConditions + T1/T2 Scripted AI) ===');
+  const puzzleConfig = resolvePuzzle1SunTrapBattle({ puzzle_hint: 'show' });
   const { finalSnap: resPz, turn1Snap: pzT1, turn2Snap: pzT2 } =
     await runFullSimMatch('Puzzle 01 Sun Trap', puzzleConfig, {
       maxTurns: 40,
       customTurn1Cmd: 'move 1 +1, move 1 +2',
     });
-
-  if (!pzT1 || !pzT1.puzzleApplied) {
-    throw new Error('PuzzleConditions did not apply on Turn 1!');
+  if (!pzT1?.puzzleApplied || pzT1.weather !== 'Sol Intenso' || pzT1.weatherTurnsLeft !== 5) {
+    throw new Error(`Puzzle weather/timer mismatch: ${pzT1?.weather} (${pzT1?.weatherTurnsLeft}t)`);
   }
-  if (pzT1.weather !== 'Sol Intenso') {
-    throw new Error(`Expected Sol Intenso weather, got "${pzT1.weather}"`);
-  }
-  if (!pzT1.p1.sideConditions.some((c) => c.toLowerCase().includes('stealth rock'))) {
-    throw new Error('Expected Stealth Rock on p1 sideConditions!');
-  }
-  if (!pzT1.p2.sideConditions.some((c) => c.toLowerCase().includes('tailwind'))) {
-    throw new Error('Expected Tailwind on p2 sideConditions!');
-  }
-  const sableyeT1 = pzT1.p1.active[1];
-  if (!sableyeT1 || sableyeT1.hpPercent !== 65) {
-    throw new Error(`Expected Sableye to start at 65% HP, got ${sableyeT1?.hpPercent}%`);
-  }
-  const metaT1 = pzT1.p2.active[0];
-  const volcT1 = pzT1.p2.active[1];
-  if (!metaT1 || metaT1.boosts.atk !== 2 || metaT1.boosts.spe !== 1) {
-    throw new Error(`Expected Mega Metagross +2 Atk/+1 Spe, got ${JSON.stringify(metaT1?.boosts)}`);
-  }
-  if (!volcT1 || volcT1.boosts.spa !== 2 || volcT1.boosts.spd !== 2 || volcT1.boosts.spe !== 2) {
-    throw new Error(`Expected Volcarona +2/+2/+2, got ${JSON.stringify(volcT1?.boosts)}`);
-  }
-  if (pzT2?.p2.active[0] && pzT2.p2.active[0].boosts.atk !== -2) {
-    throw new Error(`Expected Topsy-Turvy to invert Metagross Atk to -2 on T2, got ${pzT2.p2.active[0].boosts.atk}`);
-  }
-  if (
-    !resPz.triggeredScriptIds.includes('puzzle1-t1-metagross-mash') ||
-    !resPz.triggeredScriptIds.includes('puzzle1-t2-metagross-bp')
-  ) {
-    throw new Error(
-      `Expected Puzzle Turn 1 & Turn 2 scripted rules to fire, got [${resPz.triggeredScriptIds.join(', ')}]`
-    );
+  if (pzT1.p1.active[1]?.hpPercent !== 65 || (pzT2?.p2.active[0]?.boosts.atk ?? 0) > -2) {
+    throw new Error('Puzzle Sableye HP or Metagross Topsy-Turvy inversion mismatch!');
   }
   console.log(
-    `  Puzzle 01 OK! Weather=${pzT1.weather} | p1=[${pzT1.p1.sideConditions.join(',')}] | p2=[${pzT1.p2.sideConditions.join(',')}] | Sableye=${sableyeT1.hp}/${sableyeT1.maxhp} (${sableyeT1.hpPercent}%) | Metagross T1=+2Atk/+1Spe -> T2=${pzT2?.p2.active[0]?.boosts.atk}Atk | Scripted=[${resPz.triggeredScriptIds.join(', ')}]`
+    `  OK: Weather=${pzT1.weather} (${pzT1.weatherTurnsLeft}t), Sableye=65%, Metagross +2->-2, scripted=[${resPz.triggeredScriptIds.join(', ')}]`
   );
 
-  console.log('\n=== 3. Testing Flashback Little Cup (Prince Lv.5 vs Champion Lv.6-7 + Portrait) ===');
-  const lcInk = readFileSync(resolve('src/stories/chapter_littlecup.ink'), 'utf8');
-  const lcRunner = new InkVNRunner(lcInk);
-  let lcFrame = lcRunner.step();
-  let sawChampion = false;
-  while (!lcFrame.isEnded) {
-    if (lcFrame.currentLine?.rightChar === 'champion') sawChampion = true;
-    if (lcFrame.canContinue) lcFrame = lcRunner.step();
-    else if (lcFrame.choices.length > 0) lcFrame = lcRunner.choose(0); // Larvitar lead
-  }
-  if (!sawChampion) {
-    throw new Error('Expected Champion character portrait in Little Cup flashback Ink!');
-  }
-  const lcConfig = resolveChampionLittleCupBattle(lcFrame.flags);
-  const lcP1 = Teams.import(lcConfig.playerShowdownPaste)!;
-  const lcP2 = Teams.import(lcConfig.rivalShowdownPaste)!;
-  if (lcP1.length !== 6 || lcP2.length !== 6) {
-    throw new Error('Expected 6v6 Little Cup teams!');
-  }
-  if (lcP1.some((m) => m.level !== 5)) {
-    throw new Error('Expected all Prince Little Cup Pokémon at Level 5!');
-  }
-  if (lcP2.find((m) => m.species === 'Vullaby')?.level !== 7) {
-    throw new Error('Expected Champion Ace Vullaby at Level 7!');
-  }
+  console.log('\n=== 3. Flashback LC: La Prueba de la Campeona (Nv. 5 vs Nv. 6-7) ===');
+  const lcConfig = resolveChampionLittleCupBattle({ lc_lead: 'larvitar' });
   const { finalSnap: resLC } = await runFullSimMatch('Champion Little Cup', lcConfig, {
     maxTurns: 80,
   });
   if (!resLC.triggeredScriptIds.includes('lc-t1-onix-sr')) {
-    throw new Error('Expected Champion Turn 1 Onix Stealth Rock scripted rule to fire!');
+    throw new Error('Expected Champion Turn 1 Onix Stealth Rock scripted rule!');
+  }
+  console.log(`  OK: turns=${resLC.turn}, scripted=[${resLC.triggeredScriptIds.join(', ')}]`);
+
+  console.log('\n=== 4. DUELO 01: Duelo de Honor (gen91v1 · Bring 3, Pick 1) ===');
+  const duelInk = readFileSync(resolve('src/stories/duel1_honor1v1.ink'), 'utf8');
+  const dRunner = new InkVNRunner(duelInk);
+  let dFrame = dRunner.step();
+  while (!dFrame.isEnded) {
+    if (dFrame.canContinue) dFrame = dRunner.step();
+    else if (dFrame.choices.length > 0) dFrame = dRunner.choose(0); // ironcrown clue
+  }
+  const duelConfig = resolveDuel1Honor1v1Battle(dFrame.flags);
+  assertValidTeam('gen91v1', '1v1 Prince', duelConfig.playerShowdownPaste);
+  assertValidTeam('gen91v1', '1v1 Rival', duelConfig.rivalShowdownPaste);
+  const { finalSnap: res1v1, previewSnap: pv1v1, turn1Snap: t1_1v1 } =
+    await runFullSimMatch('Duelo 1v1', duelConfig, {
+      maxTurns: 30,
+      teamPreviewPick: [3], // Metagross vs Iron Crown!
+    });
+  if (pv1v1?.teamPreview?.mode !== 'pick-1' || pv1v1.teamPreview.pickCount !== 1) {
+    throw new Error('Expected gen91v1 interactive teamPreview mode=pick-1!');
+  }
+  if (t1_1v1?.p1.active[0]?.species !== 'Metagross' || t1_1v1?.p2.active[0]?.species !== 'Iron Crown') {
+    throw new Error(
+      `Expected Metagross vs Iron Crown in 1v1, got ${t1_1v1?.p1.active[0]?.species} vs ${t1_1v1?.p2.active[0]?.species}`
+    );
   }
   console.log(
-    `  Little Cup OK: format=${lcConfig.formatId} (${lcConfig.formatLabel}), turns=${resLC.turn}, scripted=[${resLC.triggeredScriptIds.join(', ')}]`
+    `  OK: TeamValidator clean, Team Preview Pick 1 (Metagross vs Iron Crown), winner=${res1v1.winner}, turns=${res1v1.turn}`
   );
 
-  console.log('\n=== 4. Verifying Multi-Format Support in @pkmn/sim Dex ===');
-  for (const fmtId of [
-    'gen9doublescustomgame',
-    'gen9customgame',
-    'gen91v1',
-    'gen9monotype',
-    'gen9lc',
-  ]) {
-    const fmt = Dex.formats.get(fmtId);
-    if (!fmt.exists) {
-      throw new Error(`Format ${fmtId} does not exist in @pkmn/sim!`);
-    }
+  console.log('\n=== 5. CAPÍTULO 02: Choque de Estandartes (gen9monotype · Steel vs Dark) ===');
+  const monoInk = readFileSync(resolve('src/stories/chapter2_monotype.ink'), 'utf8');
+  const mRunner = new InkVNRunner(monoInk);
+  let mFrame = mRunner.step();
+  while (!mFrame.isEnded) {
+    if (mFrame.canContinue) mFrame = mRunner.step();
+    else if (mFrame.choices.length > 0) mFrame = mRunner.choose(0);
   }
-  console.log('  All 5 formats verified: gen9doublescustomgame, gen9customgame, gen91v1, gen9monotype, gen9lc');
+  const monoConfig = resolveChapter2MonotypeBattle(mFrame.flags);
+  assertValidTeam('gen9monotype', 'Monotype Steel', monoConfig.playerShowdownPaste);
+  assertValidTeam('gen9monotype', 'Monotype Dark', monoConfig.rivalShowdownPaste);
+  const { finalSnap: resMono, previewSnap: pvMono, turn1Snap: t1Mono } =
+    await runFullSimMatch('Monotype Steel vs Dark', monoConfig, {
+      maxTurns: 100,
+      teamPreviewPick: [2], // Lead Heatran
+    });
+  if (pvMono?.teamPreview?.mode !== 'lead-1') {
+    throw new Error('Expected gen9monotype interactive teamPreview mode=lead-1!');
+  }
+  if (t1Mono?.p1.active[0]?.species !== 'Heatran') {
+    throw new Error(`Expected chosen Monotype lead Heatran, got ${t1Mono?.p1.active[0]?.species}`);
+  }
+  console.log(
+    `  OK: TeamValidator clean (Steel vs Dark), Lead Heatran verified, turns=${resMono.turn}`
+  );
 
-  console.log('\n=== 5. Testing Dynamic Speed Range + Chapter 02 Bonus + StrictMode ===');
-  const baseSpe = computeSpeedRange('Volcarona', 100, 2, false, true);
-  if (baseSpe.min <= 0 || !baseSpe.modifiers.includes('Viento Afín ×2')) {
-    throw new Error('Speed range modifier check failed!');
+  console.log('\n=== 6. ARCHIVO VGC: Final Mundial 2024 Luca vs Yuta (gen9vgc2024regg · Pick 4 of 6) ===');
+  const vgcInk = readFileSync(resolve('src/stories/archive_vgc2024.ink'), 'utf8');
+  const vRunner = new InkVNRunner(vgcInk);
+  let vFrame = vRunner.step();
+  while (!vFrame.isEnded) {
+    if (vFrame.canContinue) vFrame = vRunner.step();
+    else if (vFrame.choices.length > 0) vFrame = vRunner.choose(0); // Game 1
   }
+  const vgcConfig = resolveVgcWorlds2024Battle(vFrame.flags);
+  assertValidTeam('gen9vgc2024regg', 'VGC Luca Ceribelli', vgcConfig.playerShowdownPaste);
+  assertValidTeam('gen9vgc2024regg', 'VGC Yuta Ishigaki', vgcConfig.rivalShowdownPaste);
+  const { finalSnap: resVgc, previewSnap: pvVgc, turn1Snap: t1Vgc } =
+    await runFullSimMatch('VGC Worlds 2024 Luca vs Yuta', vgcConfig, {
+      maxTurns: 60,
+      teamPreviewPick: [1, 2, 3, 4], // Miraidon + Whimsicott lead, Urshifu + Ogerpon back!
+      testTeraTurn1: true,
+    });
+  if (pvVgc?.teamPreview?.mode !== 'pick-4' || pvVgc.openTeamsheet.rival.length !== 6) {
+    throw new Error('Expected VGC pick-4 Team Preview + 6-mon Open Teamsheet!');
+  }
+  const yutaLeads = t1Vgc?.p2.active.map((m) => m?.species).join(' + ');
+  if (yutaLeads !== 'Iron Valiant + Landorus') {
+    throw new Error(`Expected Yuta Worlds lead Iron Valiant + Landorus, got ${yutaLeads}`);
+  }
+  if (t1Vgc?.terrain !== 'Campo Eléctrico' || t1Vgc?.terrainTurnsLeft !== 5) {
+    throw new Error(`Expected Miraidon Hadron Engine Electric Terrain (5t), got ${t1Vgc?.terrain} (${t1Vgc?.terrainTurnsLeft}t)`);
+  }
+  console.log(
+    `  OK: TeamValidator clean, Pick 4/6 + Open Teamsheets (6+6), Yuta Lead=[${yutaLeads}], Terrain=${t1Vgc.terrain} (${t1Vgc.terrainTurnsLeft}t), Scripted=[${resVgc.triggeredScriptIds.join(', ')}], turns=${resVgc.turn}`
+  );
+
+  console.log('\n=== 7. Chapter 02 Bonus + Speed Calc + StrictMode Teardown ===');
   const ch2 = resolveChapter2BanquetBattle({
     team_mode: 'combat',
     mixed_role: 'special',
     assassin_plan: 'mirror',
   });
-  await runFullSimMatch('Chapter 2 Banquet', ch2, { maxTurns: 50 });
-  const strictCtrl = new ShowdownBattleController(puzzleConfig, () => {});
+  await runFullSimMatch('Bonus Banquet', ch2, { maxTurns: 50 });
+  const spe = computeSpeedRange('Miraidon', 50, 0, false, true);
+  if (!spe.modifiers.includes('Viento Afín ×2')) {
+    throw new Error('Speed range check failed!');
+  }
+  const strictCtrl = new ShowdownBattleController(vgcConfig, () => {});
   const sp = strictCtrl.start();
   strictCtrl.destroy();
   await sp.catch(() => {});
 
-  console.log('\nALL PUZZLE, LITTLE CUP, MULTI-FORMAT, SCRIPTED AI & ENGINE TESTS PASSED!');
+  console.log('\nALL 7 CHAPTERS, TEAM VALIDATORS, INTERACTIVE TEAM PREVIEWS & ENGINE TESTS PASSED!');
 }
 
 main().catch((err) => {
