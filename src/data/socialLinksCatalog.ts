@@ -292,8 +292,9 @@ export const ROMANCE_ROSTER: RomanceNpcDefinition[] = [
         'Su Hawlucha entra en Turno 1 con Liviano (x2 Velocidad) ya activo sin haber consumido su Life Orb, golpeando además con Acrobatics a 110 BP base.',
     },
     bio: 'Carismática, coqueta, despiadada y pragmática; lleva chaqueta de cuero bordada con oro táctico y una bandolera de Poké Balls pirateadas sin sello de la CRU. Te ayuda porque un príncipe fugitivo desestabiliza al Imperio.',
-    rank1PerkTitle: 'Acceso al Mercado Negro (Objetos Choice/Life Orb tempranos)',
-    rank1PerkDetail: 'Desbloquea objetos competitivos premium (Choice Specs, Life Orb, Focus Sash) mucho antes y con descuento.',
+    rank1PerkTitle: 'Mercado Negro (Impuesto de Bajas 15% → 5% + Objetos Choice)',
+    rank1PerkDetail:
+      'Reduce el Impuesto de Reposición de bajas Nuzlocke del 15% al 5% (95% de reembolso) y desbloquea objetos competitivos premium tempranos.',
     rank2BattleTitle: 'Tag 2v2: Redada de la CRU en el Puerto de Mesoa',
     rank2PerkTitle: 'Aduana Fantasma',
     rank2PerkDetail: 'Revela todos los objetos equipados del jefe y sus sinergias Multi-Hit.',
@@ -542,6 +543,8 @@ export function computeActiveSocialLinkPerks(profile: PlayerSaveProfile): {
   maxBerryPlots: number;
   passivePpRegen: number;
   victoryCoinMultiplier: number;
+  /** Replacement tax deducted from Nuzlocke permanent-casualty indemnification (15% default, 5% with Mesoa R1). */
+  casualtyTaxRate: number;
   hasAntiDiabloScouting: boolean;
   hasFreeTutoringPerk: boolean;
   hasFreeEmergencyHealPerk: boolean;
@@ -556,6 +559,7 @@ export function computeActiveSocialLinkPerks(profile: PlayerSaveProfile): {
   const assassinRank = links.assassin?.rank ?? 0;
   const duelistRank = links.court_duelist?.rank ?? 0;
   const championRank = links.champion?.rank ?? 0;
+  const mesoaRank = links.mesoa_boss?.rank ?? 0;
 
   // Pilar 1: Información (El Pelirrojo R1!)
   const hasAntiDiabloScouting =
@@ -568,6 +572,8 @@ export function computeActiveSocialLinkPerks(profile: PlayerSaveProfile): {
   const hasFreeTutoringPerk = championRank >= 1;
   const victoryCoinMultiplier = championRank >= 1 ? 1.3 : 1.0;
   const hasFreeEmergencyHealPerk = championRank >= 1;
+  // Mesoa Contraband Tax Reduction (15% -> 5%)
+  const casualtyTaxRate = mesoaRank >= 1 ? 0.05 : 0.15;
 
   const unlockedHousePokemon: Array<
     CustomTeamMember & { donorName: string; donorId: string }
@@ -607,6 +613,7 @@ export function computeActiveSocialLinkPerks(profile: PlayerSaveProfile): {
     maxBerryPlots,
     passivePpRegen,
     victoryCoinMultiplier,
+    casualtyTaxRate,
     hasAntiDiabloScouting,
     hasFreeTutoringPerk,
     hasFreeEmergencyHealPerk,

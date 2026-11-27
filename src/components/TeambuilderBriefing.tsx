@@ -50,6 +50,7 @@ import {
   compileCustomTeamToShowdownPaste,
   isMoveSlotUnlocked,
 } from '../engine/playerProfile';
+import { getImperialBstLicense } from '../engine/pricingEngine';
 import { getTypeBadgeClass } from '../engine/pokemonVisuals';
 import type {
   BattleDifficultyMode,
@@ -152,6 +153,10 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
   const socialPerks = useMemo(
     () => computeActiveSocialLinkPerks(profile),
     [profile]
+  );
+  const bstLicense = useMemo(() => getImperialBstLicense(profile), [profile]);
+  const isCustomTeamBlockedByBstCap = Boolean(
+    useCustomTeam && canSwapCustomTeam && bstLicense.isOverCap
   );
   const scoutingAlerts = useMemo(
     () =>
@@ -289,7 +294,10 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
       };
     });
 
-  const isValid = parsedPlayer.length > 0 && parsedRival.length > 0;
+  const isValid =
+    parsedPlayer.length > 0 &&
+    parsedRival.length > 0 &&
+    !isCustomTeamBlockedByBstCap;
   const intel = config.rivalIntel;
   const visibleCount = config.openTeamsheet
     ? parsedRival.length
@@ -532,6 +540,27 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                   </p>
                 )}
               </div>
+
+              {/* Imperial BST Cap Warning if Custom PC Team exceeds current Act cap! */}
+              {isCustomTeamBlockedByBstCap && (
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-rose-500/60 bg-rose-950/45 px-3.5 py-2.5 text-xs text-rose-100">
+                  <p className="flex-1">
+                    <strong>⚖️ Excedes la Licencia Imperial ({bstLicense.shortLabel}):</strong>{' '}
+                    Tu Equipo del PC suma{' '}
+                    <span className="font-mono-code font-extrabold text-rose-300">
+                      {bstLicense.currentPartyBst} / {bstLicense.maxTeamBst} BST
+                    </span>
+                    . Cambia titulares pesados por opciones baratas (LC/PU/cheese) en Cajas PC o juega con el equipo narrativo.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setUseCustomTeam(false)}
+                    className="rounded-lg bg-amber-400 px-3 py-1 text-[11px] font-extrabold text-slate-950 hover:brightness-110 cursor-pointer"
+                  >
+                    Usar Equipo Narrativo
+                  </button>
+                </div>
+              )}
 
               {/* Selectable Party Slots */}
               <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -1176,17 +1205,25 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
-                  {parsedRival.slice(0, visibleCount).map((set, i) => (
-                    <div
-                      key={`visible-rival-${set.species}-${i}`}
-                      className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/90 px-2.5 py-1.5"
-                    >
-                      <PokemonIcon species={set.species} className="scale-90" />
-                      <p className="truncate text-xs font-semibold text-white">
-                        {set.species}
-                      </p>
-                    </div>
-                  ))}
+                  {parsedRival.slice(0, visibleCount).map((set, i) => {
+                    const maskedSpecies =
+                      !config.openTeamsheet &&
+                      set.ability?.toLowerCase() === 'illusion' &&
+                      parsedRival.length > 1
+                        ? parsedRival[parsedRival.length - 1].species
+                        : set.species;
+                    return (
+                      <div
+                        key={`visible-rival-${maskedSpecies}-${i}`}
+                        className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/90 px-2.5 py-1.5"
+                      >
+                        <PokemonIcon species={maskedSpecies} className="scale-90" />
+                        <p className="truncate text-xs font-semibold text-white">
+                          {maskedSpecies}
+                        </p>
+                      </div>
+                    );
+                  })}
                   {Array.from({ length: hiddenCount }).map((_, idx) => (
                     <div
                       key={`hidden-rival-${idx}`}
@@ -1267,7 +1304,9 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
             {!isValid ? (
               <p className="flex items-center gap-2 text-sm font-semibold text-rose-400">
                 <AlertTriangle className="h-4 w-4" />
-                Ambos equipos deben tener al menos un Pokémon válido.
+                {isCustomTeamBlockedByBstCap
+                  ? `Tu Equipo del PC excede el tope de ${bstLicense.maxTeamBst} BST (${bstLicense.shortLabel}). Ajusta tus Cajas PC o vuelve al equipo narrativo.`
+                  : 'Ambos equipos deben tener al menos un Pokémon válido.'}
               </p>
             ) : (
               <div>

@@ -231,8 +231,21 @@ export const EpilogueView: React.FC<EpilogueViewProps> = ({
           );
         })()}
 
-        {/* Battle Coin Rewards & Chapter Unlocks Banner */}
-        {reward && reward.coinsEarned > 0 && (
+        {/* Strict Anti-Grind Notice when replaying an already-cleared chapter on Ironman/Nuzlocke/Difícil/Tryhard */}
+        {reward?.antiGrindBlocked && (
+          <div className="mb-5 rounded-2xl border border-slate-700 bg-slate-900/80 px-4 py-3 text-xs text-slate-300">
+            <strong className="text-amber-200">
+              🛡️ Regla Anti-Grind Activa:
+            </strong>{' '}
+            Repetir un capítulo ya superado en Ironman, Nuzlocke, Difícil o Tryhard sirve para practicar y mejorar tu Game Review, pero no vuelve a otorgar PokéCoronas ni tiradas de Pokédex regional.
+          </div>
+        )}
+
+        {/* Battle Coin Rewards, Casualty Indemnification & Biogeographical Pokédex Unlocks Banner */}
+        {reward &&
+          (reward.coinsEarned > 0 ||
+            (reward.unlockedPokedexSpecies &&
+              reward.unlockedPokedexSpecies.length > 0)) && (
           <div className="mb-5 rounded-2xl border border-amber-400/45 bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-emerald-500/15 p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2 text-amber-200">
@@ -247,7 +260,7 @@ export const EpilogueView: React.FC<EpilogueViewProps> = ({
                   className="inline-flex items-center gap-1.5 rounded-xl border border-amber-400/50 bg-amber-500/20 px-3 py-1.5 text-xs font-extrabold text-amber-100 hover:bg-amber-500/30 cursor-pointer"
                 >
                   <ShoppingBag className="h-3.5 w-3.5" />
-                  Gastar en la Tienda
+                  Ir al Mercado Negro / Tienda
                 </button>
               )}
             </div>
@@ -268,7 +281,69 @@ export const EpilogueView: React.FC<EpilogueViewProps> = ({
                   Bono Maestría Kaizo (≤2 intentos): +{reward.lowResetBonus} PC
                 </span>
               )}
+              {reward.casualtyIndemnificationCoins &&
+                reward.casualtyIndemnificationCoins > 0 && (
+                  <span className="inline-flex items-center gap-1 rounded bg-rose-500/25 px-2 py-0.5 font-extrabold text-rose-100">
+                    <Skull className="h-3 w-3" />
+                    Liquidación por Bajas ({Math.round((1 - (reward.casualtyTaxRate ?? 0.15)) * 100)}%): +
+                    {reward.casualtyIndemnificationCoins.toLocaleString()} PC
+                  </span>
+                )}
             </div>
+
+            {reward.casualtyBreakdown && reward.casualtyBreakdown.length > 0 && (
+              <div className="mt-2.5 rounded-xl border border-rose-400/35 bg-rose-950/35 p-2.5 text-[11px]">
+                <p className="font-extrabold text-rose-200">
+                  💀 Indemnización por Bajas Permanentes (Impuesto de Reposición{' '}
+                  {Math.round((reward.casualtyTaxRate ?? 0.15) * 100)}%):
+                </p>
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {reward.casualtyBreakdown.map((c, idx) => (
+                    <span
+                      key={`${c.species}-${idx}`}
+                      className="rounded-lg border border-rose-400/30 bg-black/40 px-2 py-0.5 font-mono-code text-[10px] text-rose-100"
+                    >
+                      {c.species} ({c.bst} BST · {c.shopPrice} PC) → +{c.payout} PC
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {reward.unlockedPokedexSpecies &&
+              reward.unlockedPokedexSpecies.length > 0 && (
+                <div className="mt-3 space-y-2 border-t border-white/10 pt-3">
+                  <p className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-sky-300">
+                    <Map className="h-3.5 w-3.5 text-sky-400" />
+                    Fauna Regional Desbloqueada en tu Pokédex de Compra (
+                    {reward.unlockedPokedexSpecies[0].regionName})
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {reward.unlockedPokedexSpecies.map((sp) => (
+                      <div
+                        key={sp.species}
+                        className="flex items-center gap-2.5 rounded-xl border border-sky-400/35 bg-slate-950/80 p-2"
+                      >
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-slate-800 bg-slate-900">
+                          <PokemonSprite
+                            species={sp.species}
+                            side="p2"
+                            className="h-10 w-10"
+                          />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate text-xs font-extrabold text-white">
+                            {sp.species}
+                          </p>
+                          <p className="font-mono-code text-[10px] text-sky-200">
+                            {sp.tier} · {sp.bst} BST · {sp.price.toLocaleString()} PC
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             {reward.rewardItems && reward.rewardItems.length > 0 && (
               <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-white/10 pt-2 text-xs font-bold text-amber-200">
                 <Sparkles className="h-3.5 w-3.5 text-amber-400" />

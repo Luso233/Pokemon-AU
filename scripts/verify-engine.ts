@@ -78,6 +78,13 @@ import {
   buildRunDeathSummary,
   buildTwitterShareUrl,
 } from '../src/engine/saveSlots';
+import {
+  computeCasualtyIndemnification,
+  computePokemonBst,
+  computePokemonShopPricing,
+  getImperialBstLicense,
+  REGIONAL_FAUNA_POOLS,
+} from '../src/engine/pricingEngine';
 import { DARK_ATLAS_LANDMARKS } from '../src/data/darkAtlas';
 import {
   computeActiveSocialLinkPerks,
@@ -1208,7 +1215,7 @@ async function main() {
     `  OK: Dex learnsets (Arcanine=${arcanineGen9.length}, Gen1 Tauros=${taurosGen1.length}), slot unlock + Mental Herb reward + unowned item guard + Dev Mode Unlock/Reset verified`
   );
 
-  console.log('\n=== 20. Personalidades NPC, Diálogos Reactivos, Dificultad/Variantes & Hombre Rata (Hackmons Sin Reglas) ===');
+  console.log('\n=== 20. Personalidades NPC, Diálogos Reactivos, Dificultad/Variantes & Hombre Rata (Doble Zoroark Nv. 130 + 4 Cebos) ===');
   const ratInk = readFileSync(resolve('src/stories/chapter1_banquet.ink'), 'utf8');
   const ratRunner = new InkVNRunner(ratInk);
   let ratFrame = ratRunner.step();
@@ -1218,29 +1225,43 @@ async function main() {
   }
   const ratBaseCfg = resolveChapter2BanquetBattle(ratFrame.flags);
   const ratHydratedCfg = applyNpcRunModifiers(ratBaseCfg, 'kaizo', 'canonical');
-  const { finalSnap: resRat, turn1Snap: t1Rat, turn2Snap: t2Rat } = await runFullSimMatch(
-    'Rat-Man Hackmons Bonus 02',
+  const { finalSnap: resRat, turn1Snap: t1Rat } = await runFullSimMatch(
+    'Rat-Man Double Illusion Lv.130 Bonus 02',
     ratHydratedCfg,
     { maxTurns: 40 }
   );
   if (
     ratHydratedCfg.rivalCharId !== 'rat_saboteur' ||
-    !ratHydratedCfg.rivalShowdownPaste.includes('Level: 118') ||
-    !resRat.triggeredScriptIds.includes('rat-t1-shedinja-tera')
+    !ratHydratedCfg.rivalShowdownPaste.includes('Zoroark-Hisui') ||
+    !ratHydratedCfg.rivalShowdownPaste.includes('Zoroark @ Choice Specs') ||
+    !ratHydratedCfg.rivalShowdownPaste.includes('Level: 130') ||
+    !ratHydratedCfg.rivalShowdownPaste.includes('Gengar @ Choice Band') ||
+    !ratHydratedCfg.rivalShowdownPaste.includes('Maushold @ Focus Sash') ||
+    !ratHydratedCfg.rivalShowdownPaste.includes('Toxicroak @ Focus Sash') ||
+    !ratHydratedCfg.rivalShowdownPaste.includes('Gothitelle @ Sitrus Berry')
   ) {
     throw new Error(
-      `Expected Rat-Man Hackmons team (Zoroark Lv.118 + Shedinja T1 Tera Electric), got char=${ratHydratedCfg.rivalCharId} scripts=[${resRat.triggeredScriptIds.join(', ')}]`
+      `Expected Rat-Man Double Lv.130 Zoroark + 4 Type-Bait Supports team, got char=${ratHydratedCfg.rivalCharId}`
     );
   }
-  const shedT2 = t2Rat?.p2.party.find((p) => p.species === 'Shedinja');
-  if (shedT2 && !shedT2.fainted && shedT2.terastallized !== 'Electric') {
-    throw new Error(`Expected Shedinja to Terastallize Electric on Turn 1, got tera=${shedT2.terastallized}`);
+  // Verify Turn 1 hides the Lv.130 Zoroark behind Illusion disguise (species, level AND [ACE] tag all masked!)
+  const t1RivalSpecies = t1Rat?.p2.active.map((m) => m?.species).filter(Boolean) ?? [];
+  const t1LeadMasked = t1Rat?.p2.active[0];
+  if (
+    t1RivalSpecies.some((sp) => sp?.startsWith('Zoroark')) ||
+    !t1LeadMasked ||
+    t1LeadMasked.level !== 100 ||
+    t1LeadMasked.isBossAce
+  ) {
+    throw new Error(
+      `Expected Turn 1 lead Zoroark to be completely disguised (species + Lv.100 + isBossAce=false), got active=[${t1RivalSpecies.join(', ')}], leadLv=${t1LeadMasked?.level}, ace=${t1LeadMasked?.isBossAce}`
+    );
   }
   if (!t1Rat?.activeTaunt && !resRat.activeTaunt) {
     throw new Error('Expected reactive or scripted NPC dialogue banner during Rat-Man combat!');
   }
 
-  // Verify difficulty scaling + random variant selection across Comandante Siniestro & Rat-Man
+  // Verify difficulty scaling + classic Shedinja/Moody Smeargle/Scarf Ditto variant selection
   const darkCmdVariants = getVariantsForChapterNpc('dark_commander', 'ch2-monotype-banners');
   if (darkCmdVariants.length < 2) {
     throw new Error(`Expected >=2 variants for Comandante Siniestro, got ${darkCmdVariants.length}`);
@@ -1249,17 +1270,18 @@ async function main() {
   const standardRat = applyNpcRunModifiers(ratBaseCfg, 'standard', 'canonical');
   if (
     !nightmareRat.rivalShowdownPaste.includes('Banette-Mega') ||
-    !nightmareRat.rivalShowdownPaste.includes('Level: 122') ||
-    !standardRat.rivalShowdownPaste.includes('Level: 114')
+    !nightmareRat.rivalShowdownPaste.includes('Ability: Moody') ||
+    !nightmareRat.rivalShowdownPaste.includes('Level: 134') ||
+    !standardRat.rivalShowdownPaste.includes('Level: 126')
   ) {
-    throw new Error('Difficulty scaling or Banette-Mega variant check failed!');
+    throw new Error('Difficulty scaling (126/130/134) or Classic Diablo variant check failed!');
   }
   const rivalDef = getNpcDefinition('assassin');
   if (!rivalDef.socialLink?.romanceable || !rivalDef.socialLink?.canTagPartner) {
     throw new Error('Expected recurring rival (assassin) to have future socialLink romanceable & tag-partner metadata!');
   }
   console.log(
-    `  OK: Rat-Man (Shedinja Tera Electric + Air Balloon + Prankster Smeargle + Mega Sableye + Wobbuffet + Zoroark Lv.118), Difficulty (114/118/122), Variants & Reactive Dialogues verified (turns=${resRat.turn})`
+    `  OK: Rat-Man Double Lv.130 Illusion (Zoroark-Hisui + Zoroark disguised as ${t1RivalSpecies.join(' + ')} on T1 + Gengar Choice Band Trick / Maushold / Toxicroak / Gothitelle), Difficulty (126/130/134) & Variants verified (turns=${resRat.turn})`
   );
 
   console.log('\n=== 21. Nuevos Personajes (Duelista, Estratega Solar, Guardián) & Desafío 8 Climas/Terrenos (Castform ★) ===');
@@ -1657,8 +1679,8 @@ async function main() {
     throw new Error(`Expected 4 difficulty modes including 'baby', got ${DIFFICULTY_ORDER.join(',')}`);
   }
   const babyRat = applyNpcRunModifiers(ratBaseCfg, 'baby', 'canonical');
-  if (!babyRat.rivalShowdownPaste.includes('Level: 110')) {
-    throw new Error(`Expected Baby Mode (-8 lvls) to scale Zoroark Lv.118 -> Lv.110!`);
+  if (!babyRat.rivalShowdownPaste.includes('Level: 122')) {
+    throw new Error(`Expected Baby Mode (-8 lvls) to scale Zoroark Lv.130 -> Lv.122!`);
   }
 
   // 2) Verify ALL 16 chapters have rewardPokemon & teamEditPolicy, and clearing Puzzle 02 unlocks Regigigas (Slow Start)!
@@ -1802,10 +1824,152 @@ async function main() {
     }
   }
   console.log(
-    `  OK: 4 Difficulties (Baby Lv.110..Tryhard Lv.122), 16 Chapter Pokémon Unlocks (Regigigas Slow Start!), FatalBlow (${fatalSnap.lastFatalBlow.attackerSpecies}·${fatalSnap.lastFatalBlow.moveName}) + X/Twitter Share, & Three Knights (Sir Caín, Sir Abel, Sir Frey) ALL VERIFIED!`
+    `  OK: 4 Difficulties (Baby Lv.122..Tryhard Lv.134), 16 Chapter Pokémon Unlocks (Regigigas Slow Start!), FatalBlow (${fatalSnap.lastFatalBlow.attackerSpecies}·${fatalSnap.lastFatalBlow.moveName}) + X/Twitter Share, & Three Knights (Sir Caín, Sir Abel, Sir Frey) ALL VERIFIED!`
   );
 
-  console.log('\nALL 23 ENGINE, MAP, ROMANCE, POKÉROGUE RUN, FATAL-BLOW & KNIGHTS SUITES PASSED!');
+  console.log('\n=== 24. Economía Smogon + BST + Impuesto Habilidades, Indemnización Nuzlocke, Pokédex Regional, Anti-Grind & Cap BST Imperial ===');
+  // 1) Dynamic Smogon Tier + BST + Broken Ability Tax formula verification
+  const cottoneePrice = computePokemonShopPricing('Cottonee', 'Prankster');
+  const shedinjaPrice = computePokemonShopPricing('Shedinja', 'Wonder Guard');
+  const smearglePrice = computePokemonShopPricing('Smeargle', 'Moody');
+  const kingambitPrice = computePokemonShopPricing('Kingambit', 'Defiant');
+  const miraidonPrice = computePokemonShopPricing('Miraidon', 'Hadron Engine');
+  if (
+    cottoneePrice.bst !== 280 ||
+    cottoneePrice.abilityTax !== 200 ||
+    cottoneePrice.finalPrice !== 312 ||
+    shedinjaPrice.abilityTax !== 300 ||
+    smearglePrice.abilityTax !== 300 ||
+    kingambitPrice.tierBand !== 'OU' ||
+    kingambitPrice.finalPrice !== 825 ||
+    miraidonPrice.tierBand !== 'Uber / AG' ||
+    miraidonPrice.finalPrice !== 1340
+  ) {
+    throw new Error(
+      `Smogon pricing formula mismatch: Cottonee=${JSON.stringify(cottoneePrice)}, Kingambit=${JSON.stringify(kingambitPrice)}, Miraidon=${JSON.stringify(miraidonPrice)}`
+    );
+  }
+
+  // 2) Casualty Indemnification (85% default / 95% with Mesoa R1) on Nuzlocke Victory + Re-purchase fallen species!
+  const ind85 = computeCasualtyIndemnification(
+    [
+      { species: 'Arcanine', ability: 'Intimidate' },
+      { species: 'Gardevoir', ability: 'Trace' },
+      { species: 'Milotic', ability: 'Competitive' },
+      { species: 'Rotom', ability: 'Levitate' },
+    ],
+    0.15
+  );
+  const ind95 = computeCasualtyIndemnification(
+    [{ species: 'Arcanine', ability: 'Intimidate' }],
+    0.05
+  );
+  if (ind85.totalPayout <= 0 || ind95.totalPayout <= Math.floor(ind85.entries[0].payout)) {
+    throw new Error(`Expected casualty indemnification payout (85% -> 95% Mesoa R1), got 85%=${ind85.totalPayout}, 95%=${ind95.totalPayout}`);
+  }
+
+  let econProf = createNewConfiguredRunProfile({
+    displayName: 'ExilioEcon',
+    email: 'econ@galar.com',
+    runName: 'Diablo Nuzlocke Economy',
+    slotIndex: 3,
+    vnPacingMode: 'skip-to-battle',
+    defaultDifficulty: 'nightmare',
+    ironmanMode: true,
+    nuzlockePermadeath: true,
+  });
+  const ch1EconWin = applyBattleOutcomeToProfile(
+    econProf,
+    'ch1-wyndon-chase',
+    true,
+    9,
+    undefined,
+    {
+      difficulty: 'nightmare',
+      fallenInBattle: [
+        { species: 'Arcanine', ability: 'Intimidate' },
+        { species: 'Gardevoir', ability: 'Trace' },
+      ],
+    }
+  );
+  econProf = ch1EconWin.nextProfile;
+  if (
+    !ch1EconWin.reward?.casualtyIndemnificationCoins ||
+    ch1EconWin.reward.casualtyIndemnificationCoins <= 0 ||
+    !ch1EconWin.reward.unlockedPokedexSpecies ||
+    ch1EconWin.reward.unlockedPokedexSpecies.length < 3
+  ) {
+    throw new Error(`Expected Ch1 Nuzlocke victory indemnification + 3-4 biogeographical Pokédex unlocks, got ${JSON.stringify(ch1EconWin.reward)}`);
+  }
+
+  // 3) Strict Anti-Grind Rule: replaying Ch1 on Ironman/Nuzlocke/Difícil/Tryhard yields 0 PC & 0 Pokédex rolls!
+  const replayBlocked = applyBattleOutcomeToProfile(
+    econProf,
+    'ch1-wyndon-chase',
+    true,
+    5,
+    undefined,
+    { difficulty: 'nightmare' }
+  );
+  if (
+    !replayBlocked.reward?.antiGrindBlocked ||
+    replayBlocked.reward.coinsEarned !== 0 ||
+    replayBlocked.reward.replayBonus !== 0 ||
+    (replayBlocked.reward.unlockedPokedexSpecies?.length ?? 0) !== 0
+  ) {
+    throw new Error(`Expected Strict Anti-Grind to block replay coins & Pokédex rolls, got ${JSON.stringify(replayBlocked.reward)}`);
+  }
+  // Whereas replaying on Normal with Ironman/Nuzlocke OFF still grants small replay PC!
+  let chillProf = createDefaultProfile('Chill', 'chill@galar.com');
+  chillProf = toggleRunModifiers(chillProf, { defaultDifficulty: 'standard', ironmanMode: false, nuzlockePermadeath: false });
+  chillProf = applyBattleOutcomeToProfile(chillProf, 'ch1-wyndon-chase', true, 8, undefined, { difficulty: 'standard' }).nextProfile;
+  const chillReplay = applyBattleOutcomeToProfile(chillProf, 'ch1-wyndon-chase', true, 7, undefined, { difficulty: 'standard' });
+  if (chillReplay.reward?.antiGrindBlocked || (chillReplay.reward?.replayBonus ?? 0) <= 0) {
+    throw new Error(`Expected Normal non-Ironman replay to keep replayBonus, got ${JSON.stringify(chillReplay.reward)}`);
+  }
+
+  // 4) Biogeographical Fauna coverage across all 18 World Blocs (Drowzee/Munna in South America, Ninetales in Tohjo, Piloswine in Borelia!)
+  for (const bloc of WORLD_BLOCS) {
+    const pool = REGIONAL_FAUNA_POOLS[bloc.id];
+    if (!pool || pool.length < 10) {
+      throw new Error(`Expected >=10 regional fauna entries for bloc '${bloc.id}'`);
+    }
+  }
+  if (
+    !REGIONAL_FAUNA_POOLS.amazonia_veracruz.some((f) => f.species === 'Drowzee') ||
+    !REGIONAL_FAUNA_POOLS.amazonia_veracruz.some((f) => f.species === 'Munna') ||
+    !REGIONAL_FAUNA_POOLS.poke_japan.some((f) => f.species === 'Ninetales') ||
+    !REGIONAL_FAUNA_POOLS.poke_canada.some((f) => f.species === 'Piloswine')
+  ) {
+    throw new Error('Missing canonical biogeographical species in regional fauna pools!');
+  }
+
+  // 5) Imperial License Team Total BST Cap (Act 1: 2,800 -> Act 2: 3,150 -> Act 3: 3,500 -> Clímax: ∞)
+  const act1Lic = getImperialBstLicense(econProf);
+  if (act1Lic.actNumber !== 1 || act1Lic.maxTeamBst !== 2800 || !act1Lic.isOverCap) {
+    throw new Error(`Expected starter 3,073 BST party to exceed Act 1 cap (2,800), got ${JSON.stringify(act1Lic)}`);
+  }
+  // Buy cheap Cottonee (312 PC, 280 BST) & Shedinja (441 PC, 236 BST) and swap into party to fit under 2,800 BST!
+  const buyCot = purchasePokemon(econProf, 'Cottonee');
+  if (!buyCot.ok) throw new Error(`Expected Cottonee purchase (312 PC) to succeed: ${buyCot.error}`);
+  econProf = buyCot.nextProfile;
+  const miloticUid = econProf.pokemonBox.find((b) => b.zone === 'party' && b.species === 'Milotic')?.uid;
+  const cotUid = econProf.pokemonBox.find((b) => b.species === 'Cottonee')?.uid;
+  if (!miloticUid || !cotUid) throw new Error('Expected Milotic and purchased Cottonee in box!');
+  econProf = movePokemonInstanceZone(econProf, miloticUid, 'box').nextProfile;
+  econProf = movePokemonInstanceZone(econProf, cotUid, 'party').nextProfile;
+  // Drop one more heavy guard (Arcanine 555 BST) -> remaining 5 mons cleanly <= 2,800 BST!
+  const arcUid24 = econProf.pokemonBox.find((b) => b.zone === 'party' && b.species === 'Arcanine')?.uid;
+  if (arcUid24) econProf = movePokemonInstanceZone(econProf, arcUid24, 'box').nextProfile;
+  const legalAct1Lic = getImperialBstLicense(econProf);
+  if (legalAct1Lic.isOverCap || legalAct1Lic.currentPartyBst > 2800) {
+    throw new Error(`Expected adjusted Act 1 party with Cottonee (${computePokemonBst('Cottonee')} BST) to fit under 2,800 BST, got ${JSON.stringify(legalAct1Lic)}`);
+  }
+  console.log(
+    `  OK: Smogon Pricing (Cottonee=312 PC, Kingambit=825 PC, Miraidon=1340 PC), Nuzlocke Indemnification (+${ch1EconWin.reward.casualtyIndemnificationCoins} PC), 18-Region Fauna Pokédex, Anti-Grind Lock & Imperial BST Cap (${legalAct1Lic.currentPartyBst}/2800 BST) ALL VERIFIED!`
+  );
+
+  console.log('\nALL 24 ENGINE, MAP, ROMANCE, POKÉROGUE RUN, DOUBLE-ZOROARK & SMOGON ECONOMY SUITES PASSED!');
 }
 
 let allSuitesCompleted = false;

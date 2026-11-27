@@ -1775,12 +1775,52 @@ export class ShowdownBattleController {
         break;
       }
 
-      case 'switch':
-      case 'drag':
       case 'replace': {
+        // Illusion broke! Update the active slot's Pokémon IN-PLACE so HP, boosts, volatiles & moves stay intact with zero phantom party duplicates!
+        const { side, slotIndex, name } = parseSlotFromIdent(parts[2] ?? '');
+        const det = parseDetails(parts[3] ?? '');
+        const speciesData = Dex.species.get(det.species);
+        const sideState = this.state[side];
+        const target = sideState.active[slotIndex];
+        if (target) {
+          target.ident = `${side}: ${name}`;
+          target.name = name;
+          target.species = det.species;
+          target.level = det.level;
+          target.gender = det.gender;
+          target.types = target.terastallized
+            ? [target.terastallized]
+            : speciesData.types
+              ? [...speciesData.types]
+              : target.types;
+          target.revealedAbility = 'Illusion';
+          target.possibleAbilities = getPossibleAbilities(det.species);
+          target.isBossAce = side === 'p2' && det.level > this.state.levelCap;
+          this.refreshSpeedRange(side, target);
+          const aceTag = target.isBossAce ? ' [ACE]' : '';
+          this.pushLog(
+            'ability',
+            `🎭 ¡La Ilusión se rompió! ¡En realidad era ${det.species} Nv.${det.level}${aceTag}!`
+          );
+          if (side === 'p2' && target.isBossAce) {
+            this.emitNpcDialogue('onAceEntry', 'Ilusión revelada', true);
+          }
+        }
+        break;
+      }
+
+      case 'switch':
+      case 'drag': {
         const { side, slotIndex, name } = parseSlotFromIdent(parts[2] ?? '');
         const det = parseDetails(parts[3] ?? '');
         const cond = parseCondition(parts[4] ?? '100/100');
+        // Mask over-cap level & [ACE] tag while rival Pokémon is disguised under Illusion so Turn 1 stays a true 50/50!
+        const liveDisguise =
+          side === 'p2'
+            ? this.battleStreamRef?.battle?.p2.active[slotIndex]?.illusion
+            : null;
+        const displayedLevel = liveDisguise ? liveDisguise.level : det.level;
+        const isDisguisedIllusion = Boolean(liveDisguise);
         const isBatonPass = parts
           .slice(4)
           .some((p) => p.includes('Baton Pass'));
@@ -1835,7 +1875,9 @@ export class ShowdownBattleController {
             : undefined;
 
         let existing = sideState.party.find(
-          (p) => p.name === name && (p.species === det.species || side === 'p1')
+          (p) =>
+            p.name === name &&
+            (side === 'p1' || (p.species === det.species && !p.active))
         );
         if (!existing) {
           existing = {
@@ -1843,7 +1885,7 @@ export class ShowdownBattleController {
             ident: `${side}: ${name}`,
             name,
             species: det.species,
-            level: det.level,
+            level: displayedLevel,
             gender: det.gender,
             hp: cond.hp,
             maxhp: cond.maxhp,
@@ -1865,14 +1907,17 @@ export class ShowdownBattleController {
             consumedItem: null,
             revealedMoves: {},
             volatiles: passedVolatiles,
-            isBossAce: side === 'p2' && det.level > this.state.levelCap,
+            isBossAce:
+              side === 'p2' &&
+              !isDisguisedIllusion &&
+              displayedLevel > this.state.levelCap,
             happiness: configuredHappiness,
             shiny: isMonShiny,
           };
           sideState.party.push(existing);
         } else {
           existing.species = det.species;
-          existing.level = det.level;
+          existing.level = displayedLevel;
           existing.gender = det.gender;
           existing.hpPercent = cond.hpPercent;
           existing.status = cond.status;
@@ -1887,7 +1932,10 @@ export class ShowdownBattleController {
               ? [...speciesData.types]
               : existing.types;
           existing.possibleAbilities = getPossibleAbilities(det.species);
-          existing.isBossAce = side === 'p2' && det.level > this.state.levelCap;
+          existing.isBossAce =
+            side === 'p2' &&
+            !isDisguisedIllusion &&
+            displayedLevel > this.state.levelCap;
           if (configuredHappiness !== undefined) {
             existing.happiness = configuredHappiness;
           }
@@ -1905,7 +1953,7 @@ export class ShowdownBattleController {
           'switch',
           `${trainer} envió a ${name}${
             name !== det.species ? ` (${det.species})` : ''
-          } Nv.${det.level}${aceTag}.`
+          } Nv.${displayedLevel}${aceTag}.`
         );
         if (side === 'p2') {
           const isReservedAce =

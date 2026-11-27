@@ -22,6 +22,10 @@ import {
   compileCustomTeamToShowdownPaste,
   getItemUsageInfo,
 } from '../engine/playerProfile';
+import {
+  computePokemonBst,
+  getImperialBstLicense,
+} from '../engine/pricingEngine';
 import type {
   OwnedPokemonInstance,
   PlayerSaveProfile,
@@ -145,6 +149,7 @@ export const TeamEditorView: React.FC<TeamEditorViewProps> = ({
     (b) => b.zone !== 'graveyard' && b.shiny
   ).length;
   const maxShinies = Math.min(MAX_SHINY_CHARMS, profile.inventory.shinyCharms);
+  const bstLicense = useMemo(() => getImperialBstLicense(profile), [profile]);
 
   const speciesObj = selectedInstance
     ? Dex.species.get(selectedInstance.species)
@@ -323,6 +328,57 @@ export const TeamEditorView: React.FC<TeamEditorViewProps> = ({
           </div>
         )}
 
+        {/* Imperial License Law: Active Party Total BST Cap Meter */}
+        <div
+          className={`mb-5 rounded-2xl border px-4 py-3 ${
+            bstLicense.isOverCap
+              ? 'border-rose-500/60 bg-rose-950/35'
+              : 'border-emerald-400/35 bg-emerald-950/20'
+          }`}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-xs font-extrabold text-white">
+                ⚖️ Ley de Licencia Imperial · {bstLicense.actLabel}
+              </p>
+              <p className="mt-0.5 text-[11px] text-slate-300">
+                {bstLicense.isOverCap
+                  ? `⚠️ Excedes el tope por +${bstLicense.currentPartyBst - (bstLicense.maxTeamBst ?? 0)} BST. Cambia un titular pesado por Pokémon de menor BST (LC/PU/cheese) o deja un hueco libre para usar el Equipo del PC.`
+                  : bstLicense.nextActUnlockHint}
+              </p>
+            </div>
+            <div className="text-right">
+              <span
+                className={`font-mono-code text-sm font-extrabold ${
+                  bstLicense.isOverCap ? 'text-rose-300' : 'text-emerald-300'
+                }`}
+              >
+                {bstLicense.currentPartyBst.toLocaleString()}
+                {bstLicense.maxTeamBst !== null
+                  ? ` / ${bstLicense.maxTeamBst.toLocaleString()} BST`
+                  : ' / ∞ BST'}
+              </span>
+            </div>
+          </div>
+          {bstLicense.maxTeamBst !== null && (
+            <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-900">
+              <div
+                className={`h-full transition-all ${
+                  bstLicense.isOverCap ? 'bg-rose-500' : 'bg-emerald-400'
+                }`}
+                style={{
+                  width: `${Math.min(
+                    100,
+                    Math.round(
+                      (bstLicense.currentPartyBst / bstLicense.maxTeamBst) * 100
+                    )
+                  )}%`,
+                }}
+              />
+            </div>
+          )}
+        </div>
+
         {/* ACTIVE PARTY (MAX 6 UNIQUE INSTANCES) */}
         <div className="mb-5 rounded-3xl border border-amber-400/30 bg-slate-900/80 p-4">
           <div className="mb-3 flex items-center justify-between">
@@ -365,6 +421,9 @@ export const TeamEditorView: React.FC<TeamEditorViewProps> = ({
                   </div>
                   <p className="mt-1 truncate text-center text-xs font-bold text-white">
                     {inst.species}
+                  </p>
+                  <p className="text-center font-mono-code text-[9px] font-bold text-sky-300/90">
+                    {computePokemonBst(inst.species)} BST
                   </p>
                   <p className="truncate text-center text-[9.5px] text-amber-200/80">
                     {inst.item ? `@ ${inst.item}` : 'Sin objeto'}

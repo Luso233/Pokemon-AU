@@ -166,6 +166,8 @@ export interface PlayerSaveProfile {
   pokemonBox: OwnedPokemonInstance[];
   /** Real held-item quantities (prevents cloning 6 Sitrus Berries when you only own 1!). */
   itemStock: Record<string, number>;
+  /** Biogeographical Campaign Pokédex: species unlocked for purchase in the Black Market Shop! */
+  unlockedPokedex: string[];
   updatedAt: string;
 }
 
@@ -174,6 +176,25 @@ export interface BattleRewardSummary {
   firstClearBonus: number;
   replayBonus: number;
   lowResetBonus: number;
+  /** Nuzlocke permanent casualty reimbursement (85% default / 95% Mesoa R1 of dynamic Smogon+BST shop price). */
+  casualtyIndemnificationCoins?: number;
+  casualtyTaxRate?: number;
+  casualtyBreakdown?: Array<{
+    species: string;
+    bst: number;
+    shopPrice: number;
+    payout: number;
+  }>;
+  /** 3–4 biogeographical species rolled from the chapter's region into the player's buyable Pokédex! */
+  unlockedPokedexSpecies?: Array<{
+    species: string;
+    regionName: string;
+    price: number;
+    tier: string;
+    bst: number;
+  }>;
+  /** True when replaying a cleared chapter under strict Anti-Grind rules (Ironman/Nuzlocke/Difícil/Tryhard). */
+  antiGrindBlocked?: boolean;
   newlyUnlockedChapterIds: string[];
   rewardItems?: string[];
   rewardPokemon?: Array<{ species: string; note: string }>;
@@ -613,6 +634,8 @@ export interface EpilogueContent {
 
 export interface ChapterProgress {
   completed: boolean;
+  /** True once first-clear coins, Pokédex rolls & chapter Pokémon reward have been claimed (enforces Anti-Grind!). */
+  rewardsClaimed?: boolean;
   victories: number;
   attempts?: number;
   bestTurns?: number | null;

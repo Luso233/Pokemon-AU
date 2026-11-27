@@ -15,6 +15,10 @@ import {
   computeActiveSocialLinkPerks,
   getRomanceNpcById,
 } from '../data/socialLinksCatalog';
+import {
+  BLOC_BY_ID,
+  CHAPTER_MAP_LOCATIONS,
+} from '../data/worldGeopolitics';
 import type {
   BattleDifficultyMode,
   BattleRewardSummary,
@@ -36,6 +40,14 @@ import {
   getSpeciesKey,
   isMoveLegalForSpecies,
 } from './learnsetService';
+import {
+  buildSmartDefaultMemberForSpecies,
+  computeCasualtyIndemnification,
+  computePokemonShopPricing,
+  getAllBiomePokedexSpecies,
+  rollRegionalPokedexUnlocks,
+  STARTER_UNLOCKED_POKEDEX,
+} from './pricingEngine';
 import { buildShowdownPaste, type ShowdownSetBlock } from './teamBuilderTree';
 
 const PROFILE_STORAGE_KEY = 'galar-crown-profile-v2';
@@ -139,6 +151,7 @@ export function createDefaultProfile(
     freeEmergencyHeals: 0,
     pokemonBox: starterBox,
     itemStock: buildStarterItemStock(),
+    unlockedPokedex: [...STARTER_UNLOCKED_POKEDEX],
     updatedAt: new Date().toISOString(),
   };
 }
@@ -419,6 +432,21 @@ export function normalizeProfile(
       }
       return stock;
     })(),
+    unlockedPokedex: (() => {
+      const seen = new Map<string, string>();
+      const add = (sp: string) => {
+        const k = getSpeciesKey(sp);
+        if (k && !seen.has(k)) seen.set(k, sp);
+      };
+      for (const sp of STARTER_UNLOCKED_POKEDEX) add(sp);
+      if (Array.isArray(raw.unlockedPokedex)) {
+        for (const sp of raw.unlockedPokedex) {
+          if (typeof sp === 'string' && sp.trim()) add(sp.trim());
+        }
+      }
+      for (const sp of inv?.pokemon ?? []) add(sp);
+      return Array.from(seen.values());
+    })(),
     updatedAt: raw.updatedAt || new Date().toISOString(),
   };
 }
@@ -622,18 +650,30 @@ export function applyBattleOutcomeToProfile(
   chapterId: string,
   won: boolean,
   turns: number,
-  flags?: StoryFlags
+  flags?: StoryFlags,
+  options?: {
+    difficulty?: BattleDifficultyMode;
+    fallenInBattle?: Array<{ species: string; ability?: string }>;
+  }
 ): { nextProfile: PlayerSaveProfile; reward: BattleRewardSummary | null } {
   const existing = profile.completedChapters[chapterId] ?? {
     completed: false,
+    rewardsClaimed: false,
     victories: 0,
     attempts: 1,
   };
-  const wasAlreadyCompleted = existing.completed;
+  const wasAlreadyCompleted = Boolean(existing.completed || existing.rewardsClaimed);
   const attempts = Math.max(1, existing.attempts ?? 1);
+  const effectiveDifficulty = options?.difficulty ?? profile.defaultDifficulty;
+  const isStrictAntiGrind =
+    profile.ironmanMode ||
+    profile.nuzlockePermadeath ||
+    effectiveDifficulty === 'kaizo' ||
+    effectiveDifficulty === 'nightmare';
 
   const nextRecord: ChapterProgress = {
     completed: existing.completed || won,
+    rewardsClaimed: existing.rewardsClaimed || won,
     victories: existing.victories + (won ? 1 : 0),
     attempts,
     bestTurns: won
@@ -660,22 +700,47 @@ export function applyBattleOutcomeToProfile(
 
   const rule = CHAPTER_UNLOCK_RULES[chapterId];
   const perks = computeActiveSocialLinkPerks(nextProfile);
+  const antiGrindBlocked = wasAlreadyCompleted && isStrictAntiGrind;
+
   const firstClearBonus = !wasAlreadyCompleted
     ? rule?.firstClearReward ?? 1500
     : 0;
-  const replayBonus = wasAlreadyCompleted ? rule?.replayReward ?? 350 : 0;
+  const replayBonus =
+    wasAlreadyCompleted && !antiGrindBlocked ? rule?.replayReward ?? 350 : 0;
   const lowResetBonus = !wasAlreadyCompleted && attempts <= 2 ? 400 : 0;
-  const coinsEarned = Math.round(
+  const baseCoinsEarned = Math.round(
     (firstClearBonus + replayBonus + lowResetBonus) * perks.victoryCoinMultiplier
   );
 
-  // Story chapter held-item reward + PLAYABLE POKÉMON reward on first clear (including hilarious Regigigas!)
+  // Casualty Indemnification: ONLY paid on VICTORY for permanent Nuzlocke casualties (zero farm exploit!)
+  const fallenList =
+    nextProfile.nuzlockePermadeath && options?.fallenInBattle?.length
+      ? options.fallenInBattle
+      : [];
+  const indemnification =
+    fallenList.length > 0
+      ? computeCasualtyIndemnification(fallenList, perks.casualtyTaxRate)
+      : null;
+  const casualtyIndemnificationCoins = indemnification?.totalPayout ?? 0;
+  const coinsEarned = baseCoinsEarned + casualtyIndemnificationCoins;
+
+  // Story chapter held-item reward + PLAYABLE POKÉMON reward + BIOGEOGRAPHICAL POKÉDEX UNLOCKS on first clear!
   const rewardItems: string[] = [];
   const rewardPokemon: Array<{ species: string; note: string }> = [];
+  const unlockedPokedexSpecies: Array<{
+    species: string;
+    regionName: string;
+    price: number;
+    tier: string;
+    bst: number;
+  }> = [];
+
   let nextItems = nextProfile.inventory.items;
   let nextOwnedPokemon = nextProfile.inventory.pokemon;
   let nextBox = nextProfile.pokemonBox;
+  let nextUnlockedPokedex = [...nextProfile.unlockedPokedex];
   const nextItemStock = { ...nextProfile.itemStock };
+
   if (
     !wasAlreadyCompleted &&
     rule?.rewardItem &&
@@ -685,11 +750,15 @@ export function applyBattleOutcomeToProfile(
     nextItemStock[rule.rewardItem] = (nextItemStock[rule.rewardItem] ?? 0) + 1;
     rewardItems.push(rule.rewardItem);
   }
+
   if (!wasAlreadyCompleted && rule?.rewardPokemon) {
     const rp = rule.rewardPokemon;
     const spKey = getSpeciesKey(rp.species);
     if (!nextOwnedPokemon.some((s) => getSpeciesKey(s) === spKey)) {
       nextOwnedPokemon = [...nextOwnedPokemon, rp.species];
+    }
+    if (!nextUnlockedPokedex.some((s) => getSpeciesKey(s) === spKey)) {
+      nextUnlockedPokedex = [...nextUnlockedPokedex, rp.species];
     }
     const alreadyInBox = nextBox.some(
       (inst) =>
@@ -716,6 +785,30 @@ export function applyBattleOutcomeToProfile(
     rewardPokemon.push({ species: rp.species, note: rp.note });
   }
 
+  // Biogeographical Fauna Roll (3–4 local species added to buyable Campaign Pokédex on first clear ONLY!)
+  if (!wasAlreadyCompleted) {
+    const loc = CHAPTER_MAP_LOCATIONS[chapterId];
+    const blocId = loc?.blocId ?? 'galar_empire';
+    const regionName = BLOC_BY_ID[blocId]?.shortName ?? 'GALAR';
+    const rollCount = Math.random() < 0.5 ? 3 : 4;
+    const rolled = rollRegionalPokedexUnlocks(
+      blocId,
+      nextUnlockedPokedex,
+      rollCount
+    );
+    for (const sp of rolled) {
+      nextUnlockedPokedex.push(sp);
+      const pricing = computePokemonShopPricing(sp);
+      unlockedPokedexSpecies.push({
+        species: pricing.species,
+        regionName,
+        price: pricing.finalPrice,
+        tier: pricing.tierBand,
+        bst: pricing.bst,
+      });
+    }
+  }
+
   const newlyUnlocked = computeNewlyEligibleUnlocks(nextProfile);
   nextProfile = {
     ...nextProfile,
@@ -731,6 +824,7 @@ export function applyBattleOutcomeToProfile(
     },
     pokemonBox: nextBox,
     itemStock: nextItemStock,
+    unlockedPokedex: nextUnlockedPokedex,
   };
 
   return {
@@ -740,6 +834,11 @@ export function applyBattleOutcomeToProfile(
       firstClearBonus,
       replayBonus,
       lowResetBonus,
+      casualtyIndemnificationCoins,
+      casualtyTaxRate: indemnification?.taxRate,
+      casualtyBreakdown: indemnification?.entries,
+      unlockedPokedexSpecies,
+      antiGrindBlocked,
       newlyUnlockedChapterIds: newlyUnlocked,
       rewardItems,
       rewardPokemon,
@@ -778,19 +877,51 @@ export function purchasePokemon(
   profile: PlayerSaveProfile,
   species: string
 ): { ok: boolean; error?: string; nextProfile: PlayerSaveProfile } {
-  const entry = SHOP_POKEMON.find((p) => p.species === species);
-  if (!entry) return { ok: false, error: 'Pokémon no encontrado.', nextProfile: profile };
-  if (profile.inventory.pokemon.includes(species)) {
-    return { ok: false, error: 'Ya tienes este Pokémon.', nextProfile: profile };
+  const spKey = getSpeciesKey(species);
+  const dexSp = Dex.species.get(species);
+  if (!dexSp.exists) {
+    return { ok: false, error: 'Pokémon no encontrado en el Dex.', nextProfile: profile };
   }
-  if (profile.coins < entry.price) {
-    return { ok: false, error: 'PokéCoronas insuficientes.', nextProfile: profile };
+  const canonicalName = dexSp.name;
+  const isInUnlockedPokedex =
+    profile.devModeEnabled ||
+    profile.unlockedPokedex.some((s) => getSpeciesKey(s) === spKey) ||
+    SHOP_POKEMON.some((p) => getSpeciesKey(p.species) === spKey);
+
+  if (!isInUnlockedPokedex) {
+    return {
+      ok: false,
+      error: `${canonicalName} aún no está desbloqueado en tu Pokédex de Campaña. Supera capítulos en su región para desbloquearlo.`,
+      nextProfile: profile,
+    };
   }
-  const def = buildDefaultMemberForSpecies(species);
+
+  // Allow buying a replacement in Nuzlocke if your previous individual died in the Graveyard!
+  const hasLivingCopy = profile.pokemonBox.some(
+    (inst) => inst.zone !== 'graveyard' && getSpeciesKey(inst.species) === spKey
+  );
+  if (hasLivingCopy) {
+    return {
+      ok: false,
+      error: `Ya tienes un ${canonicalName} vivo en tus Cajas PC.`,
+      nextProfile: profile,
+    };
+  }
+
+  const def = buildDefaultMemberForSpecies(canonicalName);
+  const pricing = computePokemonShopPricing(canonicalName, def.ability);
+  if (profile.coins < pricing.finalPrice) {
+    return {
+      ok: false,
+      error: `PokéCoronas insuficientes (cuesta ${pricing.finalPrice.toLocaleString()} PC · ${pricing.breakdownText}).`,
+      nextProfile: profile,
+    };
+  }
+
   const newInstance: OwnedPokemonInstance = {
-    uid: `shop-${getSpeciesKey(species)}-${profile.pokemonBox.length}`,
+    uid: `shop-${spKey}-${Date.now().toString(36)}-${profile.pokemonBox.length}`,
     species: def.species,
-    origin: 'Tienda de Wyndon',
+    origin: 'Mercado Negro · Pokédex',
     zone: 'box',
     item: '',
     ability: def.ability,
@@ -802,14 +933,20 @@ export function purchasePokemon(
     maxhp: null,
     status: '',
   };
+  const nextInvPokemon = profile.inventory.pokemon.some(
+    (s) => getSpeciesKey(s) === spKey
+  )
+    ? profile.inventory.pokemon
+    : [...profile.inventory.pokemon, canonicalName];
+
   return {
     ok: true,
     nextProfile: {
       ...profile,
-      coins: profile.coins - entry.price,
+      coins: profile.coins - pricing.finalPrice,
       inventory: {
         ...profile.inventory,
-        pokemon: [...profile.inventory.pokemon, species],
+        pokemon: nextInvPokemon,
       },
       pokemonBox: [...profile.pokemonBox, newInstance],
       updatedAt: new Date().toISOString(),
@@ -1177,6 +1314,15 @@ export function applyDevUnlockEverything(
     unlockedMoveSlots[getSpeciesKey(sp)] = [0, 1, 2, 3];
   }
 
+  const allBiomeSpecies = Array.from(
+    new Set([
+      ...getAllBiomePokedexSpecies(),
+      ...SHOP_POKEMON.map((p) => p.species),
+      ...Object.values(CHAPTER_UNLOCK_RULES).map((r) => r.rewardPokemon.species),
+      ...profile.unlockedPokedex,
+    ])
+  );
+
   return {
     ...profile,
     coins: 9999999,
@@ -1187,6 +1333,7 @@ export function applyDevUnlockEverything(
       tms: allTms,
       shinyCharms: MAX_SHINY_CHARMS,
     },
+    unlockedPokedex: allBiomeSpecies,
     unlockedMoveSlots,
     devModeEnabled: true,
     updatedAt: new Date().toISOString(),
@@ -1239,26 +1386,9 @@ export function buildDefaultMemberForSpecies(species: string): CustomTeamMember 
     return { ...starterMatch, moves: [...starterMatch.moves], shiny: false };
   }
   if (cat) {
-    return {
-      species: cat.species,
-      item: 'Leftovers',
-      ability: cat.defaultAbility,
-      nature: cat.defaultNature,
-      teraType: cat.defaultTeraType,
-      moves: [...cat.defaultMoves],
-      shiny: false,
-    };
+    return buildSmartDefaultMemberForSpecies(species, cat);
   }
-  const sp = Dex.species.get(species);
-  return {
-    species: sp.exists ? sp.name : species,
-    item: 'Leftovers',
-    ability: sp.abilities?.[0] || 'Pressure',
-    nature: 'Adamant',
-    teraType: sp.types?.[0] || 'Normal',
-    moves: ['Protect', 'Body Press', 'Scald', 'Will-O-Wisp'],
-    shiny: false,
-  };
+  return buildSmartDefaultMemberForSpecies(species);
 }
 
 export function updateCustomTeamSlot(

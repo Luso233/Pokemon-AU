@@ -250,67 +250,69 @@ export const NPC_REGISTRY: Record<CharacterId, NpcDefinition> = {
   rat_saboteur: {
     id: 'rat_saboteur',
     name: 'El Hombre Rata',
-    title: 'Saboteador del Banquete · Tramposo Sin Reglas',
-    bio: 'Rata de alcantarilla con máscara de Zoroark, ballesta oculta y medallas robadas. Odia las peleas limpias: llena el campo de trucos ilegales, trampas desesperantes y un único depredador escondido entre ilusiones.',
+    title: 'Saboteador del Banquete · Doble Zoroark Nv. 130',
+    bio: 'Rata de alcantarilla con máscara de Zoroark, ballesta oculta y medallas robadas. Comanda DOS Zoroark Nv. 130 (Hisui y Teselia) disfrazados entre cuatro cebos de utilidad sucia que te castigan con inmunidades, Choice Band Trick y Shadow Tag.',
     tacticalInsight:
-      'Sus acompañantes casi no hacen daño directo, pero cada uno está diseñado para sacarte de quicio mientras su verdadero verdugo acecha disfrazado.',
-    archetypeTag: 'Bonus · Tramposo Sin Reglas',
+      'Nunca sabes si el rival frente a ti es real o un Zoroark Nv. 130 (Hisui inmune a Lucha/Fantasma, o Teselia inmune a Psíquico). Sus 4 soportes te encierran, paralizan y te pasan una Cinta Elegida.',
+    archetypeTag: 'Bonus · Doble Ilusión Nv. 130',
     personality: {
-      styleName: 'Tramposo Tilteante',
-      aggression: 0.42,
+      styleName: 'Ilusionista Callejero',
+      aggression: 0.72,
       disruptionBias: 0.98,
-      protectBias: 0.78,
-      switchDiscipline: 0.65,
+      protectBias: 0.72,
+      switchDiscipline: 0.68,
       directiveSummary:
-        'Abusa de estado, redirección, trucos ilegales y engaños hasta que su As pueda rematar.',
+        'Baitea ataques súper eficaces con doble Ilusión (Hisui + Teselia Nv. 130) mientras Gengar, Maushold, Toxicroak y Gothitelle te arruinan el turno.',
     },
     socialLink: {
       bondTrack: 'antagonist',
-      bondNote: 'Sindicato de las cloacas · Especialista en trampas sucias',
+      bondNote: 'Sindicato de las cloacas · Especialista en doble Ilusión y cebos sucios',
     },
     dialogues: {
       onBattleStart: [
-        '«¡Jejeje! ¿Reglas de torneo? ¡Aquí abajo las reglas se queman, Alteza! ¡Disfruta el circo!»',
+        '«¡Jejeje! ¿A cuál le vas a pegar, Alteza? ¿Lucha? ¿Psíquico? ¿Fantasma? ¡Adivina cuál de los dos es el Zoroark Nv. 130!»',
       ],
       onFirstFoeKO: [
-        '«¡Uy, qué rudo! No te preocupes, tengo trucos todavía más molestos en el bolsillo.»',
+        '«¡Uy, qué rudo! Felicitaciones, le atinaste a un soporte... ¡ahora cuídate del otro zorro disfrazado!»',
       ],
       onPlayerFaint: [
-        '«¡Jajaja! ¿Ya te empezó a doler la cabeza? ¡Y eso que ni viste quién era el de verdad!»',
+        '«¡Jajaja! ¿Le tiraste súper eficaz a una Ilusión Nv. 130? ¡Así se aprende en las cloacas!»',
       ],
       onSuperEffective: [
-        '«¡Ey, ey, sin golpear tan fuerte! ¡Eso debería ser ilegal... ah no, aquí nada lo es!»',
+        '«¡Ey, ey, sin golpear tan fuerte! ¡Al menos esta vez sí le pegaste al que era!»',
       ],
       onAceEntry: [
-        '«¡Se acabó el teatro de marionetas! ¡Sal de las sombras, mi joya de la corona, y hazlo pedazos!»',
+        '«¡SORPRESA, Alteza! ¡La máscara se cae y el Zoroark Nv. 130 te come vivo!»',
       ],
       onLowHp: [
-        '«¡Aún me queda una rata bajo la manga, principito!»',
+        '«¡Aún me queda otro disfraz bajo la manga, principito!»',
       ],
       onDefeat: [
-        '«¡Tsk! ¡Maldito niño con suerte! ¡Me llevo mis cuchillos... pero volverás a oír mis pasos en las tuberías!»',
+        '«¡Tsk! ¡Maldito niño con suerte! ¡Me rompiste las dos ilusiones... pero volverás a oír mis pasos en las tuberías!»',
       ],
       onVictory: [
-        '«¡Jajaja! Tanto entrenamiento de palacio para caer contra basura callejera. ¡Qué delicia!»',
+        '«¡Jajaja! Tanto entrenamiento de palacio para morder el anzuelo de dos Zoroark callejeros. ¡Qué delicia!»',
       ],
     },
     chapterVariants: {
       'ch2-banquet-ambush': [
         {
           id: 'canonical',
-          label: 'Circo de la Rata (Shedinja + Mega Sableye + Zoroark)',
-          description: 'Utilidad ilegal y desesperante respaldando a un Zoroark sobre-leveado.',
+          label: 'Doble Ilusión Nv. 130 (Zoroark-H + Zoroark + 4 Cebos)',
+          description:
+            'Opening 50/50 aleatorio con Zoroark-Hisui y Zoroark Nv. 130 + Gengar (Choice Band Trick), Maushold (Friend Guard), Toxicroak (Feint) y Gothitelle (Shadow Tag).',
         },
         {
           id: 'rat-banette-nightmare',
-          label: 'Variante: Sombras y Destino (Mega Banette + Ditto)',
-          description: 'Cambia Mega Sableye y Wobbuffet por Mega Banette Bromista (Mismo Destino) y Ditto Impostor.',
+          label: 'Variante Clásica Diablo: Shedinja + Smeargle Moody + Scarf Ditto',
+          description:
+            'El circo ilegal clásico mejorado: Smeargle Moody Sash (Fake Out/Follow Me/Spore/Endeavor), Shedinja Tera Eléctrico + Air Balloon, Mega Banette, Scarf Ditto y Zoroark Nv. 130.',
           rivalShowdownPaste: [
-            'Smeargle @ Focus Sash\nAbility: Prankster\nLevel: 100\nEVs: 252 HP / 4 Def / 252 Spe\nJolly Nature\n- Spore\n- Follow Me\n- Revival Blessing\n- Fake Out',
+            'Smeargle @ Focus Sash\nAbility: Moody\nLevel: 100\nEVs: 252 HP / 4 Def / 252 Spe\nJolly Nature\n- Fake Out\n- Follow Me\n- Spore\n- Endeavor',
             'Shedinja @ Air Balloon\nAbility: Wonder Guard\nLevel: 100\nTera Type: Electric\nEVs: 252 Atk / 252 Spe\nAdamant Nature\n- Shadow Sneak\n- Will-O-Wisp\n- Endeavor\n- Protect',
             'Banette-Mega @ Focus Sash\nAbility: Prankster\nLevel: 100\nEVs: 252 HP / 252 Atk / 4 SpD\nAdamant Nature\n- Destiny Bond\n- Will-O-Wisp\n- Encore\n- Poltergeist',
             'Ditto @ Choice Scarf\nAbility: Imposter\nLevel: 100\nEVs: 252 HP / 4 Def / 252 Spe\nJolly Nature\n- Transform',
-            'Zoroark ★ (Zoroark) @ Life Orb\nAbility: Illusion\nLevel: 118\nTera Type: Dark\nEVs: 4 HP / 252 SpA / 252 Spe\nTimid Nature\nIVs: 0 Atk\n- Night Daze\n- Flamethrower\n- Sludge Bomb\n- Nasty Plot',
+            'Zoroark @ Life Orb\nAbility: Illusion\nLevel: 130\nTera Type: Dark\nEVs: 4 HP / 252 SpA / 252 Spe\nTimid Nature\nIVs: 0 Atk\n- Night Daze\n- Flamethrower\n- Sludge Bomb\n- Nasty Plot',
           ].join('\n\n'),
           reserveAsLastAceSpecies: 'Zoroark',
         },

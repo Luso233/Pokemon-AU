@@ -35,7 +35,7 @@ Tu comunicador vibra contra tu muñeca: el cierre blindado sella las compuertas 
 
 === confrontacion_politica ===
 El Hombre Rata se rasca debajo de la máscara con los dedos llenos de anillos robados y acaricia las cuchillas de su cinturón. # bg: banquet-hall # speaker: El Hombre Rata # char: rat_saboteur # side: right # pokemon: none # mood: smug
-«¿Sabes qué es lo más divertido de pelear contra sangre azul? Que traen cañones gigantes, pero se vuelven locos cuando no pueden tocar a una sola sombra... hasta que mi verdadero colmillo sale del disfraz.» # bg: banquet-hall # speaker: El Hombre Rata # char: rat_saboteur # side: right # pokemon: none # mood: smug
+«¿Sabes qué es lo más divertido de pelear contra sangre azul? Que traen cañones gigantes, pero se vuelven locos adivinando cuál silueta es real y cuál es uno de mis dos zorros Nv. 130... justo antes de comerse una Cinta Elegida con Truco y quedar encerrados con Sombra Trampa.» # bg: banquet-hall # speaker: El Hombre Rata # char: rat_saboteur # side: right # pokemon: none # mood: smug
 
 * [Guardar silencio y observar cada movimiento de sus manos]
     ~ assassin_plan = "sabotage"

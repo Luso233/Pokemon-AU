@@ -738,78 +738,101 @@ export function resolveChapter2BanquetBattle(
     });
   }
 
-  const smeargle: ShowdownSetBlock = {
-    species: 'Smeargle',
-    item: 'Focus Sash',
-    ability: 'Prankster',
-    level: 100,
-    evs: '252 HP / 4 Def / 252 Spe',
-    nature: 'Jolly',
-    moves: ['Spore', 'Follow Me', 'Revival Blessing', 'Fake Out'],
-  };
-  const shedinja: ShowdownSetBlock = {
-    species: 'Shedinja',
-    item: 'Air Balloon',
-    ability: 'Wonder Guard',
-    level: 100,
-    teraType: 'Electric',
-    evs: '252 Atk / 252 Spe',
-    nature: 'Adamant',
-    moves: ['Shadow Sneak', 'Will-O-Wisp', 'Endeavor', 'Protect'],
-  };
-  const sableyeMega: ShowdownSetBlock = {
-    species: 'Sableye-Mega',
-    item: 'Leftovers',
-    ability: 'Magic Bounce',
-    level: 100,
-    evs: '252 HP / 128 Def / 128 SpD',
-    nature: 'Careful',
-    moves: ['Will-O-Wisp', 'Encore', 'Recover', 'Foul Play'],
-  };
-  const wobbuffet: ShowdownSetBlock = {
-    species: 'Wobbuffet',
-    item: 'Sitrus Berry',
-    ability: 'Shadow Tag',
-    level: 100,
-    evs: '252 HP / 128 Def / 128 SpD',
-    nature: 'Calm',
-    moves: ['Encore', 'Counter', 'Mirror Coat', 'Destiny Bond'],
-  };
-  const banetteMega: ShowdownSetBlock = {
-    species: 'Banette-Mega',
-    item: 'Focus Sash',
-    ability: 'Prankster',
-    level: 100,
-    evs: '252 HP / 252 Atk / 4 SpD',
-    nature: 'Adamant',
-    moves: ['Destiny Bond', 'Will-O-Wisp', 'Encore', 'Taunt'],
-  };
-  const dittoRat: ShowdownSetBlock = {
-    species: 'Ditto',
-    item: 'Choice Scarf',
-    ability: 'Imposter',
-    level: 100,
-    evs: '252 HP / 4 Def / 252 Spe',
-    nature: 'Jolly',
-    moves: ['Transform'],
-  };
-  const zoroarkAce: ShowdownSetBlock = {
-    nickname: 'Zoroark ★',
-    species: 'Zoroark',
+  // TWO Lv.130 ILLUSION NUKES (Fighting/Ghost Bait + Psychic Bait)
+  const zoroarkHisui: ShowdownSetBlock = {
+    species: 'Zoroark-Hisui',
     item: 'Life Orb',
     ability: 'Illusion',
-    level: 118,
+    level: 130,
+    teraType: 'Ghost',
+    evs: '4 HP / 252 SpA / 252 Spe',
+    nature: 'Timid',
+    ivs: '0 Atk',
+    moves: ['Bitter Malice', 'Hyper Voice', 'Focus Blast', 'Protect'],
+  };
+  const zoroarkUnova: ShowdownSetBlock = {
+    species: 'Zoroark',
+    item: 'Choice Specs',
+    ability: 'Illusion',
+    level: 130,
     teraType: 'Dark',
     evs: '4 HP / 252 SpA / 252 Spe',
     nature: 'Timid',
     ivs: '0 Atk',
-    moves: ['Night Daze', 'Flamethrower', 'Sludge Bomb', 'Nasty Plot'],
+    moves: ['Night Daze', 'Sludge Bomb', 'Flamethrower', 'U-turn'],
   };
 
-  const rivalBlocks =
-    assassinPlan === 'mirror'
-      ? [smeargle, shedinja, banetteMega, dittoRat, zoroarkAce]
-      : [smeargle, shedinja, sableyeMega, wobbuffet, zoroarkAce];
+  // FOUR DIRTY UTILITY SUPPORTS (Type Baits for Fighting, Psychic & Ghost!)
+  const gengarBait: ShowdownSetBlock = {
+    species: 'Gengar',
+    item: 'Choice Band',
+    ability: 'Cursed Body',
+    level: 100,
+    teraType: 'Dark',
+    evs: '252 HP / 4 Def / 252 Spe',
+    nature: 'Timid',
+    ivs: '0 Atk',
+    moves: ['Trick', 'Taunt', 'Icy Wind', 'Will-O-Wisp'],
+  };
+  const mausholdBait: ShowdownSetBlock = {
+    species: 'Maushold',
+    item: 'Focus Sash',
+    ability: 'Friend Guard',
+    level: 100,
+    teraType: 'Ghost',
+    evs: '252 HP / 4 Def / 252 Spe',
+    nature: 'Jolly',
+    moves: ['Follow Me', 'Encore', 'Taunt', 'Super Fang'],
+  };
+  const toxicroakBait: ShowdownSetBlock = {
+    species: 'Toxicroak',
+    item: 'Focus Sash',
+    ability: 'Dry Skin',
+    level: 100,
+    teraType: 'Dark',
+    evs: '252 HP / 4 Atk / 252 Spe',
+    nature: 'Jolly',
+    moves: ['Fake Out', 'Taunt', 'Feint', 'Sucker Punch'],
+  };
+  const gothitelleBait: ShowdownSetBlock = {
+    species: 'Gothitelle',
+    item: 'Sitrus Berry',
+    ability: 'Shadow Tag',
+    level: 100,
+    teraType: 'Dark',
+    evs: '252 HP / 140 Def / 116 SpD',
+    nature: 'Calm',
+    ivs: '0 Atk',
+    moves: ['Fake Out', 'Thunder Wave', 'Taunt', 'Helping Hand'],
+  };
+
+  // 50/50 Unpredictable Illusion Shuffle:
+  // Slot 1 = randomly Zoroark-Hisui OR Unova Zoroark (disguised as Slot 6!)
+  // Slot 2 = distinct dirty support; Slot 4 = the OTHER Lv.130 Zoroark (also disguised as Slot 6!)
+  // Slot 6 = Gengar OR Maushold (Illusion disguise target — keeps BOTH Zoroarks disguised!)
+  const hisuiLeads = Math.random() < 0.5;
+  const leadZoroark = hisuiLeads ? zoroarkHisui : zoroarkUnova;
+  const reserveZoroark = hisuiLeads ? zoroarkUnova : zoroarkHisui;
+
+  const gengarDisguise =
+    assassinPlan === 'mirror' ? Math.random() < 0.35 : Math.random() < 0.6;
+  const rivalBlocks: ShowdownSetBlock[] = gengarDisguise
+    ? [
+        leadZoroark, // Slot 1 -> enters disguised as Gengar!
+        mausholdBait, // Slot 2 -> real Maushold (Friend Guard + Follow Me)
+        toxicroakBait, // Slot 3 -> x4 Psychic bait (Fake Out + Feint)
+        reserveZoroark, // Slot 4 -> 2nd Lv.130 Zoroark (also disguised as Gengar!)
+        gothitelleBait, // Slot 5 -> Shadow Tag trapper
+        gengarBait, // Slot 6 -> Illusion target (Choice Band Trick)
+      ]
+    : [
+        leadZoroark, // Slot 1 -> enters disguised as Maushold!
+        gengarBait, // Slot 2 -> real Gengar (Choice Band Trick T1!)
+        gothitelleBait, // Slot 3 -> Shadow Tag trapper (locks Tricked victim!)
+        reserveZoroark, // Slot 4 -> 2nd Lv.130 Zoroark (also disguised as Maushold!)
+        toxicroakBait, // Slot 5 -> x4 Psychic bait (Fake Out + Feint)
+        mausholdBait, // Slot 6 -> Illusion target (Friend Guard + Follow Me)
+      ];
 
   traces.push({
     id: 'ch2-rival',
@@ -822,48 +845,59 @@ export function resolveChapter2BanquetBattle(
     flagValue: assassinPlan,
     effectTitle:
       assassinPlan === 'mirror'
-        ? 'El Hombre Rata: Protocolo Reflejo y Pesadillas'
-        : 'El Hombre Rata: Circo Sin Reglas',
+        ? 'El Hombre Rata: Doble Ilusión Nv. 130 (Trampa y Reflejo)'
+        : 'El Hombre Rata: Doble Ilusión Nv. 130 (Circo de Cebos)',
     effectDetail:
-      'Un arsenal de trucos ilegales y utilidad desesperante cubriendo a un único depredador oculto.',
+      'Abre con un 50/50 imposible de leer: dos Zoroark Nv. 130 (Hisui + Teselia) disfrazados entre cuatro soportes diseñados para baitear Lucha, Psíquico y Fantasma.',
   });
 
   const scriptedEnemyRules: ScriptedEnemyRule[] = [
     {
-      id: 'rat-t1-shedinja-tera',
+      id: 'rat-t1-gengar-trick',
       turn: 1,
-      actorSpecies: 'Shedinja',
-      forceMoveId: 'willowisp',
-      forceTera: true,
+      actorSpecies: 'Gengar',
+      forceMoveId: 'trick',
       targetSpec: 'slot:1',
       once: true,
       description:
-        'Truco ilegal Turno 1: Shedinja se Teracristaliza Eléctrico flotando con Air Balloon.',
+        'Truco Sucio Turno 1: Gengar le pasa su Cinta Elegida (Choice Band) a tu titular con Truco.',
       tauntLine:
-        '«¡Jejeje! ¡Intenta tocar a mi pequeño fantasma flotando con electricidad, Alteza!»',
+        '«¡Jejeje! ¡Toma un regalito callejero, Alteza! ¡Disfruta tu nueva Cinta Elegida!»',
     },
     {
-      id: 'rat-t1-smeargle-fakeout',
+      id: 'rat-t1-maushold-followme',
       turn: 1,
-      actorSpecies: 'Smeargle',
+      actorSpecies: 'Maushold',
+      forceMoveId: 'followme',
+      once: true,
+      description:
+        'Escolta de Cloaca Turno 1: Maushold (Compiescolta) redirige los golpes con Señuelo para cubrir al Zoroark Nv. 130 disfrazado.',
+      tauntLine:
+        '«¡Pégale a mis ratitas con Lucha si te atreves, principito! ¿O acaso esa no es una rata de verdad?»',
+    },
+    {
+      id: 'rat-t1-toxicroak-fakeout',
+      turn: 1,
+      actorSpecies: 'Toxicroak',
       forceMoveId: 'fakeout',
       targetSpec: 'slot:1',
       once: true,
       description:
-        'Turno 1 del Hombre Rata: Smeargle Bromista frena a tu vanguardia con Fake Out.',
+        'Emboscada de Toxicroak: frena a tu vanguardia con Sorpresa antes de romper Protección con Amago.',
       tauntLine:
-        '«¡Quieto ahí, principito! Primero bailas al ritmo de mis ratas.»',
+        '«¿Un Psíquico contra mi rana? Adelante... reza para que no sea mi zorro de Teselia.»',
     },
     {
-      id: 'rat-banette-dbond',
-      actorSpecies: 'Banette-Mega',
-      condition: 'hpBelow60',
-      forceMoveId: 'destinybond',
+      id: 'rat-gothitelle-twave',
+      actorSpecies: 'Gothitelle',
+      onFirstActiveTurn: true,
+      forceMoveId: 'thunderwave',
+      targetSpec: 'slot:1',
       once: true,
       description:
-        'Trampa de Mega Banette: usa Mismo Destino con Bromista al bajar de 60% PS.',
+        'Sombra Trampa + Parálisis: Gothitelle encierra a tu equipo en el campo y paraliza al objetivo.',
       tauntLine:
-        '«¡Si cae mi marioneta, te vienes con ella al hoyo! ¡Mismo Destino!»',
+        '«¡Aquí nadie cambia! Sombra Trampa, parálisis y a rezar por no fallar el turno.»',
     },
   ];
 
@@ -871,29 +905,31 @@ export function resolveChapter2BanquetBattle(
     chapterId: 'ch2-banquet-ambush',
     format: 'doubles',
     formatId: 'gen9doublescustomgame',
-    formatLabel: 'Dobles · Sin Reglas',
-    reserveAsLastAceSpecies: 'Zoroark',
+    formatLabel: 'Dobles · Sin Reglas (Doble Ilusión)',
     playerName: 'Príncipe Heredero',
     playerCharId: 'prince',
     rivalName: 'El Hombre Rata',
-    rivalTitle: 'Saboteador del Banquete · Sin Reglas',
+    rivalTitle: 'Saboteador del Banquete · Doble Zoroark Nv. 130',
     rivalCharId: 'rat_saboteur',
     arenaTheme: 'banquet-hall',
     playerTeamSummary:
       teamMode === 'combat'
         ? `Equipo de Combate (Zacian + Dragapult ${mixedRole === 'special' ? 'SpA' : 'Atk'})`
         : `Equipo de Vida Diaria (Arcanine ${mixedRole === 'special' ? 'SpA' : 'Atk'})`,
-    rivalTeamSummary: 'Formación sin reglas · 1 especie avistada (4 ocultas)',
+    rivalTeamSummary:
+      'Formación sin reglas · Doble Ilusión (1 silueta avistada, 5 ocultas)',
     playerShowdownPaste: buildShowdownPaste(playerBlocks),
     rivalShowdownPaste: buildShowdownPaste(rivalBlocks),
     rivalIntel: {
       visibleSpeciesCount: 1,
       totalSlots: rivalBlocks.length,
-      intelLabel: 'Sin Reglas · 1/5 Especies',
+      intelLabel: 'Sin Reglas · 1/6 Especies',
       intelNote:
-        'Entre el humo del salón solo alcanzas a distinguir una silueta antes de que empiece el caos.',
+        'Ninguna silueta es de fiar: dos Zoroark Nv. 130 (Hisui y Teselia) se mezclan con cebos débiles a Lucha, Psíquico y Fantasma.',
       levelCap: 100,
       hasBossAce: true,
+      bossAceWarning:
+        'Doble As Nv. 130 con Ilusión (50/50 aleatorio en Turno 1). ¡Cuidado con apretar ataques súper eficaces a ciegas!',
     },
     scriptedEnemyRules,
     traces,

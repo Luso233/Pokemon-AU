@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   ArrowLeft,
   Backpack,
@@ -6,8 +6,11 @@ import {
   Coins,
   Disc3,
   Gamepad2,
+  Scale,
+  Search,
   Shield,
   ShoppingBag,
+  Skull,
   Sparkles,
   Wrench,
 } from 'lucide-react';
@@ -15,11 +18,20 @@ import {
   CURRENCY_NAME,
   CURRENCY_SHORT,
   MAX_SHINY_CHARMS,
+  POKEMON_CATALOG_MAP,
   SHINY_CHARM_PRICE,
   SHOP_ITEMS,
-  SHOP_POKEMON,
   SHOP_TMS,
 } from '../data/economyCatalog';
+import { computeActiveSocialLinkPerks } from '../data/socialLinksCatalog';
+import { getSpeciesKey } from '../engine/learnsetService';
+import {
+  buildSmartDefaultMemberForSpecies,
+  computePokemonShopPricing,
+  getAllBiomePokedexSpecies,
+  getImperialBstLicense,
+  type SmogonPriceBand,
+} from '../engine/pricingEngine';
 import { getTypeBadgeClass } from '../engine/pokemonVisuals';
 import type { PlayerSaveProfile } from '../types/game';
 import { PokemonSprite } from './PokemonSprite';
@@ -57,9 +69,62 @@ export const ShopView: React.FC<ShopViewProps> = ({
   onBuyShinyCharm,
 }) => {
   const [tab, setTab] = useState<ShopTab>('pokemon');
+  const [pokeSearch, setPokeSearch] = useState('');
+  const [tierFilter, setTierFilter] = useState<'all' | SmogonPriceBand>('all');
+  const [sortBy, setSortBy] = useState<'price-asc' | 'price-desc' | 'bst-desc'>('price-asc');
   const [toast, setToast] = useState<{ tone: 'ok' | 'err'; text: string } | null>(
     null
   );
+
+  const bstLicense = useMemo(() => getImperialBstLicense(profile), [profile]);
+  const perks = useMemo(() => computeActiveSocialLinkPerks(profile), [profile]);
+  const totalWorldSpeciesCount = useMemo(() => getAllBiomePokedexSpecies().length, []);
+
+  const buyablePokedexRows = useMemo(() => {
+    const unlockedList = profile.devModeEnabled
+      ? getAllBiomePokedexSpecies()
+      : profile.unlockedPokedex;
+    const rows = unlockedList.map((species) => {
+      const cat = POKEMON_CATALOG_MAP.get(species.toLowerCase());
+      const def = buildSmartDefaultMemberForSpecies(species, cat);
+      const pricing = computePokemonShopPricing(def.species, def.ability);
+      const spKey = getSpeciesKey(def.species);
+      const hasLivingCopy = profile.pokemonBox.some(
+        (m) => m.zone !== 'graveyard' && getSpeciesKey(m.species) === spKey
+      );
+      const hasFallenCopy = profile.pokemonBox.some(
+        (m) => m.zone === 'graveyard' && getSpeciesKey(m.species) === spKey
+      );
+      return {
+        species: def.species,
+        ability: def.ability,
+        teraType: def.teraType,
+        role: cat?.role ?? `${def.moves.slice(0, 3).join(' · ')}`,
+        pricing,
+        hasLivingCopy,
+        hasFallenCopy,
+      };
+    });
+
+    const q = pokeSearch.trim().toLowerCase();
+    const filtered = rows.filter((r) => {
+      if (tierFilter !== 'all' && r.pricing.tierBand !== tierFilter) return false;
+      if (!q) return true;
+      return (
+        r.species.toLowerCase().includes(q) ||
+        r.ability.toLowerCase().includes(q) ||
+        r.pricing.tierBand.toLowerCase().includes(q) ||
+        r.role.toLowerCase().includes(q)
+      );
+    });
+
+    filtered.sort((a, b) => {
+      if (sortBy === 'price-desc') return b.pricing.finalPrice - a.pricing.finalPrice;
+      if (sortBy === 'bst-desc') return b.pricing.bst - a.pricing.bst;
+      return a.pricing.finalPrice - b.pricing.finalPrice;
+    });
+    return filtered;
+  }, [profile.unlockedPokedex, profile.pokemonBox, profile.devModeEnabled, pokeSearch, tierFilter, sortBy]);
 
   const showFeedback = (res: { ok: boolean; error?: string }, okMsg: string) => {
     setToast(
@@ -153,7 +218,7 @@ export const ShopView: React.FC<ShopViewProps> = ({
             [
               {
                 id: 'pokemon',
-                label: `Pokémon (${profile.inventory.pokemon.length})`,
+                label: `Pokédex de Compra (${profile.unlockedPokedex.length}/${totalWorldSpeciesCount})`,
                 icon: Shield,
               },
               {
@@ -194,79 +259,187 @@ export const ShopView: React.FC<ShopViewProps> = ({
           })}
         </div>
 
-        {/* TAB 1: POKÉMON */}
+        {/* TAB 1: DYNAMIC SMOGON-TIER + BST + ABILITY TAX CAMPAIGN POKÉDEX */}
         {tab === 'pokemon' && (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {SHOP_POKEMON.map((entry) => {
-              const owned = profile.inventory.pokemon.includes(entry.species);
-              const canAfford = profile.coins >= entry.price;
-              const tierCls =
-                entry.tier === 'Legendario'
-                  ? 'border-fuchsia-400/40 bg-fuchsia-500/15 text-fuchsia-200'
-                  : entry.tier === 'Élite'
-                    ? 'border-amber-400/40 bg-amber-500/15 text-amber-200'
-                    : 'border-sky-400/35 bg-sky-500/15 text-sky-200';
-              return (
-                <div
-                  key={entry.species}
-                  className="flex flex-col justify-between rounded-2xl border border-slate-800 bg-slate-900/80 p-4 transition hover:border-amber-400/40"
-                >
-                  <div>
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                      <span
-                        className={`rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase ${tierCls}`}
-                      >
-                        {entry.tier}
-                      </span>
-                      <span className="font-mono-code text-xs font-extrabold text-amber-300">
-                        {entry.price.toLocaleString()} {CURRENCY_SHORT}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border border-slate-800 bg-slate-950/90 p-1">
-                        <PokemonSprite
-                          species={entry.species}
-                          side="p2"
-                          className="h-16 w-16"
-                        />
-                      </div>
-                      <div className="min-w-0">
-                        <h3 className="font-display truncate text-base font-bold text-white">
-                          {entry.species}
-                        </h3>
-                        <p className="text-[11px] text-slate-400">{entry.role}</p>
-                        <p className="mt-1 text-[10px] text-amber-200/80">
-                          Hab: {entry.defaultAbility} · Tera {entry.defaultTeraType}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-4">
-                    {owned ? (
-                      <div className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-400/35 bg-emerald-500/15 py-2 text-xs font-bold text-emerald-300">
-                        <CheckCircle2 className="h-4 w-4" />
-                        En tu Armería
-                      </div>
-                    ) : (
-                      <button
-                        disabled={!canAfford}
-                        onClick={() =>
-                          showFeedback(
-                            onBuyPokemon(entry.species),
-                            `¡Reclutaste a ${entry.species}! Ya puedes equiparlo en el Editor de Equipo.`
-                          )
-                        }
-                        className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 py-2 text-xs font-extrabold text-slate-950 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-35 cursor-pointer"
-                      >
-                        <Coins className="h-3.5 w-3.5" />
-                        Reclutar por {entry.price.toLocaleString()} {CURRENCY_SHORT}
-                      </button>
-                    )}
-                  </div>
+          <div className="space-y-4">
+            {/* Economic Formula + Imperial BST License + Nuzlocke Refund Info Banner */}
+            <div className="grid gap-3 rounded-2xl border border-amber-400/30 bg-slate-900/85 p-4 lg:grid-cols-12">
+              <div className="lg:col-span-7 space-y-1">
+                <p className="flex items-center gap-1.5 text-xs font-extrabold text-amber-200">
+                  <Scale className="h-4 w-4 text-amber-400" />
+                  Economía Smogon + BST + Impuesto de Habilidad Rota
+                </p>
+                <p className="text-[11px] leading-relaxed text-slate-300">
+                  <code className="rounded bg-slate-950 px-1.5 py-0.5 text-amber-200">
+                    Precio = ⌊BST × Tier Smogon⌋ + Impuesto Habilidad
+                  </code>{' '}
+                  (LC 0.4× · PU/ZU 0.6× · RU/NU 0.9× · UU 1.2× · OU 1.5× · Uber 2.0×). Superar capítulos por primera vez desbloquea 3–4 especies locales de esa región.
+                </p>
+                <p className="text-[10.5px] text-emerald-300/90">
+                  💀 En Nuzlocke, ganar un combate con bajas permanentes reembolsa el{' '}
+                  <strong>{Math.round((1 - perks.casualtyTaxRate) * 100)}%</strong> de su valor de tienda (impuesto de reposición: {Math.round(perks.casualtyTaxRate * 100)}%).
+                </p>
+              </div>
+              <div className="lg:col-span-5 flex flex-col justify-center rounded-xl border border-sky-400/30 bg-slate-950/80 p-3">
+                <div className="flex items-center justify-between gap-2 text-[11px] font-extrabold">
+                  <span className="text-sky-200">{bstLicense.shortLabel}</span>
+                  <span
+                    className={`font-mono-code ${
+                      bstLicense.isOverCap ? 'text-rose-300' : 'text-emerald-300'
+                    }`}
+                  >
+                    Equipo: {bstLicense.currentPartyBst}
+                    {bstLicense.maxTeamBst !== null
+                      ? ` / ${bstLicense.maxTeamBst} BST`
+                      : ' BST'}
+                  </span>
                 </div>
-              );
-            })}
+                <p className="mt-1 text-[10px] text-slate-400">
+                  {bstLicense.nextActUnlockHint}
+                </p>
+              </div>
+            </div>
+
+            {/* Search + Tier Filter + Sort Bar */}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative min-w-[210px] flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={pokeSearch}
+                  onChange={(e) => setPokeSearch(e.target.value)}
+                  placeholder="Buscar especie, habilidad (Prankster, Moody, Wonder Guard)..."
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 py-2 pl-9 pr-3 text-xs text-white placeholder-slate-500 focus:border-amber-400 focus:outline-none"
+                />
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {(
+                  ['all', 'LC', 'PU / ZU', 'RU / NU', 'UU / UUBL', 'OU', 'Uber / AG'] as const
+                ).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setTierFilter(t)}
+                    className={`rounded-lg border px-2.5 py-1.5 text-[10.5px] font-bold transition cursor-pointer ${
+                      tierFilter === t
+                        ? 'border-amber-400 bg-amber-500/20 text-amber-100'
+                        : 'border-slate-800 bg-slate-900 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {t === 'all' ? 'Todos' : t}
+                  </button>
+                ))}
+              </div>
+              <select
+                value={sortBy}
+                onChange={(e) =>
+                  setSortBy(e.target.value as 'price-asc' | 'price-desc' | 'bst-desc')
+                }
+                className="rounded-xl border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-[11px] font-bold text-slate-200 focus:border-amber-400 focus:outline-none"
+              >
+                <option value="price-asc">Precio ↑ (Más baratos)</option>
+                <option value="price-desc">Precio ↓ (Más caros)</option>
+                <option value="bst-desc">BST ↓ (Más fuertes)</option>
+              </select>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {buyablePokedexRows.map((entry) => {
+                const { pricing } = entry;
+                const canAfford = profile.coins >= pricing.finalPrice;
+                const tierCls =
+                  pricing.tierBand === 'Uber / AG'
+                    ? 'border-fuchsia-400/50 bg-fuchsia-500/20 text-fuchsia-200'
+                    : pricing.tierBand === 'OU'
+                      ? 'border-rose-400/45 bg-rose-500/15 text-rose-200'
+                      : pricing.tierBand === 'UU / UUBL'
+                        ? 'border-amber-400/45 bg-amber-500/15 text-amber-200'
+                        : pricing.tierBand === 'RU / NU'
+                          ? 'border-sky-400/40 bg-sky-500/15 text-sky-200'
+                          : pricing.tierBand === 'LC'
+                            ? 'border-emerald-400/45 bg-emerald-500/15 text-emerald-200'
+                            : 'border-slate-600 bg-slate-800/80 text-slate-200';
+                return (
+                  <div
+                    key={entry.species}
+                    className="flex flex-col justify-between rounded-2xl border border-slate-800 bg-slate-900/80 p-4 transition hover:border-amber-400/40"
+                  >
+                    <div>
+                      <div className="mb-2 flex flex-wrap items-center justify-between gap-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={`rounded-md border px-2 py-0.5 text-[9.5px] font-extrabold uppercase ${tierCls}`}
+                          >
+                            {pricing.tierBand} · {pricing.tierMultiplier}×
+                          </span>
+                          <span className="font-mono-code rounded-md border border-slate-700 bg-slate-950 px-1.5 py-0.5 text-[9.5px] font-bold text-slate-300">
+                            {pricing.bst} BST
+                          </span>
+                        </div>
+                        <span className="font-mono-code text-xs font-extrabold text-amber-300">
+                          {pricing.finalPrice.toLocaleString()} {CURRENCY_SHORT}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border border-slate-800 bg-slate-950/90 p-1">
+                          <PokemonSprite
+                            species={entry.species}
+                            side="p2"
+                            className="h-16 w-16"
+                          />
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="font-display truncate text-base font-bold text-white">
+                            {entry.species}
+                          </h3>
+                          <p className="line-clamp-2 text-[10.5px] text-slate-400">
+                            {entry.role}
+                          </p>
+                          <p className="mt-1 text-[10px] text-amber-200/85">
+                            Hab: {entry.ability} · Tera {entry.teraType}
+                          </p>
+                          {pricing.abilityTax > 0 && pricing.taxedAbility && (
+                            <span className="mt-1 inline-block rounded border border-rose-400/40 bg-rose-500/15 px-1.5 py-0.2 text-[9px] font-bold text-rose-200">
+                              +{pricing.abilityTax} PC imp. ({pricing.taxedAbility})
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-3.5">
+                      {entry.hasLivingCopy ? (
+                        <div className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-400/35 bg-emerald-500/15 py-2 text-xs font-bold text-emerald-300">
+                          <CheckCircle2 className="h-4 w-4" />
+                          Vivo en tus Cajas PC
+                        </div>
+                      ) : (
+                        <button
+                          disabled={!canAfford}
+                          onClick={() =>
+                            showFeedback(
+                              onBuyPokemon(entry.species),
+                              `¡Reclutaste a ${entry.species} por ${pricing.finalPrice.toLocaleString()} PC! Ya está en tu Caja de Reserva.`
+                            )
+                          }
+                          className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 py-2 text-xs font-extrabold text-slate-950 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-35 cursor-pointer"
+                        >
+                          {entry.hasFallenCopy ? (
+                            <Skull className="h-3.5 w-3.5" />
+                          ) : (
+                            <Coins className="h-3.5 w-3.5" />
+                          )}
+                          {entry.hasFallenCopy
+                            ? `Reemplazar por ${pricing.finalPrice.toLocaleString()} ${CURRENCY_SHORT}`
+                            : `Reclutar por ${pricing.finalPrice.toLocaleString()} ${CURRENCY_SHORT}`}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 

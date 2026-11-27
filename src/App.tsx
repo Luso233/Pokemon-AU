@@ -463,12 +463,23 @@ export default function App() {
     setSuspendedInkState(null);
 
     if (!resolvedConfig?.isVersusMatch) {
+      const fallenInBattle = won
+        ? snapshot.p1.party
+            .filter((p) => p.fainted)
+            .map((p) => ({ species: p.species, ability: p.ability }))
+        : [];
       const res = applyBattleOutcomeToProfile(
         profileRef.current,
         activeChapter.id,
         won,
         snapshot.turn,
-        resolvedConfig?.flags
+        resolvedConfig?.flags,
+        {
+          difficulty:
+            resolvedConfig?.difficultyMode ??
+            profileRef.current.defaultDifficulty,
+          fallenInBattle,
+        }
       );
       earnedReward = res.reward;
       let nextProf = recordPostBattleSurvivalState(
