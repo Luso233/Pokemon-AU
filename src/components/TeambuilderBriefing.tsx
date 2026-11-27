@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Dex, Teams } from '@pkmn/sim';
 import {
   AlertTriangle,
@@ -45,6 +45,7 @@ import {
 import { getImperialBstLicense } from '../engine/pricingEngine';
 import type {
   BattleDifficultyMode,
+  ChapterTeamMode,
   ChapterTeamPolicy,
   OpenTeamsheetEntry,
   OwnedPokemonInstance,
@@ -63,10 +64,12 @@ interface TeambuilderBriefingProps {
   config: ResolvedBattleConfig;
   profile: PlayerSaveProfile;
   teamEditPolicy?: ChapterTeamPolicy;
+  teamMode?: ChapterTeamMode;
   onReplayVN: () => void;
   onOpenShop: () => void;
   onOpenDevMode: () => void;
   onOpenCamp?: () => void;
+  onToggleUseCustomTeam?: (enabled: boolean) => void;
   onUnlockMoveSlot: (
     species: string,
     slotIndex: number
@@ -98,7 +101,13 @@ interface TeambuilderBriefingProps {
   onSpawnDevSpecimen: (
     species: string,
     targetZone: 'party' | 'box'
-  ) => { ok: boolean; error?: string; uid?: string };
+  ) => {
+    ok: boolean;
+    error?: string;
+    uid?: string;
+    placedZone?: 'party' | 'box';
+    swappedOutSpecies?: string;
+  };
   onImportShowdownPaste: (
     rawPaste: string
   ) => { ok: boolean; error?: string; importedCount: number };
@@ -109,10 +118,12 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
   config,
   profile,
   teamEditPolicy,
+  teamMode,
   onReplayVN,
   onOpenShop,
   onOpenDevMode,
   onOpenCamp,
+  onToggleUseCustomTeam,
   onUnlockMoveSlot,
   onSetCustomMove,
   onSetCustomItem,
@@ -125,10 +136,13 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
   onLaunchBattle,
 }) => {
   const isGen1 = getFormatGeneration(config.formatId) === 1;
+  const chapterMeta = CHAPTERS.find((c) => c.id === config.chapterId);
   const effectiveTeamPolicy: ChapterTeamPolicy =
-    teamEditPolicy ??
-    CHAPTERS.find((c) => c.id === config.chapterId)?.teamEditPolicy ??
-    'fixed';
+    teamEditPolicy ?? chapterMeta?.teamEditPolicy ?? 'fixed';
+  const effectiveTeamMode: ChapterTeamMode =
+    teamMode ??
+    chapterMeta?.teamMode ??
+    (effectiveTeamPolicy === 'editable' ? 'campaign' : 'locked');
 
   // Dev Mode lets you test ANY chapter with custom PC / Showdown-imported compositions!
   const canSwapCustomTeam =
@@ -136,7 +150,7 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
     !config.emptyPlayerSlots?.length &&
     !config.persistedPartyState &&
     (profile.devModeEnabled ||
-      (effectiveTeamPolicy === 'editable' &&
+      (effectiveTeamMode === 'campaign' &&
         config.formatId !== 'gen1customgame' &&
         config.formatId !== 'gen6triplescustomgame' &&
         config.formatId !== 'gen91v1' &&
@@ -146,6 +160,13 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
   const [useCustomTeam, setUseCustomTeam] = useState(
     Boolean(canSwapCustomTeam && profile.useCustomTeamInStory)
   );
+
+  // Keep embedded PC Box view synced whenever Dev Lab spawn / Showdown import enables custom team!
+  useEffect(() => {
+    if (canSwapCustomTeam && profile.useCustomTeamInStory) {
+      setUseCustomTeam(true);
+    }
+  }, [canSwapCustomTeam, profile.useCustomTeamInStory]);
   const [selectedSlot, setSelectedSlot] = useState(0);
   const [shinySlots, setShinySlots] = useState<number[]>(() => {
     if (canSwapCustomTeam && profile.useCustomTeamInStory) {
@@ -454,7 +475,9 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                       type="button"
                       onClick={() => {
                         setManualPasteOverride(null);
-                        setUseCustomTeam((v) => !v);
+                        const next = !useCustomTeam;
+                        setUseCustomTeam(next);
+                        onToggleUseCustomTeam?.(next);
                       }}
                       className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-extrabold transition cursor-pointer ${
                         useCustomTeam
@@ -466,7 +489,7 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                       {useCustomTeam
                         ? '← Volver al Equipo Narrativo'
                         : `Usar Equipo Libre (Cajas PC${
-                            effectiveTeamPolicy === 'fixed' && profile.devModeEnabled
+                            effectiveTeamMode !== 'campaign' && profile.devModeEnabled
                               ? ' · DEV'
                               : ''
                           })`}
@@ -479,27 +502,39 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                 </div>
               </div>
 
-              {/* Chapter Team Policy Banner */}
+              {/* 3-Mode Chapter Loadout Banner */}
               <div
                 className={`mb-4 rounded-2xl border px-3.5 py-2.5 text-xs ${
-                  effectiveTeamPolicy === 'editable'
+                  effectiveTeamMode === 'campaign'
                     ? 'border-sky-400/40 bg-sky-500/10 text-sky-100'
-                    : 'border-slate-700 bg-slate-950/80 text-slate-300'
+                    : effectiveTeamMode === 'challenge'
+                      ? 'border-violet-400/40 bg-violet-500/10 text-violet-100'
+                      : 'border-amber-400/35 bg-slate-950/80 text-slate-300'
                 }`}
               >
-                {effectiveTeamPolicy === 'editable' ? (
+                {effectiveTeamMode === 'campaign' ? (
                   <p>
                     <strong className="text-sky-200">
-                      🛠️ Capítulo de Equipo Modificable:
+                      ⚔️ Modo Campaña (NatDex · Megas + Movimientos Z + Tera):
                     </strong>{' '}
-                    Alterna a <strong>Cajas PC embebidas</strong> sin salir de esta pantalla para armar tu equipo viendo el Avistamiento enemigo y el límite BST de cada dificultad.
+                    Usa tus <strong>Cajas PC embebidas</strong> viendo el Avistamiento enemigo y el límite BST de cada dificultad. Los combates de Campaña aplican tus reglas activas de Ironman / Nuzlocke.
+                  </p>
+                ) : effectiveTeamMode === 'challenge' ? (
+                  <p>
+                    <strong className="text-violet-200">
+                      🏆 Reto Especial ({config.formatLabel ?? config.formatId}):
+                    </strong>{' '}
+                    Usa un escuadrón aislado propio de este formato competitivo — <strong>no desgasta ni elimina Pokémon de tus Cajas PC</strong> en Ironman / Nuzlocke.
+                    {profile.devModeEnabled
+                      ? ' [Dev Mode activo: puedes abrir Cajas PC / Showdown para testear.]'
+                      : ''}
                   </p>
                 ) : (
                   <p>
                     <strong className="text-amber-200">
-                      🔒 Capítulo de Equipo Único Fijo:
+                      🔒 Guion / Puzzle (Equipo Único Fijo):
                     </strong>{' '}
-                    Este escenario se juega con un único equipo predefinido para respetar el reto táctico (puedes ajustar objetos y desbloquear slots de movimientos).
+                    Escenario con escuadrón narrativo cerrado para preservar el puzzle táctico — <strong>aislado de tus Cajas PC</strong> (sin permadeath ni daño persistente en Ironman).
                     {profile.devModeEnabled
                       ? ' [Dev Mode activo: puedes abrir Cajas PC / Importador Showdown para testear.]'
                       : ''}

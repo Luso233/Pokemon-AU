@@ -34,6 +34,8 @@ export function getFormatDisplayLabel(
 ): string {
   if (customLabel) return customLabel;
   const map: Record<string, string> = {
+    'gen9doublescustomgame@@@NatDex Mod': 'NatDex Dobles · Todo Vale',
+    'gen9customgame@@@NatDex Mod': 'NatDex Singles · Todo Vale',
     gen9doublescustomgame: 'Dobles 2v2',
     gen9customgame: 'Individuales',
     gen91v1: '1v1 · Bring 3, Pick 1',
@@ -1444,6 +1446,17 @@ export class ShowdownBattleController {
           };
         });
 
+        const canZMove = Array.isArray(slot.canZMove)
+          ? slot.canZMove.map((z) =>
+              z && z.move
+                ? {
+                    move: z.move,
+                    target: z.target || Dex.moves.get(z.move).target || 'normal',
+                  }
+                : null
+            )
+          : undefined;
+
         pending.push({
           activeIndex,
           pokemon: mon,
@@ -1451,6 +1464,7 @@ export class ShowdownBattleController {
           trapped: Boolean(slot.trapped),
           canMegaEvo: Boolean(slot.canMegaEvo),
           canTerastallize: slot.canTerastallize || false,
+          canZMove,
           forceSwitch: false,
           pass: false,
         });
@@ -1969,10 +1983,23 @@ export class ShowdownBattleController {
       case '-mega':
       case 'detailschange': {
         const { side, slotIndex, name } = parseSlotFromIdent(parts[2] ?? '');
-        const newSpeciesName =
+        let newSpeciesName =
           cmd === '-mega'
             ? `${parts[3]}-Mega`
             : parseDetails(parts[3] ?? '').species;
+        if (cmd === '-mega' && parts[4]) {
+          const stone = Dex.items.get(parts[4]);
+          if (stone.exists && stone.megaStone) {
+            if (typeof stone.megaStone === 'string') {
+              newSpeciesName = stone.megaStone;
+            } else {
+              newSpeciesName =
+                stone.megaStone[parts[3]] ??
+                Object.values(stone.megaStone)[0] ??
+                newSpeciesName;
+            }
+          }
+        }
         const sp = Dex.species.get(newSpeciesName);
         if (sp.exists) {
           const { activeMon, partyMon } = this.getTargetMons(side, slotIndex, name);
@@ -1989,10 +2016,24 @@ export class ShowdownBattleController {
           if (cmd === '-mega') {
             this.pushLog(
               'ability',
-              `✦ ${name} ya está Megaevolucionado en ${sp.name}!`
+              `✦ ¡${name} megaevolucionó en ${sp.name}!`
             );
           }
         }
+        break;
+      }
+
+      case '-zpower': {
+        const { side, slotIndex, name } = parseSlotFromIdent(parts[2] ?? '');
+        this.pushLog('ability', `⚡ ¡${name} desató todo su Poder Z!`);
+        this.cueSeq += 1;
+        this.state.lastCue = {
+          id: this.cueSeq,
+          attackerSide: side,
+          attackerSlot: slotIndex,
+          callout: '⚡ PODER Z',
+          calloutTone: 'super',
+        };
         break;
       }
 

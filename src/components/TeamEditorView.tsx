@@ -42,7 +42,13 @@ interface TeamEditorViewProps {
   onSpawnDevSpecimen: (
     species: string,
     targetZone: 'party' | 'box'
-  ) => { ok: boolean; error?: string; uid?: string };
+  ) => {
+    ok: boolean;
+    error?: string;
+    uid?: string;
+    placedZone?: 'party' | 'box';
+    swappedOutSpecies?: string;
+  };
   onImportShowdownPaste: (
     rawPaste: string
   ) => { ok: boolean; error?: string; importedCount: number };

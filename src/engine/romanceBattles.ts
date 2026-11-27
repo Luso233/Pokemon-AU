@@ -1,6 +1,7 @@
-import type {
-  ResolvedBattleConfig,
-  StoryFlags,
+import {
+  CAMPAIGN_DOUBLES_FORMAT_ID,
+  type ResolvedBattleConfig,
+  type StoryFlags,
 } from '../types/game';
 import { buildShowdownPaste, type ShowdownSetBlock } from './teamBuilderTree';
 
@@ -211,7 +212,7 @@ export function resolveRomanceTagBattle(
     return {
       chapterId: 'romance-assassin-r2',
       format: 'doubles',
-      formatId: 'gen9doublescustomgame',
+      formatId: CAMPAIGN_DOUBLES_FORMAT_ID,
       formatLabel: 'Tag 2v2 · Aura (Orre)',
       playerName: 'Príncipe + El Pelirrojo',
       playerCharId: 'prince',
@@ -372,7 +373,7 @@ export function resolveRomanceTagBattle(
     return {
       chapterId: 'romance-duelist-r2',
       format: 'doubles',
-      formatId: 'gen9doublescustomgame',
+      formatId: CAMPAIGN_DOUBLES_FORMAT_ID,
       formatLabel: 'Tag 2v2 · Vayra',
       playerName: 'Príncipe + La Duelista',
       playerCharId: 'prince',
@@ -532,7 +533,7 @@ export function resolveRomanceTagBattle(
   return {
     chapterId: 'romance-champion-r2',
     format: 'doubles',
-    formatId: 'gen9doublescustomgame',
+    formatId: CAMPAIGN_DOUBLES_FORMAT_ID,
     formatLabel: 'Tag 2v2 · Mega-Rayquaza',
     playerName: 'Príncipe + La Campeona',
     playerCharId: 'prince',
@@ -666,7 +667,7 @@ export function resolveRomanceRematchBattle(
     return {
       chapterId: 'romance-assassin-r3',
       format: 'doubles',
-      formatId: 'gen9doublescustomgame',
+      formatId: CAMPAIGN_DOUBLES_FORMAT_ID,
       formatLabel: 'Rematch Injusta · Edgy R3',
       reserveAsLastAceSpecies: 'Kingambit',
       playerName: 'Príncipe Heredero',
@@ -891,7 +892,7 @@ export function resolveRomanceRematchBattle(
   return {
     chapterId: 'romance-champion-r3',
     format: 'doubles',
-    formatId: 'gen9doublescustomgame',
+    formatId: CAMPAIGN_DOUBLES_FORMAT_ID,
     formatLabel: 'Anything Goes · Campeona R3',
     reserveAsLastAceSpecies: 'Rayquaza-Mega',
     playerName: 'Príncipe Heredero',

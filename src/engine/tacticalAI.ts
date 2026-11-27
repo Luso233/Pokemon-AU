@@ -22,6 +22,7 @@ interface ShowdownRequestActive {
   trapped?: boolean;
   canMegaEvo?: boolean;
   canTerastallize?: string;
+  canZMove?: Array<{ move: string; target?: string } | null>;
 }
 
 interface ShowdownRequestSidePokemon {

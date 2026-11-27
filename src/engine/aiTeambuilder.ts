@@ -23,6 +23,28 @@ export interface VersusFormatSpec {
 
 export const VERSUS_FORMATS: VersusFormatSpec[] = [
   {
+    id: 'gen9doublescustomgame@@@NatDex Mod',
+    name: 'NatDex Todo Vale (Dobles · Megas + Z + Tera)',
+    shortLabel: 'NatDex AG · Dobles',
+    battleFormat: 'doubles',
+    teamSize: 6,
+    defaultLevel: 100,
+    interactiveTeamPreview: true,
+    defaultOpenTeamsheet: false,
+    rulesHint: 'Todos los Pokémon, Megaevoluciones, Movimientos Z y Teracristalización conviviendo en Dobles sin restricciones.',
+  },
+  {
+    id: 'gen9customgame@@@NatDex Mod',
+    name: 'NatDex Todo Vale (Singles · Megas + Z + Tera)',
+    shortLabel: 'NatDex AG · Singles',
+    battleFormat: 'singles',
+    teamSize: 6,
+    defaultLevel: 100,
+    interactiveTeamPreview: true,
+    defaultOpenTeamsheet: false,
+    rulesHint: 'Todos los Pokémon, Megaevoluciones, Movimientos Z y Teracristalización conviviendo en 6v6 Singles sin banlist.',
+  },
+  {
     id: 'gen9ou',
     name: 'Gen 9 OU (6v6 Singles)',
     shortLabel: 'OU · 6v6 Singles',
@@ -1124,6 +1146,152 @@ Careful Nature
 - Ruination
 - Stealth Rock
 - Spikes`,
+    },
+  ],
+  'gen9doublescustomgame@@@NatDex Mod': [
+    {
+      keywords: ['natdex', 'mega', 'z', 'rayquaza', 'todo', 'dobles'],
+      teamName: 'Trinidad NatDex · Mega + Z + Tera (Dobles)',
+      strategySummary:
+        'Charizard Mega-Y + Rayquaza-Mega con Firium Z + Shedinja Tera Eléctrico conviviendo en el mismo ecosistema NatDex Dobles.',
+      paste: `Charizard @ Charizardite Y
+Ability: Blaze
+Level: 100
+Tera Type: Fire
+EVs: 4 HP / 252 SpA / 252 Spe
+Timid Nature
+- Heat Wave
+- Solar Beam
+- Air Slash
+- Protect
+
+Rayquaza-Mega @ Firium Z
+Ability: Delta Stream
+Level: 100
+Tera Type: Normal
+EVs: 4 HP / 252 Atk / 252 Spe
+Jolly Nature
+- Dragon Ascent
+- V-create
+- Extreme Speed
+- Protect
+
+Shedinja @ Heavy-Duty Boots
+Ability: Wonder Guard
+Level: 100
+Tera Type: Electric
+EVs: 252 Atk / 252 Spe
+Adamant Nature
+- Poltergeist
+- Shadow Sneak
+- Will-O-Wisp
+- Protect
+
+Incineroar @ Sitrus Berry
+Ability: Intimidate
+Level: 100
+Tera Type: Ghost
+EVs: 244 HP / 128 Def / 136 SpD
+Careful Nature
+- Fake Out
+- Flare Blitz
+- Knock Off
+- Parting Shot
+
+Miraidon @ Choice Specs
+Ability: Hadron Engine
+Level: 100
+Tera Type: Fairy
+EVs: 4 HP / 252 SpA / 252 Spe
+Timid Nature
+- Electro Drift
+- Draco Meteor
+- Dazzling Gleam
+- Volt Switch
+
+Zacian-Crowned @ Rusted Sword
+Ability: Intrepid Sword
+Level: 100
+Tera Type: Fairy
+EVs: 4 HP / 252 Atk / 252 Spe
+Jolly Nature
+- Behemoth Blade
+- Play Rough
+- Sacred Sword
+- Protect`,
+    },
+  ],
+  'gen9customgame@@@NatDex Mod': [
+    {
+      keywords: ['natdex', 'mega', 'z', 'rayquaza', 'todo', 'singles'],
+      teamName: 'Trinidad NatDex · Mega + Z + Tera (Singles)',
+      strategySummary:
+        'Ecosistema completo National Dex Singles: Mega-Charizard Y, Rayquaza-Mega con Cristal Z, Shedinja Tera Eléctrico y Ubers sin banlist.',
+      paste: `Charizard @ Charizardite Y
+Ability: Blaze
+Level: 100
+Tera Type: Fire
+EVs: 4 HP / 252 SpA / 252 Spe
+Timid Nature
+- Flamethrower
+- Solar Beam
+- Scorching Sands
+- Roost
+
+Rayquaza-Mega @ Firium Z
+Ability: Delta Stream
+Level: 100
+Tera Type: Normal
+EVs: 4 HP / 252 Atk / 252 Spe
+Jolly Nature
+- Dragon Ascent
+- V-create
+- Extreme Speed
+- Swords Dance
+
+Shedinja @ Heavy-Duty Boots
+Ability: Wonder Guard
+Level: 100
+Tera Type: Electric
+EVs: 252 Atk / 252 Spe
+Adamant Nature
+- Poltergeist
+- Shadow Sneak
+- Will-O-Wisp
+- Protect
+
+Zacian-Crowned @ Rusted Sword
+Ability: Intrepid Sword
+Level: 100
+Tera Type: Fairy
+EVs: 4 HP / 252 Atk / 252 Spe
+Jolly Nature
+- Behemoth Blade
+- Play Rough
+- Close Combat
+- Swords Dance
+
+Miraidon @ Choice Specs
+Ability: Hadron Engine
+Level: 100
+Tera Type: Electric
+EVs: 4 HP / 252 SpA / 252 Spe
+Timid Nature
+- Electro Drift
+- Draco Meteor
+- Overheat
+- Volt Switch
+
+Eternatus @ Leftovers
+Ability: Pressure
+Level: 100
+Tera Type: Fairy
+EVs: 252 HP / 252 Def / 4 Spe
+Bold Nature
+- Dynamax Cannon
+- Flamethrower
+- Toxic
+- Recover`,
     },
   ],
 };

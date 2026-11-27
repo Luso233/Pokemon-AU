@@ -162,11 +162,15 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
   const [wantTera, setWantTera] = useState(false);
   const [megaQueuedInTurn, setMegaQueuedInTurn] = useState(false);
   const [wantMega, setWantMega] = useState(false);
+  const [zMoveQueuedInTurn, setZMoveQueuedInTurn] = useState(false);
+  const [wantZMove, setWantZMove] = useState(false);
   const [pendingTargetMove, setPendingTargetMove] = useState<{
     move: ActiveMoveOption;
     mode: 'foe' | 'ally';
     tera: boolean;
     mega: boolean;
+    zmove: boolean;
+    zMoveName?: string;
   } | null>(null);
 
   const startBattle = () => {
@@ -183,6 +187,8 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
     setWantTera(false);
     setMegaQueuedInTurn(false);
     setWantMega(false);
+    setZMoveQueuedInTurn(false);
+    setWantZMove(false);
     setPendingTargetMove(null);
 
     const ctrl = new ShowdownBattleController(
@@ -306,6 +312,8 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
       setWantTera(false);
       setMegaQueuedInTurn(false);
       setWantMega(false);
+      setZMoveQueuedInTurn(false);
+      setWantZMove(false);
       setPendingTargetMove(null);
       if (activeSide === 'p2') {
         void controllerRef.current?.submitP2Choice(autoCmds.join(', '));
@@ -321,6 +329,8 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
     setWantTera(false);
     setMegaQueuedInTurn(false);
     setWantMega(false);
+    setZMoveQueuedInTurn(false);
+    setWantZMove(false);
     setPendingTargetMove(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestKey]);
@@ -348,7 +358,8 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
     cmd: string,
     switchSlotUsed?: number,
     usedTera = false,
-    usedMega = false
+    usedMega = false,
+    usedZMove = false
   ) => {
     if (!snapshot || !controllerRef.current) return;
     const nextCmds = [...queuedCommands, cmd];
@@ -358,6 +369,7 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
         : reservedSwitchSlots;
     const nextTeraQueued = teraQueuedInTurn || usedTera;
     const nextMegaQueued = megaQueuedInTurn || usedMega;
+    const nextZMoveQueued = zMoveQueuedInTurn || usedZMove;
 
     // Count unreserved, non-active, alive bench Pokémon remaining after this pick.
     // Crucial for Doubles/Triples multi-KO (`forceSwitch`) with fewer alive bench Pokémon than fainted slots!
@@ -378,12 +390,14 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
     setPendingTargetMove(null);
     setWantTera(false);
     setWantMega(false);
+    setWantZMove(false);
 
     if (nextIdx >= activePendingSlots.length) {
       setQueuedCommands([]);
       setReservedSwitchSlots([]);
       setTeraQueuedInTurn(false);
       setMegaQueuedInTurn(false);
+      setZMoveQueuedInTurn(false);
       setSlotCursor(0);
       if (activeSide === 'p2') {
         void controllerRef.current.submitP2Choice(nextCmds.join(', '));
@@ -395,20 +409,31 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
       setReservedSwitchSlots(nextReserved);
       setTeraQueuedInTurn(nextTeraQueued);
       setMegaQueuedInTurn(nextMegaQueued);
+      setZMoveQueuedInTurn(nextZMoveQueued);
       setSlotCursor(nextIdx);
     }
   };
 
   const handleMoveClick = (move: ActiveMoveOption) => {
     if (!snapshot) return;
-    const useTera = wantTera && !teraQueuedInTurn;
-    const useMega = wantMega && !megaQueuedInTurn;
-    const modSuffix = `${useTera ? ' terastallize' : ''}${useMega ? ' mega' : ''}`;
-    const targetMode = formatNeedsTarget(snapshot.format, move.target);
-    const activeIdx = activePendingSlots[slotCursor]?.activeIndex ?? 0;
+    const slotObj = activePendingSlots[slotCursor];
+    const zOpt = slotObj?.canZMove?.[move.index - 1] ?? null;
+    const useZMove = Boolean(wantZMove && !zMoveQueuedInTurn && zOpt);
+    const useTera = !useZMove && wantTera && !teraQueuedInTurn;
+    const useMega = !useZMove && wantMega && !megaQueuedInTurn;
+    const modSuffix = `${useTera ? ' terastallize' : ''}${useMega ? ' mega' : ''}${useZMove ? ' zmove' : ''}`;
+    const effectiveTarget = useZMove && zOpt?.target ? zOpt.target : move.target;
+    const targetMode = formatNeedsTarget(snapshot.format, effectiveTarget);
+    const activeIdx = slotObj?.activeIndex ?? 0;
 
     if (targetMode === 'none') {
-      commitSlotCommand(`move ${move.index}${modSuffix}`, undefined, useTera, useMega);
+      commitSlotCommand(
+        `move ${move.index}${modSuffix}`,
+        undefined,
+        useTera,
+        useMega,
+        useZMove
+      );
       return;
     }
 
@@ -430,15 +455,29 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
           `move ${move.index} -${reachableAllies[0].idx + 1}${modSuffix}`,
           undefined,
           useTera,
-          useMega
+          useMega,
+          useZMove
         );
         return;
       }
       if (reachableAllies.length === 0) {
-        commitSlotCommand(`move ${move.index}${modSuffix}`, undefined, useTera, useMega);
+        commitSlotCommand(
+          `move ${move.index}${modSuffix}`,
+          undefined,
+          useTera,
+          useMega,
+          useZMove
+        );
         return;
       }
-      setPendingTargetMove({ move, mode: 'ally', tera: useTera, mega: useMega });
+      setPendingTargetMove({
+        move,
+        mode: 'ally',
+        tera: useTera,
+        mega: useMega,
+        zmove: useZMove,
+        zMoveName: zOpt?.move,
+      });
       return;
     }
 
@@ -448,7 +487,7 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
         ({ m, idx }) =>
           m &&
           !m.fainted &&
-          isFoeTargetReachable(snapshot.format, activeIdx, idx, move.target)
+          isFoeTargetReachable(snapshot.format, activeIdx, idx, effectiveTarget)
       );
 
     if (reachableFoes.length === 1) {
@@ -456,12 +495,20 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
         `move ${move.index} +${reachableFoes[0].idx + 1}${modSuffix}`,
         undefined,
         useTera,
-        useMega
+        useMega,
+        useZMove
       );
       return;
     }
 
-    setPendingTargetMove({ move, mode: 'foe', tera: useTera, mega: useMega });
+    setPendingTargetMove({
+      move,
+      mode: 'foe',
+      tera: useTera,
+      mega: useMega,
+      zmove: useZMove,
+      zMoveName: zOpt?.move,
+    });
   };
 
   const handleUndoDoubleSlot = () => {
@@ -470,6 +517,8 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
     setTeraQueuedInTurn(false);
     setWantMega(false);
     setMegaQueuedInTurn(false);
+    setWantZMove(false);
+    setZMoveQueuedInTurn(false);
     if (!snapshot) return;
     let firstInteractive = 0;
     const leadingPasses: string[] = [];
@@ -569,6 +618,9 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
   );
   const canTeraNow = Boolean(currentSlot?.canTerastallize) && !teraQueuedInTurn;
   const canMegaNow = Boolean(currentSlot?.canMegaEvo) && !megaQueuedInTurn;
+  const canZMoveNow =
+    Boolean(currentSlot?.canZMove?.some((z) => z !== null)) &&
+    !zMoveQueuedInTurn;
   const aliveP1 = visibleP1Party.filter((p) => !p.fainted).length;
   const aliveP2 = Math.max(0, snapshot.totalP2 - snapshot.koCountP2);
   const activeTrainerName =
@@ -1667,7 +1719,9 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                       <p className="text-xs font-bold text-amber-200">
                         Elige {pendingTargetMove.mode === 'ally' ? 'aliado' : 'objetivo'} para{' '}
                         <span className="text-white">
-                          {pendingTargetMove.move.name}
+                          {pendingTargetMove.zmove && pendingTargetMove.zMoveName
+                            ? `⚡ ${pendingTargetMove.zMoveName}`
+                            : pendingTargetMove.move.name}
                         </span>
                         {pendingTargetMove.tera && (
                           <span className="ml-1.5 rounded bg-cyan-500/20 px-1.5 py-0.5 text-[10px] text-cyan-200">
@@ -1677,6 +1731,11 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                         {pendingTargetMove.mega && (
                           <span className="ml-1.5 rounded bg-fuchsia-500/20 px-1.5 py-0.5 text-[10px] text-fuchsia-200">
                             ✦ Mega
+                          </span>
+                        )}
+                        {pendingTargetMove.zmove && (
+                          <span className="ml-1.5 rounded bg-amber-400/25 px-1.5 py-0.5 text-[10px] text-amber-200">
+                            ⚡ Poder Z
                           </span>
                         )}
                         {snapshot.format === 'triples' &&
@@ -1719,10 +1778,13 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                                 commitSlotCommand(
                                   `move ${pendingTargetMove.move.index} -${idx + 1}${
                                     pendingTargetMove.tera ? ' terastallize' : ''
-                                  }${pendingTargetMove.mega ? ' mega' : ''}`,
+                                  }${pendingTargetMove.mega ? ' mega' : ''}${
+                                    pendingTargetMove.zmove ? ' zmove' : ''
+                                  }`,
                                   undefined,
                                   pendingTargetMove.tera,
-                                  pendingTargetMove.mega
+                                  pendingTargetMove.mega,
+                                  pendingTargetMove.zmove
                                 )
                               }
                               className="flex w-full items-center justify-between rounded-xl border border-sky-400/45 bg-sky-500/15 px-3 py-2 text-left transition hover:border-sky-300 hover:bg-sky-500/25 cursor-pointer"
@@ -1781,10 +1843,13 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                                   commitSlotCommand(
                                     `move ${pendingTargetMove.move.index} +${foeIdx + 1}${
                                       pendingTargetMove.tera ? ' terastallize' : ''
-                                    }${pendingTargetMove.mega ? ' mega' : ''}`,
+                                    }${pendingTargetMove.mega ? ' mega' : ''}${
+                                      pendingTargetMove.zmove ? ' zmove' : ''
+                                    }`,
                                     undefined,
                                     pendingTargetMove.tera,
-                                    pendingTargetMove.mega
+                                    pendingTargetMove.mega,
+                                    pendingTargetMove.zmove
                                   )
                                 }
                                 className={`flex w-full items-center justify-between rounded-xl border px-2.5 py-2 text-left transition ${
@@ -1947,14 +2012,23 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                       <div className="flex items-center gap-2">
                         {canMegaNow && (
                           <ActionInfoTooltip
-                            title="Megaevolución (Gen 6)"
+                            title="Megaevolución"
                             badge="1× por combate"
                             description="Transforma a tu Pokémon en su Mega Forma este turno al ejecutar su movimiento."
                             placement="top"
                           >
                             <button
                               type="button"
-                              onClick={() => setWantMega((v) => !v)}
+                              onClick={() => {
+                                setWantMega((v) => {
+                                  const next = !v;
+                                  if (next) {
+                                    setWantZMove(false);
+                                    setWantTera(false);
+                                  }
+                                  return next;
+                                });
+                              }}
                               className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[11px] font-bold transition cursor-pointer ${
                                 wantMega
                                   ? 'border-fuchsia-300 bg-fuchsia-500/25 text-fuchsia-100 ring-1 ring-fuchsia-300/60'
@@ -1963,6 +2037,36 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                             >
                               <Sparkles className="h-3 w-3 text-fuchsia-300" />
                               <span>Mega</span>
+                            </button>
+                          </ActionInfoTooltip>
+                        )}
+                        {canZMoveNow && (
+                          <ActionInfoTooltip
+                            title="Movimiento Z (Cristal Z)"
+                            badge="1× por combate"
+                            description="Potencia un movimiento compatible con tu Cristal Z en un devastador Movimiento Z de un solo uso (convive con Megas y Tera en NatDex)."
+                            placement="top"
+                          >
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setWantZMove((v) => {
+                                  const next = !v;
+                                  if (next) {
+                                    setWantMega(false);
+                                    setWantTera(false);
+                                  }
+                                  return next;
+                                });
+                              }}
+                              className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[11px] font-extrabold transition cursor-pointer ${
+                                wantZMove
+                                  ? 'border-amber-300 bg-amber-400/30 text-amber-100 ring-1 ring-amber-300/70'
+                                  : 'border-amber-500/45 bg-amber-500/10 text-amber-200 hover:border-amber-300 hover:bg-amber-500/20'
+                              }`}
+                            >
+                              <span>⚡</span>
+                              <span>Poder Z</span>
                             </button>
                           </ActionInfoTooltip>
                         )}
@@ -2014,7 +2118,16 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                             >
                               <button
                                 type="button"
-                                onClick={() => setWantTera((v) => !v)}
+                                onClick={() =>
+                                  setWantTera((v) => {
+                                    const next = !v;
+                                    if (next) {
+                                      setWantMega(false);
+                                      setWantZMove(false);
+                                    }
+                                    return next;
+                                  })
+                                }
                                 className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-bold transition cursor-pointer ${
                                   wantTera
                                     ? 'border-cyan-300 bg-cyan-500/25 text-cyan-100 ring-1 ring-cyan-300/60'
@@ -2053,31 +2166,49 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
 
                     {/* 4 Moves Row */}
                     <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
-                      {currentSlot.moves.map((mv) => (
-                        <MoveTooltip key={mv.id} move={mv} placement="top">
-                          <button
-                            disabled={mv.disabled}
-                            onClick={() => handleMoveClick(mv)}
-                            className={`group flex w-full flex-col justify-between rounded-xl border border-slate-700/90 border-l-4 bg-slate-900/95 px-2.5 py-2 text-left transition hover:border-amber-400/70 hover:bg-slate-800/95 disabled:cursor-not-allowed disabled:opacity-35 active:scale-[0.98] cursor-pointer ${
-                              MOVE_TYPE_ACCENT[mv.type] ?? 'border-l-slate-400'
-                            }`}
-                          >
-                            <span className="truncate text-xs font-extrabold text-white group-hover:text-amber-200">
-                              {mv.name}
-                            </span>
-                            <div className="mt-1 flex items-center justify-between gap-1">
+                      {currentSlot.moves.map((mv) => {
+                        const zOpt = currentSlot.canZMove?.[mv.index - 1] ?? null;
+                        const zModeActive = wantZMove && canZMoveNow;
+                        const isZEligible = zModeActive && Boolean(zOpt);
+                        const isDisabled =
+                          mv.disabled || (zModeActive && !zOpt);
+                        return (
+                          <MoveTooltip key={mv.id} move={mv} placement="top">
+                            <button
+                              disabled={isDisabled}
+                              onClick={() => handleMoveClick(mv)}
+                              className={`group flex w-full flex-col justify-between rounded-xl border border-l-4 px-2.5 py-2 text-left transition disabled:cursor-not-allowed disabled:opacity-35 active:scale-[0.98] cursor-pointer ${
+                                isZEligible
+                                  ? 'border-amber-300 bg-gradient-to-br from-amber-500/25 via-slate-900 to-fuchsia-950/50 ring-1 ring-amber-300/60 hover:brightness-110'
+                                  : `border-slate-700/90 bg-slate-900/95 hover:border-amber-400/70 hover:bg-slate-800/95 ${
+                                      MOVE_TYPE_ACCENT[mv.type] ??
+                                      'border-l-slate-400'
+                                    }`
+                              }`}
+                            >
                               <span
-                                className={`rounded border px-1 py-0.2 text-[9px] font-bold uppercase ${getTypeBadgeClass(mv.type)}`}
+                                className={`truncate text-xs font-extrabold ${
+                                  isZEligible
+                                    ? 'text-amber-200'
+                                    : 'text-white group-hover:text-amber-200'
+                                }`}
                               >
-                                {mv.type}
+                                {isZEligible && zOpt ? `⚡ ${zOpt.move}` : mv.name}
                               </span>
-                              <span className="font-mono-code text-[10px] font-semibold text-slate-400">
-                                {mv.pp}/{mv.maxpp}
-                              </span>
-                            </div>
-                          </button>
-                        </MoveTooltip>
-                      ))}
+                              <div className="mt-1 flex items-center justify-between gap-1">
+                                <span
+                                  className={`rounded border px-1 py-0.2 text-[9px] font-bold uppercase ${getTypeBadgeClass(mv.type)}`}
+                                >
+                                  {isZEligible ? `Z-${mv.type}` : mv.type}
+                                </span>
+                                <span className="font-mono-code text-[10px] font-semibold text-slate-400">
+                                  {isZEligible ? '1/1 Z' : `${mv.pp}/${mv.maxpp}`}
+                                </span>
+                              </div>
+                            </button>
+                          </MoveTooltip>
+                        );
+                      })}
                     </div>
 
                     {/* Compact Switch Strip */}

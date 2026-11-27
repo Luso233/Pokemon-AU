@@ -1,4 +1,8 @@
-import type { ChapterDefinition, CharacterId } from '../types/game';
+import {
+  CAMPAIGN_DOUBLES_FORMAT_ID,
+  type ChapterDefinition,
+  type CharacterId,
+} from '../types/game';
 import romanceAssassinR1Ink from '../stories/romance_assassin_r1.ink?raw';
 import romanceDuelistR1Ink from '../stories/romance_duelist_r1.ink?raw';
 import romanceChampionR1Ink from '../stories/romance_champion_r1.ink?raw';
@@ -75,7 +79,9 @@ export function buildRomanceChapterDefinition(
           ? 'TAG 2V2 · RANGO 2'
           : 'REMATCH INJUSTA · RANGO 3',
     format: isDuelist1v1 ? 'singles' : 'doubles',
-    formatId: isDuelist1v1 ? 'gen91v1' : 'gen9doublescustomgame',
+    formatId: isDuelist1v1 ? 'gen91v1' : CAMPAIGN_DOUBLES_FORMAT_ID,
+    teamEditPolicy: isDuelist1v1 || targetRank === 2 ? 'fixed' : 'editable',
+    teamMode: isDuelist1v1 ? 'challenge' : targetRank === 2 ? 'locked' : 'campaign',
     formatLabel:
       targetRank === 1
         ? 'Evento VN'

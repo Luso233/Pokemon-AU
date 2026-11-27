@@ -73,7 +73,13 @@ export interface PcBoxManagerProps {
   onSpawnDevSpecimen?: (
     species: string,
     targetZone: 'party' | 'box'
-  ) => { ok: boolean; error?: string; uid?: string };
+  ) => {
+    ok: boolean;
+    error?: string;
+    uid?: string;
+    placedZone?: 'party' | 'box';
+    swappedOutSpecies?: string;
+  };
   onImportShowdownPaste?: (
     rawPaste: string
   ) => { ok: boolean; error?: string; importedCount: number };
@@ -92,7 +98,7 @@ export const PcBoxManager: React.FC<PcBoxManagerProps> = ({
   profile,
   difficultyMode,
   embedded = false,
-  formatId = 'gen9doublescustomgame',
+  formatId = 'gen9doublescustomgame@@@NatDex Mod',
   onMoveInstanceZone,
   onEquipInstanceItem,
   onUpdateInstanceBuild,
@@ -622,7 +628,12 @@ export const PcBoxManager: React.FC<PcBoxManagerProps> = ({
                               res.ok
                                 ? {
                                     tone: 'ok',
-                                    text: `🧪 Espécimen ${sp} generado (0 PC) listo para personalizar.`,
+                                    text:
+                                      res.placedZone === 'party'
+                                        ? res.swappedOutSpecies
+                                          ? `🧪 ¡${sp} entró directo a tu Equipo Activo! (${res.swappedOutSpecies} pasó a la Caja de Reserva · guardado automáticamente).`
+                                          : `🧪 ¡${sp} entró directo a tu Equipo Activo (0 PC · guardado automáticamente)!`
+                                        : `🧪 ${sp} añadido a la Caja de Reserva (ya había un ejemplar en tu Equipo Activo).`,
                                   }
                                 : { tone: 'err', text: res.error || '' }
                             );

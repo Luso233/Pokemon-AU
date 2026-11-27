@@ -38,7 +38,7 @@ import { isChapterUnlocked } from '../engine/playerProfile';
 import type {
   ChapterCategory,
   ChapterDefinition,
-  ChapterTeamPolicy,
+  ChapterTeamMode,
   PlayerSaveProfile,
 } from '../types/game';
 import { PokemonSprite } from './PokemonSprite';
@@ -148,8 +148,8 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
   const [activeFilter, setActiveFilter] = useState<'all' | ChapterCategory>(
     'all'
   );
-  const [teamPolicyFilter, setTeamPolicyFilter] = useState<
-    'all' | ChapterTeamPolicy
+  const [teamModeFilter, setTeamModeFilter] = useState<
+    'all' | ChapterTeamMode
   >('all');
   const [hoveredChapterId, setHoveredChapterId] = useState<string | null>(null);
   const [focusedCardId, setFocusedCardId] = useState<string | null>(null);
@@ -157,10 +157,17 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
   const progress = profile.completedChapters;
   const activeDiffMeta =
     DIFFICULTY_META[profile.defaultDifficulty] ?? DIFFICULTY_META.kaizo;
-  const editableCount = CHAPTERS.filter(
-    (c) => c.teamEditPolicy === 'editable'
+  const resolveMode = (c: ChapterDefinition): ChapterTeamMode =>
+    c.teamMode ?? (c.teamEditPolicy === 'editable' ? 'campaign' : 'locked');
+  const campaignCount = CHAPTERS.filter(
+    (c) => resolveMode(c) === 'campaign'
   ).length;
-  const fixedCount = CHAPTERS.filter((c) => c.teamEditPolicy === 'fixed').length;
+  const lockedCount = CHAPTERS.filter(
+    (c) => resolveMode(c) === 'locked'
+  ).length;
+  const challengeCount = CHAPTERS.filter(
+    (c) => resolveMode(c) === 'challenge'
+  ).length;
 
   const unlockedChapterIds = useMemo(() => {
     const set = new Set<string>();
@@ -195,7 +202,7 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
 
   const handleFocusChapterCard = (chapterId: string) => {
     setActiveFilter('all');
-    setTeamPolicyFilter('all');
+    setTeamModeFilter('all');
     setFocusedCardId(chapterId);
     setHoveredChapterId(chapterId);
     window.setTimeout(() => {
@@ -218,12 +225,11 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
         chapters: CHAPTERS.filter(
           (ch) =>
             ch.category === sec.id &&
-            (teamPolicyFilter === 'all' ||
-              ch.teamEditPolicy === teamPolicyFilter)
+            (teamModeFilter === 'all' || resolveMode(ch) === teamModeFilter)
         ),
       }))
       .filter((sec) => sec.chapters.length > 0);
-  }, [activeFilter, teamPolicyFilter]);
+  }, [activeFilter, teamModeFilter]);
 
   return (
     <div className="relative min-h-screen bg-[#060a14] text-slate-100">
@@ -402,35 +408,41 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
               })}
             </div>
 
-            {/* Team Policy Filter Bar: Modifiable Squad vs Fixed Single-Team Chapters */}
+            {/* 3-Mode Loadout Filter Bar: Campaign (NatDex PC Box) vs Locked (VN/Puzzle) vs Challenge (Specialty Format) */}
             <div className="mb-5 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-800/90 bg-slate-900/65 px-3 py-2">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                Regla de Equipo:
+                Modo de Equipo:
               </span>
               {(
                 [
                   { id: 'all', label: `Todos (${CHAPTERS.length})` },
                   {
-                    id: 'editable',
-                    label: `🛠️ Equipo Modificable (${editableCount})`,
+                    id: 'campaign',
+                    label: `⚔️ Campaña NatDex (${campaignCount})`,
                   },
                   {
-                    id: 'fixed',
-                    label: `🔒 Equipo Único Fijo (${fixedCount})`,
+                    id: 'locked',
+                    label: `🔒 Guion / Puzzle (${lockedCount})`,
+                  },
+                  {
+                    id: 'challenge',
+                    label: `🏆 Reto Especial (${challengeCount})`,
                   },
                 ] as const
               ).map((opt) => (
                 <button
                   key={opt.id}
                   type="button"
-                  onClick={() => setTeamPolicyFilter(opt.id)}
+                  onClick={() => setTeamModeFilter(opt.id)}
                   className={`rounded-lg border px-2.5 py-1 text-[11px] font-bold transition cursor-pointer ${
-                    teamPolicyFilter === opt.id
-                      ? opt.id === 'editable'
+                    teamModeFilter === opt.id
+                      ? opt.id === 'campaign'
                         ? 'border-sky-400 bg-sky-500/20 text-sky-100'
-                        : opt.id === 'fixed'
+                        : opt.id === 'locked'
                           ? 'border-amber-400 bg-amber-500/20 text-amber-100'
-                          : 'border-white/40 bg-white/10 text-white'
+                          : opt.id === 'challenge'
+                            ? 'border-violet-400 bg-violet-500/20 text-violet-100'
+                            : 'border-white/40 bg-white/10 text-white'
                       : 'border-slate-800 bg-slate-950/70 text-slate-400 hover:text-slate-200'
                   }`}
                 >
@@ -499,22 +511,37 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
                                   <span className="rounded-lg border border-slate-700/90 bg-slate-950/90 px-2 py-0.5 text-[10px] font-semibold text-slate-300">
                                     {chapter.formatLabel}
                                   </span>
-                                  <span
-                                    title={
-                                      chapter.teamEditPolicy === 'editable'
-                                        ? 'Puedes modificar y traer tu equipo de las Cajas PC antes de iniciar.'
-                                        : 'Capítulo con un único equipo fijo táctico predefinido.'
+                                  {(() => {
+                                    const mode = resolveMode(chapter);
+                                    if (mode === 'campaign') {
+                                      return (
+                                        <span
+                                          title="Campaña NatDex (Megas + Z + Tera): usa tus Cajas PC con Cap BST y reglas Ironman/Nuzlocke."
+                                          className="rounded-lg border border-sky-400/45 bg-sky-500/15 px-2 py-0.5 text-[9.5px] font-extrabold text-sky-200"
+                                        >
+                                          ⚔️ Campaña · PC
+                                        </span>
+                                      );
                                     }
-                                    className={`rounded-lg border px-2 py-0.5 text-[9.5px] font-extrabold ${
-                                      chapter.teamEditPolicy === 'editable'
-                                        ? 'border-sky-400/45 bg-sky-500/15 text-sky-200'
-                                        : 'border-slate-600/70 bg-slate-950/80 text-slate-300'
-                                    }`}
-                                  >
-                                    {chapter.teamEditPolicy === 'editable'
-                                      ? '🛠️ Equipo Modificable'
-                                      : '🔒 Equipo Fijo'}
-                                  </span>
+                                    if (mode === 'challenge') {
+                                      return (
+                                        <span
+                                          title="Reto Especial con formato propio (VGC/1v1/Monotype/Triples/Gen1). Aislado: no daña tus Cajas PC ni tu Nuzlocke."
+                                          className="rounded-lg border border-violet-400/45 bg-violet-500/15 px-2 py-0.5 text-[9.5px] font-extrabold text-violet-200"
+                                        >
+                                          🏆 Reto Especial
+                                        </span>
+                                      );
+                                    }
+                                    return (
+                                      <span
+                                        title="Guion / Puzzle con equipo fijo predefinido. Aislado: no aplica permadeath ni desgaste a tus Cajas PC."
+                                        className="rounded-lg border border-amber-400/35 bg-amber-500/10 px-2 py-0.5 text-[9.5px] font-extrabold text-amber-200"
+                                      >
+                                        🔒 Guion / Puzzle
+                                      </span>
+                                    );
+                                  })()}
                                   {nextObjectiveChapterId === chapter.id && (
                                     <span className="rounded-lg border border-amber-400/60 bg-amber-500/20 px-2 py-0.5 text-[9.5px] font-extrabold uppercase tracking-wider text-amber-200">
                                       Objetivo Actual

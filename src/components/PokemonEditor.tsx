@@ -127,7 +127,7 @@ interface PokemonEditorProps {
 export const PokemonEditor: React.FC<PokemonEditorProps> = ({
   mode,
   profile,
-  formatId = 'gen9doublescustomgame',
+  formatId = 'gen9doublescustomgame@@@NatDex Mod',
   narrativeSet,
   canonicalSet,
   chapterDefaultItems = [],

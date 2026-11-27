@@ -989,7 +989,7 @@ export function buildSmartDefaultMemberForSpecies(
         : 'Modest';
   const types = sp.exists && sp.types.length > 0 ? sp.types : ['Normal'];
 
-  const learnset = getLegalLearnsetForSpecies(canonical, 'gen9doublescustomgame');
+  const learnset = getLegalLearnsetForSpecies(canonical, 'gen9doublescustomgame@@@NatDex Mod');
   const picked: string[] = [];
   const pickedIds = new Set<string>();
 

@@ -118,6 +118,10 @@ const FIELD_EFFECT_INFO: Record<string, { title: string; detail: string }> = {
 
 export function getFormatRuleDescription(formatId: string): string {
   const map: Record<string, string> = {
+    'gen9doublescustomgame@@@NatDex Mod':
+      'Ecosistema unificado National Dex Dobles (Todo Vale): TODOS los Pokémon de las 9 generaciones, Megaevoluciones, Movimientos Z, Teracristalización, niveles sin tope (Nv. 130+) y sets especiales conviviendo en la misma arena.',
+    'gen9customgame@@@NatDex Mod':
+      'Ecosistema unificado National Dex Singles (Todo Vale): TODOS los Pokémon, Megaevoluciones, Movimientos Z, Teracristalización y niveles sin tope conviviendo en el mismo combate.',
     gen9vgc2024regg:
       'Reglas oficiales Mundial VGC 2024 Reg G: Dobles 4v4 (Bring 6, Pick 4), Nivel 50, 1 Legendario Restringido, Teracristalización y Open Teamsheets.',
     gen91v1:

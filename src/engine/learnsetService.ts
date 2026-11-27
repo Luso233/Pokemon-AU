@@ -44,7 +44,7 @@ const learnsetCache = new Map<string, LegalMoveOption[]>();
  */
 export function getLegalLearnsetForSpecies(
   speciesName: string,
-  formatId = 'gen9customgame',
+  formatId = 'gen9customgame@@@NatDex Mod',
   extraAllowedMoves: string[] = []
 ): LegalMoveOption[] {
   const gen = getFormatGeneration(formatId);
@@ -190,7 +190,7 @@ export function getLegalLearnsetForSpecies(
 export function isMoveLegalForSpecies(
   speciesName: string,
   moveName: string,
-  formatId = 'gen9customgame',
+  formatId = 'gen9customgame@@@NatDex Mod',
   extraAllowedMoves: string[] = []
 ): boolean {
   const targetId = Dex.moves.get(moveName).id;

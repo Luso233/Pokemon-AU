@@ -139,11 +139,14 @@ export default function App() {
   const profileRef = useRef(profile);
   profileRef.current = profile;
 
-  // Persist locally & auto-sync active save slot on every profile update once a run has started
+  // Persist locally & auto-sync active save slot on every profile update (including Dev Mode & PC Box edits!)
   useEffect(() => {
     saveLocalProfile(profile);
     const hasProgress =
       profile.hasStartedRun ||
+      profile.devModeEnabled ||
+      profile.useCustomTeamInStory ||
+      profile.pokemonBox.length > 6 ||
       Object.values(profile.completedChapters).some((p) => p?.completed);
     if (hasProgress) {
       setSaveSlots(saveProfileToSlot(profile, profile.activeSaveSlot ?? 1));
@@ -409,11 +412,23 @@ export default function App() {
     setScreen('battle');
   };
 
+  const isCampaignSurvivalBattle = (
+    chapter: ChapterDefinition,
+    cfg?: ResolvedBattleConfig | null
+  ): boolean => {
+    if (cfg?.isVersusMatch) return false;
+    const mode =
+      chapter.teamMode ??
+      (chapter.teamEditPolicy === 'editable' ? 'campaign' : 'locked');
+    return mode === 'campaign';
+  };
+
   const handleLaunchBattle = (finalConfig: ResolvedBattleConfig) => {
     const npcDef = getNpcDefinition(finalConfig.rivalCharId);
     const curProf = profileRef.current;
+    const appliesSurvival = isCampaignSurvivalBattle(activeChapter, finalConfig);
     const ironmanPersisted =
-      !finalConfig.isVersusMatch &&
+      appliesSurvival &&
       curProf.ironmanMode &&
       !finalConfig.persistedPartyState
         ? buildIronmanPersistedStateForBattle(
@@ -425,8 +440,8 @@ export default function App() {
     const hydrated: ResolvedBattleConfig = {
       ...finalConfig,
       persistedPartyState: ironmanPersisted,
-      isIronmanActive: !finalConfig.isVersusMatch && curProf.ironmanMode,
-      isNuzlockeActive: !finalConfig.isVersusMatch && curProf.nuzlockePermadeath,
+      isIronmanActive: appliesSurvival && curProf.ironmanMode,
+      isNuzlockeActive: appliesSurvival && curProf.nuzlockePermadeath,
       rivalProfile: finalConfig.isVersusMatch
         ? finalConfig.rivalProfile
         : buildRivalProfileFromNpc(
@@ -465,11 +480,16 @@ export default function App() {
     setSuspendedInkState(null);
 
     if (!resolvedConfig?.isVersusMatch) {
-      const fallenInBattle = won
-        ? snapshot.p1.party
-            .filter((p) => p.fainted)
-            .map((p) => ({ species: p.species, ability: p.ability }))
-        : [];
+      const appliesSurvival = isCampaignSurvivalBattle(
+        activeChapter,
+        resolvedConfig
+      );
+      const fallenInBattle =
+        won && appliesSurvival
+          ? snapshot.p1.party
+              .filter((p) => p.fainted)
+              .map((p) => ({ species: p.species, ability: p.ability }))
+          : [];
       const res = applyBattleOutcomeToProfile(
         profileRef.current,
         activeChapter.id,
@@ -484,16 +504,18 @@ export default function App() {
         }
       );
       earnedReward = res.reward;
-      let nextProf = recordPostBattleSurvivalState(
-        res.nextProfile,
-        snapshot.exportedPartyState,
-        won,
-        {
-          chapterTitle: activeChapter.title,
-          rivalName: resolvedConfig?.rivalName,
-          turn: snapshot.turn,
-        }
-      );
+      let nextProf = appliesSurvival
+        ? recordPostBattleSurvivalState(
+            res.nextProfile,
+            snapshot.exportedPartyState,
+            won,
+            {
+              chapterTitle: activeChapter.title,
+              rivalName: resolvedConfig?.rivalName,
+              turn: snapshot.turn,
+            }
+          )
+        : res.nextProfile;
       if (won && resolvedConfig?.romanceMeta) {
         nextProf = completeRomanceRank(
           nextProf,
@@ -507,7 +529,9 @@ export default function App() {
 
       if (!won) {
         const isTotalNuzlockeWipe =
-          nextProf.nuzlockePermadeath && countAliveBoxPokemon(nextProf) === 0;
+          appliesSurvival &&
+          nextProf.nuzlockePermadeath &&
+          countAliveBoxPokemon(nextProf) === 0;
         deathSummary = buildRunDeathSummary({
           runName: nextProf.runName || 'Exilio de Wyndon',
           chapterId: activeChapter.id,
@@ -829,10 +853,18 @@ export default function App() {
         config={resolvedConfig}
         profile={profile}
         teamEditPolicy={activeChapter.teamEditPolicy}
+        teamMode={activeChapter.teamMode}
         onReplayVN={() => setScreen('vn')}
         onOpenShop={() => setScreen('shop')}
         onOpenDevMode={() => setDevModalOpen(true)}
         onOpenCamp={() => setCampModalOpen(true)}
+        onToggleUseCustomTeam={(enabled) =>
+          setProfile((prev) => ({
+            ...prev,
+            useCustomTeamInStory: enabled,
+            updatedAt: new Date().toISOString(),
+          }))
+        }
         onUnlockMoveSlot={handleUnlockMoveSlot}
         onSetCustomMove={handleSetCustomMove}
         onSetCustomItem={handleSetCustomItem}

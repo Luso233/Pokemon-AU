@@ -258,6 +258,91 @@ export function normalizeProfile(
     };
   });
 
+  const normalizedBox: OwnedPokemonInstance[] = (() => {
+    if (Array.isArray(raw.pokemonBox) && raw.pokemonBox.length > 0) {
+      const seenUids = new Set<string>();
+      const cleaned: OwnedPokemonInstance[] = [];
+      for (let i = 0; i < raw.pokemonBox.length; i++) {
+        const inst = raw.pokemonBox[i];
+        if (!inst || !inst.species) continue;
+        const uid =
+          inst.uid && !seenUids.has(inst.uid)
+            ? inst.uid
+            : `mon-${i}-${getSpeciesKey(inst.species)}`;
+        seenUids.add(uid);
+        cleaned.push({
+          uid,
+          species: inst.species,
+          nickname: inst.nickname,
+          origin: inst.origin || 'Escolta Real de Galar',
+          zone:
+            inst.zone === 'party' ||
+            inst.zone === 'box' ||
+            inst.zone === 'house' ||
+            inst.zone === 'graveyard'
+              ? inst.zone
+              : 'box',
+          item: inst.item || '',
+          ability: inst.ability || '',
+          nature: inst.nature || 'Adamant',
+          teraType: inst.teraType || 'Normal',
+          moves:
+            Array.isArray(inst.moves) && inst.moves.length > 0
+              ? inst.moves.slice(0, 4)
+              : ['Protect'],
+          shiny: Boolean(inst.shiny),
+          hp: typeof inst.hp === 'number' ? inst.hp : null,
+          maxhp: typeof inst.maxhp === 'number' ? inst.maxhp : null,
+          status: inst.status || '',
+          ppByMoveId: inst.ppByMoveId ? { ...inst.ppByMoveId } : undefined,
+          epitaph: inst.epitaph,
+        });
+      }
+      if (cleaned.length > 0) return cleaned;
+    }
+    // Migrate legacy flat save into unique per-individual PC Box instances!
+    const migrated: OwnedPokemonInstance[] = normalizedTeam.map((m, idx) => ({
+      uid: `starter-${idx}-${getSpeciesKey(m.species)}`,
+      species: m.species,
+      origin: 'Escolta Real de Galar',
+      zone: 'party' as const,
+      item: m.item,
+      ability: m.ability,
+      nature: m.nature,
+      teraType: m.teraType,
+      moves: [...m.moves],
+      shiny: m.shiny,
+      hp: null,
+      maxhp: null,
+      status: '',
+    }));
+    const inPartySpecies = new Set(migrated.map((m) => getSpeciesKey(m.species)));
+    for (const sp of inv?.pokemon ?? []) {
+      if (!inPartySpecies.has(getSpeciesKey(sp))) {
+        const def = buildDefaultMemberForSpecies(sp);
+        migrated.push({
+          uid: `shop-${getSpeciesKey(sp)}`,
+          species: def.species,
+          origin: 'Tienda de Wyndon',
+          zone: 'box',
+          item: '',
+          ability: def.ability,
+          nature: def.nature,
+          teraType: def.teraType,
+          moves: [...def.moves],
+          shiny: false,
+          hp: null,
+          maxhp: null,
+          status: '',
+        });
+        inPartySpecies.add(getSpeciesKey(sp));
+      }
+    }
+    return migrated;
+  })();
+
+  const syncedPartyFromBox = syncCustomTeamFromBox(normalizedBox);
+
   return {
     displayName: raw.displayName || base.displayName,
     email: raw.email || '',
@@ -295,7 +380,8 @@ export function normalizeProfile(
       ),
       shinyCharms,
     },
-    customTeam: normalizedTeam,
+    customTeam:
+      syncedPartyFromBox.length > 0 ? syncedPartyFromBox : normalizedTeam,
     useCustomTeamInStory: Boolean(raw.useCustomTeamInStory),
     unlockedMoveSlots: normalizeUnlockedMoveSlots(raw.unlockedMoveSlots),
     customMoves: normalizeCustomMoves(raw.customMoves),
@@ -343,85 +429,7 @@ export function normalizeProfile(
       0,
       Math.floor(Number(raw.freeEmergencyHeals ?? 0))
     ),
-    pokemonBox: (() => {
-      if (Array.isArray(raw.pokemonBox) && raw.pokemonBox.length > 0) {
-        const seenUids = new Set<string>();
-        const cleaned: OwnedPokemonInstance[] = [];
-        for (let i = 0; i < raw.pokemonBox.length; i++) {
-          const inst = raw.pokemonBox[i];
-          if (!inst || !inst.species) continue;
-          const uid = inst.uid && !seenUids.has(inst.uid) ? inst.uid : `mon-${i}-${getSpeciesKey(inst.species)}`;
-          seenUids.add(uid);
-          cleaned.push({
-            uid,
-            species: inst.species,
-            nickname: inst.nickname,
-            origin: inst.origin || 'Escolta Real de Galar',
-            zone:
-              inst.zone === 'party' ||
-              inst.zone === 'box' ||
-              inst.zone === 'house' ||
-              inst.zone === 'graveyard'
-                ? inst.zone
-                : 'box',
-            item: inst.item || '',
-            ability: inst.ability || '',
-            nature: inst.nature || 'Adamant',
-            teraType: inst.teraType || 'Normal',
-            moves:
-              Array.isArray(inst.moves) && inst.moves.length > 0
-                ? inst.moves.slice(0, 4)
-                : ['Protect'],
-            shiny: Boolean(inst.shiny),
-            hp: typeof inst.hp === 'number' ? inst.hp : null,
-            maxhp: typeof inst.maxhp === 'number' ? inst.maxhp : null,
-            status: inst.status || '',
-            ppByMoveId: inst.ppByMoveId ? { ...inst.ppByMoveId } : undefined,
-            epitaph: inst.epitaph,
-          });
-        }
-        return cleaned;
-      }
-      // Migrate legacy flat save into unique per-individual PC Box instances!
-      const migrated: OwnedPokemonInstance[] = normalizedTeam.map((m, idx) => ({
-        uid: `starter-${idx}-${getSpeciesKey(m.species)}`,
-        species: m.species,
-        origin: 'Escolta Real de Galar',
-        zone: 'party' as const,
-        item: m.item,
-        ability: m.ability,
-        nature: m.nature,
-        teraType: m.teraType,
-        moves: [...m.moves],
-        shiny: m.shiny,
-        hp: null,
-        maxhp: null,
-        status: '',
-      }));
-      const inPartySpecies = new Set(migrated.map((m) => getSpeciesKey(m.species)));
-      for (const sp of inv?.pokemon ?? []) {
-        if (!inPartySpecies.has(getSpeciesKey(sp))) {
-          const def = buildDefaultMemberForSpecies(sp);
-          migrated.push({
-            uid: `shop-${getSpeciesKey(sp)}`,
-            species: def.species,
-            origin: 'Tienda de Wyndon',
-            zone: 'box',
-            item: '',
-            ability: def.ability,
-            nature: def.nature,
-            teraType: def.teraType,
-            moves: [...def.moves],
-            shiny: false,
-            hp: null,
-            maxhp: null,
-            status: '',
-          });
-          inPartySpecies.add(getSpeciesKey(sp));
-        }
-      }
-      return migrated;
-    })(),
+    pokemonBox: normalizedBox,
     itemStock: (() => {
       const stock: Record<string, number> = { ...buildStarterItemStock() };
       for (const it of inv?.items ?? []) {
@@ -1369,16 +1377,28 @@ export function applyDevUnlockFullAgPokedex(
 
 /**
  * Dev Mode Playtesting Helper: Spawns a ready-to-customize specimen of ANY playable Anything Goes species
- * directly into your Active Party (if < 6 slots) or Reserve Box at 0 PC!
+ * directly into your Active Party (auto-parking Slot 6 into Reserve Box if 6/6 full so it ALWAYS enters your team!)
+ * or Reserve Box at 0 PC!
  */
 export function spawnDevAgSpecimen(
   profile: PlayerSaveProfile,
   species: string,
   targetZone: 'party' | 'box' = 'party'
-): { ok: boolean; error?: string; uid?: string; nextProfile: PlayerSaveProfile } {
+): {
+  ok: boolean;
+  error?: string;
+  uid?: string;
+  placedZone?: 'party' | 'box';
+  swappedOutSpecies?: string;
+  nextProfile: PlayerSaveProfile;
+} {
   const sp = Dex.species.get(species);
   if (!sp.exists) {
-    return { ok: false, error: `Especie "${species}" no encontrada en @pkmn/sim.`, nextProfile: profile };
+    return {
+      ok: false,
+      error: `Especie "${species}" no encontrada en @pkmn/sim.`,
+      nextProfile: profile,
+    };
   }
   const canonical = sp.name;
   const spKey = getSpeciesKey(canonical);
@@ -1387,10 +1407,23 @@ export function spawnDevAgSpecimen(
   const dupInParty = currentParty.some(
     (m) => getSpeciesKey(m.species) === spKey
   );
-  const resolvedZone: 'party' | 'box' =
-    targetZone === 'party' && currentParty.length < 6 && !dupInParty
-      ? 'party'
-      : 'box';
+
+  let baseBox = profile.pokemonBox;
+  let swappedOutSpecies: string | undefined;
+  let resolvedZone: 'party' | 'box' = 'box';
+
+  if (targetZone === 'party' && !dupInParty) {
+    resolvedZone = 'party';
+    // If Active Party already has 6/6 Pokémon, safely park Slot 6 in Reserve Box (without healing)
+    // so the spawned Pokémon enters Active Party immediately instead of vanishing into the Box!
+    if (currentParty.length >= 6) {
+      const displaced = currentParty[currentParty.length - 1];
+      swappedOutSpecies = displaced.species;
+      baseBox = profile.pokemonBox.map((m) =>
+        m.uid === displaced.uid ? { ...m, zone: 'box' as const } : m
+      );
+    }
+  }
 
   const uid = `dev-${spKey}-${Date.now().toString(36)}-${profile.pokemonBox.length}`;
   const inst: OwnedPokemonInstance = {
@@ -1409,7 +1442,7 @@ export function spawnDevAgSpecimen(
     status: '',
   };
 
-  const nextBox = [...profile.pokemonBox, inst];
+  const nextBox = [...baseBox, inst];
   const nextInvPokemon = profile.inventory.pokemon.some(
     (s) => getSpeciesKey(s) === spKey
   )
@@ -1419,8 +1452,12 @@ export function spawnDevAgSpecimen(
   return {
     ok: true,
     uid,
+    placedZone: resolvedZone,
+    swappedOutSpecies,
     nextProfile: {
       ...profile,
+      useCustomTeamInStory:
+        resolvedZone === 'party' ? true : profile.useCustomTeamInStory,
       inventory: { ...profile.inventory, pokemon: nextInvPokemon },
       pokemonBox: nextBox,
       customTeam: syncCustomTeamFromBox(nextBox),

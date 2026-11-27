@@ -54,6 +54,7 @@ import {
   isChapterUnlocked,
   isMoveSlotUnlocked,
   movePokemonInstanceZone,
+  normalizeProfile,
   plantCampBerry,
   purchaseHeldItem,
   purchasePokemon,
@@ -110,7 +111,11 @@ import {
   getVariantsForChapterNpc,
 } from '../src/data/npcProfiles';
 import { createRivalBattleController } from '../src/engine/tacticalAI';
-import type { BattleSnapshot } from '../src/types/game';
+import {
+  CAMPAIGN_DOUBLES_FORMAT_ID,
+  CAMPAIGN_SINGLES_FORMAT_ID,
+  type BattleSnapshot,
+} from '../src/types/game';
 
 interface MatchRunResult {
   finalSnap: BattleSnapshot;
@@ -2018,7 +2023,260 @@ async function main() {
     `  OK: Smogon Pricing (Cottonee=312 PC, Kingambit=825 PC, Miraidon=1340 PC), Nuzlocke Indemnification (+${ch1EconWin.reward.casualtyIndemnificationCoins} PC), 18-Region Fauna Pokédex, Anti-Grind Lock, Dynamic Difficulty BST Cap (Baby=∞ / Normal=3000 / Difícil=2850 / Tryhard=2700 -> ${legalAct1Tryhard.currentPartyBst}/2700) & Dev AG Pokédex (${agSpecies.length} species + Showdown Import/Export) ALL VERIFIED!`
   );
 
-  console.log('\nALL 24 ENGINE, MAP, ROMANCE, POKÉROGUE RUN, DOUBLE-ZOROARK & SMOGON ECONOMY SUITES PASSED!');
+  /* ===================== 25. Standardized NatDex Ecosystem (Mega + Z-Move + Tera + Lv.130), 3-Mode Loadouts & Dev Party Persistence ===================== */
+  console.log('\n=== 25. Standardized NatDex Ecosystem (Mega + Z-Move + Tera + Lv.130), 3-Mode Loadouts & Dev Party Fix ===');
+
+  // 1) Verify all 16 chapters in chapters.ts declare clean 3-mode `teamMode` ('campaign' | 'locked' | 'challenge') and NatDex standardization
+  const chaptersSrc = readFileSync(
+    resolve(process.cwd(), 'src/data/chapters.ts'),
+    'utf-8'
+  );
+  const campaignMatches = chaptersSrc.match(/teamMode:\s*'campaign'/g) ?? [];
+  const lockedMatches = chaptersSrc.match(/teamMode:\s*'locked'/g) ?? [];
+  const challengeMatches = chaptersSrc.match(/teamMode:\s*'challenge'/g) ?? [];
+  if (
+    campaignMatches.length !== 5 ||
+    lockedMatches.length !== 6 ||
+    challengeMatches.length !== 5
+  ) {
+    throw new Error(
+      `Expected 3-mode distribution 5 campaign / 6 locked / 5 challenge in chapters.ts, got campaign=${campaignMatches.length}, locked=${lockedMatches.length}, challenge=${challengeMatches.length}`
+    );
+  }
+  if (
+    chaptersSrc.includes("'gen9doublescustomgame'") ||
+    chaptersSrc.includes("'gen9customgame'")
+  ) {
+    throw new Error('chapters.ts still contains legacy gen9doublescustomgame/gen9customgame instead of standardized NatDex!');
+  }
+  const ch1Std = resolveChapter1ChaseBattle({});
+  const ch3Std = resolveClandestineTamerBattle({});
+  const banquetStd = resolveChapter2BanquetBattle({});
+  const minesStd = resolveMinesWave1Battle({});
+  const sunStd = resolvePuzzle1SunTrapBattle({});
+  const regiStd = resolvePuzzle2RegigigasBattle({});
+  const lcStd = resolveChampionLittleCupBattle({});
+  const tobiasStd = resolveAnimeAshVsTobiasBattle({});
+  if (
+    ch1Std.formatId !== CAMPAIGN_DOUBLES_FORMAT_ID ||
+    banquetStd.formatId !== CAMPAIGN_DOUBLES_FORMAT_ID ||
+    sunStd.formatId !== CAMPAIGN_DOUBLES_FORMAT_ID ||
+    regiStd.formatId !== CAMPAIGN_DOUBLES_FORMAT_ID ||
+    ch3Std.formatId !== CAMPAIGN_SINGLES_FORMAT_ID ||
+    minesStd.formatId !== CAMPAIGN_SINGLES_FORMAT_ID ||
+    lcStd.formatId !== CAMPAIGN_SINGLES_FORMAT_ID ||
+    tobiasStd.formatId !== CAMPAIGN_SINGLES_FORMAT_ID
+  ) {
+    throw new Error('One or more non-specialty chapter resolvers did not migrate to standardized NatDex format!');
+  }
+
+  // 2) Verify Dev Mode team-saving fix: spawning Rayquaza-Mega into FULL 6/6 starter party MUST park Slot 6 in Box,
+  //    put Rayquaza-Mega directly into Active Party, set useCustomTeamInStory=true, and survive serialize/normalize!
+  let devSaveProf = applyDevUnlockFullAgPokedex(createDefaultProfile('DevRay', 'ray@galar.com'));
+  const rayPartyRes = spawnDevAgSpecimen(devSaveProf, 'Rayquaza-Mega', 'party');
+  if (
+    !rayPartyRes.ok ||
+    rayPartyRes.placedZone !== 'party' ||
+    !rayPartyRes.swappedOutSpecies ||
+    !rayPartyRes.nextProfile.useCustomTeamInStory ||
+    !rayPartyRes.nextProfile.pokemonBox.some((m) => m.zone === 'party' && m.species === 'Rayquaza-Mega') ||
+    !rayPartyRes.nextProfile.customTeam.some((m) => m.species === 'Rayquaza-Mega') ||
+    !rayPartyRes.nextProfile.pokemonBox.some((m) => m.zone === 'box' && m.species === rayPartyRes.swappedOutSpecies)
+  ) {
+    throw new Error(`Dev Mode Rayquaza-Mega +Equipo auto-swap fix failed: ${JSON.stringify(rayPartyRes)}`);
+  }
+  const reloadedProf = normalizeProfile(JSON.parse(JSON.stringify(rayPartyRes.nextProfile)));
+  const reloadedPaste = compileCustomTeamToShowdownPaste(reloadedProf.customTeam, 100);
+  if (!reloadedProf.useCustomTeamInStory || !reloadedPaste.includes('Rayquaza-Mega')) {
+    throw new Error('Reloaded profile lost Rayquaza-Mega or useCustomTeamInStory after JSON round-trip!');
+  }
+
+  // 3) Live ShowdownBattleController battle in CAMPAIGN_DOUBLES_FORMAT_ID verifying Mega + Tera + Z-Move + Lv.130 ALL coexist!
+  const natDexTrifectaCfg: ReturnType<typeof resolveChapter1ChaseBattle> = {
+    chapterId: 'test-natdex-trifecta',
+    format: 'doubles',
+    formatId: CAMPAIGN_DOUBLES_FORMAT_ID,
+    formatLabel: 'NatDex Dobles · Todo Vale',
+    playerName: 'Príncipe NatDex',
+    playerCharId: 'prince',
+    rivalName: 'Jefe Eternamax',
+    rivalTitle: 'Prueba NatDex',
+    rivalCharId: 'champion',
+    arenaTheme: 'royal-training-ground',
+    playerTeamSummary: 'Shedinja Tera + Charizard Mega-Y + Rayquaza-Mega Firium Z',
+    rivalTeamSummary: 'Eternatus-Eternamax Nv.130 + Zoroark-Hisui Nv.130',
+    playerShowdownPaste: `Shedinja @ Heavy-Duty Boots
+Ability: Wonder Guard
+Level: 100
+Tera Type: Electric
+EVs: 252 Atk / 252 Spe
+Adamant Nature
+- Poltergeist
+- Shadow Sneak
+- Protect
+- Will-O-Wisp
+
+Charizard @ Charizardite Y
+Ability: Blaze
+Level: 100
+Tera Type: Fire
+EVs: 4 HP / 252 SpA / 252 Spe
+Timid Nature
+- Flamethrower
+- Solar Beam
+- Air Slash
+- Protect
+
+Rayquaza-Mega @ Firium Z
+Ability: Delta Stream
+Level: 130
+Tera Type: Normal
+EVs: 4 HP / 252 Atk / 252 Spe
+Jolly Nature
+- Dragon Ascent
+- V-create
+- Extreme Speed
+- Protect`,
+    rivalShowdownPaste: `Eternatus-Eternamax @ Leftovers
+Ability: Pressure
+Level: 130
+Tera Type: Poison
+EVs: 252 HP / 252 Def / 4 SpD
+Bold Nature
+- Dynamax Cannon
+- Recover
+- Flamethrower
+- Protect
+
+Zoroark-Hisui @ Life Orb
+Ability: Illusion
+Level: 130
+Tera Type: Ghost
+EVs: 4 HP / 252 SpA / 252 Spe
+Timid Nature
+- Bitter Malice
+- Hyper Voice
+- Flamethrower
+- Protect`,
+    rivalIntel: {
+      visibleSpeciesCount: 2,
+      totalSlots: 2,
+      intelLabel: 'NatDex Trifecta',
+      intelNote: 'Mega + Tera + Z-Move + Lv.130',
+      levelCap: 130,
+      hasBossAce: true,
+    },
+    scriptedEnemyRules: [],
+    traces: [],
+    flags: {},
+  };
+
+  const trifectaResult = await new Promise<{
+    sawTera: boolean;
+    sawMegaY: boolean;
+    sawZMoveSlot: boolean;
+    sawZPowerLog: boolean;
+  }>((resP, rejP) => {
+    let settled = false;
+    let lastTurnSent = -1;
+    let sawTera = false;
+    let sawMegaY = false;
+    let sawZMoveSlot = false;
+    let sawZPowerLog = false;
+    const timer = setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        ctrl.destroy();
+        rejP(new Error('NatDex Trifecta battle timed out!'));
+      }
+    }, 8000);
+    const ctrl = new ShowdownBattleController(natDexTrifectaCfg, (snap) => {
+      if (settled) return;
+      if (snap.p1.active.some((m) => m?.terastallized === 'Electric')) sawTera = true;
+      if (snap.p1.active.some((m) => m?.species === 'Charizard-Mega-Y')) sawMegaY = true;
+      if (snap.log.some((l) => l.text.includes('Poder Z'))) sawZPowerLog = true;
+
+      if (snap.status === 'ended' || (sawTera && sawMegaY && sawZMoveSlot && sawZPowerLog)) {
+        settled = true;
+        clearTimeout(timer);
+        ctrl.destroy();
+        resP({ sawTera, sawMegaY, sawZMoveSlot, sawZPowerLog });
+        return;
+      }
+
+      if (snap.status === 'awaiting-choice' && snap.pendingSlots.length > 0) {
+        if (snap.isForceSwitch) {
+          const aliveBench = snap.p1.party.filter((p) => !p.active && !p.fainted);
+          const cmds = snap.pendingSlots.map((s) =>
+            s.pass || !s.forceSwitch
+              ? 'pass'
+              : aliveBench.length > 0
+                ? `switch ${aliveBench.shift()!.slotIndex}`
+                : 'pass'
+          );
+          void ctrl.submitPlayerChoice(cmds.join(', '));
+          return;
+        }
+        if (snap.turn === lastTurnSent) return;
+        lastTurnSent = snap.turn;
+
+        if (snap.turn === 1) {
+          // Verify Slot 0 Shedinja can Tera AND Slot 1 Charizard can Mega simultaneously!
+          if (!snap.pendingSlots[0]?.canTerastallize || !snap.pendingSlots[1]?.canMegaEvo) {
+            settled = true;
+            clearTimeout(timer);
+            ctrl.destroy();
+            rejP(new Error(`Turn 1 expected Shedinja Tera + Charizard Mega, got ${JSON.stringify(snap.pendingSlots.map((s) => ({ sp: s.pokemon.species, mega: s.canMegaEvo, tera: s.canTerastallize })))}`));
+            return;
+          }
+          void ctrl.submitPlayerChoice('move 3 terastallize, move 1 +1 mega');
+        } else if (snap.turn === 2) {
+          // Switch Slot 0 -> Rayquaza-Mega (slot 3)
+          void ctrl.submitPlayerChoice('switch 3, move 4');
+        } else if (snap.turn === 3) {
+          // Verify Rayquaza-Mega exposes canZMove for V-create (index 1 -> move 2) and fire Z-Move!
+          const raySlot = snap.pendingSlots.find((s) => s.pokemon.species === 'Rayquaza-Mega');
+          const zIdx = raySlot?.canZMove?.findIndex((z) => z !== null) ?? -1;
+          if (zIdx >= 0) sawZMoveSlot = true;
+          const cmds = snap.pendingSlots.map((s) => {
+            if (s.pass) return 'pass';
+            if (s.pokemon.species === 'Rayquaza-Mega' && zIdx >= 0) {
+              return `move ${zIdx + 1} +1 zmove`;
+            }
+            return 'move 4';
+          });
+          void ctrl.submitPlayerChoice(cmds.join(', '));
+        } else {
+          settled = true;
+          clearTimeout(timer);
+          ctrl.destroy();
+          resP({ sawTera, sawMegaY, sawZMoveSlot, sawZPowerLog });
+        }
+      }
+    });
+    void ctrl.start().catch((err) => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timer);
+        rejP(err);
+      }
+    });
+  });
+
+  if (
+    !trifectaResult.sawTera ||
+    !trifectaResult.sawMegaY ||
+    !trifectaResult.sawZMoveSlot ||
+    !trifectaResult.sawZPowerLog
+  ) {
+    throw new Error(`NatDex Mega + Z-Move + Tera Trifecta verification failed: ${JSON.stringify(trifectaResult)}`);
+  }
+
+  console.log(
+    `  OK: Standardized NatDex Custom (Mega-Charizard Y + Shedinja Tera Electric + Rayquaza-Mega Lv.130 Poder Z + Eternamax Lv.130 in ONE battle), 3-Mode Loadouts (5 Campaign / 6 Locked / 5 Challenge) & Dev Party Auto-Swap + Reload Persistence ALL VERIFIED!`
+  );
+
+  console.log('\nALL 25 ENGINE, MAP, ROMANCE, POKÉROGUE RUN, DOUBLE-ZOROARK, SMOGON ECONOMY & NATDEX ECOSYSTEM SUITES PASSED!');
 }
 
 let allSuitesCompleted = false;

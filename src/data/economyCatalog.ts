@@ -702,6 +702,25 @@ export const SHOP_ITEMS: ShopHeldItem[] = [
   { name: 'Silk Scarf', price: 500, desc: '+20% potencia a ataques tipo Normal (combo Frustration).', category: 'Ofensivo' },
   { name: 'Light Ball', price: 900, desc: 'Duplica Ataque y Ataque Especial de Pikachu.', category: 'Ofensivo' },
   { name: 'Booster Energy', price: 1100, desc: 'Activa Paleosíntesis o Carga Cuark al instante.', category: 'Táctico' },
+  // Mega Stones & Z-Crystals (Native NatDex Ecosystem: Megas + Z-Moves + Tera!)
+  { name: 'Charizardite Y', price: 1600, desc: 'Megaevoluciona a Charizard en Mega-Charizard Y (Sequía).', category: 'Ofensivo' },
+  { name: 'Charizardite X', price: 1600, desc: 'Megaevoluciona a Charizard en Mega-Charizard X (Garra Dura).', category: 'Ofensivo' },
+  { name: 'Gardevoirite', price: 1500, desc: 'Megaevoluciona a Gardevoir en Mega-Gardevoir (Piel Feérica).', category: 'Ofensivo' },
+  { name: 'Metagrossite', price: 1700, desc: 'Megaevoluciona a Metagross en Mega-Metagross (Garra Dura).', category: 'Ofensivo' },
+  { name: 'Garchompite', price: 1500, desc: 'Megaevoluciona a Garchomp en Mega-Garchomp.', category: 'Ofensivo' },
+  { name: 'Lucarionite', price: 1700, desc: 'Megaevoluciona a Lucario en Mega-Lucario (Adaptable).', category: 'Ofensivo' },
+  { name: 'Salamencite', price: 1800, desc: 'Megaevoluciona a Salamence en Mega-Salamence (Piel Celeste).', category: 'Ofensivo' },
+  { name: 'Gengarite', price: 1800, desc: 'Megaevoluciona a Gengar en Mega-Gengar (Sombra Trampa).', category: 'Táctico' },
+  { name: 'Scizorite', price: 1500, desc: 'Megaevoluciona a Scizor en Mega-Scizor (Experto).', category: 'Defensivo' },
+  { name: 'Firium Z', price: 1300, desc: 'Desbloquea el Movimiento Z tipo Fuego (Hecatombe Pírica).', category: 'Ofensivo' },
+  { name: 'Electrium Z', price: 1300, desc: 'Desbloquea el Movimiento Z tipo Eléctrico (Gigavoltio Destructor).', category: 'Ofensivo' },
+  { name: 'Fairium Z', price: 1300, desc: 'Desbloquea el Movimiento Z tipo Hada (Arrumaco Sideral).', category: 'Ofensivo' },
+  { name: 'Ghostium Z', price: 1300, desc: 'Desbloquea el Movimiento Z tipo Fantasma (Presa Espectral).', category: 'Ofensivo' },
+  { name: 'Dragonium Z', price: 1300, desc: 'Desbloquea el Movimiento Z tipo Dragón (Dracoaliento Devastador).', category: 'Ofensivo' },
+  { name: 'Fightinium Z', price: 1300, desc: 'Desbloquea el Movimiento Z tipo Lucha (Ráfaga Demoledora).', category: 'Ofensivo' },
+  { name: 'Waterium Z', price: 1300, desc: 'Desbloquea el Movimiento Z tipo Agua (Hidrovórtice Abisal).', category: 'Ofensivo' },
+  { name: 'Darkinium Z', price: 1300, desc: 'Desbloquea el Movimiento Z tipo Siniestro (Agujero Negro Aniquilador).', category: 'Ofensivo' },
+  { name: 'Normalium Z', price: 1200, desc: 'Desbloquea el Movimiento Z tipo Normal (Carrera Arrolladora / Z-Status).', category: 'Táctico' },
 ];
 
 export const SHOP_TMS: ShopTMItem[] = [

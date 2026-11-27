@@ -1,10 +1,12 @@
-import type {
-  DecisionTraceItem,
-  PersistedPartyState,
-  ResolvedBattleConfig,
-  SceneBackdropId,
-  ScriptedEnemyRule,
-  StoryFlags,
+import {
+  CAMPAIGN_DOUBLES_FORMAT_ID,
+  CAMPAIGN_SINGLES_FORMAT_ID,
+  type DecisionTraceItem,
+  type PersistedPartyState,
+  type ResolvedBattleConfig,
+  type SceneBackdropId,
+  type ScriptedEnemyRule,
+  type StoryFlags,
 } from '../types/game';
 
 export interface ShowdownSetBlock {
@@ -572,7 +574,7 @@ export function resolveChapter1ChaseBattle(
   return {
     chapterId: 'ch1-wyndon-chase',
     format: 'doubles',
-    formatId: 'gen9doublescustomgame',
+    formatId: CAMPAIGN_DOUBLES_FORMAT_ID,
     formatLabel: '6v6 Dobles · Tera',
     playerName: 'Príncipe Heredero',
     playerCharId: 'prince',
@@ -904,7 +906,7 @@ export function resolveChapter2BanquetBattle(
   return {
     chapterId: 'ch2-banquet-ambush',
     format: 'doubles',
-    formatId: 'gen9doublescustomgame',
+    formatId: CAMPAIGN_DOUBLES_FORMAT_ID,
     formatLabel: 'Dobles · Sin Reglas (Doble Ilusión)',
     playerName: 'Príncipe Heredero',
     playerCharId: 'prince',
@@ -1093,7 +1095,7 @@ export function resolvePuzzle1SunTrapBattle(
   return {
     chapterId: 'puzzle-01-sun-trap',
     format: 'doubles',
-    formatId: 'gen9doublescustomgame',
+    formatId: CAMPAIGN_DOUBLES_FORMAT_ID,
     formatLabel: 'Puzzle 3v3 Dobles',
     playerName: 'Príncipe Heredero',
     playerCharId: 'prince',
@@ -1368,7 +1370,7 @@ export function resolveChampionLittleCupBattle(
   return {
     chapterId: 'flashback-lc-champion',
     format: 'singles',
-    formatId: 'gen9customgame',
+    formatId: CAMPAIGN_SINGLES_FORMAT_ID,
     formatLabel: 'Little Cup Nv. 5 vs Nv. 6–7',
     playerName: 'Príncipe (6 años)',
     playerCharId: 'prince',
@@ -2246,7 +2248,7 @@ export function resolveLastBastionBattle(
   return {
     chapterId: 'challenge-last-bastion',
     format: 'doubles',
-    formatId: 'gen9doublescustomgame',
+    formatId: CAMPAIGN_DOUBLES_FORMAT_ID,
     formatLabel: '1 vs 6 · Dobles',
     emptyPlayerSlots: [1],
     playerName: 'Príncipe Heredero',
@@ -2417,7 +2419,7 @@ export function resolveMinesWave1Battle(
     battleStageId: 'mines_wave1',
     nextStageLabel: 'Continuar entre el humo → Oleada 2 (Sin Curación)',
     format: 'singles',
-    formatId: 'gen9customgame',
+    formatId: CAMPAIGN_SINGLES_FORMAT_ID,
     formatLabel: 'Oleada 1/2 · Back-to-Back',
     playerName: 'Príncipe Heredero',
     playerCharId: 'prince',
@@ -2536,7 +2538,7 @@ export function resolveMinesWave2Battle(
     chapterId: 'survival-galar-mines',
     battleStageId: 'mines_wave2',
     format: 'singles',
-    formatId: 'gen9customgame',
+    formatId: CAMPAIGN_SINGLES_FORMAT_ID,
     formatLabel: 'Oleada 2/2 · Persistencia Heredada',
     persistedPartyState,
     playerName: 'Príncipe Heredero',
@@ -3272,7 +3274,7 @@ export function resolveClandestineTamerBattle(
   return {
     chapterId: 'ch3-clandestine-tamer',
     format: 'singles',
-    formatId: 'gen9customgame',
+    formatId: CAMPAIGN_SINGLES_FORMAT_ID,
     formatLabel: '6v6 Singles · Gimmick Rencor',
     reserveAsLastAceSpecies: 'Lopunny',
     playerName: 'Príncipe Heredero',
@@ -3555,7 +3557,7 @@ export function resolvePuzzle2RegigigasBattle(
   return {
     chapterId: 'puzzle-02-regigigas',
     format: 'doubles',
-    formatId: 'gen9doublescustomgame',
+    formatId: CAMPAIGN_DOUBLES_FORMAT_ID,
     formatLabel: 'Puzzle 6v6 Dobles · Raid Boss',
     playerName: 'Príncipe Heredero',
     playerCharId: 'prince',
@@ -3803,7 +3805,7 @@ export function resolveAnimeAshVsTobiasBattle(
   return {
     chapterId: 'anime-ash-vs-tobias',
     format: 'singles',
-    formatId: 'gen9customgame',
+    formatId: CAMPAIGN_SINGLES_FORMAT_ID,
     formatLabel: '6v6 Singles · Omniboost',
     interactiveTeamPreview: true,
     preferredRivalTeamOrder: 'team 123456',
@@ -4516,7 +4518,7 @@ export function resolveWeatherTerrainsChallengeBattle(
   return {
     chapterId: 'challenge-weather-terrains',
     format: 'doubles',
-    formatId: 'gen9doublescustomgame',
+    formatId: CAMPAIGN_DOUBLES_FORMAT_ID,
     formatLabel: `4v4 Dobles · ${spec.label}`,
     reserveAsLastAceSpecies: 'Castform',
     playerName: 'Príncipe Heredero',

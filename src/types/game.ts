@@ -83,6 +83,15 @@ export type VnPacingMode = 'full' | 'decisions-only' | 'skip-to-battle';
 
 export type ChapterTeamPolicy = 'fixed' | 'editable';
 
+export type ChapterTeamMode = 'campaign' | 'locked' | 'challenge';
+
+/**
+ * Standardized National Dex Custom formats where ALL Pokémon, Mega Evolutions,
+ * Z-Moves, Terastallization, Lv. 130+ bosses, and custom/illegal movesets coexist!
+ */
+export const CAMPAIGN_DOUBLES_FORMAT_ID = 'gen9doublescustomgame@@@NatDex Mod' as const;
+export const CAMPAIGN_SINGLES_FORMAT_ID = 'gen9customgame@@@NatDex Mod' as const;
+
 export interface BattleFatalBlow {
   attackerSpecies: string;
   moveName: string;
@@ -283,6 +292,8 @@ export type ChapterCategory =
   | 'anime';
 
 export type SupportedFormatId =
+  | 'gen9doublescustomgame@@@NatDex Mod'
+  | 'gen9customgame@@@NatDex Mod'
   | 'gen9doublescustomgame'
   | 'gen9customgame'
   | 'gen9nationaldex'
@@ -610,6 +621,8 @@ export interface ChapterDefinition {
   accentColor: string;
   /** Distinguishes fixed single-team chapters (puzzles/archives/flashbacks) from editable-team chapters! */
   teamEditPolicy?: ChapterTeamPolicy;
+  /** Clean 3-mode loadout architecture: 'campaign' (NatDex + PC Box + Ironman/Nuzlocke), 'locked' (VN/Puzzle fixed squad), 'challenge' (specialty format rental). */
+  teamMode?: ChapterTeamMode;
   /** Single spoiler-free spotlight sprite shown on the Chapter Select card. */
   showcaseSprite: ChapterShowcaseSprite;
   featuredPokemon: string[];
@@ -779,6 +792,11 @@ export interface BattleLogEntry {
   text: string;
 }
 
+export interface ActiveZMoveOption {
+  move: string;
+  target: string;
+}
+
 export interface PendingDecisionSlot {
   activeIndex: number;
   pokemon: PartyPokemonState;
@@ -786,6 +804,7 @@ export interface PendingDecisionSlot {
   trapped: boolean;
   canMegaEvo: boolean;
   canTerastallize: string | false;
+  canZMove?: (ActiveZMoveOption | null)[];
   forceSwitch: boolean;
   pass?: boolean;
 }
