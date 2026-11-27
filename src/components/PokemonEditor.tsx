@@ -3,11 +3,13 @@ import { Dex } from '@pkmn/sim';
 import {
   ArrowDownToLine,
   Backpack,
+  BarChart3,
   Lock,
   Package,
   RotateCcw,
   Search,
   Sparkles,
+  Trash2,
   Unlock,
 } from 'lucide-react';
 import { CURRENCY_SHORT } from '../data/economyCatalog';
@@ -21,11 +23,35 @@ import {
 import { getItemUsageInfo, isMoveSlotUnlocked } from '../engine/playerProfile';
 import { computePokemonBst } from '../engine/pricingEngine';
 import { getTypeBadgeClass } from '../engine/pokemonVisuals';
+import {
+  calculatePokemonStats,
+  getIndexedSpeciesMeta,
+  getNatureStatModifiers,
+} from '../engine/showdownSearchIndex';
 import type {
   OwnedPokemonInstance,
   PlayerSaveProfile,
+  PokemonGender,
+  StatSpread,
 } from '../types/game';
 import { PokemonSprite } from './PokemonSprite';
+
+const STAT_META: Array<{ key: keyof StatSpread; label: string }> = [
+  { key: 'hp', label: 'HP' },
+  { key: 'atk', label: 'Atk' },
+  { key: 'def', label: 'Def' },
+  { key: 'spa', label: 'SpA' },
+  { key: 'spd', label: 'SpD' },
+  { key: 'spe', label: 'Spe' },
+];
+
+function getStatBarColor(val: number): string {
+  if (val >= 350) return 'bg-cyan-400';
+  if (val >= 280) return 'bg-emerald-400';
+  if (val >= 210) return 'bg-lime-400';
+  if (val >= 160) return 'bg-amber-400';
+  return 'bg-rose-400';
+}
 
 const NATURES = [
   'Adamant',
@@ -97,6 +123,9 @@ interface PokemonEditorProps {
   /** Free (PC Box Instance) mode fields */
   instance?: OwnedPokemonInstance;
   onMoveToBox?: (uid: string) => void;
+  onReleaseInstance?: (
+    uid: string
+  ) => { ok: boolean; error?: string; releasedSpecies?: string };
   onEquipInstanceItem?: (
     uid: string,
     itemName: string
@@ -106,7 +135,15 @@ interface PokemonEditorProps {
     patch: Partial<
       Pick<
         OwnedPokemonInstance,
-        'ability' | 'nature' | 'teraType' | 'moves' | 'shiny' | 'nickname'
+        | 'ability'
+        | 'nature'
+        | 'teraType'
+        | 'moves'
+        | 'shiny'
+        | 'nickname'
+        | 'gender'
+        | 'evs'
+        | 'ivs'
       >
     >
   ) => { ok: boolean; error?: string };
@@ -139,6 +176,7 @@ export const PokemonEditor: React.FC<PokemonEditorProps> = ({
   onResetSpecies,
   instance,
   onMoveToBox,
+  onReleaseInstance,
   onEquipInstanceItem,
   onUpdateInstanceBuild,
   onUnlockMoveSlot,
@@ -149,6 +187,8 @@ export const PokemonEditor: React.FC<PokemonEditorProps> = ({
     null
   );
   const [moveSearch, setMoveSearch] = useState('');
+  const [showStatsPanel, setShowStatsPanel] = useState(true);
+  const [confirmRelease, setConfirmRelease] = useState(false);
 
   const isGen1 = getFormatGeneration(formatId) === 1;
   const socialPerks = useMemo(
@@ -182,6 +222,61 @@ export const PokemonEditor: React.FC<PokemonEditorProps> = ({
   const speciesObj = useMemo(
     () => (species ? Dex.species.get(species) : null),
     [species]
+  );
+  const indexedMeta = useMemo(
+    () => (species ? getIndexedSpeciesMeta(species) : null),
+    [species]
+  );
+
+  // Live Showdown-style EV/IV stat calculation for mode="free"
+  const activeEvs: StatSpread = useMemo(() => {
+    const raw = instance?.evs;
+    if (raw && Object.keys(raw).length > 0) {
+      return {
+        hp: raw.hp ?? 0,
+        atk: raw.atk ?? 0,
+        def: raw.def ?? 0,
+        spa: raw.spa ?? 0,
+        spd: raw.spd ?? 0,
+        spe: raw.spe ?? 0,
+      };
+    }
+    const bs = indexedMeta?.baseStats ?? { hp: 80, atk: 80, def: 80, spa: 80, spd: 80, spe: 80 };
+    return bs.spa > bs.atk
+      ? { hp: 4, atk: 0, def: 0, spa: 252, spd: 0, spe: 252 }
+      : { hp: 4, atk: 252, def: 0, spa: 0, spd: 0, spe: 252 };
+  }, [instance?.evs, indexedMeta]);
+
+  const activeIvs: StatSpread = useMemo(
+    () => ({
+      hp: instance?.ivs?.hp ?? 31,
+      atk: instance?.ivs?.atk ?? 31,
+      def: instance?.ivs?.def ?? 31,
+      spa: instance?.ivs?.spa ?? 31,
+      spd: instance?.ivs?.spd ?? 31,
+      spe: instance?.ivs?.spe ?? 31,
+    }),
+    [instance?.ivs]
+  );
+
+  const totalEvUsed =
+    activeEvs.hp +
+    activeEvs.atk +
+    activeEvs.def +
+    activeEvs.spa +
+    activeEvs.spd +
+    activeEvs.spe;
+  const remainingEvs = Math.max(0, 508 - totalEvUsed);
+  const natureMods = useMemo(
+    () => getNatureStatModifiers(nature || 'Serious'),
+    [nature]
+  );
+  const calculatedStats = useMemo(
+    () =>
+      species
+        ? calculatePokemonStats(species, level, nature || 'Serious', activeEvs, activeIvs)
+        : { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 },
+    [species, level, nature, activeEvs, activeIvs]
   );
 
   const availableAbilities = useMemo(() => {
@@ -431,80 +526,364 @@ export const PokemonEditor: React.FC<PokemonEditorProps> = ({
               Guardar en Caja
             </button>
           )}
+
+          {mode === 'free' &&
+            instance &&
+            onReleaseInstance &&
+            (!isGraveyard || profile.devModeEnabled || !profile.nuzlockePermadeath) && (
+              confirmRelease ? (
+                <div className="inline-flex items-center gap-1 rounded-xl border border-rose-400/60 bg-rose-950/80 px-2 py-1">
+                  <span className="text-[10px] font-bold text-rose-200">¿Liberar?</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const res = onReleaseInstance(instance.uid);
+                      setConfirmRelease(false);
+                      onNotice?.(
+                        res.ok
+                          ? {
+                              tone: 'ok',
+                              text: `🕊️ ${res.releasedSpecies ?? instance.species} fue liberado de tus Cajas PC.`,
+                            }
+                          : { tone: 'err', text: res.error || 'No se pudo liberar.' }
+                      );
+                    }}
+                    className="rounded-md bg-rose-500 px-2 py-0.5 text-[10px] font-extrabold text-white hover:bg-rose-400 cursor-pointer"
+                  >
+                    Sí
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmRelease(false)}
+                    className="rounded-md border border-slate-700 bg-slate-900 px-1.5 py-0.5 text-[10px] text-slate-300 hover:text-white cursor-pointer"
+                  >
+                    No
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  title="Liberar / eliminar este Pokémon de tus Cajas PC"
+                  onClick={() => setConfirmRelease(true)}
+                  className="inline-flex items-center gap-1 rounded-xl border border-rose-500/35 bg-rose-500/10 px-2.5 py-1.5 text-[11px] font-bold text-rose-200 hover:border-rose-400 hover:bg-rose-500/20 cursor-pointer"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Liberar
+                </button>
+              )
+            )}
         </div>
       </div>
 
       {isGraveyard ? (
         <div className="rounded-2xl border border-rose-500/40 bg-rose-950/30 p-4 text-xs text-rose-200">
-          <p className="font-bold">💀 Descansa en el Cementerio del Exilio (Permadeath)</p>
+          <p className="font-bold">
+            💀 {instance?.nickname ? `${instance.nickname} (${species})` : species} · Descansa en el Cementerio del Exilio (Permadeath)
+          </p>
           {instance?.epitaph && (
-            <p className="mt-1 text-[11px] text-rose-200/80">
-              Cayó en el Turno {instance.epitaph.turn} contra{' '}
-              <strong>{instance.epitaph.rivalName}</strong> en{' '}
-              <em>{instance.epitaph.chapterTitle}</em>.
-            </p>
+            <div className="mt-2 space-y-1 text-[11px] text-rose-200/85">
+              <p>
+                Cayó en el <strong>Turno {instance.epitaph.turn}</strong> en{' '}
+                <em>{instance.epitaph.chapterTitle}</em> frente a{' '}
+                <strong>{instance.epitaph.rivalName}</strong>.
+              </p>
+              {(instance.epitaph.killerSpecies || instance.epitaph.killerMove) && (
+                <p className="text-amber-200/95">
+                  Golpe letal:{' '}
+                  <strong>{instance.epitaph.killerSpecies || instance.epitaph.rivalName}</strong>{' '}
+                  usó <strong>{instance.epitaph.killerMove || 'un golpe fatal'}</strong>.
+                </p>
+              )}
+            </div>
           )}
         </div>
       ) : (
         <div className="space-y-4">
-          {/* Free-Mode Core Build Selectors: Ability, Nature, Tera Type */}
+          {/* Showdown Identity Strip: Apodo (Nickname) + Sexo (Gender) + Habilidad + Naturaleza + Teratipo */}
           {mode === 'free' && instance && onUpdateInstanceBuild && !isGen1 && (
-            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-              <div>
-                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  Habilidad
-                </label>
-                <select
-                  value={instance.ability}
-                  onChange={(e) =>
-                    onUpdateInstanceBuild(instance.uid, { ability: e.target.value })
-                  }
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-2.5 py-2 text-xs font-semibold text-white focus:border-amber-400 focus:outline-none"
-                >
-                  {availableAbilities.map((ab) => (
-                    <option key={ab} value={ab}>
-                      {ab}
-                    </option>
-                  ))}
-                </select>
+            <>
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-12">
+                <div className="sm:col-span-4">
+                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Apodo (Nickname)
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={24}
+                    value={instance.nickname ?? ''}
+                    placeholder={instance.species}
+                    onChange={(e) =>
+                      onUpdateInstanceBuild(instance.uid, {
+                        nickname: e.target.value,
+                      })
+                    }
+                    className="w-full rounded-xl border border-slate-700 bg-slate-900 px-2.5 py-2 text-xs font-semibold text-white placeholder-slate-500 focus:border-amber-400 focus:outline-none"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Sexo
+                  </label>
+                  {indexedMeta?.fixedGender ? (
+                    <div className="flex h-[34px] items-center justify-center rounded-xl border border-slate-800 bg-slate-900/60 text-xs font-bold text-slate-400">
+                      {indexedMeta.fixedGender === 'M'
+                        ? '♂ Macho'
+                        : indexedMeta.fixedGender === 'F'
+                          ? '♀ Hembra'
+                          : '— Sin sexo'}
+                    </div>
+                  ) : (
+                    <select
+                      value={instance.gender ?? ''}
+                      onChange={(e) =>
+                        onUpdateInstanceBuild(instance.uid, {
+                          gender: e.target.value as PokemonGender,
+                        })
+                      }
+                      className="w-full rounded-xl border border-slate-700 bg-slate-900 px-2 py-2 text-xs font-semibold text-white focus:border-amber-400 focus:outline-none"
+                    >
+                      <option value="">Aleatorio</option>
+                      <option value="M">♂ Macho</option>
+                      <option value="F">♀ Hembra</option>
+                    </select>
+                  )}
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Habilidad
+                  </label>
+                  <select
+                    value={instance.ability}
+                    onChange={(e) =>
+                      onUpdateInstanceBuild(instance.uid, { ability: e.target.value })
+                    }
+                    className="w-full rounded-xl border border-slate-700 bg-slate-900 px-2 py-2 text-xs font-semibold text-white focus:border-amber-400 focus:outline-none"
+                  >
+                    {availableAbilities.map((ab) => (
+                      <option key={ab} value={ab}>
+                        {ab}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Naturaleza
+                  </label>
+                  <select
+                    value={instance.nature}
+                    onChange={(e) =>
+                      onUpdateInstanceBuild(instance.uid, { nature: e.target.value })
+                    }
+                    className="w-full rounded-xl border border-slate-700 bg-slate-900 px-2 py-2 text-xs font-semibold text-white focus:border-amber-400 focus:outline-none"
+                  >
+                    {NATURES.map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Teratipo
+                  </label>
+                  <select
+                    value={instance.teraType}
+                    onChange={(e) =>
+                      onUpdateInstanceBuild(instance.uid, { teraType: e.target.value })
+                    }
+                    className="w-full rounded-xl border border-slate-700 bg-slate-900 px-2 py-2 text-xs font-semibold text-white focus:border-amber-400 focus:outline-none"
+                  >
+                    {TERA_TYPES.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
-              <div>
-                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  Naturaleza
-                </label>
-                <select
-                  value={instance.nature}
-                  onChange={(e) =>
-                    onUpdateInstanceBuild(instance.uid, { nature: e.target.value })
-                  }
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-2.5 py-2 text-xs font-semibold text-white focus:border-amber-400 focus:outline-none"
-                >
-                  {NATURES.map((n) => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
-                  ))}
-                </select>
+
+              {/* Showdown-Style EVs & IVs Stat Editor */}
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowStatsPanel((v) => !v)}
+                    className="inline-flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-emerald-300 hover:text-emerald-200 cursor-pointer"
+                  >
+                    <BarChart3 className="h-3.5 w-3.5" />
+                    Estadísticas, EVs e IVs (Nv. {level}) · Restantes:{' '}
+                    <span
+                      className={`font-mono-code ${
+                        remainingEvs === 0 ? 'text-amber-300' : 'text-emerald-200'
+                      }`}
+                    >
+                      {remainingEvs}/508
+                    </span>
+                  </button>
+
+                  <div className="flex flex-wrap gap-1">
+                    {(
+                      [
+                        { label: '252 Atk/Spe', evs: { hp: 4, atk: 252, def: 0, spa: 0, spd: 0, spe: 252 } },
+                        { label: '252 SpA/Spe', evs: { hp: 4, atk: 0, def: 0, spa: 252, spd: 0, spe: 252 } },
+                        { label: '252 HP/Def', evs: { hp: 252, atk: 0, def: 252, spa: 0, spd: 4, spe: 0 } },
+                        { label: '252 HP/SpD', evs: { hp: 252, atk: 0, def: 4, spa: 0, spd: 252, spe: 0 } },
+                      ] as const
+                    ).map((preset) => (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        onClick={() =>
+                          onUpdateInstanceBuild(instance.uid, { evs: preset.evs })
+                        }
+                        className="rounded-md border border-slate-700 bg-slate-950 px-1.5 py-0.5 text-[9.5px] font-bold text-slate-300 hover:border-emerald-400/50 hover:text-emerald-200 cursor-pointer"
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onUpdateInstanceBuild(instance.uid, {
+                          ivs: { ...activeIvs, atk: activeIvs.atk === 0 ? 31 : 0 },
+                        })
+                      }
+                      className={`rounded-md border px-1.5 py-0.5 text-[9.5px] font-bold cursor-pointer ${
+                        activeIvs.atk === 0
+                          ? 'border-amber-400/60 bg-amber-500/20 text-amber-200'
+                          : 'border-slate-700 bg-slate-950 text-slate-300 hover:text-amber-200'
+                      }`}
+                    >
+                      0 Atk IV
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onUpdateInstanceBuild(instance.uid, {
+                          ivs: { ...activeIvs, spe: activeIvs.spe === 0 ? 31 : 0 },
+                        })
+                      }
+                      className={`rounded-md border px-1.5 py-0.5 text-[9.5px] font-bold cursor-pointer ${
+                        activeIvs.spe === 0
+                          ? 'border-violet-400/60 bg-violet-500/20 text-violet-200'
+                          : 'border-slate-700 bg-slate-950 text-slate-300 hover:text-violet-200'
+                      }`}
+                    >
+                      0 Spe IV
+                    </button>
+                  </div>
+                </div>
+
+                {showStatsPanel && (
+                  <div className="mt-2.5 space-y-1.5">
+                    <div className="grid grid-cols-12 items-center gap-1.5 px-1 text-[9.5px] font-bold uppercase tracking-wider text-slate-500">
+                      <span className="col-span-2">Stat (Base)</span>
+                      <span className="col-span-3">Barra</span>
+                      <span className="col-span-4 text-center">EVs (0–252)</span>
+                      <span className="col-span-2 text-center">IV (0–31)</span>
+                      <span className="col-span-1 text-right">Total</span>
+                    </div>
+                    {STAT_META.map(({ key, label }) => {
+                      const baseVal = indexedMeta?.baseStats[key] ?? 80;
+                      const evVal = activeEvs[key];
+                      const ivVal = activeIvs[key];
+                      const finalVal = calculatedStats[key];
+                      const isPlus = natureMods.plus === key;
+                      const isMinus = natureMods.minus === key;
+                      const maxForThisStat = Math.min(252, evVal + remainingEvs);
+
+                      const setEv = (rawNext: number) => {
+                        const clamped = Math.max(
+                          0,
+                          Math.min(maxForThisStat, Math.floor(rawNext))
+                        );
+                        onUpdateInstanceBuild(instance.uid, {
+                          evs: { ...activeEvs, [key]: clamped },
+                        });
+                      };
+                      const setIv = (rawNext: number) => {
+                        const clamped = Math.max(
+                          0,
+                          Math.min(31, Math.floor(rawNext))
+                        );
+                        onUpdateInstanceBuild(instance.uid, {
+                          ivs: { ...activeIvs, [key]: clamped },
+                        });
+                      };
+
+                      return (
+                        <div
+                          key={key}
+                          className="grid grid-cols-12 items-center gap-1.5 rounded-lg bg-slate-950/70 px-1.5 py-1"
+                        >
+                          <div className="col-span-2 flex items-center gap-1 text-[11px] font-bold">
+                            <span
+                              className={
+                                isPlus
+                                  ? 'text-rose-300'
+                                  : isMinus
+                                    ? 'text-sky-300'
+                                    : 'text-slate-200'
+                              }
+                            >
+                              {label}
+                              {isPlus ? '+' : isMinus ? '-' : ''}
+                            </span>
+                            <span className="font-mono-code text-[9.5px] text-slate-500">
+                              {baseVal}
+                            </span>
+                          </div>
+                          <div className="col-span-3">
+                            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
+                              <div
+                                className={`h-full transition-all ${getStatBarColor(finalVal)}`}
+                                style={{
+                                  width: `${Math.min(100, Math.round((finalVal / 450) * 100))}%`,
+                                }}
+                              />
+                            </div>
+                          </div>
+                          <div className="col-span-4 flex items-center gap-1.5">
+                            <input
+                              type="range"
+                              min={0}
+                              max={252}
+                              step={4}
+                              value={evVal}
+                              onChange={(e) => setEv(Number(e.target.value))}
+                              className="h-1.5 w-full accent-emerald-400 cursor-pointer"
+                            />
+                            <input
+                              type="number"
+                              min={0}
+                              max={252}
+                              value={evVal}
+                              onChange={(e) => setEv(Number(e.target.value))}
+                              className="font-mono-code w-12 rounded border border-slate-700 bg-slate-900 px-1 py-0.5 text-center text-[10.5px] font-bold text-emerald-200 focus:border-emerald-400 focus:outline-none"
+                            />
+                          </div>
+                          <div className="col-span-2 flex justify-center">
+                            <input
+                              type="number"
+                              min={0}
+                              max={31}
+                              value={ivVal}
+                              onChange={(e) => setIv(Number(e.target.value))}
+                              className="font-mono-code w-12 rounded border border-slate-700 bg-slate-900 px-1 py-0.5 text-center text-[10.5px] font-bold text-amber-200 focus:border-amber-400 focus:outline-none"
+                            />
+                          </div>
+                          <span className="col-span-1 text-right font-mono-code text-[11px] font-extrabold text-white">
+                            {finalVal}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-              <div>
-                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  Teratipo
-                </label>
-                <select
-                  value={instance.teraType}
-                  onChange={(e) =>
-                    onUpdateInstanceBuild(instance.uid, { teraType: e.target.value })
-                  }
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-2.5 py-2 text-xs font-semibold text-white focus:border-amber-400 focus:outline-none"
-                >
-                  {TERA_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+            </>
           )}
 
           {/* Held Item Selector */}

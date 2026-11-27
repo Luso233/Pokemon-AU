@@ -11,6 +11,7 @@ import type {
   OwnedPokemonInstance,
   PlayerSaveProfile,
   PokemonStorageZone,
+  SavedCampaignTeam,
 } from '../types/game';
 import { PcBoxManager } from './PcBoxManager';
 
@@ -22,6 +23,9 @@ interface TeamEditorViewProps {
     uid: string,
     targetZone: Exclude<PokemonStorageZone, 'graveyard'>
   ) => { ok: boolean; error?: string };
+  onReleaseInstance: (
+    uid: string
+  ) => { ok: boolean; error?: string; releasedSpecies?: string };
   onEquipInstanceItem: (
     uid: string,
     itemName: string
@@ -31,7 +35,15 @@ interface TeamEditorViewProps {
     patch: Partial<
       Pick<
         OwnedPokemonInstance,
-        'ability' | 'nature' | 'teraType' | 'moves' | 'shiny' | 'nickname'
+        | 'ability'
+        | 'nature'
+        | 'teraType'
+        | 'moves'
+        | 'shiny'
+        | 'nickname'
+        | 'gender'
+        | 'evs'
+        | 'ivs'
       >
     >
   ) => { ok: boolean; error?: string };
@@ -49,9 +61,23 @@ interface TeamEditorViewProps {
     placedZone?: 'party' | 'box';
     swappedOutSpecies?: string;
   };
+  onPopulateLivingDexBox: () => { addedCount: number; totalLiving: number };
   onImportShowdownPaste: (
     rawPaste: string
   ) => { ok: boolean; error?: string; importedCount: number };
+  onSaveCampaignTeam: (
+    name: string
+  ) => { ok: boolean; error?: string; team?: SavedCampaignTeam };
+  onLoadCampaignTeam: (
+    teamId: string,
+    allowSpawnMissing?: boolean
+  ) => {
+    ok: boolean;
+    error?: string;
+    loadedCount: number;
+    missingSpecies: string[];
+  };
+  onDeleteCampaignTeam: (teamId: string) => void;
   onToggleUseCustomTeam: (enabled: boolean) => void;
 }
 
@@ -65,11 +91,16 @@ export const TeamEditorView: React.FC<TeamEditorViewProps> = ({
   onBackHome,
   onOpenShop,
   onMoveInstanceZone,
+  onReleaseInstance,
   onEquipInstanceItem,
   onUpdateInstanceBuild,
   onUnlockMoveSlot,
   onSpawnDevSpecimen,
+  onPopulateLivingDexBox,
   onImportShowdownPaste,
+  onSaveCampaignTeam,
+  onLoadCampaignTeam,
+  onDeleteCampaignTeam,
   onToggleUseCustomTeam,
 }) => {
   const activeShinies = profile.pokemonBox.filter(
@@ -148,11 +179,16 @@ export const TeamEditorView: React.FC<TeamEditorViewProps> = ({
         <PcBoxManager
           profile={profile}
           onMoveInstanceZone={onMoveInstanceZone}
+          onReleaseInstance={onReleaseInstance}
           onEquipInstanceItem={onEquipInstanceItem}
           onUpdateInstanceBuild={onUpdateInstanceBuild}
           onUnlockMoveSlot={onUnlockMoveSlot}
           onSpawnDevSpecimen={onSpawnDevSpecimen}
+          onPopulateLivingDexBox={onPopulateLivingDexBox}
           onImportShowdownPaste={onImportShowdownPaste}
+          onSaveCampaignTeam={onSaveCampaignTeam}
+          onLoadCampaignTeam={onLoadCampaignTeam}
+          onDeleteCampaignTeam={onDeleteCampaignTeam}
           onOpenShop={onOpenShop}
         />
       </div>

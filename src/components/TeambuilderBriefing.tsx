@@ -8,6 +8,7 @@ import {
   ChevronDown,
   ChevronUp,
   ClipboardList,
+  ClipboardPaste,
   Code2,
   Coins,
   Dices,
@@ -19,6 +20,7 @@ import {
   ShieldAlert,
   Swords,
   Wrench,
+  Zap,
 } from 'lucide-react';
 import { CHAPTERS } from '../data/chapters';
 import { getDiabloScoutingAlertsForChapter } from '../data/difficultyOverrides';
@@ -52,6 +54,7 @@ import type {
   PlayerSaveProfile,
   PokemonStorageZone,
   ResolvedBattleConfig,
+  SavedCampaignTeam,
 } from '../types/game';
 import { CharacterPortrait } from './CharacterPortrait';
 import { OpenTeamsheetModal } from './OpenTeamsheetModal';
@@ -85,6 +88,9 @@ interface TeambuilderBriefingProps {
     uid: string,
     targetZone: Exclude<PokemonStorageZone, 'graveyard'>
   ) => { ok: boolean; error?: string };
+  onReleaseInstance: (
+    uid: string
+  ) => { ok: boolean; error?: string; releasedSpecies?: string };
   onEquipInstanceItem: (
     uid: string,
     itemName: string
@@ -94,7 +100,15 @@ interface TeambuilderBriefingProps {
     patch: Partial<
       Pick<
         OwnedPokemonInstance,
-        'ability' | 'nature' | 'teraType' | 'moves' | 'shiny' | 'nickname'
+        | 'ability'
+        | 'nature'
+        | 'teraType'
+        | 'moves'
+        | 'shiny'
+        | 'nickname'
+        | 'gender'
+        | 'evs'
+        | 'ivs'
       >
     >
   ) => { ok: boolean; error?: string };
@@ -108,9 +122,23 @@ interface TeambuilderBriefingProps {
     placedZone?: 'party' | 'box';
     swappedOutSpecies?: string;
   };
+  onPopulateLivingDexBox: () => { addedCount: number; totalLiving: number };
   onImportShowdownPaste: (
     rawPaste: string
   ) => { ok: boolean; error?: string; importedCount: number };
+  onSaveCampaignTeam: (
+    name: string
+  ) => { ok: boolean; error?: string; team?: SavedCampaignTeam };
+  onLoadCampaignTeam: (
+    teamId: string,
+    allowSpawnMissing?: boolean
+  ) => {
+    ok: boolean;
+    error?: string;
+    loadedCount: number;
+    missingSpecies: string[];
+  };
+  onDeleteCampaignTeam: (teamId: string) => void;
   onLaunchBattle: (finalConfig: ResolvedBattleConfig) => void;
 }
 
@@ -129,10 +157,15 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
   onSetCustomItem,
   onResetSpecies,
   onMoveInstanceZone,
+  onReleaseInstance,
   onEquipInstanceItem,
   onUpdateInstanceBuild,
   onSpawnDevSpecimen,
+  onPopulateLivingDexBox,
   onImportShowdownPaste,
+  onSaveCampaignTeam,
+  onLoadCampaignTeam,
+  onDeleteCampaignTeam,
   onLaunchBattle,
 }) => {
   const isGen1 = getFormatGeneration(config.formatId) === 1;
@@ -144,12 +177,19 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
     chapterMeta?.teamMode ??
     (effectiveTeamPolicy === 'editable' ? 'campaign' : 'locked');
 
-  // Dev Mode lets you test ANY chapter with custom PC / Showdown-imported compositions!
+  const [difficultyMode, setDifficultyMode] = useState<BattleDifficultyMode>(
+    config.difficultyMode ?? profile.defaultDifficulty ?? 'kaizo'
+  );
+  const isBabyMode = difficultyMode === 'baby';
+  const canQuickPasteOnSpot = isBabyMode || profile.devModeEnabled;
+
+  // Baby Mode & Dev Mode let you test ANY chapter with custom PC / Showdown-imported compositions!
   const canSwapCustomTeam =
     profile.customTeam.length > 0 &&
     !config.emptyPlayerSlots?.length &&
     !config.persistedPartyState &&
     (profile.devModeEnabled ||
+      isBabyMode ||
       (effectiveTeamMode === 'campaign' &&
         config.formatId !== 'gen1customgame' &&
         config.formatId !== 'gen6triplescustomgame' &&
@@ -160,6 +200,8 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
   const [useCustomTeam, setUseCustomTeam] = useState(
     Boolean(canSwapCustomTeam && profile.useCustomTeamInStory)
   );
+  const [showQuickPasteBox, setShowQuickPasteBox] = useState(false);
+  const [quickPasteDraft, setQuickPasteDraft] = useState('');
 
   // Keep embedded PC Box view synced whenever Dev Lab spawn / Showdown import enables custom team!
   useEffect(() => {
@@ -187,9 +229,6 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
   const [showRivalDebugPaste, setShowRivalDebugPaste] = useState(false);
   const [rivalPaste, setRivalPaste] = useState(config.rivalShowdownPaste);
   const [showTeamsheet, setShowTeamsheet] = useState(false);
-  const [difficultyMode, setDifficultyMode] = useState<BattleDifficultyMode>(
-    config.difficultyMode ?? profile.defaultDifficulty ?? 'kaizo'
-  );
   const [selectedVariantId, setSelectedVariantId] = useState<string>(
     config.selectedVariantId ?? 'canonical'
   );
@@ -344,11 +383,10 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
     });
   };
 
-  const handleStart = () => {
-    if (!isValid) return;
+  const launchWithPaste = (playerPasteToUse: string) => {
     const baseWithPlayer: ResolvedBattleConfig = {
       ...config,
-      playerShowdownPaste: effectivePlayerPaste,
+      playerShowdownPaste: playerPasteToUse,
       rivalShowdownPaste:
         showRivalDebugPaste && rivalPaste !== config.rivalShowdownPaste
           ? rivalPaste
@@ -360,6 +398,89 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
       selectedVariantId
     );
     onLaunchBattle(finalWithNpc);
+  };
+
+  const handleStart = () => {
+    if (!isValid) return;
+    launchWithPaste(effectivePlayerPaste);
+  };
+
+  const applyShowdownPasteOnSpot = (rawText: string, launchNow: boolean) => {
+    const trimmed = rawText.trim();
+    if (!trimmed) {
+      setNotice({
+        tone: 'err',
+        text: 'Pega un equipo válido en formato de texto de Pokémon Showdown.',
+      });
+      return;
+    }
+    let parsed: ReturnType<typeof Teams.import> = null;
+    try {
+      parsed = Teams.import(trimmed);
+    } catch {
+      parsed = null;
+    }
+    const validSets = (parsed ?? []).filter((s) => Dex.species.get(s.species).exists);
+    if (validSets.length === 0) {
+      setNotice({
+        tone: 'err',
+        text: 'No se reconoció ningún Pokémon válido en ese Paste de Showdown.',
+      });
+      return;
+    }
+    const cleanPaste = Teams.export(validSets.slice(0, 6)).trim();
+    if (launchNow) {
+      onImportShowdownPaste(cleanPaste);
+      launchWithPaste(cleanPaste);
+      return;
+    }
+    const imp = onImportShowdownPaste(cleanPaste);
+    if (imp.ok) {
+      setManualPasteOverride(null);
+      setUseCustomTeam(true);
+      onToggleUseCustomTeam?.(true);
+      setQuickPasteDraft('');
+      setShowQuickPasteBox(false);
+      setNotice({
+        tone: 'ok',
+        text: `⚡ ¡${imp.importedCount} Pokémon importados desde Showdown listos para este capítulo!`,
+      });
+    } else {
+      setManualPasteOverride(cleanPaste);
+      setNotice({
+        tone: 'ok',
+        text: `⚡ Equipo Showdown cargado on-the-spot (${validSets.length} Pokémon).`,
+      });
+    }
+  };
+
+  const handleClipboardAction = async (launchNow: boolean) => {
+    try {
+      if (!navigator.clipboard || !navigator.clipboard.readText) {
+        setShowQuickPasteBox(true);
+        setNotice({
+          tone: 'err',
+          text: 'Tu navegador no permite leer el portapapeles directo. Usa Ctrl+V en el cuadro rápido de abajo.',
+        });
+        return;
+      }
+      const clipText = await navigator.clipboard.readText();
+      if (!clipText.trim()) {
+        setShowQuickPasteBox(true);
+        setNotice({
+          tone: 'err',
+          text: 'El portapapeles está vacío. Copia primero un equipo en formato Pokémon Showdown.',
+        });
+        return;
+      }
+      applyShowdownPasteOnSpot(clipText, launchNow);
+    } catch {
+      setShowQuickPasteBox(true);
+      setNotice({
+        tone: 'err',
+        text: 'Permiso de portapapeles bloqueado. Pega el equipo con Ctrl+V en el cuadro rápido de abajo.',
+      });
+    }
   };
 
   return (
@@ -542,6 +663,84 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                 )}
               </div>
 
+              {/* BABY MODE / DEV MODE: Instant Showdown Paste & Direct Clipboard Launch Bar! */}
+              {canQuickPasteOnSpot && (
+                <div className="mb-4 rounded-2xl border border-sky-400/45 bg-gradient-to-r from-sky-950/60 via-slate-950/90 to-fuchsia-950/40 p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-xs font-extrabold text-sky-200">
+                        {isBabyMode
+                          ? '👶 Baby Mode · Paste Showdown On-The-Spot'
+                          : '🧪 Dev Mode · Paste Showdown On-The-Spot'}
+                      </p>
+                      <p className="text-[10.5px] text-slate-300">
+                        Trae el equipo que se te dé la gana directo desde el portapapeles en formato Pokémon Showdown y arranca el capítulo al instante.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => void handleClipboardAction(false)}
+                        className="inline-flex items-center gap-1 rounded-xl border border-sky-400/55 bg-sky-500/20 px-3 py-1.5 text-[11px] font-extrabold text-sky-100 hover:bg-sky-500/35 cursor-pointer"
+                      >
+                        <ClipboardPaste className="h-3.5 w-3.5" />
+                        Pegar del Portapapeles
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleClipboardAction(true)}
+                        className="inline-flex items-center gap-1 rounded-xl bg-gradient-to-r from-sky-400 to-amber-400 px-3 py-1.5 text-[11px] font-extrabold text-slate-950 shadow-md shadow-sky-500/20 hover:brightness-110 cursor-pointer"
+                      >
+                        <Zap className="h-3.5 w-3.5 fill-current" />
+                        Pegar y Jugar Ya!
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowQuickPasteBox((v) => !v)}
+                        className="rounded-xl border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-[10.5px] font-bold text-slate-300 hover:text-white cursor-pointer"
+                      >
+                        {showQuickPasteBox ? 'Cerrar cuadro' : 'Pegar texto manual'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {showQuickPasteBox && (
+                    <div className="mt-2.5 space-y-2 border-t border-sky-400/20 pt-2.5">
+                      <textarea
+                        value={quickPasteDraft}
+                        onChange={(e) => setQuickPasteDraft(e.target.value)}
+                        rows={5}
+                        placeholder="Pega aquí tu equipo de Pokémon Showdown (Ctrl+V)..."
+                        className="font-mono-code w-full rounded-xl border border-sky-400/40 bg-black/75 p-2.5 text-[11px] text-slate-100 placeholder-slate-500 focus:border-sky-300 focus:outline-none"
+                      />
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <button
+                          type="button"
+                          disabled={!quickPasteDraft.trim()}
+                          onClick={() =>
+                            applyShowdownPasteOnSpot(quickPasteDraft, false)
+                          }
+                          className="rounded-xl border border-sky-400/50 bg-sky-500/20 px-3 py-1.5 text-[11px] font-extrabold text-sky-100 hover:bg-sky-500/30 disabled:opacity-40 cursor-pointer"
+                        >
+                          Cargar en este Capítulo
+                        </button>
+                        <button
+                          type="button"
+                          disabled={!quickPasteDraft.trim()}
+                          onClick={() =>
+                            applyShowdownPasteOnSpot(quickPasteDraft, true)
+                          }
+                          className="inline-flex items-center gap-1 rounded-xl bg-amber-400 px-3 py-1.5 text-[11px] font-extrabold text-slate-950 hover:brightness-110 disabled:opacity-40 cursor-pointer"
+                        >
+                          <Zap className="h-3.5 w-3.5 fill-current" />
+                          Usar y Jugar Ya!
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* EMBEDDED <PcBoxManager /> when Using Custom PC Team! */}
               {useCustomTeam && canSwapCustomTeam ? (
                 <PcBoxManager
@@ -550,11 +749,16 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                   embedded
                   formatId={config.formatId}
                   onMoveInstanceZone={onMoveInstanceZone}
+                  onReleaseInstance={onReleaseInstance}
                   onEquipInstanceItem={onEquipInstanceItem}
                   onUpdateInstanceBuild={onUpdateInstanceBuild}
                   onUnlockMoveSlot={onUnlockMoveSlot}
                   onSpawnDevSpecimen={onSpawnDevSpecimen}
+                  onPopulateLivingDexBox={onPopulateLivingDexBox}
                   onImportShowdownPaste={onImportShowdownPaste}
+                  onSaveCampaignTeam={onSaveCampaignTeam}
+                  onLoadCampaignTeam={onLoadCampaignTeam}
+                  onDeleteCampaignTeam={onDeleteCampaignTeam}
                   onOpenShop={onOpenShop}
                   onNotice={setNotice}
                 />

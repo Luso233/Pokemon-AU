@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   Coins,
   FlaskConical,
+  PackagePlus,
   RotateCcw,
   ShieldAlert,
   Sparkles,
@@ -20,6 +21,7 @@ interface DevModeModalProps {
   profile: PlayerSaveProfile;
   onUnlockEverything: () => void;
   onUnlockFullAgPokedex: () => void;
+  onPopulateLivingDexBox?: () => { addedCount: number; totalLiving: number };
   onAddMillionCoins: () => void;
   onToggleDevMode: (enabled: boolean) => void;
   onResetStoryProgress: () => void;
@@ -31,6 +33,7 @@ export const DevModeModal: React.FC<DevModeModalProps> = ({
   profile,
   onUnlockEverything,
   onUnlockFullAgPokedex,
+  onPopulateLivingDexBox,
   onAddMillionCoins,
   onToggleDevMode,
   onResetStoryProgress,
@@ -128,6 +131,33 @@ export const DevModeModal: React.FC<DevModeModalProps> = ({
               </div>
             </div>
           </button>
+
+          {/* Action 1B: Populate 1 of EVERY playable species into Reserve Box (Living Dex!) */}
+          {onPopulateLivingDexBox && (
+            <button
+              type="button"
+              onClick={() => {
+                const res = onPopulateLivingDexBox();
+                setConfirmReset(false);
+                setFeedback(
+                  `📦 ¡Living Dex completo cargado! Se agregaron ${res.addedCount} especies nuevas a tu Caja de Reserva (Total vivos en tus Cajas: ${res.totalLiving}). Usa el buscador estilo Showdown para filtrar por Tipo, Habilidad, Movimiento o Tier.`
+                );
+              }}
+              className="flex w-full items-center justify-between gap-3 rounded-2xl border border-emerald-400/50 bg-emerald-500/15 px-4 py-2.5 text-left text-emerald-100 transition hover:bg-emerald-500/25 cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <PackagePlus className="h-4 w-4 shrink-0 text-emerald-300" />
+                <div>
+                  <p className="text-xs font-extrabold">
+                    Agregar 1 de cada especie a mi Caja (Living Dex · {totalAgSpecies})
+                  </p>
+                  <p className="text-[10px] text-emerald-200/80">
+                    Llena tu Caja de Reserva con un ejemplar jugable de cada especie (paginado + búsqueda indexada instantánea)
+                  </p>
+                </div>
+              </div>
+            </button>
+          )}
 
           {/* Action 2: Unlock Everything */}
           <button

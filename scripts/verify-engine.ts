@@ -39,6 +39,7 @@ import {
   addDevCoins,
   applyBattleOutcomeToProfile,
   applyChapterProgressionToPaste,
+  applyDevPopulateAllSpeciesToBox,
   applyDevUnlockEverything,
   applyDevUnlockFullAgPokedex,
   awardArcadeCoins,
@@ -48,11 +49,13 @@ import {
   completeRomanceRank,
   createDefaultProfile,
   createNewConfiguredRunProfile,
+  deleteSavedCampaignTeam,
   equipItemOnInstance,
   harvestCampBerry,
   importShowdownPasteToParty,
   isChapterUnlocked,
   isMoveSlotUnlocked,
+  loadSavedCampaignTeam,
   movePokemonInstanceZone,
   normalizeProfile,
   plantCampBerry,
@@ -61,7 +64,9 @@ import {
   purchaseShinyCharm,
   purchaseTM,
   recordPostBattleSurvivalState,
+  releasePokemonInstance,
   resetStoryProgress,
+  saveCurrentPartyAsTeam,
   setCustomItemForSpecies,
   setCustomMoveForSpecies,
   spawnDevAgSpecimen,
@@ -110,6 +115,12 @@ import {
   getNpcDefinition,
   getVariantsForChapterNpc,
 } from '../src/data/npcProfiles';
+import {
+  calculatePokemonStats,
+  getIndexedSpeciesMeta,
+  matchesShowdownFilters,
+  queryShowdownSuggestions,
+} from '../src/engine/showdownSearchIndex';
 import { createRivalBattleController } from '../src/engine/tacticalAI';
 import {
   CAMPAIGN_DOUBLES_FORMAT_ID,
@@ -2276,7 +2287,193 @@ Timid Nature
     `  OK: Standardized NatDex Custom (Mega-Charizard Y + Shedinja Tera Electric + Rayquaza-Mega Lv.130 Poder Z + Eternamax Lv.130 in ONE battle), 3-Mode Loadouts (5 Campaign / 6 Locked / 5 Challenge) & Dev Party Auto-Swap + Reload Persistence ALL VERIFIED!`
   );
 
-  console.log('\nALL 25 ENGINE, MAP, ROMANCE, POKÉROGUE RUN, DOUBLE-ZOROARK, SMOGON ECONOMY & NATDEX ECOSYSTEM SUITES PASSED!');
+  /* ===================== 26. Showdown Indexed Search, Full EV/IV/Gender/Nickname Editor, Release, Living Dex, Saved Teams & Nuzlocke Forensic Death Log ===================== */
+  console.log('\n=== 26. Showdown Indexed Search, EV/IV/Gender/Nickname, Release, Living Dex, Saved Teams & Nuzlocke Death Log ===');
+
+  // 1) Full Editor (Apodo, Sexo, EVs 508-cap, IVs 0..31, Level 100 stat calc & Showdown Paste round-trip!)
+  let prof26 = createDefaultProfile('ShowdownPro', 'pro@galar.com');
+  const arc26 = prof26.pokemonBox.find((m) => m.zone === 'party' && m.species === 'Arcanine');
+  if (!arc26) throw new Error('Expected starter Arcanine in Suite 26!');
+  const editBuildRes = updatePokemonInstanceBuild(prof26, arc26.uid, {
+    nickname: 'Solarius',
+    gender: 'M',
+    nature: 'Adamant',
+    evs: { hp: 252, atk: 252, def: 4, spa: 100, spd: 0, spe: 0 }, // 608 requested -> MUST clamp cleanly to 508!
+    ivs: { hp: 31, atk: 31, def: 31, spa: 0, spd: 31, spe: 0 },
+  });
+  if (!editBuildRes.ok) throw new Error(`Expected EV/IV/Nickname/Gender build edit to succeed: ${editBuildRes.error}`);
+  prof26 = editBuildRes.nextProfile;
+  const editedArc = prof26.pokemonBox.find((m) => m.uid === arc26.uid)!;
+  const sumEvs = Object.values(editedArc.evs ?? {}).reduce((a, b) => a + (b ?? 0), 0);
+  if (
+    editedArc.nickname !== 'Solarius' ||
+    editedArc.gender !== 'M' ||
+    sumEvs !== 508 ||
+    editedArc.ivs?.spa !== 0 ||
+    editedArc.ivs?.spe !== 0
+  ) {
+    throw new Error(`EV/IV/Nickname/Gender clamp mismatch: ${JSON.stringify(editedArc)}`);
+  }
+  const compiled26 = compileCustomTeamToShowdownPaste(prof26.customTeam, 100);
+  if (
+    !compiled26.includes('Solarius (Arcanine) (M)') ||
+    !compiled26.includes('EVs: 252 HP / 252 Atk / 4 Def') ||
+    !compiled26.includes('IVs: 0 SpA / 0 Spe')
+  ) {
+    throw new Error(`Expected compiled Showdown paste to include Nickname, Gender, EVs & IVs:\n${compiled26}`);
+  }
+  // Verify exact Level 100 stat calculation (252 HP / 252 Atk Adamant Arcanine: HP=384, Atk=350)
+  const calcArc = calculatePokemonStats('Arcanine', 100, 'Adamant', editedArc.evs, editedArc.ivs);
+  if (calcArc.hp !== 384 || calcArc.atk !== 350) {
+    throw new Error(`Unexpected Level 100 stat calculation for Arcanine: ${JSON.stringify(calcArc)}`);
+  }
+  // Verify genderless species lock (Falinks -> fixedGender='N')
+  if (getIndexedSpeciesMeta('Falinks').fixedGender !== 'N') {
+    throw new Error('Expected Falinks fixedGender to be "N" (genderless)!');
+  }
+
+  // 2) Multiple Saved Campaign Teams Library (Save -> Modify -> Reload Team -> Delete!)
+  const saveT1 = saveCurrentPartyAsTeam(prof26, 'Escuadra Solarius');
+  if (!saveT1.ok || !saveT1.team || (saveT1.nextProfile.savedTeams?.length ?? 0) !== 1) {
+    throw new Error('Expected saveCurrentPartyAsTeam to persist team!');
+  }
+  prof26 = saveT1.nextProfile;
+
+  // 3) Release Pokémon (`releasePokemonInstance`) + guard against releasing last party member
+  const rotom26 = prof26.pokemonBox.find((m) => m.zone === 'party' && m.species === 'Rotom');
+  if (!rotom26) throw new Error('Expected Rotom in starter party!');
+  const relRes = releasePokemonInstance(prof26, rotom26.uid);
+  if (!relRes.ok || relRes.nextProfile.pokemonBox.some((m) => m.uid === rotom26.uid)) {
+    throw new Error('Expected releasePokemonInstance to remove Rotom cleanly!');
+  }
+  prof26 = relRes.nextProfile;
+  // Reload saved team in normal mode -> Rotom was released so missingSpecies=['Rotom'] & 5 loaded cleanly!
+  const loadT1 = loadSavedCampaignTeam(prof26, saveT1.team.id);
+  if (!loadT1.ok || loadT1.loadedCount !== 5 || !loadT1.missingSpecies.includes('Rotom')) {
+    throw new Error(`Expected loadSavedCampaignTeam to report missing Rotom and load 5 alive: ${JSON.stringify(loadT1)}`);
+  }
+  // Reload saved team in Baby Mode (`allowSpawnMissing: true`) -> restores all 6 from saved Showdown paste!
+  const loadT1Baby = loadSavedCampaignTeam(prof26, saveT1.team.id, { allowSpawnMissing: true });
+  if (!loadT1Baby.ok || loadT1Baby.loadedCount !== 6 || !loadT1Baby.nextProfile.pokemonBox.some((m) => m.zone === 'party' && m.nickname === 'Solarius' && m.gender === 'M')) {
+    throw new Error(`Expected Baby Mode team reload to restore all 6 with nickname/gender intact: ${JSON.stringify(loadT1Baby)}`);
+  }
+  prof26 = deleteSavedCampaignTeam(loadT1Baby.nextProfile, saveT1.team.id);
+  if ((prof26.savedTeams?.length ?? 0) !== 0) {
+    throw new Error('Expected deleteSavedCampaignTeam to remove saved team!');
+  }
+
+  // 4) Nuzlocke Forensic Death Log (`faintLog` -> `epitaph` + `nuzlockeDeathLog`!)
+  let nuzProf = toggleRunModifiers(prof26, { nuzlockePermadeath: true, ironmanMode: true, defaultDifficulty: 'nightmare' });
+  const fakeExport = {
+    sourceBattleId: 'ch2-banquet-ambush',
+    capturedAtTurn: 6,
+    pokemon: [
+      {
+        species: 'Arcanine',
+        name: 'Solarius',
+        hp: 0,
+        maxhp: 384,
+        fainted: true,
+        status: '' as const,
+        moveSlots: [],
+        ppByMoveId: {},
+      },
+    ],
+  };
+  nuzProf = recordPostBattleSurvivalState(nuzProf, fakeExport, false, {
+    chapterId: 'ch2-banquet-ambush',
+    chapterTitle: 'Emboscada en la Cena de Estado',
+    rivalName: 'El Hombre Rata',
+    turn: 6,
+    difficulty: 'nightmare',
+    faintLog: [
+      {
+        attackerSpecies: 'Zoroark-Hisui',
+        moveName: 'Bitter Malice',
+        victimSpecies: 'Arcanine',
+        turn: 6,
+        rivalName: 'El Hombre Rata',
+      },
+    ],
+  });
+  const fallenArc = nuzProf.pokemonBox.find((m) => m.zone === 'graveyard' && m.species === 'Arcanine');
+  const deathEntry = nuzProf.nuzlockeDeathLog?.[0];
+  if (
+    !fallenArc?.epitaph ||
+    fallenArc.epitaph.killerSpecies !== 'Zoroark-Hisui' ||
+    fallenArc.epitaph.killerMove !== 'Bitter Malice' ||
+    !deathEntry ||
+    deathEntry.nickname !== 'Solarius' ||
+    deathEntry.chapterTitle !== 'Emboscada en la Cena de Estado' ||
+    deathEntry.turn !== 6
+  ) {
+    throw new Error(`Expected forensic Nuzlocke Death Log & Epitaph, got epitaph=${JSON.stringify(fallenArc?.epitaph)}, log=${JSON.stringify(deathEntry)}`);
+  }
+  // Nuzlocke memorial cannot be released outside Dev Mode!
+  const blockedRel = releasePokemonInstance(nuzProf, fallenArc.uid);
+  if (blockedRel.ok) {
+    throw new Error('Expected Nuzlocke Graveyard memorial release to be blocked outside Dev Mode!');
+  }
+
+  // 5) Dev Living Dex (1 of EVERY playable species into Reserve Box) + Showdown-Style Indexed Search Engine!
+  const ldexRes = applyDevPopulateAllSpeciesToBox(createDefaultProfile('LivingDexDev', 'ldex@galar.com'));
+  if (ldexRes.addedCount < 1000 || ldexRes.totalLiving < 1200) {
+    throw new Error(`Expected Living Dex to populate >=1200 living species in Box, got added=${ldexRes.addedCount}, total=${ldexRes.totalLiving}`);
+  }
+  const sugFigh = queryShowdownSuggestions('figh', []);
+  if (!sugFigh.types.some((t) => t.name === 'Fighting')) {
+    throw new Error(`Expected Showdown autocomplete for "figh" to suggest Type Fighting: ${JSON.stringify(sugFigh)}`);
+  }
+  const fastFighters = ldexRes.nextProfile.pokemonBox.filter((inst) =>
+    matchesShowdownFilters(
+      inst.species,
+      'spe>=110',
+      [
+        { kind: 'type', value: 'Fighting', label: 'Tipo: Fighting' },
+        { kind: 'move', value: 'Close Combat', label: 'Mov: Close Combat' },
+      ],
+      inst
+    )
+  );
+  if (
+    fastFighters.length === 0 ||
+    !fastFighters.some((m) => m.species === 'Marshadow' || m.species === 'Koraidon' || m.species === 'Hawlucha' || m.species === 'Infernape')
+  ) {
+    throw new Error(`Expected Showdown indexed filter (Fighting + Close Combat + spe>=110) to find fast Fighters, got ${fastFighters.length}`);
+  }
+
+  // 6) Regression test: 1-Pokémon solo Showdown Paste (Falinks) launched directly into a 6v6 Doubles NatDex battle MUST auto-pad hidden Slot 2 & run cleanly!
+  const soloFalinksCfg = {
+    ...resolveChapter1ChaseBattle({}),
+    playerShowdownPaste: `Falinks @ Assault Vest
+Ability: Battle Armor
+Level: 100
+Tera Type: Fighting
+EVs: 252 HP / 252 Atk / 4 SpD
+Adamant Nature
+- No Retreat
+- Close Combat
+- Megahorn
+- First Impression`,
+  };
+  const { turn1Snap: soloT1 } = await runFullSimMatch(
+    'Solo 1-Pokémon Falinks Paste in NatDex Doubles',
+    soloFalinksCfg,
+    { maxTurns: 6 }
+  );
+  if (
+    !soloT1 ||
+    soloT1.p1.active[0]?.species !== 'Falinks' ||
+    !soloT1.emptyPlayerSlots?.includes(1)
+  ) {
+    throw new Error(`Expected solo 1-Pokémon Falinks Doubles auto-pad to succeed, got active0=${soloT1?.p1.active[0]?.species}, empty=${JSON.stringify(soloT1?.emptyPlayerSlots)}`);
+  }
+
+  console.log(
+    `  OK: Showdown Editor (Solarius M · 508-clamped EVs · IVs · L100 HP=384/Atk=350), Release Guard, Saved Teams Library, Nuzlocke Forensic Death Log (Solarius KO'd T6 by Zoroark-Hisui's Bitter Malice), Dev Living Dex (+${ldexRes.addedCount} -> ${ldexRes.totalLiving} living), Indexed Search (${fastFighters.length} Fighting+CC+Spe>=110 hits) & Solo 1-Pokémon Doubles Paste (Falinks) ALL VERIFIED!`
+  );
+
+  console.log('\nALL 26 ENGINE, MAP, ROMANCE, POKÉROGUE RUN, DOUBLE-ZOROARK, SMOGON ECONOMY, NATDEX & SHOWDOWN TEAMBUILDER SUITES PASSED!');
 }
 
 let allSuitesCompleted = false;

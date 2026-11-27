@@ -10,29 +10,74 @@ export type ScreenView =
   | 'battle'
   | 'epilogue';
 
+export interface StatSpread {
+  hp: number;
+  atk: number;
+  def: number;
+  spa: number;
+  spd: number;
+  spe: number;
+}
+
+export type PokemonGender = '' | 'M' | 'F';
+
 export interface CustomTeamMember {
   species: string;
+  nickname?: string;
+  gender?: PokemonGender;
   item: string;
   ability: string;
   nature: string;
   teraType: string;
   moves: string[];
+  evs?: Partial<StatSpread>;
+  ivs?: Partial<StatSpread>;
   shiny: boolean;
 }
 
 export type PokemonStorageZone = 'party' | 'box' | 'house' | 'graveyard';
 
 export interface PokemonEpitaph {
+  chapterId?: string;
   chapterTitle: string;
   rivalName: string;
+  killerSpecies?: string;
+  killerMove?: string;
+  difficulty?: BattleDifficultyMode;
   turn: number;
   fallenAt: string;
+}
+
+export interface NuzlockeDeathLogEntry {
+  id: string;
+  uid: string;
+  species: string;
+  nickname?: string;
+  chapterId: string;
+  chapterTitle: string;
+  rivalName: string;
+  killerSpecies: string;
+  killerMove: string;
+  turn: number;
+  difficulty: BattleDifficultyMode;
+  fallenAt: string;
+}
+
+export interface SavedCampaignTeam {
+  id: string;
+  name: string;
+  notes?: string;
+  paste: string;
+  species: string[];
+  memberUids?: string[];
+  updatedAt: string;
 }
 
 export interface OwnedPokemonInstance {
   uid: string;
   species: string;
   nickname?: string;
+  gender?: PokemonGender;
   origin: string;
   zone: PokemonStorageZone;
   item: string;
@@ -40,6 +85,8 @@ export interface OwnedPokemonInstance {
   nature: string;
   teraType: string;
   moves: string[];
+  evs?: Partial<StatSpread>;
+  ivs?: Partial<StatSpread>;
   shiny: boolean;
   /** Persistent Ironman health/status/PP frozen on this exact individual (Box NEVER heals!). */
   hp: number | null;
@@ -179,6 +226,10 @@ export interface PlayerSaveProfile {
   itemStock: Record<string, number>;
   /** Biogeographical Campaign Pokédex: species unlocked for purchase in the Black Market Shop! */
   unlockedPokedex: string[];
+  /** Multiple player-saved campaign teams (loadable with 1 click in Cajas PC & Teambuilder). */
+  savedTeams?: SavedCampaignTeam[];
+  /** Persistent Nuzlocke Permadeath Forensic Log (victim, opponent, killer Pokémon, lethal move, chapter, turn). */
+  nuzlockeDeathLog?: NuzlockeDeathLogEntry[];
   updatedAt: string;
 }
 
@@ -878,4 +929,8 @@ export interface BattleSnapshot {
   totalP2: number;
   /** Exact rival Pokémon & move that delivered the final KO against the player (for Nuzlocke/Defeat X sharing!). */
   lastFatalBlow?: BattleFatalBlow | null;
+  /** Complete forensic list of EVERY player Pokémon that fainted during this battle (for Nuzlocke Death Log!). */
+  faintLog?: BattleFatalBlow[];
+  /** Indices of hidden empty placeholder slots auto-fainted at Turn 0 (for 1v6 / 1v3 / solo-run Doubles/Triples!). */
+  emptyPlayerSlots?: number[];
 }

@@ -21,17 +21,22 @@ import {
 } from '../data/worldGeopolitics';
 import type {
   BattleDifficultyMode,
+  BattleFatalBlow,
   BattleRewardSummary,
   BerryKind,
   CampBerryPlot,
   ChapterProgress,
   CustomTeamMember,
+  NuzlockeDeathLogEntry,
   OwnedPokemonInstance,
   PersistedPartyState,
   PlayerSaveProfile,
+  PokemonGender,
   PokemonStorageZone,
+  SavedCampaignTeam,
   SocialLinkProgress,
   SocialLinkRank,
+  StatSpread,
   StoryFlags,
 } from '../types/game';
 import {
@@ -95,17 +100,98 @@ function buildStarterItemStock(): Record<string, number> {
   return stock;
 }
 
+const STAT_KEYS: Array<keyof StatSpread> = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
+const STAT_SHOWDOWN_LABEL: Record<keyof StatSpread, string> = {
+  hp: 'HP',
+  atk: 'Atk',
+  def: 'Def',
+  spa: 'SpA',
+  spd: 'SpD',
+  spe: 'Spe',
+};
+
+export function sanitizeEvSpread(
+  raw?: Partial<StatSpread>
+): Partial<StatSpread> | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const out: Partial<StatSpread> = {};
+  let total = 0;
+  for (const k of STAT_KEYS) {
+    const val = Math.max(0, Math.min(252, Math.floor(Number(raw[k] ?? 0))));
+    if (!Number.isFinite(val) || val <= 0) continue;
+    const allowed = Math.min(val, Math.max(0, 508 - total));
+    if (allowed > 0) {
+      out[k] = allowed;
+      total += allowed;
+    }
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+export function sanitizeIvSpread(
+  raw?: Partial<StatSpread>
+): Partial<StatSpread> | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const out: Partial<StatSpread> = {};
+  for (const k of STAT_KEYS) {
+    if (raw[k] === undefined || raw[k] === null) continue;
+    const val = Math.max(0, Math.min(31, Math.floor(Number(raw[k]))));
+    if (Number.isFinite(val) && val !== 31) {
+      out[k] = val;
+    }
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+export function sanitizeGenderForSpecies(
+  speciesName: string,
+  gender?: string
+): PokemonGender {
+  const sp = Dex.species.get(speciesName);
+  if (sp.exists) {
+    if (sp.gender === 'N') return '';
+    if (sp.gender === 'M') return 'M';
+    if (sp.gender === 'F') return 'F';
+  }
+  return gender === 'M' || gender === 'F' ? gender : '';
+}
+
+function formatEvsLine(evs?: Partial<StatSpread>): string | undefined {
+  if (!evs) return undefined;
+  const parts: string[] = [];
+  for (const k of STAT_KEYS) {
+    const v = evs[k] ?? 0;
+    if (v > 0) parts.push(`${v} ${STAT_SHOWDOWN_LABEL[k]}`);
+  }
+  return parts.length > 0 ? parts.join(' / ') : undefined;
+}
+
+function formatIvsLine(ivs?: Partial<StatSpread>): string | undefined {
+  if (!ivs) return undefined;
+  const parts: string[] = [];
+  for (const k of STAT_KEYS) {
+    if (ivs[k] !== undefined && ivs[k] !== 31) {
+      parts.push(`${ivs[k]} ${STAT_SHOWDOWN_LABEL[k]}`);
+    }
+  }
+  return parts.length > 0 ? parts.join(' / ') : undefined;
+}
+
 export function syncCustomTeamFromBox(
   box: OwnedPokemonInstance[]
 ): CustomTeamMember[] {
   const party = box.filter((m) => m.zone === 'party').slice(0, 6);
   return party.map((m) => ({
     species: m.species,
+    ...(m.nickname ? { nickname: m.nickname } : {}),
+    ...(m.gender ? { gender: m.gender } : {}),
     item: m.item,
     ability: m.ability,
     nature: m.nature,
     teraType: m.teraType,
     moves: [...m.moves],
+    ...(m.evs ? { evs: { ...m.evs } } : {}),
+    ...(m.ivs ? { ivs: { ...m.ivs } } : {}),
     shiny: m.shiny,
   }));
 }
@@ -154,6 +240,8 @@ export function createDefaultProfile(
     pokemonBox: starterBox,
     itemStock: buildStarterItemStock(),
     unlockedPokedex: [...STARTER_UNLOCKED_POKEDEX],
+    savedTeams: [],
+    nuzlockeDeathLog: [],
     updatedAt: new Date().toISOString(),
   };
 }
@@ -273,7 +361,10 @@ export function normalizeProfile(
         cleaned.push({
           uid,
           species: inst.species,
-          nickname: inst.nickname,
+          ...(inst.nickname?.trim() ? { nickname: inst.nickname.trim().slice(0, 24) } : {}),
+          ...(inst.gender === 'M' || inst.gender === 'F'
+            ? { gender: sanitizeGenderForSpecies(inst.species, inst.gender) }
+            : {}),
           origin: inst.origin || 'Escolta Real de Galar',
           zone:
             inst.zone === 'party' ||
@@ -290,12 +381,14 @@ export function normalizeProfile(
             Array.isArray(inst.moves) && inst.moves.length > 0
               ? inst.moves.slice(0, 4)
               : ['Protect'],
+          ...(sanitizeEvSpread(inst.evs) ? { evs: sanitizeEvSpread(inst.evs) } : {}),
+          ...(sanitizeIvSpread(inst.ivs) ? { ivs: sanitizeIvSpread(inst.ivs) } : {}),
           shiny: Boolean(inst.shiny),
           hp: typeof inst.hp === 'number' ? inst.hp : null,
           maxhp: typeof inst.maxhp === 'number' ? inst.maxhp : null,
           status: inst.status || '',
-          ppByMoveId: inst.ppByMoveId ? { ...inst.ppByMoveId } : undefined,
-          epitaph: inst.epitaph,
+          ...(inst.ppByMoveId ? { ppByMoveId: { ...inst.ppByMoveId } } : {}),
+          ...(inst.epitaph ? { epitaph: inst.epitaph } : {}),
         });
       }
       if (cleaned.length > 0) return cleaned;
@@ -458,6 +551,20 @@ export function normalizeProfile(
       for (const sp of inv?.pokemon ?? []) add(sp);
       return Array.from(seen.values());
     })(),
+    savedTeams: Array.isArray(raw.savedTeams)
+      ? raw.savedTeams
+          .filter(
+            (t) =>
+              t &&
+              typeof t.id === 'string' &&
+              typeof t.name === 'string' &&
+              typeof t.paste === 'string'
+          )
+          .slice(0, 30)
+      : [],
+    nuzlockeDeathLog: Array.isArray(raw.nuzlockeDeathLog)
+      ? raw.nuzlockeDeathLog.slice(0, 200)
+      : [],
     updatedAt: raw.updatedAt || new Date().toISOString(),
   };
 }
@@ -1526,7 +1633,12 @@ export function importShowdownPasteToParty(
     nextBox.push({
       uid: `imp-${getSpeciesKey(canonical)}-${Date.now().toString(36)}-${idx}`,
       species: canonical,
-      nickname: s.name && s.name !== canonical ? s.name : undefined,
+      ...(s.name && s.name.trim() && s.name.trim().toLowerCase() !== canonical.toLowerCase()
+        ? { nickname: s.name.trim().slice(0, 24) }
+        : {}),
+      ...(s.gender === 'M' || s.gender === 'F'
+        ? { gender: sanitizeGenderForSpecies(canonical, s.gender) }
+        : {}),
       origin: 'Importado · Showdown Playtest',
       zone: 'party',
       item,
@@ -1535,7 +1647,9 @@ export function importShowdownPasteToParty(
       teraType: s.teraType || def.teraType,
       moves:
         s.moves && s.moves.length > 0 ? s.moves.slice(0, 4) : [...def.moves],
-      shiny: Boolean(s.shiny && profile.inventory.shinyCharms > 0),
+      ...(sanitizeEvSpread(s.evs) ? { evs: sanitizeEvSpread(s.evs) } : {}),
+      ...(sanitizeIvSpread(s.ivs) ? { ivs: sanitizeIvSpread(s.ivs) } : {}),
+      shiny: Boolean(s.shiny && (profile.devModeEnabled || profile.inventory.shinyCharms > 0)),
       hp: null,
       maxhp: null,
       status: '',
@@ -1559,6 +1673,69 @@ export function importShowdownPasteToParty(
       itemStock: nextItemStock,
       pokemonBox: nextBox,
       customTeam: syncCustomTeamFromBox(nextBox),
+      updatedAt: new Date().toISOString(),
+    },
+  };
+}
+
+/**
+ * Dev Mode: Adds 1 unique specimen of EVERY playable Anything Goes species (~1,286)
+ * not already living in `pokemonBox` directly into `zone: 'box'` (Living Dex)!
+ */
+export function applyDevPopulateAllSpeciesToBox(
+  profile: PlayerSaveProfile
+): { addedCount: number; totalLiving: number; nextProfile: PlayerSaveProfile } {
+  const base = applyDevUnlockFullAgPokedex(profile);
+  const existingKeys = new Set(
+    base.pokemonBox
+      .filter((b) => b.zone !== 'graveyard')
+      .map((b) => getSpeciesKey(b.species))
+  );
+  const allSpecies = getAllAnythingGoesPlayableSpecies();
+  const additions: OwnedPokemonInstance[] = [];
+  const nextInvPokemon = new Set(base.inventory.pokemon);
+
+  for (let i = 0; i < allSpecies.length; i++) {
+    const spName = allSpecies[i];
+    const spKey = getSpeciesKey(spName);
+    nextInvPokemon.add(spName);
+    if (existingKeys.has(spKey)) continue;
+    existingKeys.add(spKey);
+    const sp = Dex.species.get(spName);
+    const abilities = sp.exists
+      ? Object.values(sp.abilities ?? {}).filter((a): a is string => Boolean(a))
+      : [];
+    const bs = sp.exists ? sp.baseStats : { hp: 80, atk: 80, def: 80, spa: 80, spd: 80, spe: 80 };
+    const isPhys = bs.atk >= bs.spa;
+    const def = buildDefaultMemberForSpecies(spName);
+    additions.push({
+      uid: `ldex-${spKey}`,
+      species: def.species,
+      origin: 'Dev Living Dex · AG',
+      zone: 'box',
+      item: '',
+      ability: def.ability || abilities[0] || 'Pressure',
+      nature: def.nature || (isPhys ? 'Adamant' : 'Modest'),
+      teraType: def.teraType || sp.types?.[0] || 'Normal',
+      moves: def.moves.slice(0, 4),
+      shiny: false,
+      hp: null,
+      maxhp: null,
+      status: '',
+    });
+  }
+
+  const nextBox = [...base.pokemonBox, ...additions];
+  return {
+    addedCount: additions.length,
+    totalLiving: nextBox.filter((b) => b.zone !== 'graveyard').length,
+    nextProfile: {
+      ...base,
+      inventory: {
+        ...base.inventory,
+        pokemon: Array.from(nextInvPokemon),
+      },
+      pokemonBox: nextBox,
       updatedAt: new Date().toISOString(),
     },
   };
@@ -1658,17 +1835,25 @@ export function compileCustomTeamToShowdownPaste(
     const hasFrustration = m.moves.some(
       (mv) => mv.toLowerCase() === 'frustration'
     );
+    const customEvsLine = formatEvsLine(m.evs);
+    const customIvsLine = formatIvsLine(m.ivs);
+    const cleanGender = sanitizeGenderForSpecies(m.species, m.gender);
     return {
+      nickname: m.nickname?.trim() || undefined,
       species: m.species,
+      gender: cleanGender || undefined,
       item: m.item || undefined,
       ability: m.ability || sp.abilities?.[0] || undefined,
       level,
       happiness: hasFrustration ? 0 : undefined,
       shiny: m.shiny || undefined,
       teraType: m.teraType || sp.types?.[0] || 'Normal',
-      evs: usesSpecial
-        ? '4 HP / 252 SpA / 252 Spe'
-        : '4 HP / 252 Atk / 252 Spe',
+      evs:
+        customEvsLine ??
+        (usesSpecial
+          ? '4 HP / 252 SpA / 252 Spe'
+          : '4 HP / 252 Atk / 252 Spe'),
+      ivs: customIvsLine,
       nature: m.nature || (usesSpecial ? 'Timid' : 'Jolly'),
       moves: m.moves.length > 0 ? m.moves.slice(0, 4) : ['Protect'],
     };
@@ -1854,7 +2039,14 @@ export function recordPostBattleSurvivalState(
   profile: PlayerSaveProfile,
   exportedState: PersistedPartyState | null | undefined,
   won: boolean,
-  battleContext?: { chapterTitle?: string; rivalName?: string; turn?: number }
+  battleContext?: {
+    chapterId?: string;
+    chapterTitle?: string;
+    rivalName?: string;
+    turn?: number;
+    difficulty?: BattleDifficultyMode;
+    faintLog?: BattleFatalBlow[];
+  }
 ): PlayerSaveProfile {
   const perks = computeActiveSocialLinkPerks(profile);
 
@@ -1893,8 +2085,15 @@ export function recordPostBattleSurvivalState(
     };
   }
 
+  // Index forensic faint events by victim species so EVERY casualty gets exact killer + move + turn!
+  const faintBySpecies = new Map<string, BattleFatalBlow>();
+  for (const ev of battleContext?.faintLog ?? []) {
+    faintBySpecies.set(getSpeciesKey(ev.victimSpecies), ev);
+  }
+  const newDeathEntries: NuzlockeDeathLogEntry[] = [];
+
   // Sync exact post-battle HP/status/PP onto matching active party instances in pokemonBox!
-  // In Ultra Nuzlocke Diablo, any fainted instance moves permanently to zone='graveyard' with epitaph!
+  // In Ultra Nuzlocke Diablo, any fainted instance moves permanently to zone='graveyard' with forensic epitaph + Death Log entry!
   let nextBox = profile.pokemonBox;
   if (exportedState && (profile.ironmanMode || profile.nuzlockePermadeath)) {
     const bySpecies = new Map(
@@ -1905,9 +2104,36 @@ export function recordPostBattleSurvivalState(
     );
     nextBox = profile.pokemonBox.map((inst) => {
       if (inst.zone !== 'party') return inst;
-      const match = bySpecies.get(getSpeciesKey(inst.species));
+      const spKey = getSpeciesKey(inst.species);
+      const match = bySpecies.get(spKey);
       if (!match) return inst;
       if (match.fainted && profile.nuzlockePermadeath) {
+        const forensic = faintBySpecies.get(spKey);
+        const nowIso = new Date().toISOString();
+        const chId = battleContext?.chapterId || 'campaign';
+        const chTitle = battleContext?.chapterTitle || 'Combate de Campaña';
+        const rival = forensic?.rivalName || battleContext?.rivalName || 'Adversario';
+        const killerSp = forensic?.attackerSpecies || rival;
+        const killerMv = forensic?.moveName || 'Golpe letal';
+        const deathTurn =
+          forensic?.turn ?? battleContext?.turn ?? exportedState.capturedAtTurn ?? 1;
+        const diff = battleContext?.difficulty ?? profile.defaultDifficulty;
+
+        newDeathEntries.push({
+          id: `death-${inst.uid}-${Date.now().toString(36)}-${newDeathEntries.length}`,
+          uid: inst.uid,
+          species: inst.species,
+          ...(inst.nickname ? { nickname: inst.nickname } : {}),
+          chapterId: chId,
+          chapterTitle: chTitle,
+          rivalName: rival,
+          killerSpecies: killerSp,
+          killerMove: killerMv,
+          turn: deathTurn,
+          difficulty: diff,
+          fallenAt: nowIso,
+        });
+
         return {
           ...inst,
           zone: 'graveyard' as const,
@@ -1916,10 +2142,14 @@ export function recordPostBattleSurvivalState(
           status: '',
           item: '', // drop item back into stock when a mon falls
           epitaph: {
-            chapterTitle: battleContext?.chapterTitle || 'Combate de Campaña',
-            rivalName: battleContext?.rivalName || 'Adversario',
-            turn: battleContext?.turn ?? exportedState.capturedAtTurn ?? 1,
-            fallenAt: new Date().toISOString(),
+            chapterId: chId,
+            chapterTitle: chTitle,
+            rivalName: rival,
+            killerSpecies: killerSp,
+            killerMove: killerMv,
+            difficulty: diff,
+            turn: deathTurn,
+            fallenAt: nowIso,
           },
         };
       }
@@ -1939,12 +2169,18 @@ export function recordPostBattleSurvivalState(
       ? Math.min(3, profile.freeEmergencyHeals + 1)
       : profile.freeEmergencyHeals;
 
+  const nextDeathLog =
+    newDeathEntries.length > 0
+      ? [...newDeathEntries, ...(profile.nuzlockeDeathLog ?? [])].slice(0, 200)
+      : profile.nuzlockeDeathLog ?? [];
+
   return {
     ...profile,
     campGarden: nextGarden,
     fallenPokemon: Array.from(fallenSet),
     ironmanPartyState: nextIronmanState,
     pokemonBox: nextBox,
+    nuzlockeDeathLog: nextDeathLog,
     customTeam:
       nextBox !== profile.pokemonBox
         ? syncCustomTeamFromBox(nextBox)
@@ -2367,8 +2603,51 @@ export function equipItemOnInstance(
 }
 
 /**
- * Updates moves (including teaching Rest while parked in the Box!), ability, nature, teraType, or Shiny
- * on a unique `OwnedPokemonInstance`.
+ * Permanently releases / discards a Pokémon instance from PC Boxes.
+ * - Always keeps at least 1 Pokémon in the Active Party.
+ * - In Ultra Nuzlocke mode, Graveyard memorials stay sacred unless Dev Mode is enabled.
+ */
+export function releasePokemonInstance(
+  profile: PlayerSaveProfile,
+  uid: string
+): { ok: boolean; error?: string; releasedSpecies?: string; nextProfile: PlayerSaveProfile } {
+  const target = profile.pokemonBox.find((b) => b.uid === uid);
+  if (!target) {
+    return { ok: false, error: 'Pokémon no encontrado en tus Cajas.', nextProfile: profile };
+  }
+  if (target.zone === 'graveyard' && profile.nuzlockePermadeath && !profile.devModeEnabled) {
+    return {
+      ok: false,
+      error: 'En modo Ultra Nuzlocke los caídos del Cementerio permanecen en la bitácora memorial.',
+      nextProfile: profile,
+    };
+  }
+  if (target.zone === 'party') {
+    const partyCount = profile.pokemonBox.filter((b) => b.zone === 'party').length;
+    if (partyCount <= 1) {
+      return {
+        ok: false,
+        error: 'No puedes liberar a tu único Pokémon en el Equipo Activo.',
+        nextProfile: profile,
+      };
+    }
+  }
+  const nextBox = profile.pokemonBox.filter((b) => b.uid !== uid);
+  return {
+    ok: true,
+    releasedSpecies: target.nickname ? `${target.nickname} (${target.species})` : target.species,
+    nextProfile: {
+      ...profile,
+      pokemonBox: nextBox,
+      customTeam: syncCustomTeamFromBox(nextBox),
+      updatedAt: new Date().toISOString(),
+    },
+  };
+}
+
+/**
+ * Updates moves (including teaching Rest while parked in the Box!), ability, nature, teraType,
+ * nickname, gender, EVs (0..252, max 508 total), IVs (0..31), or Shiny on a unique `OwnedPokemonInstance`.
  */
 export function updatePokemonInstanceBuild(
   profile: PlayerSaveProfile,
@@ -2376,7 +2655,7 @@ export function updatePokemonInstanceBuild(
   patch: Partial<
     Pick<
       OwnedPokemonInstance,
-      'ability' | 'nature' | 'teraType' | 'moves' | 'shiny' | 'nickname'
+      'ability' | 'nature' | 'teraType' | 'moves' | 'shiny' | 'nickname' | 'gender' | 'evs' | 'ivs'
     >
   >
 ): { ok: boolean; error?: string; nextProfile: PlayerSaveProfile } {
@@ -2385,7 +2664,7 @@ export function updatePokemonInstanceBuild(
     return { ok: false, error: 'Instancia no modificable.', nextProfile: profile };
   }
 
-  if (patch.shiny === true && !target.shiny) {
+  if (patch.shiny === true && !target.shiny && !profile.devModeEnabled) {
     const currentShinies = profile.pokemonBox.filter(
       (b) => b.zone !== 'graveyard' && b.shiny
     ).length;
@@ -2398,15 +2677,30 @@ export function updatePokemonInstanceBuild(
     }
   }
 
-  const nextBox = profile.pokemonBox.map((b) =>
-    b.uid === uid
-      ? {
-          ...b,
-          ...patch,
-          moves: patch.moves ? patch.moves.filter(Boolean).slice(0, 4) : b.moves,
-        }
-      : b
-  );
+  const nextBox = profile.pokemonBox.map((b) => {
+    if (b.uid !== uid) return b;
+    const nextNick =
+      patch.nickname !== undefined
+        ? patch.nickname.trim().slice(0, 24) || undefined
+        : b.nickname;
+    const nextGender =
+      patch.gender !== undefined
+        ? sanitizeGenderForSpecies(b.species, patch.gender) || undefined
+        : b.gender;
+    const nextEvs =
+      patch.evs !== undefined ? sanitizeEvSpread(patch.evs) : b.evs;
+    const nextIvs =
+      patch.ivs !== undefined ? sanitizeIvSpread(patch.ivs) : b.ivs;
+    return {
+      ...b,
+      ...patch,
+      nickname: nextNick,
+      gender: nextGender,
+      evs: nextEvs,
+      ivs: nextIvs,
+      moves: patch.moves ? patch.moves.filter(Boolean).slice(0, 4) : b.moves,
+    };
+  });
   return {
     ok: true,
     nextProfile: {
@@ -2415,6 +2709,160 @@ export function updatePokemonInstanceBuild(
       customTeam: syncCustomTeamFromBox(nextBox),
       updatedAt: new Date().toISOString(),
     },
+  };
+}
+
+/* ================= Saved Campaign Teams Library (Multiple Loadouts!) ================= */
+
+export function saveCurrentPartyAsTeam(
+  profile: PlayerSaveProfile,
+  rawName: string,
+  notes?: string
+): { ok: boolean; error?: string; team?: SavedCampaignTeam; nextProfile: PlayerSaveProfile } {
+  const party = profile.pokemonBox.filter((b) => b.zone === 'party').slice(0, 6);
+  if (party.length === 0) {
+    return { ok: false, error: 'Tu Equipo Activo está vacío.', nextProfile: profile };
+  }
+  const name = rawName.trim().slice(0, 40) || `Equipo #${(profile.savedTeams?.length ?? 0) + 1}`;
+  const paste = compileCustomTeamToShowdownPaste(syncCustomTeamFromBox(profile.pokemonBox), 100);
+  const existing = profile.savedTeams ?? [];
+  const sameIdx = existing.findIndex(
+    (t) => t.name.toLowerCase() === name.toLowerCase()
+  );
+  const record: SavedCampaignTeam = {
+    id: sameIdx >= 0 ? existing[sameIdx].id : `team-${Date.now().toString(36)}-${existing.length}`,
+    name,
+    ...(notes?.trim() ? { notes: notes.trim().slice(0, 120) } : {}),
+    paste,
+    species: party.map((m) => m.species),
+    memberUids: party.map((m) => m.uid),
+    updatedAt: new Date().toISOString(),
+  };
+  const nextTeams =
+    sameIdx >= 0
+      ? existing.map((t, i) => (i === sameIdx ? record : t))
+      : [record, ...existing].slice(0, 30);
+
+  return {
+    ok: true,
+    team: record,
+    nextProfile: {
+      ...profile,
+      savedTeams: nextTeams,
+      updatedAt: new Date().toISOString(),
+    },
+  };
+}
+
+export function loadSavedCampaignTeam(
+  profile: PlayerSaveProfile,
+  teamId: string,
+  options?: { allowSpawnMissing?: boolean }
+): {
+  ok: boolean;
+  error?: string;
+  loadedCount: number;
+  missingSpecies: string[];
+  nextProfile: PlayerSaveProfile;
+} {
+  const team = (profile.savedTeams ?? []).find((t) => t.id === teamId);
+  if (!team) {
+    return {
+      ok: false,
+      error: 'Equipo guardado no encontrado.',
+      loadedCount: 0,
+      missingSpecies: [],
+      nextProfile: profile,
+    };
+  }
+
+  // In Baby Mode or Dev Mode, allow importing directly from the saved Showdown paste if species aren't in Boxes!
+  const allowSpawn = Boolean(options?.allowSpawnMissing || profile.devModeEnabled);
+  const living = profile.pokemonBox.filter((b) => b.zone !== 'graveyard');
+  const chosenUids: string[] = [];
+  const missingSpecies: string[] = [];
+
+  // 1) Try matching exact saved UIDs first (preserves exact Ironman HP/status/nicknames!)
+  const preferredUids = team.memberUids ?? [];
+  for (let i = 0; i < team.species.length; i++) {
+    const spName = team.species[i];
+    const spKey = getSpeciesKey(spName);
+    const uidPref = preferredUids[i];
+    const matchByUid = uidPref
+      ? living.find((b) => b.uid === uidPref && !chosenUids.includes(b.uid))
+      : undefined;
+    const matchBySpecies =
+      matchByUid ??
+      living.find(
+        (b) => getSpeciesKey(b.species) === spKey && !chosenUids.includes(b.uid)
+      );
+    if (matchBySpecies) {
+      chosenUids.push(matchBySpecies.uid);
+    } else {
+      missingSpecies.push(spName);
+    }
+  }
+
+  if (chosenUids.length === 0 && !allowSpawn) {
+    return {
+      ok: false,
+      error:
+        'Ningún miembro vivo de ese equipo está disponible en tus Cajas (pueden haber caído en Nuzlocke o sido liberados).',
+      loadedCount: 0,
+      missingSpecies,
+      nextProfile: profile,
+    };
+  }
+
+  if (allowSpawn && missingSpecies.length > 0) {
+    const imp = importShowdownPasteToParty(profile, team.paste);
+    if (imp.ok) {
+      return {
+        ok: true,
+        loadedCount: imp.importedCount,
+        missingSpecies: [],
+        nextProfile: imp.nextProfile,
+      };
+    }
+  }
+
+  const chosenSet = new Set(chosenUids);
+  // Park old party members safely into 'box' (without healing Ironman state!) and raise chosen living instances to 'party'
+  const nextBox = profile.pokemonBox.map((b) => {
+    if (chosenSet.has(b.uid)) return { ...b, zone: 'party' as const };
+    if (b.zone === 'party') return { ...b, zone: 'box' as const };
+    return b;
+  });
+
+  // Preserve saved party slot ordering cleanly
+  const orderedParty = chosenUids
+    .map((id) => nextBox.find((b) => b.uid === id))
+    .filter((x): x is OwnedPokemonInstance => Boolean(x));
+  const nonParty = nextBox.filter((b) => b.zone !== 'party');
+  const finalBox = [...orderedParty, ...nonParty];
+
+  return {
+    ok: true,
+    loadedCount: orderedParty.length,
+    missingSpecies,
+    nextProfile: {
+      ...profile,
+      useCustomTeamInStory: true,
+      pokemonBox: finalBox,
+      customTeam: syncCustomTeamFromBox(finalBox),
+      updatedAt: new Date().toISOString(),
+    },
+  };
+}
+
+export function deleteSavedCampaignTeam(
+  profile: PlayerSaveProfile,
+  teamId: string
+): PlayerSaveProfile {
+  return {
+    ...profile,
+    savedTeams: (profile.savedTeams ?? []).filter((t) => t.id !== teamId),
+    updatedAt: new Date().toISOString(),
   };
 }
 

@@ -27,6 +27,7 @@ import {
 import {
   addDevCoins,
   applyBattleOutcomeToProfile,
+  applyDevPopulateAllSpeciesToBox,
   applyDevUnlockEverything,
   applyDevUnlockFullAgPokedex,
   awardArcadeCoins,
@@ -35,10 +36,12 @@ import {
   clearNuzlockeFallenAndIronman,
   completeRomanceRank,
   createNewConfiguredRunProfile,
+  deleteSavedCampaignTeam,
   equipItemOnInstance,
   harvestCampBerry,
   importShowdownPasteToParty,
   loadLocalProfile,
+  loadSavedCampaignTeam,
   mergeCloudAndLocalProfiles,
   movePokemonInstanceZone,
   plantCampBerry,
@@ -48,8 +51,10 @@ import {
   recordChapterAttemptInProfile,
   recordPostBattleSurvivalState,
   recruitHousePokemonToCustomSlot,
+  releasePokemonInstance,
   resetSpeciesCustomizations,
   resetStoryProgress,
+  saveCurrentPartyAsTeam,
   saveLocalProfile,
   setCustomItemForSpecies,
   setCustomMoveForSpecies,
@@ -510,9 +515,14 @@ export default function App() {
             snapshot.exportedPartyState,
             won,
             {
+              chapterId: activeChapter.id,
               chapterTitle: activeChapter.title,
               rivalName: resolvedConfig?.rivalName,
               turn: snapshot.turn,
+              difficulty:
+                resolvedConfig?.difficultyMode ??
+                profileRef.current.defaultDifficulty,
+              faintLog: snapshot.faintLog,
             }
           )
         : res.nextProfile;
@@ -624,6 +634,12 @@ export default function App() {
     return res;
   };
 
+  const handleReleaseInstance = (uid: string) => {
+    const res = releasePokemonInstance(profileRef.current, uid);
+    if (res.ok) setProfile(res.nextProfile);
+    return res;
+  };
+
   const handleEquipInstanceItem = (uid: string, itemName: string) => {
     const res = equipItemOnInstance(profileRef.current, uid, itemName);
     if (res.ok) setProfile(res.nextProfile);
@@ -635,13 +651,48 @@ export default function App() {
     patch: Partial<
       Pick<
         OwnedPokemonInstance,
-        'ability' | 'nature' | 'teraType' | 'moves' | 'shiny' | 'nickname'
+        | 'ability'
+        | 'nature'
+        | 'teraType'
+        | 'moves'
+        | 'shiny'
+        | 'nickname'
+        | 'gender'
+        | 'evs'
+        | 'ivs'
       >
     >
   ) => {
     const res = updatePokemonInstanceBuild(profileRef.current, uid, patch);
     if (res.ok) setProfile(res.nextProfile);
     return res;
+  };
+
+  const handlePopulateLivingDexBox = () => {
+    const res = applyDevPopulateAllSpeciesToBox(profileRef.current);
+    setProfile(res.nextProfile);
+    return { addedCount: res.addedCount, totalLiving: res.totalLiving };
+  };
+
+  const handleSaveCampaignTeam = (name: string) => {
+    const res = saveCurrentPartyAsTeam(profileRef.current, name);
+    if (res.ok) setProfile(res.nextProfile);
+    return res;
+  };
+
+  const handleLoadCampaignTeam = (
+    teamId: string,
+    allowSpawnMissing?: boolean
+  ) => {
+    const res = loadSavedCampaignTeam(profileRef.current, teamId, {
+      allowSpawnMissing,
+    });
+    if (res.ok) setProfile(res.nextProfile);
+    return res;
+  };
+
+  const handleDeleteCampaignTeam = (teamId: string) => {
+    setProfile((prev) => deleteSavedCampaignTeam(prev, teamId));
   };
 
   const handleToggleRunModifiers = (patch: {
@@ -803,11 +854,16 @@ export default function App() {
         onBackHome={() => setScreen('home')}
         onOpenShop={() => setScreen('shop')}
         onMoveInstanceZone={handleMoveInstanceZone}
+        onReleaseInstance={handleReleaseInstance}
         onEquipInstanceItem={handleEquipInstanceItem}
         onUpdateInstanceBuild={handleUpdateInstanceBuild}
         onUnlockMoveSlot={handleUnlockMoveSlot}
         onSpawnDevSpecimen={handleSpawnDevSpecimen}
+        onPopulateLivingDexBox={handlePopulateLivingDexBox}
         onImportShowdownPaste={handleImportShowdownPaste}
+        onSaveCampaignTeam={handleSaveCampaignTeam}
+        onLoadCampaignTeam={handleLoadCampaignTeam}
+        onDeleteCampaignTeam={handleDeleteCampaignTeam}
         onToggleUseCustomTeam={(enabled) =>
           setProfile((prev) => ({
             ...prev,
@@ -870,10 +926,15 @@ export default function App() {
         onSetCustomItem={handleSetCustomItem}
         onResetSpecies={handleResetSpecies}
         onMoveInstanceZone={handleMoveInstanceZone}
+        onReleaseInstance={handleReleaseInstance}
         onEquipInstanceItem={handleEquipInstanceItem}
         onUpdateInstanceBuild={handleUpdateInstanceBuild}
         onSpawnDevSpecimen={handleSpawnDevSpecimen}
+        onPopulateLivingDexBox={handlePopulateLivingDexBox}
         onImportShowdownPaste={handleImportShowdownPaste}
+        onSaveCampaignTeam={handleSaveCampaignTeam}
+        onLoadCampaignTeam={handleLoadCampaignTeam}
+        onDeleteCampaignTeam={handleDeleteCampaignTeam}
         onLaunchBattle={handleLaunchBattle}
       />
     );
@@ -974,6 +1035,7 @@ export default function App() {
         profile={profile}
         onUnlockEverything={handleDevUnlockEverything}
         onUnlockFullAgPokedex={handleDevUnlockFullAgPokedex}
+        onPopulateLivingDexBox={handlePopulateLivingDexBox}
         onAddMillionCoins={handleDevAddMillionCoins}
         onToggleDevMode={handleDevToggle}
         onResetStoryProgress={handleResetStory}

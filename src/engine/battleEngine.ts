@@ -304,6 +304,10 @@ export class ShowdownBattleController {
     types: string[];
   }> = [];
   private lastAttackSource: { side: 'p1' | 'p2'; slot: number } | null = null;
+  private lastP1DamageCauseBySlot = new Map<
+    number,
+    { attackerSpecies: string; moveName: string; turn: number }
+  >();
   private lastEnemyAttack: {
     species: string;
     moveName: string;
@@ -393,6 +397,8 @@ export class ShowdownBattleController {
       koCountP2: 0,
       totalP2: 0,
       lastFatalBlow: null,
+      faintLog: [],
+      emptyPlayerSlots: [...(config.emptyPlayerSlots ?? [])],
     };
   }
 
@@ -917,6 +923,36 @@ export class ShowdownBattleController {
       throw new Error(
         'El Showdown Paste del rival no contiene ningún Pokémon válido.'
       );
+    }
+
+    // Auto-pad hidden empty slots when a player enters Doubles/Triples with fewer Pokémon than active slots
+    // (e.g. a 1-Pokémon Baby Mode Showdown Paste or last Nuzlocke survivor!) so @pkmn/sim NEVER crashes!
+    const minActiveSlots =
+      this.config.format === 'triples'
+        ? 3
+        : this.config.format === 'doubles'
+          ? 2
+          : 1;
+    const autoEmptySlots = [...(this.config.emptyPlayerSlots ?? [])];
+    while (p1Sets.length < minActiveSlots) {
+      const padIdx = p1Sets.length;
+      if (!autoEmptySlots.includes(padIdx)) autoEmptySlots.push(padIdx);
+      p1Sets.push({
+        name: '__EMPTY__',
+        species: 'Magikarp',
+        item: '',
+        ability: 'Swift Swim',
+        moves: ['Splash'],
+        nature: 'Serious',
+        gender: '',
+        evs: { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 },
+        ivs: { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 },
+        level: 1,
+      });
+    }
+    if (autoEmptySlots.length > 0) {
+      this.config = { ...this.config, emptyPlayerSlots: autoEmptySlots };
+      this.state.emptyPlayerSlots = autoEmptySlots;
     }
 
     const p1Packed = Teams.pack(p1Sets);
@@ -1963,12 +1999,14 @@ export class ShowdownBattleController {
 
         const trainer = sideState.playerName;
         const aceTag = existing.isBossAce ? ' [ACE]' : '';
-        this.pushLog(
-          'switch',
-          `${trainer} envió a ${name}${
-            name !== det.species ? ` (${det.species})` : ''
-          } Nv.${displayedLevel}${aceTag}.`
-        );
+        if (name !== '__EMPTY__') {
+          this.pushLog(
+            'switch',
+            `${trainer} envió a ${name}${
+              name !== det.species ? ` (${det.species})` : ''
+            } Nv.${displayedLevel}${aceTag}.`
+          );
+        }
         if (side === 'p2') {
           const isReservedAce =
             this.config.reserveAsLastAceSpecies &&
@@ -2146,8 +2184,45 @@ export class ShowdownBattleController {
             targetSide: side,
             targetSlot: slotIndex,
           });
+          const fromPart = extra.find((e) => e.startsWith('[from] '));
+          if (side === 'p1') {
+            const activeP2Fallback = this.state.p2.active.find(
+              (m) => m && !m.fainted
+            );
+            const fromLabel = fromPart
+              ? cleanEffectName(fromPart.replace('[from] ', ''))
+              : '';
+            const ofPart = extra.find((e) => e.startsWith('[of] '));
+            const ofSpecies = ofPart
+              ? (() => {
+                  const ofParsed = parseSlotFromIdent(ofPart.replace('[of] ', ''));
+                  const targetOf = this.getTargetMons(
+                    ofParsed.side,
+                    ofParsed.slotIndex,
+                    ofParsed.name
+                  );
+                  return targetOf.activeMon?.species || targetOf.partyMon?.species || ofParsed.name;
+                })()
+              : '';
+            if (fromLabel) {
+              this.lastP1DamageCauseBySlot.set(slotIndex, {
+                attackerSpecies:
+                  ofSpecies ||
+                  this.lastEnemyAttack?.species ||
+                  activeP2Fallback?.species ||
+                  this.config.rivalName,
+                moveName: fromLabel,
+                turn: Math.max(1, this.state.turn),
+              });
+            } else if (this.lastEnemyAttack) {
+              this.lastP1DamageCauseBySlot.set(slotIndex, {
+                attackerSpecies: this.lastEnemyAttack.species,
+                moveName: this.lastEnemyAttack.moveName,
+                turn: Math.max(1, this.state.turn),
+              });
+            }
+          }
           if (delta > 0) {
-            const fromPart = extra.find((e) => e.startsWith('[from] '));
             const fromTag = fromPart
               ? ` (${cleanEffectName(fromPart.replace('[from] ', ''))})`
               : '';
@@ -2556,16 +2631,27 @@ export class ShowdownBattleController {
           const activeP2Fallback = this.state.p2.active.find(
             (m) => m && !m.fainted
           );
-          this.state.lastFatalBlow = {
+          const slotCause = this.lastP1DamageCauseBySlot.get(slotIndex);
+          const recentSlotCause =
+            slotCause && slotCause.turn >= Math.max(1, this.state.turn) - 1
+              ? slotCause
+              : null;
+          const fatalEntry = {
             attackerSpecies:
+              recentSlotCause?.attackerSpecies ||
               this.lastEnemyAttack?.species ||
               activeP2Fallback?.species ||
               this.config.rivalName,
-            moveName: this.lastEnemyAttack?.moveName || 'el golpe final',
+            moveName:
+              recentSlotCause?.moveName ||
+              this.lastEnemyAttack?.moveName ||
+              'el golpe final',
             victimSpecies: activeMon?.species || partyMon?.species || name,
             turn: Math.max(1, this.state.turn),
             rivalName: this.config.rivalName,
           };
+          this.state.lastFatalBlow = fatalEntry;
+          this.state.faintLog = [...(this.state.faintLog ?? []), fatalEntry];
           this.emitNpcDialogue('onPlayerFaint', 'Baja aliada');
         }
         this.pushLog('faint', `¡${name} se debilitó!`);

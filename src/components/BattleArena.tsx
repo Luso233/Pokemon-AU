@@ -446,7 +446,11 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
           ({ m, idx }) =>
             m &&
             !m.fainted &&
-            !(activeSide === 'p1' && config.emptyPlayerSlots?.includes(idx)) &&
+            !(
+              activeSide === 'p1' &&
+              (config.emptyPlayerSlots?.includes(idx) ||
+                snapshot.emptyPlayerSlots?.includes(idx))
+            ) &&
             isAllyTargetReachable(snapshot.format, activeIdx, idx)
         );
 
@@ -612,7 +616,10 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
     (availableSwitches.length === 0 ||
       remainingForceSwitchSlots > availableSwitches.length);
   const isEmptyPlayerSlot = (idx: number) =>
-    Boolean(config.emptyPlayerSlots?.includes(idx));
+    Boolean(
+      config.emptyPlayerSlots?.includes(idx) ||
+        snapshot.emptyPlayerSlots?.includes(idx)
+    );
   const visibleP1Party = snapshot.p1.party.filter(
     (_, idx) => !isEmptyPlayerSlot(idx)
   );

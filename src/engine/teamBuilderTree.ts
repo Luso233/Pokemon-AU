@@ -12,6 +12,7 @@ import {
 export interface ShowdownSetBlock {
   nickname?: string;
   species: string;
+  gender?: 'M' | 'F';
   item?: string;
   ability?: string;
   level: number;
@@ -26,15 +27,21 @@ export interface ShowdownSetBlock {
 
 /**
  * Compiles structured Pokémon set blocks into authentic Pokémon Showdown Teambuilder Paste text.
- * Supports Tera Type, EVs, IVs (e.g. `0 Atk`), Nature, Level, Item, Ability, and Nicknames.
+ * Supports Nickname, Gender, Tera Type, EVs, IVs (e.g. `0 Atk`), Nature, Level, Item, Ability, and Shiny.
  */
 export function buildShowdownPaste(blocks: ShowdownSetBlock[]): string {
   return blocks
     .map((mon) => {
-      const headerName = mon.nickname
-        ? `${mon.nickname} (${mon.species})`
-        : mon.species;
-      const firstLine = mon.item ? `${headerName} @ ${mon.item}` : headerName;
+      const cleanNick = mon.nickname?.trim();
+      const baseName =
+        cleanNick && cleanNick.toLowerCase() !== mon.species.toLowerCase()
+          ? `${cleanNick} (${mon.species})`
+          : mon.species;
+      const withGender =
+        mon.gender === 'M' || mon.gender === 'F'
+          ? `${baseName} (${mon.gender})`
+          : baseName;
+      const firstLine = mon.item ? `${withGender} @ ${mon.item}` : withGender;
       const lines = [firstLine];
       if (mon.ability) {
         lines.push(`Ability: ${mon.ability}`);
