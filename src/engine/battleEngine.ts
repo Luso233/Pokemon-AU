@@ -19,12 +19,19 @@ import type {
 } from '../types/game';
 import { BattlePersistenceManager } from './battlePersistence';
 import {
+  detectShadowSpeciesInPaste,
+  ensureShadowDexRegistered,
+  isShadowMoveName,
+} from './shadowEngine';
+import {
   createRivalBattleController,
   isTriplesAdjacentAlly,
   isTriplesAdjacentFoe,
   type RivalBattleController,
   type ShowdownRequest,
 } from './tacticalAI';
+
+ensureShadowDexRegistered();
 
 /* ================= Pure Tactical Helpers (Dex & Formulas) ================= */
 
@@ -75,6 +82,7 @@ export function getPossibleAbilities(speciesName: string): string[] {
 }
 
 export function getShowdownMaxPP(moveNameOrId: string): number {
+  ensureShadowDexRegistered();
   const mv = Dex.moves.get(moveNameOrId);
   if (!mv || !mv.exists || !mv.pp) return 1;
   if (mv.noPPBoosts || mv.pp === 1) return mv.pp;
@@ -235,6 +243,8 @@ function weatherLabel(id: string): string {
     desolateland: 'Tierra del Ocaso',
     PrimordialSea: 'Mar del Albor',
     primordialsea: 'Mar del Albor',
+    ShadowSky: 'Cielo Oscuro',
+    shadowsky: 'Cielo Oscuro',
     none: '',
   };
   return map[id] ?? id;
@@ -288,6 +298,7 @@ export class ShowdownBattleController {
   private puzzleConditionsApplied = false;
   private persistenceInjected = false;
   private emptySlotsCleared = false;
+  private shadowCoreApplied = false;
   private turn1RequestsSeen = 0;
   private triggeredRuleIds = new Set<string>();
   private firedDialogueEvents = new Set<string>();
@@ -296,6 +307,8 @@ export class ShowdownBattleController {
   private p2HappinessBySpecies = new Map<string, number>();
   private p1ShinySpecies = new Set<string>();
   private p2ShinySpecies = new Set<string>();
+  private p1ShadowSpeciesSet = new Set<string>();
+  private p2ShadowSpeciesSet = new Set<string>();
   private p2ActiveTurns: number[] = [];
   private p1PreviewPokes: Array<{
     species: string;
@@ -675,6 +688,11 @@ export class ShowdownBattleController {
     const battle = this.battleStreamRef?.battle;
     if (!battle) return;
 
+    ensureShadowDexRegistered(battle.dex);
+    if (!this.shadowCoreApplied) {
+      this.applyShadowAndAffectionCoreIfNeeded(battle);
+    }
+
     let needsFreshRequest = false;
 
     // 1. Auto-faint hidden empty placeholder slots for 1 vs 6 Doubles & 1 vs 3 Triples
@@ -740,6 +758,111 @@ export class ShowdownBattleController {
       this.state.status = 'resolving';
       battle.makeRequest('move');
       battle.sendUpdates();
+    }
+  }
+
+  private applyShadowAndAffectionCoreIfNeeded(
+    battle: NonNullable<
+      InstanceType<typeof BattleStreams.BattleStream>['battle']
+    >
+  ): void {
+    if (this.shadowCoreApplied) return;
+    this.shadowCoreApplied = true;
+    ensureShadowDexRegistered(battle.dex);
+
+    const meta = this.config.shadowMeta;
+    const affectionMode = meta?.affectionMode ?? 'off';
+    const highBondSet = new Set<string>(
+      (meta?.p1HighBondSpecies ?? []).flatMap((spName) => {
+        const sp = Dex.species.get(spName);
+        return sp.exists ? [toID(sp.name), toID(sp.baseSpecies)] : [toID(spName)];
+      })
+    );
+
+    const isMonInSet = (
+      mon: { species: { name: string }; baseSpecies: { name: string }; name: string },
+      targetSet: Set<string>
+    ): boolean =>
+      targetSet.has(toID(mon.species.name)) ||
+      targetSet.has(toID(mon.baseSpecies.name)) ||
+      targetSet.has(toID(mon.name));
+
+    let p1ShadowCount = 0;
+    let p2ShadowCount = 0;
+
+    for (const mon of battle.p1.pokemon) {
+      if (isMonInSet(mon, this.p1ShadowSpeciesSet)) {
+        mon.m.isShadow = true;
+        mon.m.highBond = false;
+        p1ShadowCount += 1;
+      } else if (highBondSet.has(toID(mon.species.name)) || highBondSet.has(toID(mon.baseSpecies.name))) {
+        mon.m.highBond = true;
+      }
+    }
+
+    for (const mon of battle.p2.pokemon) {
+      if (isMonInSet(mon, this.p2ShadowSpeciesSet)) {
+        mon.m.isShadow = true;
+        p2ShadowCount += 1;
+      }
+    }
+
+    // Sync isShadow badge flags onto already-known UI party/active objects
+    for (const m of [...this.state.p1.party, ...this.state.p1.active]) {
+      if (!m) continue;
+      const sp = Dex.species.get(m.species);
+      if (
+        this.p1ShadowSpeciesSet.has(toID(m.species)) ||
+        (sp.exists && this.p1ShadowSpeciesSet.has(toID(sp.baseSpecies)))
+      ) {
+        m.isShadow = true;
+      }
+    }
+    for (const m of [...this.state.p2.party, ...this.state.p2.active]) {
+      if (!m) continue;
+      const sp = Dex.species.get(m.species);
+      if (
+        this.p2ShadowSpeciesSet.has(toID(m.species)) ||
+        (sp.exists && this.p2ShadowSpeciesSet.has(toID(sp.baseSpecies)))
+      ) {
+        m.isShadow = true;
+      }
+    }
+
+    const needsCore =
+      p1ShadowCount > 0 || p2ShadowCount > 0 || affectionMode !== 'off';
+    if (!needsCore) return;
+
+    const sourceMon =
+      battle.p2.active[0] ?? battle.p1.active[0] ?? battle.p1.pokemon[0];
+    if (!sourceMon) return;
+
+    battle.field.addPseudoWeather('shadowaffectioncore', sourceMon);
+    const pwState = battle.field.pseudoWeather?.shadowaffectioncore as
+      | { affectionMode?: string; forceProc?: boolean; duration?: number }
+      | undefined;
+    if (pwState) {
+      pwState.affectionMode = affectionMode;
+      pwState.forceProc = Boolean(meta?.affectionForceProc);
+      pwState.duration = 999;
+    }
+
+    if (p1ShadowCount > 0 || p2ShadowCount > 0) {
+      this.pushLog(
+        'puzzle',
+        `🟣 ¡Aura de Pokémon Oscuros detectada! (${p1ShadowCount} tuyos · ${p2ShadowCount} rivales) — Ataques Shadow: 2× a no-Oscuros, 0× Inmune Hada, 0.5× entre Oscuros. Modo Hiper bajo 50% PS.`
+      );
+    }
+    if (affectionMode === 'classic-rng') {
+      this.pushLog(
+        'system',
+        '💖 Vínculo del Heredero (Modo Clásico Let\'s Go): tus Pokémon no-Oscuros pueden aguantar con 1 PS (22%), curarse estados (20%) y dar críticos épicos.'
+      );
+    } else if (affectionMode === 'tactical-limited') {
+      this.pushLog(
+        'system',
+        '💖 Vínculo del Heredero (Modo Táctico): tus aliados con Vínculo Alto (Iniciales, Casa R3, Recompensas o Purificados) disponen de 1× Aguante a 1 PS y 1× Cura de Estado por combate.'
+      );
     }
   }
 
@@ -987,6 +1110,13 @@ export class ShowdownBattleController {
   }
 
   public async start(): Promise<void> {
+    ensureShadowDexRegistered();
+    try {
+      ensureShadowDexRegistered(Dex.forFormat(this.config.formatId));
+    } catch {
+      // ignore if format requires default Dex
+    }
+
     const effectivePlayerPaste = this.config.persistedPartyState
       ? BattlePersistenceManager.reorderPasteForConsciousLead(
           this.config.playerShowdownPaste,
@@ -996,6 +1126,30 @@ export class ShowdownBattleController {
 
     const p1Sets = Teams.import(effectivePlayerPaste);
     const p2Sets = Teams.import(this.config.rivalShowdownPaste);
+
+    this.p1ShadowSpeciesSet.clear();
+    this.p2ShadowSpeciesSet.clear();
+    const addSpeciesVariants = (set: Set<string>, speciesList: string[]) => {
+      for (const spName of speciesList) {
+        if (!spName) continue;
+        set.add(toID(spName));
+        const sp = Dex.species.get(spName);
+        if (sp.exists) {
+          set.add(toID(sp.name));
+          set.add(toID(sp.baseSpecies));
+        }
+      }
+    };
+    addSpeciesVariants(this.p1ShadowSpeciesSet, [
+      ...(this.config.shadowMeta?.p1ShadowSpecies ?? []),
+      ...detectShadowSpeciesInPaste(effectivePlayerPaste).map((s) => s.species),
+    ]);
+    addSpeciesVariants(this.p2ShadowSpeciesSet, [
+      ...(this.config.shadowMeta?.p2ShadowSpecies ?? []),
+      ...detectShadowSpeciesInPaste(this.config.rivalShowdownPaste).map(
+        (s) => s.species
+      ),
+    ]);
 
     if (!p1Sets || p1Sets.length === 0) {
       throw new Error(
@@ -1299,12 +1453,12 @@ export class ShowdownBattleController {
             continue;
           }
 
-          // Ensure Turn-0 puzzle conditions (e.g. Regigigas buffs, Ash Omniboost) are applied BEFORE P2 picks Turn 1!
+          // Ensure Turn-0 puzzle conditions & Shadow/Affection core are applied BEFORE P2 picks Turn 1!
           if (
             !req.teamPreview &&
             this.state.turn <= 1 &&
-            this.config.puzzleConditions &&
-            !this.puzzleConditionsApplied
+            ((this.config.puzzleConditions && !this.puzzleConditionsApplied) ||
+              !this.shadowCoreApplied)
           ) {
             this.applyInitialBattleOverridesIfNeeded();
           }
@@ -1479,6 +1633,17 @@ export class ShowdownBattleController {
             ? this.p1HappinessBySpecies
             : this.p2HappinessBySpecies
           ).get(toID(speciesData.baseSpecies)),
+        isShadow:
+          prev?.isShadow ||
+          (sideKey === 'p1'
+            ? this.p1ShadowSpeciesSet
+            : this.p2ShadowSpeciesSet
+          ).has(toID(det.species)) ||
+          (sideKey === 'p1'
+            ? this.p1ShadowSpeciesSet
+            : this.p2ShadowSpeciesSet
+          ).has(toID(speciesData.baseSpecies)),
+        hyperMode: mon.active ? prev?.hyperMode ?? false : false,
       };
       this.refreshSpeedRange(sideKey, stateMon);
       return stateMon;
@@ -1536,8 +1701,11 @@ export class ShowdownBattleController {
         }
 
         const moves: ActiveMoveOption[] = slot.moves.map((m, idx) => {
+          ensureShadowDexRegistered();
           const data = Dex.moves.get(m.id || m.move);
           const moveId = toID(m.id || m.move);
+          const isShadowMv =
+            data.type === 'Shadow' || isShadowMoveName(m.id || m.move);
           const isMaxFrustration =
             moveId === 'frustration' &&
             (mon.happiness === 0 || (m.move || '').includes('102'));
@@ -1551,7 +1719,7 @@ export class ShowdownBattleController {
             maxpp: m.maxpp ?? data.pp ?? 1,
             target: m.target || data.target || 'normal',
             disabled: Boolean(m.disabled),
-            type: data.type || 'Normal',
+            type: isShadowMv ? 'Shadow' : data.type || 'Normal',
             category:
               (data.category as ActiveMoveOption['category']) || 'Physical',
             basePower: isMaxFrustration ? 102 : data.basePower || 0,
@@ -1559,9 +1727,11 @@ export class ShowdownBattleController {
             priority: data.priority ?? 0,
             shortDesc: data.shortDesc || data.desc || '',
             userHappiness: mon.happiness,
-            powerNote: isMaxFrustration
-              ? 'Potencia máxima por Felicidad: 0 (Vínculo roto)'
-              : undefined,
+            powerNote: isShadowMv
+              ? 'Tipo Oscuro · 2× a no-Oscuros · 0× Inmune Hada · 0.5× Oscuros'
+              : isMaxFrustration
+                ? 'Potencia máxima por Felicidad: 0 (Vínculo roto)'
+                : undefined,
           };
         });
 
@@ -1996,6 +2166,12 @@ export class ShowdownBattleController {
           (parts[3] ?? '').includes(', shiny') ||
           shinySet.has(toID(det.species)) ||
           shinySet.has(toID(speciesData.baseSpecies));
+        const shadowSet =
+          side === 'p1' ? this.p1ShadowSpeciesSet : this.p2ShadowSpeciesSet;
+        const isMonShadow =
+          shadowSet.has(toID(det.species)) ||
+          shadowSet.has(toID(speciesData.baseSpecies)) ||
+          shadowSet.has(toID(name));
 
         // If Open Teamsheet is active (e.g. VGC Worlds), pre-populate rival's known item/ability/tera!
         const openRivalMatch =
@@ -2046,6 +2222,8 @@ export class ShowdownBattleController {
               displayedLevel > this.state.levelCap,
             happiness: configuredHappiness,
             shiny: isMonShiny,
+            isShadow: isMonShadow,
+            hyperMode: false,
           };
           sideState.party.push(existing);
         } else {
@@ -2075,6 +2253,10 @@ export class ShowdownBattleController {
           if (isMonShiny) {
             existing.shiny = true;
           }
+          if (isMonShadow) {
+            existing.isShadow = true;
+          }
+          existing.hyperMode = false;
         }
 
         this.refreshSpeedRange(side, existing);
@@ -2530,6 +2712,9 @@ export class ShowdownBattleController {
             if (!m.volatiles.includes(effect)) {
               m.volatiles.push(effect);
             }
+            if (effect.toLowerCase().includes('modo hiper')) {
+              m.hyperMode = true;
+            }
           }
           this.pushLog('status', `${name}: efecto activo [${effect}].`);
         }
@@ -2544,6 +2729,9 @@ export class ShowdownBattleController {
           for (const m of [activeMon, partyMon]) {
             if (!m) continue;
             m.volatiles = m.volatiles.filter((v) => v !== effect);
+            if (effect.toLowerCase().includes('modo hiper')) {
+              m.hyperMode = false;
+            }
           }
         }
         break;
@@ -2551,6 +2739,7 @@ export class ShowdownBattleController {
 
       case '-fieldstart': {
         const field = cleanEffectName(parts[2] ?? '');
+        if (toID(field) === 'shadowaffectioncore') break;
         const isExtInitial =
           Boolean(this.config.puzzleConditions?.extendedEnvironment) &&
           this.state.turn <= 1;
@@ -2577,6 +2766,7 @@ export class ShowdownBattleController {
 
       case '-fieldend': {
         const field = cleanEffectName(parts[2] ?? '');
+        if (toID(field) === 'shadowaffectioncore') break;
         if (field.includes('Terrain')) {
           this.state.terrain = '';
           this.state.terrainTurnsLeft = null;

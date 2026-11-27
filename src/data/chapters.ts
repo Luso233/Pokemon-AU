@@ -41,6 +41,7 @@ import {
   resolvePostgameChampionBattle,
   resolveTamraCruViceroyBattle,
   resolveTohjoShentaiTrialBattle,
+  resolveXd001ShadowLugiaBattle,
 } from '../engine/campaignEscalationBattles';
 import {
   CAMPAIGN_DOUBLES_FORMAT_ID,
@@ -276,27 +277,27 @@ export const CHAPTERS: ChapterDefinition[] = [
     category: 'story',
     number: 'ACTO II · CAP. 04',
     title: 'Emboscada de Pokémon Oscuros',
-    subtitle: 'Tormenta de Arena en el Cañón de Aura (Orre)',
-    tag: 'ACTO II · 6V6 DOBLES',
+    subtitle: 'Cielo Oscuro (Shadow Sky) en el Cañón de Aura (Orre)',
+    tag: 'ACTO II · SHADOW POKÉMON',
     format: 'doubles',
     formatId: CAMPAIGN_DOUBLES_FORMAT_ID,
-    formatLabel: 'NatDex · Nv. 88',
+    formatLabel: 'Shadow · Nv. 88',
     difficulty: 'Acto II',
     description:
-      'Cruzando el oeste desértico hacia Cordelia, el Sindicato de Pokémon Oscuros de Aura te tiende una trampa bajo Tormenta de Arena persistente con Life Orb y objetos Choice.',
-    accentColor: 'orange',
+      'Cruzando el oeste desértico hacia Cordelia, el Sindicato de Pokémon Oscuros de Aura desata Cielo Oscuro (Shadow Sky) y movimientos Shadow reales (2× a todo salvo Hada 0× Inmune). ¡Vencer los arrebata a tu PC Box!',
+    accentColor: 'purple',
     teamEditPolicy: 'editable',
     teamMode: 'campaign',
     showcaseSprite: { species: 'Metagross', mode: 'boss', label: 'Oscuro' },
-    featuredPokemon: ['Tyranitar', 'Excadrill', 'Houndoom-Mega', 'Metagross'],
+    featuredPokemon: ['Tyranitar', 'Houndoom-Mega', 'Salamence', 'Metagross'],
     rivalPreview: 'Sindicato de Aura (Orre)',
     rivalProfile: {
       name: 'Sindicato de Pokémon Oscuros',
       title: 'Comandante de Aura (Orre)',
-      bio: 'Célula armada nacida de la guerra civil entre Teselia y Aura. Luchan con Pokémon endurecidos por el desierto y equipamiento competitivo completo.',
+      bio: 'Célula armada nacida de la guerra civil entre Teselia y Aura. Cierran el corazón de sus Pokémon para desatar movimientos Shadow devastadores bajo Cielo Oscuro.',
       tacticalInsight:
-        'Arena persistente potencia a Excadrill (Sand Rush + Life Orb) y blinda la SpD de Tyranitar. Quiebra su clima o presiona con Agua/Lucha.',
-      archetypeTag: 'Acto II · Arena & Choice',
+        'Ataques Shadow pegan 2× a todos los tipos EXCEPTO Hada (0× Inmune) y otros Oscuros (0.5×). ¡Trae tipo Hada y arrebata sus Pokémon Oscuros al ganar!',
+      archetypeTag: 'Acto II · Colosseum / XD',
     },
     inkSource: [
       'VAR orre_stance = "direct"',
@@ -1048,6 +1049,74 @@ export const CHAPTERS: ChapterDefinition[] = [
   },
 
   /* ===================== DESAFÍOS ===================== */
+  {
+    id: 'challenge-xd001-shadow-lugia',
+    category: 'challenges',
+    number: 'RAID XD001',
+    title: 'Proyecto XD001: Lugia Oscuro',
+    subtitle: 'Isla Tempestad (Aura) · Cielo Oscuro y las 3 Aves Oscuras',
+    tag: 'RAID OSCURO · SNAGGABLE',
+    format: 'doubles',
+    formatId: CAMPAIGN_DOUBLES_FORMAT_ID,
+    formatLabel: 'Shadow Raid · Nv. 102',
+    difficulty: 'Jefe Oscuro',
+    description:
+      'En las ruinas volcánicas de Isla Tempestad (Aura), el Maestro Cifra resguarda el arma definitiva que la CRU jamás pudo clonar: XD001 Lugia Oscuro ★ con Shadow Aeroblast (área 115 BP) y Shadow Eclipse (+2 SpA/+2 SpD/+1 Spe). ¡Vencer arrebata a los 6 Pokémon Oscuros directo a tus Cajas PC!',
+    accentColor: 'purple',
+    teamEditPolicy: 'editable',
+    teamMode: 'campaign',
+    showcaseSprite: { species: 'Lugia', mode: 'boss', label: 'XD001 Oscuro' },
+    featuredPokemon: ['Lugia', 'Articuno', 'Zapdos', 'Moltres'],
+    rivalPreview: 'Maestro Cifra Greevil · XD001',
+    rivalProfile: {
+      name: 'Maestro Cifra Greevil',
+      title: 'Proyecto XD001 · Isla Tempestad (Aura)',
+      bio: 'Arquitecto de la máquina de corazones cerrados en Aura. Despliega a Articuno, Zapdos, Moltres, Snorlax, Salamence y al legendario XD001 Lugia Oscuro ★ bajo Cielo Oscuro perpetuo.',
+      tacticalInsight:
+        'El tipo Hada es INMUNE (0×) a todos los ataques Shadow. Rompe Multiscale de XD001 y frena Shadow Eclipse con Haze o Taunt antes de que barra el tablero con Shadow Aeroblast.',
+      archetypeTag: 'Raid Colosseum / XD · Snagging',
+    },
+    inkSource: [
+      'VAR xd001_stance = "keep_choice"',
+      '-> inicio',
+      '=== inicio ===',
+      'Nubes violetas giran sobre el cráter de Isla Tempestad frente a la costa de Aura. Un rugido abisal desgarra la tormenta y una silueta negra y plateada desciende con ojos carmesí: XD001, el Lugia Oscuro. # bg: titan-sanctum # speaker: Narrador # char: dark_commander # side: right # pokemon: lugia # mood: fierce',
+      '«¡Bienvenido al Proyecto XD001, Príncipe de Galar! Mientras tu familia clonaba copias débiles con Ditto, en Aura perfeccionamos el cierre total del corazón.» # bg: titan-sanctum # speaker: Maestro Cifra # char: dark_commander # side: right # pokemon: articuno # mood: smug',
+      '* [«Voy a arrebatarte a XD001 y llevarlo a la Cámara de Purificación para abrir su corazón.»]',
+      '    ~ xd001_stance = "purify"',
+      '    «¡Iluso! ¡XD001 fue diseñado para ser imposible de purificar! ¡Aves Oscuras, desaten el Cielo Oscuro!» # bg: titan-sanctum # speaker: Maestro Cifra # char: dark_commander # side: right # pokemon: lugia # mood: fierce',
+      '    -> cierre',
+      '* [«Si los arrebato ahora, decidiré yo mismo si sanarlos… o usar Shadow Aeroblast contra el Usurpador.»]',
+      '    ~ xd001_stance = "keep_choice"',
+      '    «¡Ja! Hablas como un verdadero tirano. ¡Veamos si sobrevives primero a Shadow Eclipse y Shadow Aeroblast!» # bg: titan-sanctum # speaker: Maestro Cifra # char: dark_commander # side: right # pokemon: zapdos # mood: fierce',
+      '    -> cierre',
+      '=== cierre ===',
+      'El Cielo Oscuro cae sobre el cráter. Recuerda: el tipo Hada es INMUNE (0×) a los ataques Shadow. Al ganar, XD001 Lugia Oscuro y los otros 5 Pokémon Oscuros se unen directamente a tus Cajas PC. # bg: titan-sanctum # speaker: Narrador # char: prince # side: left # pokemon: gardevoir # mood: serious',
+      '-> END',
+    ].join('\n'),
+    resolveBattleConfig: resolveXd001ShadowLugiaBattle,
+    getEpilogue: (won: boolean) =>
+      won
+        ? {
+            headline: 'XD001 Lugia Oscuro Arrebatado',
+            subheadline:
+              'La tormenta violeta sobre Isla Tempestad cede mientras las 6 Poké Balls Oscuras se registran en tu PC Box.',
+            badgeText: 'VICTORIA · PROYECTO XD001 CAPTURADO',
+            paragraphs: [
+              'XD001 Lugia Oscuro (con Shadow Aeroblast y Shadow Eclipse) junto con Articuno, Zapdos, Moltres, Snorlax y Salamence Oscuros ahora reposan en tus Cajas PC.',
+              'Llévalos a la nueva pestaña «Cámara de Purificación» en tus Cajas PC para bajar su Medidor de Corazón pasivamente — y al llegar a 0, decide libremente si purificarlos (Lugia aprende Psycho Boost y activa el Poder de la Amistad) o dejarlos Oscuros para siempre con sus movimientos rotos.',
+            ],
+          }
+        : {
+            headline: 'Barrido por el Cielo Oscuro de XD001',
+            subheadline:
+              'Shadow Eclipse y Shadow Aeroblast dominaron el cráter de Isla Tempestad.',
+            badgeText: 'DERROTA · REAGRUPAR',
+            paragraphs: [
+              'Trae Pokémon tipo Hada (inmunidad 0× a Shadow), Haze o Clear Smog contra Shadow Eclipse, y cambia el clima de Cielo Oscuro antes de volver a Isla Tempestad.',
+            ],
+          },
+  },
   {
     id: 'challenge-weather-terrains',
     category: 'challenges',

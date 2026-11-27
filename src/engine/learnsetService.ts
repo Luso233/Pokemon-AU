@@ -1,4 +1,9 @@
 import { Dex } from '@pkmn/sim';
+import {
+  ensureShadowDexRegistered,
+  isShadowMoveName,
+  SHADOW_MOVES_CATALOG,
+} from './shadowEngine';
 
 export interface LegalMoveOption {
   id: string;
@@ -45,8 +50,10 @@ const learnsetCache = new Map<string, LegalMoveOption[]>();
 export function getLegalLearnsetForSpecies(
   speciesName: string,
   formatId = 'gen9customgame@@@NatDex Mod',
-  extraAllowedMoves: string[] = []
+  extraAllowedMoves: string[] = [],
+  includeShadowMoves = false
 ): LegalMoveOption[] {
+  ensureShadowDexRegistered();
   const gen = getFormatGeneration(formatId);
   const isOfficialStandard =
     formatId === 'gen9vgc2024regg' ||
@@ -163,11 +170,15 @@ export function getLegalLearnsetForSpecies(
     learnsetCache.set(baseKey, cached);
   }
 
-  if (extraAllowedMoves.length === 0) return cached;
+  const combinedExtras = includeShadowMoves
+    ? [...SHADOW_MOVES_CATALOG.map((m) => m.name), ...extraAllowedMoves]
+    : extraAllowedMoves;
+
+  if (combinedExtras.length === 0) return cached;
 
   const existingIds = new Set(cached.map((m) => m.id));
   const extras: LegalMoveOption[] = [];
-  for (const mvName of extraAllowedMoves) {
+  for (const mvName of combinedExtras) {
     const mv = Dex.moves.get(mvName);
     if (!mv.exists || existingIds.has(mv.id)) continue;
     existingIds.add(mv.id);
@@ -191,14 +202,18 @@ export function isMoveLegalForSpecies(
   speciesName: string,
   moveName: string,
   formatId = 'gen9customgame@@@NatDex Mod',
-  extraAllowedMoves: string[] = []
+  extraAllowedMoves: string[] = [],
+  includeShadowMoves = false
 ): boolean {
+  ensureShadowDexRegistered();
+  if (includeShadowMoves && isShadowMoveName(moveName)) return true;
   const targetId = Dex.moves.get(moveName).id;
   if (!targetId) return false;
   const learnset = getLegalLearnsetForSpecies(
     speciesName,
     formatId,
-    extraAllowedMoves
+    extraAllowedMoves,
+    includeShadowMoves
   );
   return learnset.some((m) => m.id === targetId);
 }

@@ -64,6 +64,16 @@ const FIELD_EFFECT_INFO: Record<string, { title: string; detail: string }> = {
     detail:
       'Aumenta la Defensa física de los Pokémon tipo Hielo ×1.5 y permite activar Velo Aurora y Ventisca sin fallos.',
   },
+  'cielo oscuro': {
+    title: 'Cielo Oscuro (Shadow Sky)',
+    detail:
+      'Clima prohibido de Aura (Orre): potencia ataques tipo Shadow ×1.35, aumenta Def y SpD de Pokémon Oscuros ×1.25 e inflige 1/16 de PS por turno a todos los Pokémon que NO sean Oscuros.',
+  },
+  shadowsky: {
+    title: 'Cielo Oscuro (Shadow Sky)',
+    detail:
+      'Clima prohibido de Aura (Orre): potencia ataques tipo Shadow ×1.35, aumenta Def y SpD de Pokémon Oscuros ×1.25 e inflige 1/16 de PS por turno a todos los Pokémon que NO sean Oscuros.',
+  },
   'campo eléctrico': {
     title: 'Campo Eléctrico (Electric Terrain)',
     detail:

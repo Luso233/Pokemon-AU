@@ -61,6 +61,13 @@ interface TeamEditorViewProps {
     placedZone?: 'party' | 'box';
     swappedOutSpecies?: string;
   };
+  onSpawnDevShadowSpecimen?: (
+    species?: string,
+    targetZone?: 'party' | 'box' | 'purify'
+  ) => { ok: boolean; error?: string; uid?: string };
+  onPurifyInstance?: (
+    uid: string
+  ) => { ok: boolean; error?: string; species?: string; signatureGift?: string };
   onPopulateLivingDexBox: () => { addedCount: number; totalLiving: number };
   onImportShowdownPaste: (
     rawPaste: string
@@ -96,6 +103,8 @@ export const TeamEditorView: React.FC<TeamEditorViewProps> = ({
   onUpdateInstanceBuild,
   onUnlockMoveSlot,
   onSpawnDevSpecimen,
+  onSpawnDevShadowSpecimen,
+  onPurifyInstance,
   onPopulateLivingDexBox,
   onImportShowdownPaste,
   onSaveCampaignTeam,
@@ -184,6 +193,8 @@ export const TeamEditorView: React.FC<TeamEditorViewProps> = ({
           onUpdateInstanceBuild={onUpdateInstanceBuild}
           onUnlockMoveSlot={onUnlockMoveSlot}
           onSpawnDevSpecimen={onSpawnDevSpecimen}
+          onSpawnDevShadowSpecimen={onSpawnDevShadowSpecimen}
+          onPurifyInstance={onPurifyInstance}
           onPopulateLivingDexBox={onPopulateLivingDexBox}
           onImportShowdownPaste={onImportShowdownPaste}
           onSaveCampaignTeam={onSaveCampaignTeam}

@@ -64,6 +64,7 @@ export const TYPE_BADGE_STYLES: Record<string, string> = {
   Dark: 'bg-zinc-700/50 text-zinc-200 border-zinc-400/40',
   Steel: 'bg-slate-400/25 text-slate-200 border-slate-300/45',
   Fairy: 'bg-rose-400/25 text-rose-200 border-rose-300/45',
+  Shadow: 'bg-purple-700/45 text-fuchsia-100 border-fuchsia-400/75 shadow-[0_0_10px_rgba(168,85,247,0.45)]',
 };
 
 export const STATUS_BADGE_STYLES: Record<string, { label: string; cls: string }> = {

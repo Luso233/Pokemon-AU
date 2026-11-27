@@ -24,6 +24,10 @@ import { getItemUsageInfo, isMoveSlotUnlocked } from '../engine/playerProfile';
 import { computePokemonBst } from '../engine/pricingEngine';
 import { getTypeBadgeClass } from '../engine/pokemonVisuals';
 import {
+  ensureShadowDexRegistered,
+  isInstanceHighBond,
+} from '../engine/shadowEngine';
+import {
   calculatePokemonStats,
   getIndexedSpeciesMeta,
   getNatureStatModifiers,
@@ -287,19 +291,35 @@ export const PokemonEditor: React.FC<PokemonEditorProps> = ({
     return Array.from(new Set(raw.length > 0 ? raw : [ability || 'Pressure']));
   }, [speciesObj, ability]);
 
-  // Full @pkmn/sim legal learnset for this species (NO TMs — once a slot is unlocked, EVERY legal move is available!)
+  // Full @pkmn/sim legal learnset for this species (plus ALL 24 Shadow Moves for Shadow Pokémon!)
+  const isShadowInstance = Boolean(mode === 'free' && instance?.isShadow);
   const legalMoves = useMemo(() => {
     if (!species) return [];
+    ensureShadowDexRegistered();
     const baseMoves =
       mode === 'narrative'
         ? canonicalSet?.moves ?? moves
         : moves;
-    return getLegalLearnsetForSpecies(species, formatId, baseMoves);
-  }, [species, mode, canonicalSet?.moves, moves, formatId]);
+    return getLegalLearnsetForSpecies(
+      species,
+      formatId,
+      baseMoves,
+      isShadowInstance
+    );
+  }, [species, mode, canonicalSet?.moves, moves, formatId, isShadowInstance]);
 
   const filteredMoves = useMemo(() => {
     const q = moveSearch.trim().toLowerCase();
-    if (!q) return legalMoves.slice(0, 80);
+    if (!q) {
+      if (isShadowInstance) {
+        const shadowFirst = [
+          ...legalMoves.filter((m) => m.type === 'Shadow'),
+          ...legalMoves.filter((m) => m.type !== 'Shadow'),
+        ];
+        return shadowFirst.slice(0, 96);
+      }
+      return legalMoves.slice(0, 80);
+    }
     return legalMoves
       .filter(
         (m) =>
@@ -308,7 +328,7 @@ export const PokemonEditor: React.FC<PokemonEditorProps> = ({
           m.shortDesc.toLowerCase().includes(q)
       )
       .slice(0, 80);
-  }, [legalMoves, moveSearch]);
+  }, [legalMoves, moveSearch, isShadowInstance]);
 
   const availableNarrativeItems = useMemo(() => {
     return Array.from(
@@ -439,6 +459,19 @@ export const PokemonEditor: React.FC<PokemonEditorProps> = ({
                   )}`}
                 >
                   Tera {teraType}
+                </span>
+              )}
+              {mode === 'free' && instance?.isShadow && (
+                <span className="rounded-md border border-fuchsia-400/70 bg-fuchsia-950/80 px-1.5 py-0.5 text-[10px] font-extrabold text-fuchsia-200 shadow shadow-fuchsia-500/20">
+                  🟣 OSCURO · Corazón {instance.heartGauge ?? 100}%
+                </span>
+              )}
+              {mode === 'free' && instance && isInstanceHighBond(instance) && (
+                <span
+                  title="Elegible para Vínculo del Heredero (Aguante a 1 PS y Cura de Estado) incluso en Difícil/Tryhard"
+                  className="rounded-md border border-pink-400/55 bg-pink-500/20 px-1.5 py-0.5 text-[10px] font-extrabold text-pink-200"
+                >
+                  💖 Vínculo Alto
                 </span>
               )}
             </div>

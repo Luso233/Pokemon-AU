@@ -126,6 +126,13 @@ interface TeambuilderBriefingProps {
     placedZone?: 'party' | 'box';
     swappedOutSpecies?: string;
   };
+  onSpawnDevShadowSpecimen?: (
+    species?: string,
+    targetZone?: 'party' | 'box' | 'purify'
+  ) => { ok: boolean; error?: string; uid?: string };
+  onPurifyInstance?: (
+    uid: string
+  ) => { ok: boolean; error?: string; species?: string; signatureGift?: string };
   onPopulateLivingDexBox: () => { addedCount: number; totalLiving: number };
   onImportShowdownPaste: (
     rawPaste: string
@@ -165,6 +172,8 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
   onEquipInstanceItem,
   onUpdateInstanceBuild,
   onSpawnDevSpecimen,
+  onSpawnDevShadowSpecimen,
+  onPurifyInstance,
   onPopulateLivingDexBox,
   onImportShowdownPaste,
   onSaveCampaignTeam,
@@ -769,6 +778,8 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                   onUpdateInstanceBuild={onUpdateInstanceBuild}
                   onUnlockMoveSlot={onUnlockMoveSlot}
                   onSpawnDevSpecimen={onSpawnDevSpecimen}
+                  onSpawnDevShadowSpecimen={onSpawnDevShadowSpecimen}
+                  onPurifyInstance={onPurifyInstance}
                   onPopulateLivingDexBox={onPopulateLivingDexBox}
                   onImportShowdownPaste={onImportShowdownPaste}
                   onSaveCampaignTeam={onSaveCampaignTeam}
@@ -1026,6 +1037,14 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                       );
                     })}
                   </div>
+                  <div className="mt-2 rounded-lg border border-pink-400/30 bg-pink-950/25 px-2.5 py-1.5 text-[10px] leading-snug text-pink-100/90">
+                    <span className="font-extrabold text-pink-200">
+                      💖 Vínculo del Heredero ({difficultyMode === 'baby' || difficultyMode === 'standard' ? 'Clásico Let\'s Go' : 'Táctico Limitado'}):
+                    </span>{' '}
+                    {difficultyMode === 'baby' || difficultyMode === 'standard'
+                      ? '22% aguante a 1 PS + 20% cura de estado en no-Oscuros.'
+                      : '1× aguante a 1 PS + 1× cura de estado por combate SOLO en Vínculo Alto (Iniciales, Casa R3, Recompensas o Purificados). Bloqueado en Pokémon Oscuros.'}
+                  </div>
                 </div>
 
                 {/* Rank 1 Romance Anti-Diablo Tactical Scouting (Rival Personalizado) */}
@@ -1096,6 +1115,7 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                     raindance: '🌧️ Lluvia',
                     sandstorm: '🏜️ Tormenta de Arena',
                     snow: '❄️ Nieve',
+                    shadowsky: '🌑 Cielo Oscuro (Shadow Sky)',
                   };
                   const trLabels: Record<string, string> = {
                     electricterrain: '⚡ Campo Eléctrico',

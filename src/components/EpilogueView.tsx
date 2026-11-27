@@ -484,9 +484,11 @@ export const EpilogueView: React.FC<EpilogueViewProps> = ({
           </div>
         )}
 
-        {/* Battle Coin Rewards, Casualty Indemnification & Biogeographical Pokédex Unlocks Banner */}
+        {/* Battle Coin Rewards, Shadow Snagging, Casualty Indemnification & Biogeographical Pokédex Unlocks Banner */}
         {reward &&
           (reward.coinsEarned > 0 ||
+            (reward.snaggedShadowPokemon &&
+              reward.snaggedShadowPokemon.length > 0) ||
             (reward.unlockedPokedexSpecies &&
               reward.unlockedPokedexSpecies.length > 0)) && (
           <div className="mb-5 rounded-2xl border border-amber-400/45 bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-emerald-500/15 p-4">
@@ -600,6 +602,50 @@ export const EpilogueView: React.FC<EpilogueViewProps> = ({
                 ))}
               </div>
             )}
+            {reward.snaggedShadowPokemon &&
+              reward.snaggedShadowPokemon.length > 0 && (
+                <div className="mt-3 space-y-2 border-t border-fuchsia-400/30 pt-3">
+                  <p className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-fuchsia-300">
+                    <Sparkles className="h-3.5 w-3.5 text-fuchsia-400" />
+                    🟣 ¡Pokémon Oscuros Arrebatados (Colosseum / XD) → Cajas PC &amp; Pokédex!
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {reward.snaggedShadowPokemon.map((sh) => (
+                      <div
+                        key={`snag-${sh.species}`}
+                        className="flex items-center gap-2.5 rounded-xl border border-fuchsia-400/45 bg-fuchsia-950/45 p-2"
+                      >
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-fuchsia-400/40 bg-slate-950">
+                          <PokemonSprite
+                            species={sh.species}
+                            shiny={sh.species.toLowerCase() === 'lugia'}
+                            side="p2"
+                            className="h-11 w-11"
+                          />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate text-xs font-extrabold text-fuchsia-100">
+                            🟣 {sh.species} Oscuro
+                            {sh.alreadyOwned && (
+                              <span className="ml-1 text-[9.5px] font-semibold text-slate-400">
+                                (ya en PC)
+                              </span>
+                            )}
+                          </p>
+                          <p className="truncate text-[10px] text-fuchsia-200/85">
+                            {sh.shadowMoves.length > 0
+                              ? sh.shadowMoves.join(' · ')
+                              : 'Corazón Cerrado (100%)'}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[10.5px] leading-snug text-fuchsia-200/85">
+                    💡 Colócalos en la pestaña <strong>🟣 Cámara de Purificación</strong> de tus Cajas PC para bajar su Medidor de Corazón pasivamente — y al llegar a 0%, decide si <strong>Purificarlos</strong> (desbloquea Poder de la Amistad + movimiento exclusivo) o <strong>dejarlos Oscuros</strong> para conservar sus ataques Shadow rotos.
+                  </p>
+                </div>
+              )}
             {reward.rewardPokemon && reward.rewardPokemon.length > 0 && (
               <div className="mt-3 space-y-2 border-t border-white/10 pt-3">
                 <p className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-emerald-300">

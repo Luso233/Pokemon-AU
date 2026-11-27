@@ -48,6 +48,7 @@ import {
   purchaseHeldItem,
   purchasePokemon,
   purchaseShinyCharm,
+  purifyShadowPokemonInstance,
   recordChapterAttemptInProfile,
   recordPostBattleSurvivalState,
   recordRomanceConfession,
@@ -62,11 +63,13 @@ import {
   setCustomRivalName,
   setDevModeEnabled,
   spawnDevAgSpecimen,
+  spawnDevShadowSpecimen,
   toggleRunModifiers,
   unlockChapterWithCoins,
   unlockMoveSlotForSpecies,
   updatePokemonInstanceBuild,
 } from './engine/playerProfile';
+import { buildShadowAndAffectionMetaForProfile } from './engine/shadowEngine';
 import {
   applyRivalNameToBattleConfig,
   applyRivalNameToChapter,
@@ -503,12 +506,25 @@ export default function App() {
           )
         : finalConfig.persistedPartyState;
 
+    const effectiveDiff =
+      finalConfig.difficultyMode ?? curProf.defaultDifficulty ?? 'kaizo';
+    const shadowMeta = finalConfig.isVersusMatch
+      ? finalConfig.shadowMeta
+      : buildShadowAndAffectionMetaForProfile(
+          curProf,
+          effectiveDiff,
+          finalConfig.rivalShowdownPaste,
+          finalConfig.playerShowdownPaste,
+          finalConfig.shadowMeta
+        );
+
     const hydrated = applyRivalNameToBattleConfig(
       {
         ...finalConfig,
         persistedPartyState: ironmanPersisted,
         isIronmanActive: appliesSurvival && curProf.ironmanMode,
         isNuzlockeActive: appliesSurvival && curProf.nuzlockePermadeath,
+        shadowMeta,
         rivalProfile: finalConfig.isVersusMatch
           ? finalConfig.rivalProfile
           : buildRivalProfileFromNpc(
@@ -570,29 +586,30 @@ export default function App() {
             resolvedConfig?.difficultyMode ??
             profileRef.current.defaultDifficulty,
           fallenInBattle,
+          rivalShowdownPaste: resolvedConfig?.rivalShowdownPaste,
         }
       );
       earnedReward = res.reward;
       if (won && res.reward?.newlyUnlockedSocialLinks?.length) {
         setRecentSocialLinkAlerts(res.reward.newlyUnlockedSocialLinks);
       }
-      let nextProf = appliesSurvival
-        ? recordPostBattleSurvivalState(
-            res.nextProfile,
-            snapshot.exportedPartyState,
-            won,
-            {
-              chapterId: activeChapter.id,
-              chapterTitle: activeChapter.title,
-              rivalName: resolvedConfig?.rivalName,
-              turn: snapshot.turn,
-              difficulty:
-                resolvedConfig?.difficultyMode ??
-                profileRef.current.defaultDifficulty,
-              faintLog: snapshot.faintLog,
-            }
-          )
-        : res.nextProfile;
+      // Pass exportedPartyState ONLY on campaign survival battles (so locked puzzles/challenges never cause Ironman/Nuzlocke casualties),
+      // while ALWAYS ticking Camp Berry Plots & Shadow Pokémon Purification Chamber Heart Gauges!
+      let nextProf = recordPostBattleSurvivalState(
+        res.nextProfile,
+        appliesSurvival ? snapshot.exportedPartyState : null,
+        won,
+        {
+          chapterId: activeChapter.id,
+          chapterTitle: activeChapter.title,
+          rivalName: resolvedConfig?.rivalName,
+          turn: snapshot.turn,
+          difficulty:
+            resolvedConfig?.difficultyMode ??
+            profileRef.current.defaultDifficulty,
+          faintLog: appliesSurvival ? snapshot.faintLog : undefined,
+        }
+      );
       if (won && resolvedConfig?.romanceMeta) {
         nextProf = completeRomanceRank(
           nextProf,
@@ -682,6 +699,26 @@ export default function App() {
     targetZone: 'party' | 'box'
   ) => {
     const res = spawnDevAgSpecimen(profileRef.current, species, targetZone);
+    if (res.ok) setProfile(res.nextProfile);
+    return res;
+  };
+
+  const handleSpawnDevShadowSpecimen = (
+    species = 'Lugia',
+    targetZone: 'party' | 'box' | 'purify' = 'box'
+  ) => {
+    const res = spawnDevShadowSpecimen(
+      profileRef.current,
+      species,
+      undefined,
+      targetZone
+    );
+    if (res.ok) setProfile(res.nextProfile);
+    return res;
+  };
+
+  const handlePurifyInstance = (uid: string) => {
+    const res = purifyShadowPokemonInstance(profileRef.current, uid);
     if (res.ok) setProfile(res.nextProfile);
     return res;
   };
@@ -928,6 +965,8 @@ export default function App() {
         onUpdateInstanceBuild={handleUpdateInstanceBuild}
         onUnlockMoveSlot={handleUnlockMoveSlot}
         onSpawnDevSpecimen={handleSpawnDevSpecimen}
+        onSpawnDevShadowSpecimen={handleSpawnDevShadowSpecimen}
+        onPurifyInstance={handlePurifyInstance}
         onPopulateLivingDexBox={handlePopulateLivingDexBox}
         onImportShowdownPaste={handleImportShowdownPaste}
         onSaveCampaignTeam={handleSaveCampaignTeam}
@@ -999,6 +1038,8 @@ export default function App() {
         onEquipInstanceItem={handleEquipInstanceItem}
         onUpdateInstanceBuild={handleUpdateInstanceBuild}
         onSpawnDevSpecimen={handleSpawnDevSpecimen}
+        onSpawnDevShadowSpecimen={handleSpawnDevShadowSpecimen}
+        onPurifyInstance={handlePurifyInstance}
         onPopulateLivingDexBox={handlePopulateLivingDexBox}
         onImportShowdownPaste={handleImportShowdownPaste}
         onSaveCampaignTeam={handleSaveCampaignTeam}

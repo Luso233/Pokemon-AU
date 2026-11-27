@@ -79,7 +79,7 @@ function buildExileCampaignPlayerSquad(level = 100): ShowdownSetBlock[] {
 
 /* ============================================================================
  * ACTO II (Misión 5) — AURA (ORRE): EMBOSCADA DE POKÉMON OSCUROS (Nv. 82–88)
- * Entran objetos competitivos (Life Orb, Choice Band/Specs) + Arena Persistente
+ * Mecánica Real de Colosseum / XD: Pokémon Oscuros + Cielo Oscuro (Shadow Sky)
  * ============================================================================ */
 export function resolveOrreShadowAmbushBattle(
   flags: StoryFlags = {}
@@ -87,19 +87,20 @@ export function resolveOrreShadowAmbushBattle(
   const playerSquad = buildExileCampaignPlayerSquad(88);
   const rivalSquad: ShowdownSetBlock[] = [
     {
+      nickname: 'Tyranitar Oscuro',
       species: 'Tyranitar',
-      item: 'Assault Vest',
-      ability: 'Sand Stream',
+      item: 'Sitrus Berry',
+      ability: 'Unnerve',
       level: 84,
       teraType: 'Flying',
       evs: '252 HP / 252 Atk / 4 SpD',
       nature: 'Adamant',
-      moves: ['Rock Slide', 'Knock Off', 'Low Kick', 'Ice Punch'],
+      moves: ['Shadow Dominion', 'Shadow Rush', 'Shadow Break', 'Rock Slide'],
     },
     {
       species: 'Excadrill',
       item: 'Life Orb',
-      ability: 'Sand Rush',
+      ability: 'Mold Breaker',
       level: 85,
       teraType: 'Ground',
       evs: '4 HP / 252 Atk / 252 Spe',
@@ -117,26 +118,28 @@ export function resolveOrreShadowAmbushBattle(
       moves: ['Dragon Claw', 'Stomping Tantrum', 'Rock Slide', 'Iron Head'],
     },
     {
+      nickname: 'Houndoom Oscuro',
       species: 'Houndoom-Mega',
       item: 'Houndoominite',
-      ability: 'Solar Power',
+      ability: 'Flash Fire',
       level: 86,
       teraType: 'Dark',
       evs: '4 HP / 252 SpA / 252 Spe',
       nature: 'Timid',
       ivs: '0 Atk',
-      moves: ['Dark Pulse', 'Heat Wave', 'Snarl', 'Protect'],
+      moves: ['Shadow Fire', 'Shadow Wave', 'Shadow Panic', 'Dark Pulse'],
     },
     {
+      nickname: 'Salamence Oscuro',
       species: 'Salamence',
-      item: 'Choice Specs',
+      item: 'Leftovers',
       ability: 'Intimidate',
       level: 86,
       teraType: 'Flying',
       evs: '4 HP / 252 SpA / 252 Spe',
       nature: 'Timid',
       ivs: '0 Atk',
-      moves: ['Draco Meteor', 'Hurricane', 'Flamethrower', 'Hydro Pump'],
+      moves: ['Shadow Storm', 'Shadow Blast', 'Shadow Sky', 'Draco Meteor'],
     },
     {
       nickname: 'Metagross Oscuro ★',
@@ -147,7 +150,7 @@ export function resolveOrreShadowAmbushBattle(
       teraType: 'Steel',
       evs: '252 HP / 252 Atk / 4 Spe',
       nature: 'Adamant',
-      moves: ['Meteor Mash', 'Psychic Fangs', 'Bullet Punch', 'Protect'],
+      moves: ['Shadow Rend', 'Shadow End', 'Shadow Rush', 'Meteor Mash'],
     },
   ];
 
@@ -155,7 +158,7 @@ export function resolveOrreShadowAmbushBattle(
     chapterId: 'ch4-orre-shadow-ambush',
     format: 'doubles',
     formatId: CAMPAIGN_DOUBLES_FORMAT_ID,
-    formatLabel: 'Acto II · NatDex Dobles (Nv. 88)',
+    formatLabel: 'Acto II · Pokémon Oscuros (Nv. 88)',
     reserveAsLastAceSpecies: 'Metagross',
     playerName: 'Príncipe Heredero',
     playerCharId: 'prince',
@@ -165,40 +168,45 @@ export function resolveOrreShadowAmbushBattle(
     arenaTheme: 'wyndon-alleys',
     playerTeamSummary: 'Tu Escuadrón del Exilio (Acto II · Cap BST 3,000)',
     rivalTeamSummary:
-      'Sindicato de Aura (Tyranitar AV, Excadrill Sand Rush Life Orb, Garchomp Band, Houndoom-Mega, Salamence Specs, Metagross Oscuro ★ Nv. 88)',
+      'Sindicato de Aura (Tyranitar Oscuro, Houndoom-Mega Oscuro, Salamence Oscuro, Metagross Oscuro ★ + Excadrill/Garchomp)',
     playerShowdownPaste: buildShowdownPaste(playerSquad),
     rivalShowdownPaste: buildShowdownPaste(rivalSquad),
+    shadowMeta: {
+      p1ShadowSpecies: [],
+      p2ShadowSpecies: ['Tyranitar', 'Houndoom-Mega', 'Salamence', 'Metagross'],
+      affectionMode: 'classic-rng',
+    },
     rivalIntel: {
       visibleSpeciesCount: 3,
       totalSlots: 6,
-      intelLabel: 'Acto II · Objetos Competitivos + Arena Persistente',
+      intelLabel: 'Acto II · Pokémon Oscuros + Cielo Oscuro (Colosseum/XD)',
       intelNote:
-        'Primer gran salto competitivo del Exilio: entran Life Orb, Choice Band, Choice Specs y Sand Rush bajo Tormenta de Arena persistente.',
+        'Primer choque con Pokémon Oscuros reales bajo Cielo Oscuro (Shadow Sky): sus ataques Shadow pegan 2× a TODO salvo Hada (0× INMUNE) y otros Oscuros (0.5×). ¡Vencer los arrebata directo a tus Cajas PC!',
       levelCap: 88,
       hasBossAce: true,
       bossAceWarning:
-        'Metagross Oscuro ★ (Nv. 88 · Amuleto Puro) remata tras la presión de Excadrill y Houndoom-Mega.',
+        'Metagross Oscuro ★ (Nv. 88 · Shadow Rend crítico garantizado + Shadow End 160 BP) entra en Modo Hiper bajo 50% PS. ¡Trae tipo Hada!',
     },
     puzzleConditions: {
-      weather: 'sandstorm',
+      weather: 'shadowsky',
       extendedEnvironment: true,
-      biomeLabel: '🏜️ Cañón de Aura (Orre) · Tormenta de Arena Persistente',
+      biomeLabel: '🌑 Cañón de Aura (Orre) · Cielo Oscuro Persistente (Shadow Sky)',
       biomeCounterHint:
-        'La arena duplica la velocidad de Excadrill (Sand Rush + Life Orb) y refuerza la SpD de Tyranitar. Cambia el clima o usa Intimidación + Agua/Lucha.',
+        'Cielo Oscuro potencia ataques Shadow ×1.35, da ×1.25 Def/SpD a Pokémon Oscuros y drena 1/16 PS por turno a no-Oscuros. ¡Los tipo Hada son INMUNES (0×) a ataques Shadow!',
       bannerLog:
-        '🏜️ ¡Cañón de Aura (Orre)! Tormenta de Arena persistente envuelve la emboscada del Sindicato de Pokémon Oscuros.',
+        '🌑 ¡Cañón de Aura (Orre)! Cielo Oscuro (Shadow Sky) envuelve la emboscada del Sindicato de Pokémon Oscuros.',
     },
     scriptedEnemyRules: [
       {
-        id: 'orre-t1-exca-eq',
+        id: 'orre-t1-ttar-shadow-dominion',
         turn: 1,
-        actorSpecies: 'Excadrill',
-        forceMoveId: 'rockslide',
+        actorSpecies: 'Tyranitar',
+        forceMoveId: 'shadowdominion',
         once: true,
         description:
-          'Sindicato T1: Excadrill aprovecha Sand Rush para presionar ambos flancos con Avalancha.',
+          'Sindicato T1: Tyranitar Oscuro desata Shadow Dominion (+2 Atk/+1 Def/+1 Spe) bajo Cielo Oscuro.',
         tauntLine:
-          '«¡En el desierto de Aura nadie sobrevive sin vender su alma! ¡Avalancha en la arena!»',
+          '«¡En el desierto de Aura cerramos el corazón de nuestros Pokémon! ¡Siente el Cielo Oscuro y Shadow Dominion!»',
       },
     ],
     traces: [
@@ -211,9 +219,9 @@ export function resolveOrreShadowAmbushBattle(
             : 'Cruzaste el cañón de Aura de frente para liberar los convoyes',
         flagKey: 'orre_stance',
         flagValue: String(flags.orre_stance ?? 'direct'),
-        effectTitle: 'Apertura de la ruta hacia Cordelia',
+        effectTitle: 'Apertura de Cordelia + Proyecto XD001',
         effectDetail:
-          'Ganar desbloquea la región de Cordelia y el Vínculo del Astrónomo en el mapa.',
+          'Ganar arrebata los 4 Pokémon Oscuros del Sindicato a tus Cajas PC y revela el jefe secreto Proyecto XD001: Lugia Oscuro en Aura.',
       },
     ],
     flags,
@@ -1064,6 +1072,182 @@ export function resolvePostgameChampionBattle(
         effectTitle: 'True Mastery Badge & New Game+',
         effectDetail:
           'Superar este combate otorga la Insignia de Maestría Verdadera y habilita New Game+.',
+      },
+    ],
+    flags,
+  };
+}
+
+/* ============================================================================
+ * JEFE SECRETO DE AURA (ORRE) — PROYECTO XD001: LUGIA OSCURO (Nv. 96–102)
+ * Shadow Aeroblast (115 BP área + Crítico) · Shadow Eclipse (+2 SpA/+2 SpD/+1 Spe)
+ * ¡Ganar arrebata a XD001 Lugia Oscuro y a las 3 Aves Oscuras a tus Cajas PC!
+ * ============================================================================ */
+export function resolveXd001ShadowLugiaBattle(
+  flags: StoryFlags = {}
+): ResolvedBattleConfig {
+  const playerSquad = buildExileCampaignPlayerSquad(100);
+  const rivalSquad: ShowdownSetBlock[] = [
+    {
+      nickname: 'Articuno Oscuro',
+      species: 'Articuno',
+      item: 'Leftovers',
+      ability: 'Pressure',
+      level: 96,
+      teraType: 'Ice',
+      evs: '252 HP / 120 Def / 136 SpD',
+      nature: 'Calm',
+      ivs: '0 Atk',
+      moves: ['Shadow Chill', 'Shadow Mist', 'Shadow Sky', 'Freeze-Dry'],
+    },
+    {
+      nickname: 'Zapdos Oscuro',
+      species: 'Zapdos',
+      item: 'Heavy-Duty Boots',
+      ability: 'Static',
+      level: 97,
+      teraType: 'Electric',
+      evs: '4 HP / 252 SpA / 252 Spe',
+      nature: 'Timid',
+      ivs: '0 Atk',
+      moves: ['Shadow Bolt', 'Shadow Wave', 'Shadow Shed', 'Heat Wave'],
+    },
+    {
+      nickname: 'Moltres Oscuro',
+      species: 'Moltres',
+      item: 'Sitrus Berry',
+      ability: 'Flame Body',
+      level: 97,
+      teraType: 'Fire',
+      evs: '4 HP / 252 SpA / 252 Spe',
+      nature: 'Timid',
+      ivs: '0 Atk',
+      moves: ['Shadow Fire', 'Shadow Storm', 'Shadow Panic', 'Hurricane'],
+    },
+    {
+      nickname: 'Snorlax Oscuro',
+      species: 'Snorlax',
+      item: 'Sitrus Berry',
+      ability: 'Thick Fat',
+      level: 98,
+      teraType: 'Normal',
+      evs: '252 HP / 252 Atk / 4 SpD',
+      nature: 'Adamant',
+      moves: ['Shadow Half', 'Shadow Rush', 'Shadow Hold', 'Body Slam'],
+    },
+    {
+      nickname: 'Salamence Oscuro',
+      species: 'Salamence',
+      item: 'Life Orb',
+      ability: 'Intimidate',
+      level: 99,
+      teraType: 'Dragon',
+      evs: '4 HP / 252 SpA / 252 Spe',
+      nature: 'Timid',
+      ivs: '0 Atk',
+      moves: ['Shadow Rave', 'Shadow Nova', 'Shadow Blitz', 'Draco Meteor'],
+    },
+    {
+      nickname: 'XD001 Lugia Oscuro ★',
+      species: 'Lugia',
+      item: 'Leftovers',
+      ability: 'Multiscale',
+      level: 102,
+      shiny: true,
+      teraType: 'Dark',
+      evs: '252 HP / 100 Def / 156 SpA',
+      nature: 'Modest',
+      ivs: '0 Atk',
+      moves: ['Shadow Aeroblast', 'Shadow Eclipse', 'Shadow Sky', 'Shadow Siphon'],
+    },
+  ];
+
+  return {
+    chapterId: 'challenge-xd001-shadow-lugia',
+    format: 'doubles',
+    formatId: CAMPAIGN_DOUBLES_FORMAT_ID,
+    formatLabel: 'RAID AURA · XD001 Lugia Oscuro (Nv. 102)',
+    reserveAsLastAceSpecies: 'Lugia',
+    playerName: 'Príncipe Heredero',
+    playerCharId: 'prince',
+    rivalName: 'Maestro Cifra Greevil',
+    rivalTitle: 'Proyecto XD001 · Isla Tempestad (Aura / Orre)',
+    rivalCharId: 'dark_commander',
+    arenaTheme: 'titan-sanctum',
+    playerTeamSummary: 'Tu Escuadrón de Incursión (Cámara de Purificación)',
+    rivalTeamSummary:
+      'Escuadrón Cifra 100% Oscuro (Articuno, Zapdos, Moltres, Snorlax, Salamence y XD001 LUGIA OSCURO ★ Nv. 102)',
+    playerShowdownPaste: buildShowdownPaste(playerSquad),
+    rivalShowdownPaste: buildShowdownPaste(rivalSquad),
+    shadowMeta: {
+      p1ShadowSpecies: [],
+      p2ShadowSpecies: [
+        'Articuno',
+        'Zapdos',
+        'Moltres',
+        'Snorlax',
+        'Salamence',
+        'Lugia',
+      ],
+      affectionMode: 'classic-rng',
+    },
+    rivalIntel: {
+      visibleSpeciesCount: 3,
+      totalSlots: 6,
+      intelLabel: 'RAID OSCURO · 6 Pokémon Oscuros + XD001 Lugia (Snaggable)',
+      intelNote:
+        'Todos los Pokémon rivales son Oscuros (2× a no-Oscuros, 0× INMUNE Hada, 0.5× entre Oscuros). ¡Vencer arrebata a XD001 Lugia Oscuro y a las 3 Aves Oscuras directo a tu PC Box!',
+      levelCap: 100,
+      hasBossAce: true,
+      bossAceWarning:
+        'XD001 Lugia Oscuro ★ (Nv. 102 · Multiscale): Shadow Eclipse (+2 SpA/+2 SpD/+1 Spe) + Shadow Aeroblast (115 BP de ÁREA + Alto Crítico) + Shadow Siphon (75% drenaje). ¡Trae tipo Hada o Haze!',
+    },
+    puzzleConditions: {
+      weather: 'shadowsky',
+      extendedEnvironment: true,
+      biomeLabel: '🌑⚡ Isla Tempestad (Aura) · Cielo Oscuro ∞ (Proyecto XD001)',
+      biomeCounterHint:
+        'Los tipo Hada (Gardevoir, Sylveon, Flutter Mane, Xerneas) son COMPLETAMENTE INMUNES (0×) a los ataques Shadow, y otros Pokémon Oscuros los resisten (0.5×). Cambia el clima y lleva Haze/Taunt contra Shadow Eclipse.',
+      bannerLog:
+        '🌑⚡ ¡PROYECTO XD001 EN ISLA TEMPESTAD! Cielo Oscuro ∞ desciende mientras Maestro Cifra libera a las Aves Oscuras y a XD001 Lugia Oscuro ★.',
+    },
+    scriptedEnemyRules: [
+      {
+        id: 'xd001-t1-articuno-mist',
+        turn: 1,
+        actorSpecies: 'Articuno',
+        forceMoveId: 'shadowmist',
+        once: true,
+        description:
+          'Cifra T1: Articuno Oscuro lanza Shadow Mist (-1 Atk/-1 SpA a ambos rivales) mientras Zapdos Oscuro presiona con Shadow Wave.',
+        tauntLine:
+          '«¡Contempla la obra maestra de Aura! Ni la CRU ni Galar pudieron replicar un corazón tan cerrado como el de XD001.»',
+      },
+      {
+        id: 'xd001-lugia-eclipse',
+        actorSpecies: 'Lugia',
+        onFirstActiveTurn: true,
+        forceMoveId: 'shadoweclipse',
+        once: true,
+        description:
+          'XD001 Lugia Oscuro desata Shadow Eclipse (+2 SpA / +2 SpD / +1 Spe) en cuanto pisa el campo bajo Multiscale.',
+        tauntLine:
+          '«¡Despierta, XD001! ¡Shadow Eclipse… y borra el cielo entero con Shadow Aeroblast!»',
+      },
+    ],
+    traces: [
+      {
+        id: 'xd001-snag-vow',
+        category: 'rival-team',
+        choiceLabel:
+          String(flags.xd001_stance ?? 'keep_choice') === 'purify'
+            ? 'Juraste llevar a XD001 a la Cámara de Purificación para sanar su corazón'
+            : 'Decidiste arrebatar a XD001 y decidir después si purificarlo o desatar su poder oscuro',
+        flagKey: 'xd001_stance',
+        flagValue: String(flags.xd001_stance ?? 'keep_choice'),
+        effectTitle: 'Snagging Automático + Elección de Purificación',
+        effectDetail:
+          'Al ganar, XD001 Lugia Oscuro y sus 5 escoltas aterrizan en tu PC Box con sus movimientos Shadow intactos. ¡Tú eliges si purificarlos (Psycho Boost) o dejarlos Oscuros!',
       },
     ],
     flags,

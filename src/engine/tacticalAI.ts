@@ -7,6 +7,9 @@ import type {
   ScriptedEnemyRule,
 } from '../types/game';
 import { callStructuredLLM, isLiveLLMConfigured } from './aiProvider';
+import { ensureShadowDexRegistered } from './shadowEngine';
+
+ensureShadowDexRegistered();
 
 interface ShowdownRequestMove {
   move: string;
@@ -104,6 +107,10 @@ function parseSpeciesFromDetails(details: string): string {
 }
 
 function calcTypeMultiplier(moveType: string, defenderTypes: string[]): number {
+  if (moveType === 'Shadow') {
+    if (defenderTypes.includes('Fairy')) return 0;
+    return 2;
+  }
   let mult = 1;
   for (const defType of defenderTypes) {
     if (!Dex.getImmunity(moveType, defType)) {

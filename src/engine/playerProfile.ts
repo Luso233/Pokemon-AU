@@ -60,6 +60,12 @@ import {
 } from './pricingEngine';
 import { buildShowdownPaste, type ShowdownSetBlock } from './teamBuilderTree';
 import { DEFAULT_RIVAL_NAME, sanitizeRivalName } from './rivalName';
+import {
+  buildPurifiedMovesetForSpecies,
+  detectShadowSpeciesInPaste,
+  ensureShadowDexRegistered,
+  isShadowMoveName,
+} from './shadowEngine';
 
 const PROFILE_STORAGE_KEY = 'galar-crown-profile-v2';
 const LEGACY_PROGRESS_KEY = 'galar-crown-vn-progress-v1';
@@ -384,6 +390,7 @@ export function normalizeProfile(
             inst.zone === 'party' ||
             inst.zone === 'box' ||
             inst.zone === 'house' ||
+            inst.zone === 'purify' ||
             inst.zone === 'graveyard'
               ? inst.zone
               : 'box',
@@ -398,6 +405,13 @@ export function normalizeProfile(
           ...(sanitizeEvSpread(inst.evs) ? { evs: sanitizeEvSpread(inst.evs) } : {}),
           ...(sanitizeIvSpread(inst.ivs) ? { ivs: sanitizeIvSpread(inst.ivs) } : {}),
           shiny: Boolean(inst.shiny),
+          ...(inst.isShadow ? { isShadow: true } : {}),
+          ...(typeof inst.heartGauge === 'number'
+            ? { heartGauge: Math.max(0, Math.min(100, Math.floor(inst.heartGauge))) }
+            : inst.isShadow
+              ? { heartGauge: 100 }
+              : {}),
+          ...(inst.purifiedAt ? { purifiedAt: inst.purifiedAt } : {}),
           hp: typeof inst.hp === 'number' ? inst.hp : null,
           maxhp: typeof inst.maxhp === 'number' ? inst.maxhp : null,
           status: inst.status || '',
@@ -826,6 +840,7 @@ export function applyBattleOutcomeToProfile(
   options?: {
     difficulty?: BattleDifficultyMode;
     fallenInBattle?: Array<{ species: string; ability?: string }>;
+    rivalShowdownPaste?: string;
   }
 ): { nextProfile: PlayerSaveProfile; reward: BattleRewardSummary | null } {
   const existing = profile.completedChapters[chapterId] ?? {
@@ -896,9 +911,14 @@ export function applyBattleOutcomeToProfile(
   const casualtyIndemnificationCoins = indemnification?.totalPayout ?? 0;
   const coinsEarned = baseCoinsEarned + casualtyIndemnificationCoins;
 
-  // Story chapter held-item reward + PLAYABLE POKÉMON reward + BIOGEOGRAPHICAL POKÉDEX UNLOCKS on first clear!
+  // Story chapter held-item reward + PLAYABLE POKÉMON reward + SHADOW SNAGGING + BIOGEOGRAPHICAL POKÉDEX UNLOCKS!
   const rewardItems: string[] = [];
   const rewardPokemon: Array<{ species: string; note: string }> = [];
+  const snaggedShadowPokemon: Array<{
+    species: string;
+    shadowMoves: string[];
+    alreadyOwned: boolean;
+  }> = [];
   const unlockedPokedexSpecies: Array<{
     species: string;
     regionName: string;
@@ -955,6 +975,57 @@ export function applyBattleOutcomeToProfile(
       nextBox = [...nextBox, rewardInst];
     }
     rewardPokemon.push({ species: rp.species, note: rp.note });
+  }
+
+  // Automatic Shadow Pokémon Snagging (Colosseum / XD):
+  // Every enemy Shadow Pokémon defeated in this chapter unlocks in Pokédex AND joins your PC Box as isShadow: true!
+  if (options?.rivalShowdownPaste) {
+    const enemyShadows = detectShadowSpeciesInPaste(options.rivalShowdownPaste);
+    for (const sh of enemyShadows) {
+      const spKey = getSpeciesKey(sh.species);
+      if (!nextOwnedPokemon.some((s) => getSpeciesKey(s) === spKey)) {
+        nextOwnedPokemon = [...nextOwnedPokemon, sh.species];
+      }
+      if (!nextUnlockedPokedex.some((s) => getSpeciesKey(s) === spKey)) {
+        nextUnlockedPokedex = [...nextUnlockedPokedex, sh.species];
+      }
+      const alreadyHasShadowCopy = nextBox.some(
+        (inst) =>
+          inst.zone !== 'graveyard' &&
+          getSpeciesKey(inst.species) === spKey &&
+          Boolean(inst.isShadow)
+      );
+      if (!alreadyHasShadowCopy) {
+        const def = buildDefaultMemberForSpecies(sh.species);
+        const snaggedInst: OwnedPokemonInstance = {
+          uid: `shadow-${chapterId}-${spKey}-${nextBox.length}`,
+          species: def.species,
+          nickname:
+            spKey === 'lugia'
+              ? 'XD001 Lugia Oscuro'
+              : `${def.species} Oscuro`,
+          origin: `Arrebatado (Oscuro) · ${chapterId}`,
+          zone: 'box',
+          item: '',
+          ability: sh.ability || def.ability,
+          nature: sh.nature || def.nature,
+          teraType: sh.teraType || def.teraType,
+          moves: sh.moves.length > 0 ? sh.moves.slice(0, 4) : [...def.moves],
+          shiny: spKey === 'lugia',
+          isShadow: true,
+          heartGauge: 100,
+          hp: null,
+          maxhp: null,
+          status: '',
+        };
+        nextBox = [...nextBox, snaggedInst];
+      }
+      snaggedShadowPokemon.push({
+        species: sh.species,
+        shadowMoves: sh.moves.filter((m) => isShadowMoveName(m)),
+        alreadyOwned: alreadyHasShadowCopy,
+      });
+    }
   }
 
   // Biogeographical Fauna Roll (3–4 local species added to buyable Campaign Pokédex on first clear ONLY!)
@@ -1059,6 +1130,7 @@ export function applyBattleOutcomeToProfile(
       newlyVisitedRegions,
       rewardItems,
       rewardPokemon,
+      ...(snaggedShadowPokemon.length > 0 ? { snaggedShadowPokemon } : {}),
     },
   };
 }
@@ -1681,6 +1753,7 @@ export function importShowdownPasteToParty(
   profile: PlayerSaveProfile,
   rawPaste: string
 ): { ok: boolean; error?: string; importedCount: number; nextProfile: PlayerSaveProfile } {
+  ensureShadowDexRegistered();
   let sets: ReturnType<typeof Teams.import> = null;
   try {
     sets = Teams.import(rawPaste.trim());
@@ -1749,6 +1822,9 @@ export function importShowdownPasteToParty(
       ...(sanitizeEvSpread(s.evs) ? { evs: sanitizeEvSpread(s.evs) } : {}),
       ...(sanitizeIvSpread(s.ivs) ? { ivs: sanitizeIvSpread(s.ivs) } : {}),
       shiny: Boolean(s.shiny && (profile.devModeEnabled || profile.inventory.shinyCharms > 0)),
+      ...((s.moves ?? []).some((mv) => isShadowMoveName(mv))
+        ? { isShadow: true, heartGauge: 100 }
+        : {}),
       hp: null,
       maxhp: null,
       status: '',
@@ -2384,6 +2460,25 @@ export function recordPostBattleSurvivalState(
     });
   }
 
+  // Tick Shadow Pokémon Heart Gauges (Party: -25/battle; Purification Chamber 'purify': -20/battle or -30 with Nature perks!)
+  // NEVER auto-purifies at 0 — player ALWAYS chooses whether to Purify or deliberately keep Shadow moves forever!
+  const purifyStep =
+    (profile.socialLinks?.e4_veridia?.r1Done || profile.socialLinks?.kemetia_guardian?.r1Done)
+      ? 30
+      : 20;
+  nextBox = nextBox.map((inst) => {
+    if (!inst.isShadow || inst.zone === 'graveyard') return inst;
+    const curGauge = inst.heartGauge ?? 100;
+    if (curGauge <= 0) return inst;
+    if (inst.zone === 'party') {
+      return { ...inst, heartGauge: Math.max(0, curGauge - 25) };
+    }
+    if (inst.zone === 'purify') {
+      return { ...inst, heartGauge: Math.max(0, curGauge - purifyStep) };
+    }
+    return inst;
+  });
+
   const nextEmergencyHeals =
     perks.hasFreeEmergencyHealPerk && won
       ? Math.min(3, profile.freeEmergencyHeals + 1)
@@ -2712,6 +2807,13 @@ export function movePokemonInstanceZone(
   if (target.zone === targetZone) {
     return { ok: true, nextProfile: profile };
   }
+  if (targetZone === 'purify' && !target.isShadow) {
+    return {
+      ok: false,
+      error: `Solo Pokémon Oscuros pueden ingresar a la Cámara de Purificación (${target.species} ya tiene el corazón abierto).`,
+      nextProfile: profile,
+    };
+  }
 
   const currentParty = profile.pokemonBox.filter((b) => b.zone === 'party');
   if (targetZone === 'party') {
@@ -2748,6 +2850,155 @@ export function movePokemonInstanceZone(
     ok: true,
     nextProfile: {
       ...profile,
+      pokemonBox: nextBox,
+      customTeam: syncCustomTeamFromBox(nextBox),
+      updatedAt: new Date().toISOString(),
+    },
+  };
+}
+
+/**
+ * Deliberately Purifies a Shadow Pokémon whose Heart Gauge reached 0 (or anytime in Dev Mode).
+ * - NEVER called automatically — players can keep Shadow Pokémon Oscuros forever to abuse Shadow moves!
+ * - Purifying removes Hyper Mode recoil, unlocks High-Bond Power of Friendship (Let's Go Affection),
+ *   and teaches a signature Purified moveset (e.g., XD001 Lugia receives Psycho Boost!).
+ */
+export function purifyShadowPokemonInstance(
+  profile: PlayerSaveProfile,
+  uid: string
+): {
+  ok: boolean;
+  error?: string;
+  species?: string;
+  signatureGift?: string;
+  nextProfile: PlayerSaveProfile;
+} {
+  const target = profile.pokemonBox.find((b) => b.uid === uid);
+  if (!target) {
+    return { ok: false, error: 'Pokémon no encontrado.', nextProfile: profile };
+  }
+  if (!target.isShadow) {
+    return {
+      ok: false,
+      error: `${target.species} ya no es un Pokémon Oscuro.`,
+      nextProfile: profile,
+    };
+  }
+  const gauge = target.heartGauge ?? 100;
+  if (gauge > 0 && !profile.devModeEnabled) {
+    return {
+      ok: false,
+      error: `El Medidor de Corazón de ${target.species} aún está en ${gauge}%. Combate con él o colócalo en la Cámara de Purificación hasta llegar a 0%.`,
+      nextProfile: profile,
+    };
+  }
+
+  const purifiedBuild = buildPurifiedMovesetForSpecies(target.species, target.moves);
+  const nowIso = new Date().toISOString();
+  const nextBox = profile.pokemonBox.map((b) => {
+    if (b.uid !== uid) return b;
+    return {
+      ...b,
+      isShadow: false,
+      heartGauge: 0,
+      purifiedAt: nowIso,
+      zone: b.zone === 'purify' ? ('box' as const) : b.zone,
+      origin: `Purificado · ${b.origin.replace(/^Arrebatado \(Oscuro\)\s*·\s*/i, '')}`,
+      nickname: b.nickname?.replace(/\s*Oscuro\s*/i, '').trim() || undefined,
+      moves: purifiedBuild.moves,
+    };
+  });
+
+  return {
+    ok: true,
+    species: target.species,
+    signatureGift: purifiedBuild.signatureGift,
+    nextProfile: {
+      ...profile,
+      pokemonBox: nextBox,
+      customTeam: syncCustomTeamFromBox(nextBox),
+      updatedAt: nowIso,
+    },
+  };
+}
+
+/**
+ * Dev Mode Helper: Spawns a ready-to-play Shadow specimen (default XD001 Dark Lugia or any species)
+ * with authentic Shadow moves directly into Party, Box, or Purification Chamber!
+ */
+export function spawnDevShadowSpecimen(
+  profile: PlayerSaveProfile,
+  species = 'Lugia',
+  customMoves?: string[],
+  targetZone: 'party' | 'box' | 'purify' = 'box'
+): { ok: boolean; error?: string; uid?: string; nextProfile: PlayerSaveProfile } {
+  ensureShadowDexRegistered();
+  const sp = Dex.species.get(species);
+  if (!sp.exists) {
+    return { ok: false, error: `Especie "${species}" no encontrada.`, nextProfile: profile };
+  }
+  const canonical = sp.name;
+  const spKey = getSpeciesKey(canonical);
+  const def = buildDefaultMemberForSpecies(canonical);
+  const isPhys = (sp.baseStats?.atk ?? 80) >= (sp.baseStats?.spa ?? 80);
+  const defaultShadowMoves =
+    spKey === 'lugia'
+      ? ['Shadow Aeroblast', 'Shadow Eclipse', 'Shadow Sky', 'Shadow Siphon']
+      : isPhys
+        ? ['Shadow Dominion', 'Shadow Rend', 'Shadow Rush', 'Shadow End']
+        : ['Shadow Eclipse', 'Shadow Blast', 'Shadow Storm', 'Shadow Siphon'];
+
+  const currentParty = profile.pokemonBox.filter((m) => m.zone === 'party');
+  let baseBox = profile.pokemonBox;
+  let resolvedZone: 'party' | 'box' | 'purify' = targetZone;
+  if (resolvedZone === 'party') {
+    const dup = currentParty.some((m) => getSpeciesKey(m.species) === spKey);
+    if (dup) {
+      resolvedZone = 'box';
+    } else if (currentParty.length >= 6) {
+      const displaced = currentParty[currentParty.length - 1];
+      baseBox = profile.pokemonBox.map((m) =>
+        m.uid === displaced.uid ? { ...m, zone: 'box' as const } : m
+      );
+    }
+  }
+
+  const uid = `dev-shadow-${spKey}-${Date.now().toString(36)}-${profile.pokemonBox.length}`;
+  const inst: OwnedPokemonInstance = {
+    uid,
+    species: canonical,
+    nickname: spKey === 'lugia' ? 'XD001 Lugia Oscuro' : `${canonical} Oscuro`,
+    origin: 'Dev Lab · Pokémon Oscuro (Aura)',
+    zone: resolvedZone,
+    item: '',
+    ability: spKey === 'lugia' ? 'Multiscale' : def.ability,
+    nature: spKey === 'lugia' ? 'Modest' : def.nature,
+    teraType: 'Dark',
+    moves: (customMoves && customMoves.length > 0 ? customMoves : defaultShadowMoves).slice(0, 4),
+    shiny: spKey === 'lugia',
+    isShadow: true,
+    heartGauge: 100,
+    hp: null,
+    maxhp: null,
+    status: '',
+  };
+
+  const nextBox = [...baseBox, inst];
+  const nextPokedex = profile.unlockedPokedex.some((s) => getSpeciesKey(s) === spKey)
+    ? profile.unlockedPokedex
+    : [...profile.unlockedPokedex, canonical];
+  const nextInvPokemon = profile.inventory.pokemon.some((s) => getSpeciesKey(s) === spKey)
+    ? profile.inventory.pokemon
+    : [...profile.inventory.pokemon, canonical];
+
+  return {
+    ok: true,
+    uid,
+    nextProfile: {
+      ...profile,
+      useCustomTeamInStory: resolvedZone === 'party' ? true : profile.useCustomTeamInStory,
+      inventory: { ...profile.inventory, pokemon: nextInvPokemon },
+      unlockedPokedex: nextPokedex,
       pokemonBox: nextBox,
       customTeam: syncCustomTeamFromBox(nextBox),
       updatedAt: new Date().toISOString(),

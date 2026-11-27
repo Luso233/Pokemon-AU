@@ -89,6 +89,7 @@ const MOVE_TYPE_ACCENT: Record<string, string> = {
   Dark: 'border-l-zinc-400',
   Steel: 'border-l-slate-300',
   Fairy: 'border-l-rose-300',
+  Shadow: 'border-l-fuchsia-500 bg-fuchsia-950/35',
 };
 
 const UnrevealedPokeballSvg: React.FC<{ className?: string }> = ({
@@ -688,13 +689,20 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
           {/* Compact floating name + HP pill above sprite */}
           <div
             className={`flex items-center gap-1.5 rounded-full border bg-slate-950/88 px-2 py-0.5 text-[9px] shadow backdrop-blur transition group-hover:border-amber-400/75 ${
-              mon.terastallized
-                ? 'border-cyan-400/70 text-cyan-100'
-                : side === 'p1'
-                  ? 'border-amber-400/35 text-amber-100'
-                  : 'border-rose-400/35 text-rose-100'
+              mon.isShadow
+                ? 'border-fuchsia-400/85 text-fuchsia-100 shadow-fuchsia-500/35'
+                : mon.terastallized
+                  ? 'border-cyan-400/70 text-cyan-100'
+                  : side === 'p1'
+                    ? 'border-amber-400/35 text-amber-100'
+                    : 'border-rose-400/35 text-rose-100'
             }`}
           >
+            {mon.isShadow && (
+              <span title="Pokémon Oscuro (Colosseum/XD)" className="text-[9px] font-black text-fuchsia-300">
+                🟣
+              </span>
+            )}
             <span className="max-w-[6.5rem] truncate font-bold text-white">
               {mon.shiny && (
                 <span className="mr-0.5 text-amber-300" title="Variocolor (Shiny Charm)">
@@ -703,6 +711,14 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
               )}
               {mon.name}
             </span>
+            {mon.hyperMode && (
+              <span
+                title="Modo Hiper activo (+1 Crítico, ×1.25 daño, -1/8 PS/turno)"
+                className="rounded bg-fuchsia-600/80 px-1 text-[7.5px] font-black text-white"
+              >
+                ⚡HIPER
+              </span>
+            )}
             {mon.terastallized && (
               <span className="font-extrabold text-cyan-300">
                 ✦{mon.terastallized}
@@ -771,11 +787,13 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
           className={`flex min-w-0 flex-1 flex-col rounded-xl border bg-slate-950/92 px-2.5 py-1.5 backdrop-blur-md transition hover:border-amber-400/75 cursor-help ${
             mon.fainted
               ? 'border-slate-800 opacity-40 grayscale'
-              : mon.terastallized
-                ? 'border-cyan-400/75'
-                : side === 'p1'
-                  ? 'border-amber-400/40'
-                  : 'border-rose-400/40'
+              : mon.isShadow
+                ? 'border-fuchsia-400/80 shadow-md shadow-fuchsia-600/25'
+                : mon.terastallized
+                  ? 'border-cyan-400/75'
+                  : side === 'p1'
+                    ? 'border-amber-400/40'
+                    : 'border-rose-400/40'
           }`}
         >
           <div className="flex items-center justify-between gap-1 text-[10px]">
@@ -783,6 +801,11 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
               <span className="font-mono-code rounded bg-slate-900 px-1 text-[9px] font-bold text-amber-200">
                 Lv.{mon.level}
               </span>
+              {mon.isShadow && (
+                <span className="rounded bg-fuchsia-950 px-1 text-[8px] font-black text-fuchsia-300 ring-1 ring-fuchsia-400/50">
+                  {mon.hyperMode ? '⚡HIPER' : 'OSCURO'}
+                </span>
+              )}
               <span className="truncate font-extrabold text-white">
                 {mon.name}
               </span>
@@ -928,9 +951,13 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
             >
               <button
                 type="button"
-                className="inline-flex shrink-0 items-center gap-1 rounded-full border border-sky-400/45 bg-sky-500/20 px-2.5 py-0.5 text-[10px] font-bold text-sky-100 cursor-help"
+                className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-bold cursor-help ${
+                  snapshot.weather.toLowerCase().includes('oscuro')
+                    ? 'border-fuchsia-400/70 bg-fuchsia-950/75 text-fuchsia-100 shadow-sm shadow-fuchsia-500/30'
+                    : 'border-sky-400/45 bg-sky-500/20 text-sky-100'
+                }`}
               >
-                <CloudSun className="h-3 w-3 text-sky-300" />
+                <CloudSun className={`h-3 w-3 ${snapshot.weather.toLowerCase().includes('oscuro') ? 'text-fuchsia-300' : 'text-sky-300'}`} />
                 <span>{snapshot.weather}</span>
                 {snapshot.weatherTurnsLeft != null && (
                   <span className="font-mono-code text-amber-200">

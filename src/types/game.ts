@@ -35,7 +35,7 @@ export interface CustomTeamMember {
   shiny: boolean;
 }
 
-export type PokemonStorageZone = 'party' | 'box' | 'house' | 'graveyard';
+export type PokemonStorageZone = 'party' | 'box' | 'house' | 'purify' | 'graveyard';
 
 export interface PokemonEpitaph {
   chapterId?: string;
@@ -93,6 +93,12 @@ export interface OwnedPokemonInstance {
   maxhp: number | null;
   status: '' | 'par' | 'brn' | 'psn' | 'tox' | 'slp' | 'frz';
   ppByMoveId?: Record<string, number>;
+  /** Shadow Pokémon state (Colosseum / XD): closed heart, Shadow moves & Hyper/Reverse Mode! */
+  isShadow?: boolean;
+  /** XD Heart Gauge: 100 (completely closed) down to 0 (ready to purify — or deliberately kept Shadow!). */
+  heartGauge?: number;
+  /** Timestamp when this ex-Shadow Pokémon was purified (grants High-Bond Affection eligibility!). */
+  purifiedAt?: string;
   /** Populated when fainted permanently in Ultra Nuzlocke Diablo mode. */
   epitaph?: PokemonEpitaph;
 }
@@ -292,6 +298,20 @@ export interface BattleRewardSummary {
   }>;
   /** Newly visited world bloc IDs unlocked by this mission. */
   newlyVisitedRegions?: string[];
+  /** Enemy Shadow Pokémon snagged into your PC Box & Pokédex upon winning a Shadow battle! */
+  snaggedShadowPokemon?: Array<{
+    species: string;
+    shadowMoves: string[];
+    alreadyOwned: boolean;
+  }>;
+  /** Shadow Pokémon whose Heart Gauge dropped after battle (party combat or Purification Chamber). */
+  purificationProgress?: Array<{
+    species: string;
+    before: number;
+    after: number;
+    readyToPurify: boolean;
+    source: 'party' | 'purify';
+  }>;
   rewardItems?: string[];
   rewardPokemon?: Array<{ species: string; note: string }>;
 }
@@ -362,6 +382,21 @@ export interface PostGameReview {
   };
   keyTurns: KeyTurnReview[];
   improvements: string[];
+}
+
+export type AffectionMode = 'off' | 'classic-rng' | 'tactical-limited';
+
+export interface ShadowBattleMeta {
+  /** Species names on player's side (p1) that are active Shadow Pokémon (closed heart + Hyper Mode). */
+  p1ShadowSpecies?: string[];
+  /** Species names on rival's side (p2) that are Shadow Pokémon (snaggable into PC Box on victory!). */
+  p2ShadowSpecies?: string[];
+  /** Power of Friendship / Let's Go Affection rule mode (blocked on Shadow Pokémon!). */
+  affectionMode?: AffectionMode;
+  /** Species on p1 eligible for high-bond Affection in Difícil/Tryhard (Starters, R3 House, Purified, Rewards). */
+  p1HighBondSpecies?: string[];
+  /** Deterministic test override (0..1) for classic-rng Affection rolls in automated engine tests. */
+  affectionForceProc?: boolean;
 }
 
 export type BattleFormat = 'singles' | 'doubles' | 'triples';
@@ -597,7 +632,7 @@ export type PseudoWeatherId =
   | 'wonderroom';
 
 export interface PuzzleConditions {
-  weather?: 'sunnyday' | 'raindance' | 'sandstorm' | 'snow';
+  weather?: 'sunnyday' | 'raindance' | 'sandstorm' | 'snow' | 'shadowsky';
   terrain?:
     | 'grassyterrain'
     | 'electricterrain'
@@ -708,6 +743,8 @@ export interface ResolvedBattleConfig {
   /** Indicates active Ironman / Nuzlocke run rules for Diablo AI context & post-battle persistence. */
   isIronmanActive?: boolean;
   isNuzlockeActive?: boolean;
+  /** Shadow Pokémon (Colosseum/XD) & Power of Friendship (Let's Go Affection) rules metadata. */
+  shadowMeta?: ShadowBattleMeta;
   arenaTheme: SceneBackdropId;
   playerTeamSummary: string;
   rivalTeamSummary: string;
@@ -856,6 +893,10 @@ export interface PartyPokemonState {
   isBossAce?: boolean;
   happiness?: number;
   shiny?: boolean;
+  /** True when this Pokémon is a Colosseum/XD Shadow Pokémon (aura oscura, 0.5× resist Shadow, Hyper Mode <50% HP, no Affection). */
+  isShadow?: boolean;
+  /** True while this Shadow Pokémon has entered Modo Hiper (<50% HP: +1 Crit, ×1.25 dmg, 1/8 residual self-pain). */
+  hyperMode?: boolean;
 }
 
 export interface OpenTeamsheetEntry {

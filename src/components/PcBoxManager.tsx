@@ -32,6 +32,7 @@ import {
   getImperialBstLicense,
 } from '../engine/pricingEngine';
 import { getTypeBadgeClass } from '../engine/pokemonVisuals';
+import { isInstanceHighBond } from '../engine/shadowEngine';
 import {
   compareByShowdownSort,
   getIndexedSpeciesMeta,
@@ -110,6 +111,13 @@ export interface PcBoxManagerProps {
     placedZone?: 'party' | 'box';
     swappedOutSpecies?: string;
   };
+  onSpawnDevShadowSpecimen?: (
+    species?: string,
+    targetZone?: 'party' | 'box' | 'purify'
+  ) => { ok: boolean; error?: string; uid?: string };
+  onPurifyInstance?: (
+    uid: string
+  ) => { ok: boolean; error?: string; species?: string; signatureGift?: string };
   onPopulateLivingDexBox?: () => { addedCount: number; totalLiving: number };
   onImportShowdownPaste?: (
     rawPaste: string
@@ -151,6 +159,8 @@ export const PcBoxManager: React.FC<PcBoxManagerProps> = ({
   onUpdateInstanceBuild,
   onUnlockMoveSlot,
   onSpawnDevSpecimen,
+  onSpawnDevShadowSpecimen,
+  onPurifyInstance,
   onPopulateLivingDexBox,
   onImportShowdownPaste,
   onSaveCampaignTeam,
@@ -168,7 +178,7 @@ export const PcBoxManager: React.FC<PcBoxManagerProps> = ({
   const canImportPaste = Boolean(onImportShowdownPaste && (isBabyMode || showDevLab));
 
   const [activeZoneTab, setActiveZoneTab] = useState<
-    'box' | 'house' | 'graveyard' | 'dev-lab'
+    'box' | 'purify' | 'house' | 'graveyard' | 'dev-lab'
   >('box');
   const [selectedUid, setSelectedUid] = useState<string>(
     profile.pokemonBox.find((b) => b.zone === 'party')?.uid ??
@@ -205,6 +215,10 @@ export const PcBoxManager: React.FC<PcBoxManagerProps> = ({
   );
   const reserveBoxList = useMemo(
     () => profile.pokemonBox.filter((b) => b.zone === 'box'),
+    [profile.pokemonBox]
+  );
+  const purifyList = useMemo(
+    () => profile.pokemonBox.filter((b) => b.zone === 'purify'),
     [profile.pokemonBox]
   );
   const houseList = useMemo(
@@ -277,13 +291,15 @@ export const PcBoxManager: React.FC<PcBoxManagerProps> = ({
     setVisibleLimit(PAGE_SIZE);
   };
 
-  // Filtered & sorted storage zone instances (Reserva / Casa / Cementerio)
+  // Filtered & sorted storage zone instances (Reserva / Cámara de Purificación / Casa / Cementerio)
   const rawZoneList =
     activeZoneTab === 'box'
       ? reserveBoxList
-      : activeZoneTab === 'house'
-        ? houseList
-        : graveyardList;
+      : activeZoneTab === 'purify'
+        ? purifyList
+        : activeZoneTab === 'house'
+          ? houseList
+          : graveyardList;
 
   const filteredZoneInstances = useMemo(() => {
     if (activeZoneTab === 'dev-lab') return [];
@@ -849,6 +865,15 @@ export const PcBoxManager: React.FC<PcBoxManagerProps> = ({
                 <p className="truncate text-center text-[9px] text-amber-200/80">
                   {inst.item ? `@ ${inst.item}` : 'Sin objeto'}
                 </p>
+                {inst.isShadow ? (
+                  <div className="mt-1 rounded-md border border-fuchsia-400/55 bg-fuchsia-950/75 px-1.5 py-0.5 text-center text-[8.5px] font-extrabold text-fuchsia-200">
+                    🟣 Oscuro · Corazón {inst.heartGauge ?? 100}%
+                  </div>
+                ) : isInstanceHighBond(inst) ? (
+                  <p className="mt-0.5 text-center text-[8.5px] font-bold text-pink-300">
+                    💖 Vínculo Alto
+                  </p>
+                ) : null}
                 {renderHpAndStatus(inst)}
               </div>
             );
@@ -913,6 +938,20 @@ export const PcBoxManager: React.FC<PcBoxManagerProps> = ({
             >
               <Box className="h-3.5 w-3.5" />
               Reserva ({reserveBoxList.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveZoneTab('purify');
+                setVisibleLimit(PAGE_SIZE);
+              }}
+              className={`inline-flex items-center gap-1 rounded-xl border px-2.5 py-1.5 text-[11px] font-extrabold transition cursor-pointer ${
+                activeZoneTab === 'purify'
+                  ? 'border-fuchsia-400 bg-fuchsia-500/25 text-fuchsia-100 shadow-md shadow-fuchsia-500/20'
+                  : 'border-fuchsia-500/35 bg-fuchsia-950/30 text-fuchsia-200 hover:border-fuchsia-400'
+              }`}
+            >
+              🟣 Cámara de Purificación ({purifyList.length})
             </button>
             <button
               type="button"
@@ -1147,21 +1186,44 @@ export const PcBoxManager: React.FC<PcBoxManagerProps> = ({
                   📦 <strong>Dev Living Dex:</strong> agrega 1 ejemplar de cada una de las{' '}
                   {allAgSpecies.length} especies directo a tu Caja de Reserva.
                 </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const res = onPopulateLivingDexBox();
-                    emitNotice({
-                      tone: 'ok',
-                      text: `📦 ¡Living Dex cargado! +${res.addedCount} especies agregadas a tu Caja de Reserva (Total vivos: ${res.totalLiving}).`,
-                    });
-                    setActiveZoneTab('box');
-                  }}
-                  className="inline-flex items-center gap-1 rounded-lg bg-emerald-500 px-3 py-1 text-[10.5px] font-extrabold text-slate-950 hover:brightness-110 cursor-pointer"
-                >
-                  <PackagePlus className="h-3.5 w-3.5" />
-                  Meter 1 de cada especie a mi Caja
-                </button>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {onSpawnDevShadowSpecimen && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const res = onSpawnDevShadowSpecimen('Lugia', 'purify');
+                        if (res.ok && res.uid) setSelectedUid(res.uid);
+                        emitNotice(
+                          res.ok
+                            ? {
+                                tone: 'ok',
+                                text: '🟣 ¡XD001 Lugia Oscuro (Shadow Aeroblast / Shadow Eclipse / Shadow Sky / Shadow Siphon) invocado en la Cámara de Purificación!',
+                              }
+                            : { tone: 'err', text: res.error || '' }
+                        );
+                        setActiveZoneTab('purify');
+                      }}
+                      className="inline-flex items-center gap-1 rounded-lg border border-fuchsia-400/60 bg-fuchsia-500/25 px-3 py-1 text-[10.5px] font-extrabold text-fuchsia-100 hover:bg-fuchsia-500/40 cursor-pointer"
+                    >
+                      🟣 Invocar XD001 Lugia Oscuro
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const res = onPopulateLivingDexBox();
+                      emitNotice({
+                        tone: 'ok',
+                        text: `📦 ¡Living Dex cargado! +${res.addedCount} especies agregadas a tu Caja de Reserva (Total vivos: ${res.totalLiving}).`,
+                      });
+                      setActiveZoneTab('box');
+                    }}
+                    className="inline-flex items-center gap-1 rounded-lg bg-emerald-500 px-3 py-1 text-[10.5px] font-extrabold text-slate-950 hover:brightness-110 cursor-pointer"
+                  >
+                    <PackagePlus className="h-3.5 w-3.5" />
+                    Meter 1 de cada especie a mi Caja
+                  </button>
+                </div>
               </div>
             )}
 
@@ -1269,6 +1331,23 @@ export const PcBoxManager: React.FC<PcBoxManagerProps> = ({
           </div>
         ) : (
           <div className="space-y-3">
+            {/* SHADOW PURIFICATION CHAMBER BANNER (Unlimited Multi-Slot Passive Purification + Optional Keep-Shadow Choice!) */}
+            {activeZoneTab === 'purify' && (
+              <div className="rounded-2xl border border-fuchsia-400/45 bg-gradient-to-r from-fuchsia-950/55 via-slate-950/90 to-purple-950/50 p-3.5 text-xs">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-extrabold text-fuchsia-200">
+                    🟣 Cámara de Purificación de Aura (Multiranura Ilimitada)
+                  </p>
+                  <span className="rounded-md border border-fuchsia-400/40 bg-fuchsia-500/20 px-2 py-0.5 font-mono-code text-[10px] font-bold text-fuchsia-100">
+                    -20% / batalla (Equipo: -25%)
+                  </span>
+                </div>
+                <p className="mt-1 text-[11px] leading-relaxed text-slate-300">
+                  Coloca aquí a <strong>todos los Pokémon Oscuros que quieras al mismo tiempo</strong> para abrir su Medidor de Corazón pasivamente tras cada combate. Al llegar a <strong className="text-emerald-300">0%</strong>, tú decides: <strong>✨ Purificar</strong> (quita el daño de Modo Hiper, activa Poder de la Amistad y desbloquea su ataque exclusivo como <em>Psycho Boost</em> en XD001) o <strong>dejarlo Oscuro para siempre</strong> y conservar sus movimientos Shadow rotos.
+                </p>
+              </div>
+            )}
+
             {/* NUZLOCKE FORENSIC DEATH LOG (inside Graveyard tab!) */}
             {activeZoneTab === 'graveyard' && (
               <div className="rounded-2xl border border-rose-500/35 bg-rose-950/20 p-3">
@@ -1332,9 +1411,11 @@ export const PcBoxManager: React.FC<PcBoxManagerProps> = ({
                   ? 'Ningún Pokémon de esta caja coincide con tu búsqueda o filtros Showdown.'
                   : activeZoneTab === 'box'
                     ? 'Tu Caja de Reserva está vacía. Recluta especies en la Tienda, baja titulares aquí o usa el Living Dex en Dev Mode.'
-                    : activeZoneTab === 'house'
-                      ? 'Aún no hay refuerzos en tu Casa. Alcanza Rango 3 venciendo la Rematch Injusta de un aliado romanceable.'
-                      : 'El Cementerio del Exilio está vacío. Ningún compañero ha caído en modo Ultra Nuzlocke.'}
+                    : activeZoneTab === 'purify'
+                      ? 'La Cámara de Purificación está vacía. Gana combates contra Pokémon Oscuros en Aura (Orre) para arrebatarlos y envíalos aquí desde tu Reserva o Equipo.'
+                      : activeZoneTab === 'house'
+                        ? 'Aún no hay refuerzos en tu Casa. Alcanza Rango 3 venciendo la Rematch Injusta de un aliado romanceable.'
+                        : 'El Cementerio del Exilio está vacío. Ningún compañero ha caído en modo Ultra Nuzlocke.'}
               </div>
             ) : (
               <>
@@ -1344,9 +1425,11 @@ export const PcBoxManager: React.FC<PcBoxManagerProps> = ({
                   Pokémon en{' '}
                   {activeZoneTab === 'box'
                     ? 'Reserva'
-                    : activeZoneTab === 'house'
-                      ? 'Casa R3'
-                      : 'Cementerio'}
+                    : activeZoneTab === 'purify'
+                      ? 'Cámara de Purificación'
+                      : activeZoneTab === 'house'
+                        ? 'Casa R3'
+                        : 'Cementerio'}
                 </p>
 
                 <div className="max-h-80 space-y-1.5 overflow-y-auto pr-1">
@@ -1407,7 +1490,36 @@ export const PcBoxManager: React.FC<PcBoxManagerProps> = ({
                               {inst.zone === 'house' && (
                                 <Heart className="h-3 w-3 shrink-0 fill-fuchsia-400 text-fuchsia-400" />
                               )}
+                              {inst.isShadow && (
+                                <span className="rounded border border-fuchsia-400/60 bg-fuchsia-950/85 px-1.5 py-0.2 text-[8.5px] font-extrabold text-fuchsia-200">
+                                  🟣 OSCURO · Corazón {inst.heartGauge ?? 100}%
+                                </span>
+                              )}
+                              {!inst.isShadow && isInstanceHighBond(inst) && (
+                                <span className="rounded border border-pink-400/45 bg-pink-500/15 px-1 py-0.2 text-[8.5px] font-bold text-pink-200">
+                                  💖 Vínculo
+                                </span>
+                              )}
                             </div>
+                            {inst.isShadow && (
+                              <div className="mt-1 flex max-w-xs items-center gap-1.5">
+                                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-800">
+                                  <div
+                                    className={`h-full transition-all ${
+                                      (inst.heartGauge ?? 100) <= 0
+                                        ? 'bg-emerald-400'
+                                        : 'bg-gradient-to-r from-fuchsia-500 to-purple-400'
+                                    }`}
+                                    style={{ width: `${Math.max(4, inst.heartGauge ?? 100)}%` }}
+                                  />
+                                </div>
+                                <span className="font-mono-code text-[9px] font-bold text-fuchsia-200">
+                                  {(inst.heartGauge ?? 100) <= 0
+                                    ? '¡Listo para purificar (opcional)!'
+                                    : `Corazón ${inst.heartGauge ?? 100}%`}
+                                </span>
+                              </div>
+                            )}
                             <p className="truncate text-[10px] text-amber-300/85">
                               {inst.ability} · {inst.item ? `@ ${inst.item}` : 'Sin objeto'} ·{' '}
                               {inst.moves.slice(0, 3).join(', ')}
@@ -1430,6 +1542,48 @@ export const PcBoxManager: React.FC<PcBoxManagerProps> = ({
                           className="flex shrink-0 items-center gap-1"
                           onClick={(e) => e.stopPropagation()}
                         >
+                          {inst.isShadow && inst.zone !== 'purify' && inst.zone !== 'graveyard' && (
+                            <button
+                              type="button"
+                              title="Enviar a la Cámara de Purificación para abrir su Medidor de Corazón pasivamente"
+                              onClick={() => {
+                                const res = onMoveInstanceZone(inst.uid, 'purify');
+                                emitNotice(
+                                  res.ok
+                                    ? {
+                                        tone: 'ok',
+                                        text: `🟣 ${inst.nickname || inst.species} enviado a la Cámara de Purificación (-20% Corazón por combate).`,
+                                      }
+                                    : { tone: 'err', text: res.error || '' }
+                                );
+                              }}
+                              className="rounded-lg border border-fuchsia-400/50 bg-fuchsia-500/20 px-2 py-1 text-[10px] font-extrabold text-fuchsia-100 hover:bg-fuchsia-500/35 cursor-pointer"
+                            >
+                              🟣 Cámara
+                            </button>
+                          )}
+                          {inst.isShadow &&
+                            onPurifyInstance &&
+                            ((inst.heartGauge ?? 100) <= 0 || profile.devModeEnabled) && (
+                              <button
+                                type="button"
+                                title="Purificación opcional: quita Modo Hiper, activa Vínculo Alto y otorga ataque exclusivo (o déjalo Oscuro para conservar sus ataques Shadow!)"
+                                onClick={() => {
+                                  const res = onPurifyInstance(inst.uid);
+                                  emitNotice(
+                                    res.ok
+                                      ? {
+                                          tone: 'ok',
+                                          text: `✨ ¡${res.species} purificado con éxito! Regalo exclusivo: ${res.signatureGift}. ¡Ahora activa Poder de la Amistad!`,
+                                        }
+                                      : { tone: 'err', text: res.error || '' }
+                                  );
+                                }}
+                                className="rounded-lg bg-gradient-to-r from-emerald-400 to-cyan-400 px-2 py-1 text-[10px] font-black text-slate-950 shadow hover:brightness-110 cursor-pointer"
+                              >
+                                ✨ Purificar
+                              </button>
+                            )}
                           {inst.zone !== 'graveyard' && (
                             <button
                               type="button"
