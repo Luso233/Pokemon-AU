@@ -39,6 +39,7 @@ import {
   CHAPTER_MAP_LOCATIONS,
 } from '../data/worldGeopolitics';
 import { isChapterUnlocked } from '../engine/playerProfile';
+import { applyRivalNameToChapter, getRivalName } from '../engine/rivalName';
 import type {
   ChapterCategory,
   ChapterDefinition,
@@ -173,6 +174,14 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
   const [focusedCardId, setFocusedCardId] = useState<string | null>(null);
   const [unlockNotice, setUnlockNotice] = useState<string | null>(null);
   const progress = profile.completedChapters;
+  const rivalName = getRivalName(profile);
+  const localizedAllChapters = useMemo(
+    () =>
+      ALL_SELECTABLE_CHAPTERS.map((ch) =>
+        applyRivalNameToChapter(ch, rivalName)
+      ),
+    [rivalName]
+  );
   const activeDiffMeta =
     DIFFICULTY_META[profile.defaultDifficulty] ?? DIFFICULTY_META.kaizo;
   const resolveMode = (c: ChapterDefinition): ChapterTeamMode =>
@@ -258,14 +267,16 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
     })
       .map((sec) => ({
         ...sec,
-        chapters: (sec.id === 'romance' ? ROMANCE_CHAPTERS : CHAPTERS).filter(
-          (ch) =>
-            ch.category === sec.id &&
-            (teamModeFilter === 'all' || resolveMode(ch) === teamModeFilter)
-        ),
+        chapters: (sec.id === 'romance' ? ROMANCE_CHAPTERS : CHAPTERS)
+          .filter(
+            (ch) =>
+              ch.category === sec.id &&
+              (teamModeFilter === 'all' || resolveMode(ch) === teamModeFilter)
+          )
+          .map((ch) => applyRivalNameToChapter(ch, rivalName)),
       }))
       .filter((sec) => sec.chapters.length > 0);
-  }, [activeFilter, teamModeFilter]);
+  }, [activeFilter, teamModeFilter, rivalName]);
 
   return (
     <div className="relative min-h-screen bg-[#060a14] text-slate-100">
@@ -399,7 +410,7 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
           {/* Sticky Interactive Civilization Map */}
           <div className="xl:sticky xl:top-4 xl:col-span-6">
             <WorldWarMap
-              chapters={ALL_SELECTABLE_CHAPTERS}
+              chapters={localizedAllChapters}
               hoveredChapterId={hoveredChapterId}
               nextObjectiveChapterId={nextObjectiveChapterId}
               onHoverChapterPin={setHoveredChapterId}

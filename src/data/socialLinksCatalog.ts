@@ -66,10 +66,10 @@ export const ROMANCE_ROSTER: RomanceNpcDefinition[] = [
     homeBlocId: 'unova',
     gimmickTag: 'Counter-Teaming Dinámico (Estética Edgy · Debilidad Hada/Lucha)',
     bossAceRule: {
-      aceSpecies: 'Kingambit ★',
+      aceSpecies: 'Absol-Mega ★ + Darkrai',
       ruleName: 'Counter-Team Edgy',
       ruleDetail:
-        'Analiza tu equipo antes del combate y arma counters puramente edgy (Siniestro/Fantasma/Acero/Dragón), sacrificando sinergia defensiva por pura presión ofensiva.',
+        'Analiza tu equipo antes del combate y arma counters puramente edgy encabezados por Mega-Absol (Espejo Mágico) y Darkrai (Brecha Negra en Revancha R3).',
     },
     bio: 'Te sigue el rastro entre Ciudad Ryme y Aura (Orre) mientras huyes del Consejo. Vive obsesionado con destripar equipos rivales para contrarrestarlos con Pokémon oscuros y afilados —aunque sacrifique cobertura por pura estética.',
     rank1PerkTitle: 'Red de Inteligencia (Scouting Anti-Diablo + 1 Parcela)',
@@ -506,7 +506,7 @@ export const ROMANCE_ROSTER: RomanceNpcDefinition[] = [
     rank2PerkTitle: 'Viales de Síntesis (Cura de Emergencia)',
     rank2PerkDetail: 'Aporta suministros experimentales de recuperación tras cada batalla.',
     rank3BattleTitle: 'Revancha Cap Alta: El Clon Perfecto (Nv. 112)',
-    rank3PerkTitle: 'Casa PC: Ditto · Greninja · Porygon-Z',
+    rank3PerkTitle: 'Casa PC: Ditto · Porygon-Z · Cinderace',
     rank3PerkDetail: 'Maestros de copia y cobertura adaptable en tu Casa PC + Ending Romántico.',
     housePokemon: [
       {
@@ -519,21 +519,21 @@ export const ROMANCE_ROSTER: RomanceNpcDefinition[] = [
         shiny: false,
       },
       {
-        species: 'Greninja',
-        item: 'Life Orb',
-        ability: 'Protean',
-        nature: 'Timid',
-        teraType: 'Water',
-        moves: ['Hydro Pump', 'Dark Pulse', 'Ice Beam', 'Protect'],
-        shiny: false,
-      },
-      {
         species: 'Porygon-Z',
         item: 'Choice Specs',
         ability: 'Adaptability',
         nature: 'Timid',
         teraType: 'Normal',
         moves: ['Tri Attack', 'Shadow Ball', 'Ice Beam', 'Hyper Beam'],
+        shiny: false,
+      },
+      {
+        species: 'Cinderace',
+        item: 'Life Orb',
+        ability: 'Libero',
+        nature: 'Jolly',
+        teraType: 'Fire',
+        moves: ['Pyro Ball', 'High Jump Kick', 'Sucker Punch', 'Protect'],
         shiny: false,
       },
     ],
@@ -565,7 +565,7 @@ export const ROMANCE_ROSTER: RomanceNpcDefinition[] = [
     rank2PerkTitle: 'Presagio Ancestral (Scouting Anti-Diablo)',
     rank2PerkDetail: 'Alerta sobre golpes de área y trampas climáticas en modo Diablo.',
     rank3BattleTitle: 'Revancha Cap Alta: Rugido del Mediodía (Nv. 108)',
-    rank3PerkTitle: 'Casa PC: Farigiraf · Hippowdon · Lucario',
+    rank3PerkTitle: 'Casa PC: Farigiraf · Hippowdon · Krookodile',
     rank3PerkDetail: 'Linajes puros sin clonar listos para tu Casa PC + Ending Romántico.',
     housePokemon: [
       {
@@ -587,12 +587,12 @@ export const ROMANCE_ROSTER: RomanceNpcDefinition[] = [
         shiny: false,
       },
       {
-        species: 'Lucario',
-        item: 'Focus Sash',
-        ability: 'Inner Focus',
+        species: 'Krookodile',
+        item: 'Choice Scarf',
+        ability: 'Intimidate',
         nature: 'Jolly',
-        teraType: 'Normal',
-        moves: ['Close Combat', 'Extreme Speed', 'Meteor Mash', 'Protect'],
+        teraType: 'Ground',
+        moves: ['Earthquake', 'Knock Off', 'Rock Slide', 'Close Combat'],
         shiny: false,
       },
     ],
@@ -614,10 +614,10 @@ export const ROMANCE_ROSTER: RomanceNpcDefinition[] = [
     homeBlocId: 'poke_china',
     gimmickTag: 'Vínculo Sin Cápsulas · Cuatro Ruinas',
     bossAceRule: {
-      aceSpecies: 'Chien-Pao ★ (Espada Debacle)',
-      ruleName: 'Sello de las Cuatro Ruinas',
+      aceSpecies: 'Gallade-Mega ★ + Cuatro Ruinas',
+      ruleName: 'Gravedad de las Cuatro Ruinas',
       ruleDetail:
-        'Reflejo ancestral desde Turno 0 y comando simultáneo de Chien-Pao ★ (Nv. 110), Chi-Yu, Ting-Lu y Wo-Chien.',
+        'Gravedad persistente + Reflejo desde Turno 0 mientras Gallade-Mega ★ (Nv. 110) lidera junto a Chien-Pao, Chi-Yu, Ting-Lu y Wo-Chien.',
     },
     bio: 'Comandante de las fortalezas montañosas de Ransei dentro de Shentai que jamás usó una Poké Ball y evalúa si eres digno de derrocar a tu hermano bastardo.',
     rank1PerkTitle: 'Disciplina de Ransei (Scouting + 10% PC)',
@@ -673,10 +673,10 @@ export const ROMANCE_ROSTER: RomanceNpcDefinition[] = [
     homeBlocId: 'northern_steppe',
     gimmickTag: 'Sinergia Cuerpo a Cuerpo · Acero & Hielo Blindado',
     bossAceRule: {
-      aceSpecies: 'Archaludon ★ (Firmeza)',
+      aceSpecies: 'Metagross-Mega ★ + Articuno',
       ruleName: 'Velo de Sinergia Boreal',
       ruleDetail:
-        'Nieve + Velo Aurora desde Turno 0 respaldando a Archaludon ★ (Nv. 110), Baxcalibur y Scizor blindados.',
+        'Nieve persistente + Velo Aurora desde Turno 0 respaldando a Metagross-Mega ★ (Nv. 110), Articuno (Ventisca 100%) y Archaludon.',
     },
     bio: 'Veterana de los campos de Ferrum en Kovaria capaz de igualar el impacto físico de sus Pokémon mediante Piedras de Sinergia, liderando incursiones hasta el hielo de Borelia.',
     rank1PerkTitle: 'Forja de Ferrum (-10% Curación Campamento)',
@@ -732,10 +732,10 @@ export const ROMANCE_ROSTER: RomanceNpcDefinition[] = [
     homeBlocId: 'amazonia_veracruz',
     gimmickTag: 'Corazón de la Selva · Campo de Hierba & Mew',
     bossAceRule: {
-      aceSpecies: 'Mew ★ (Sincronía)',
+      aceSpecies: 'Venusaur-Mega ★ + Mew',
       ruleName: 'Corazón Vivo de Veridia',
       ruleDetail:
-        'Campo de Hierba desde Turno 0 y Mew ★ (Nv. 110) entra con +1 en todas sus estadísticas listo para juzgar al heredero.',
+        'Campo de Hierba persistente desde Turno 0, Venusaur-Mega ★ (Sebo · Nv. 110) y Mew con +1 Omniboost juzgando al heredero.',
     },
     bio: 'Guardiana de la Selva de Veridia que vio hundirse tres expediciones de la CRU. Ella decide si el heredero de Galar merece conocer la verdad sobre Mew.',
     rank1PerkTitle: 'Elixir de Veridia (+1 Parcela + +1 PP Pasivo)',
@@ -791,10 +791,10 @@ export const ROMANCE_ROSTER: RomanceNpcDefinition[] = [
     homeBlocId: 'kalos',
     gimmickTag: 'Megaevolución Clandestina · Resistencia de Luminalia',
     bossAceRule: {
-      aceSpecies: 'Gardevoir-Mega ★ (Piel Feérica)',
+      aceSpecies: 'Gardevoir-Mega ★ + Latios',
       ruleName: 'Vals de la Megaevolución',
       ruleDetail:
-        'Campo de Niebla desde Turno 0 e inmunidad a estados alterados mientras Gardevoir-Mega ★ (Nv. 110) desata Vozarrón Feérico.',
+        'Campo de Niebla persistente + Viento Afín T0 mientras Gardevoir-Mega ★ (Nv. 110) y Latios dominan el cielo de Luminalia.',
     },
     bio: 'Líder clandestina de la resistencia de Kalos que conserva Megapiedras prohibidas por la CRU y desafía la supremacía Gigamax desde el otro lado del canal.',
     rank1PerkTitle: 'Red de Luminalia (Tutoría Libre + +15% PC)',

@@ -232,20 +232,20 @@ export const CHAPTER_DIFFICULTY_OVERRIDES: Record<
   'romance-assassin-r3': {
     nightmare: [
       {
-        species: 'Chien-Pao',
+        species: 'Darkrai',
         item: 'Focus Sash',
-        moves: ['Icicle Crash', 'Sucker Punch', 'Sacred Sword', 'Protect'],
+        moves: ['Dark Void', 'Dark Pulse', 'Ice Beam', 'Nasty Plot'],
         levelDelta: 3,
         scoutingAlert:
-          '⚠️ DIABLO: Chien-Pao porta Focus Sash (+3 Nv.) y baja tu Defensa con Sword of Ruin.',
+          '⚠️ DIABLO: Darkrai porta Focus Sash (+3 Nv.) con Brecha Negra y Maquinación para castigar cualquier turno lento.',
       },
       {
-        species: 'Kingambit',
-        item: 'Life Orb',
-        moves: ['Kowtow Cleave', 'Sucker Punch', 'Iron Head', 'Swords Dance'],
+        species: 'Absol-Mega',
+        item: 'Absolite',
+        moves: ['Sucker Punch', 'Knock Off', 'Play Rough', 'Close Combat'],
         levelDelta: 4,
         scoutingAlert:
-          '⚠️ DIABLO: El Pelirrojo sube a Kingambit +4 niveles con Life Orb y castiga cada Protect o cambio predecible.',
+          '⚠️ DIABLO: Mega-Absol ★ sube +4 niveles con Espejo Mágico y castiga cualquier trampa o cambio predecible.',
       },
     ],
   },

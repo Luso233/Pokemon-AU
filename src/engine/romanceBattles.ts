@@ -54,6 +54,7 @@ export function resolveRomanceEncounterDuel(
       hasBossAce: true,
       bossAceWarning: `As de Encuentro: ${bp.r1.rivalSets[bp.r1.rivalSets.length - 1]?.species} (Nv. ${bp.r1.levelCap}) — ${npc.gimmickTag}.`,
     },
+    puzzleConditions: bp.r1.puzzleConditions,
     romanceMeta: {
       npcId: rivalCharId,
       targetRank: 1,
@@ -220,6 +221,7 @@ export function resolveRomanceTagBattle(
         levelCap: 100,
         hasBossAce: false,
       },
+      puzzleConditions: bp.r2.puzzleConditions,
       romanceMeta: {
         npcId: partnerCharId,
         targetRank: 2,
@@ -383,6 +385,15 @@ export function resolveRomanceTagBattle(
         levelCap: 100,
         hasBossAce: false,
       },
+      puzzleConditions: {
+        weather: 'sandstorm',
+        extendedEnvironment: true,
+        biomeLabel: 'Desierto de Aura (Orre) — Tormenta de Arena',
+        biomeCounterHint:
+          'Tormenta de Arena permanente (99t) desgasta a tus Pokémon no-Roca/Acero/Tierra. Aprovecha el Tag 2v2 y cubre a Flutter Mane e Iron Hands.',
+        bannerLog:
+          '🏜️ Desierto de Aura (Orre): ¡Tormenta de Arena abrasadora envuelve el duelo Tag 2v2!',
+      },
       romanceMeta: {
         npcId: 'assassin',
         targetRank: 2,
@@ -543,6 +554,15 @@ export function resolveRomanceTagBattle(
           'Sus 3 Pokémon traen sets de 1v1 (No Retreat Falinks, Choice Band Urshifu, Custap Berry + Endure Skeledirge) para borrar blancos uno a uno mientras tú controlas la masa.',
         levelCap: 100,
         hasBossAce: false,
+      },
+      puzzleConditions: {
+        weather: 'raindance',
+        extendedEnvironment: true,
+        biomeLabel: 'Costa Monzónica de Vayra — Lluvia Torrencial',
+        biomeCounterHint:
+          'Lluvia permanente (99t) potencia ataques Agua ×1.5 y activa Nado Rápido enemigo. Trae Planta/Eléctrico o sobrescribe el clima en Turno 1.',
+        bannerLog:
+          '🌧️ Costa Monzónica de Vayra: ¡Lluvia Torrencial envuelve el puerto mientras la flota purga la costa!',
       },
       romanceMeta: {
         npcId: 'court_duelist',
@@ -705,6 +725,15 @@ export function resolveRomanceTagBattle(
       hasBossAce: true,
       bossAceWarning: 'Miraidon y Zamazenta-Crowned encabezan la división Uber de la CRU.',
     },
+    puzzleConditions: {
+      terrain: 'electricterrain',
+      extendedEnvironment: true,
+      biomeLabel: '⚡ Estadio Real de Wyndon · Campo Eléctrico Uber (Tag 2v2)',
+      biomeCounterHint:
+        'Campo Eléctrico persistente potencia a Miraidon y evita el sueño. Coordina tu trío junto al Mega-Rayquaza de la Campeona para barrer a la fuerza Uber.',
+      bannerLog:
+        '⚡ Estadio Real de Wyndon: ¡Campo Eléctrico sobrecargado mientras Mega-Rayquaza entra de tu lado!',
+    },
     romanceMeta: {
       npcId: 'champion',
       targetRank: 2,
@@ -818,7 +847,7 @@ export function resolveRomanceRematchBattle(
   }
 
   if (npcId === 'assassin') {
-    // El Pelirrojo R3: Peak Edgy Powerhouses (Kingambit, Chien-Pao, Dragapult, Ceruledge, Zoroark-Hisui, Hydreigon)!
+    // El Pelirrojo R3: 100% Unique Edgy Powerhouses + Mid/High-Tier Legendary DARKRAI + Mega Ace ABSOL-MEGA ★!
     const rivalSquad: ShowdownSetBlock[] = [
       {
         species: 'Zoroark-Hisui',
@@ -842,17 +871,6 @@ export function resolveRomanceRematchBattle(
         moves: ['Bitter Blade', 'Shadow Sneak', 'Close Combat', 'Swords Dance'],
       },
       {
-        species: 'Dragapult',
-        item: 'Choice Specs',
-        ability: 'Infiltrator',
-        level: 104,
-        teraType: 'Ghost',
-        evs: '4 HP / 252 SpA / 252 Spe',
-        nature: 'Timid',
-        ivs: '0 Atk',
-        moves: ['Draco Meteor', 'Shadow Ball', 'Flamethrower', 'U-turn'],
-      },
-      {
         species: 'Hydreigon',
         item: 'Life Orb',
         ability: 'Levitate',
@@ -864,25 +882,36 @@ export function resolveRomanceRematchBattle(
         moves: ['Dark Pulse', 'Draco Meteor', 'Heat Wave', 'Tailwind'],
       },
       {
-        species: 'Chien-Pao',
-        item: 'Focus Sash',
-        ability: 'Sword of Ruin',
-        level: 105,
-        teraType: 'Dark',
-        evs: '4 HP / 252 Atk / 252 Spe',
-        nature: 'Jolly',
-        moves: ['Icicle Crash', 'Sucker Punch', 'Sacred Sword', 'Protect'],
-      },
-      {
-        nickname: 'Kingambit ★',
         species: 'Kingambit',
         item: 'Black Glasses',
         ability: 'Supreme Overlord',
-        level: 106,
+        level: 105,
         teraType: 'Dark',
         evs: '252 HP / 252 Atk / 4 SpD',
         nature: 'Adamant',
-        moves: ['Kowtow Cleave', 'Sucker Punch', 'Iron Head', 'Swords Dance'],
+        moves: ['Kowtow Cleave', 'Sucker Punch', 'Iron Head', 'Protect'],
+      },
+      {
+        species: 'Darkrai',
+        item: 'Focus Sash',
+        ability: 'Bad Dreams',
+        level: 106,
+        teraType: 'Poison',
+        evs: '4 HP / 252 SpA / 252 Spe',
+        nature: 'Timid',
+        ivs: '0 Atk',
+        moves: ['Dark Void', 'Dark Pulse', 'Ice Beam', 'Protect'],
+      },
+      {
+        nickname: 'Absol-Mega ★',
+        species: 'Absol-Mega',
+        item: 'Absolite',
+        ability: 'Magic Bounce',
+        level: 108,
+        teraType: 'Dark',
+        evs: '4 HP / 252 Atk / 252 Spe',
+        nature: 'Jolly',
+        moves: ['Sucker Punch', 'Knock Off', 'Play Rough', 'Close Combat'],
       },
     ];
 
@@ -890,8 +919,8 @@ export function resolveRomanceRematchBattle(
       chapterId: 'romance-assassin-r3',
       format: 'doubles',
       formatId: CAMPAIGN_DOUBLES_FORMAT_ID,
-      formatLabel: 'Rematch Injusta · Edgy R3',
-      reserveAsLastAceSpecies: 'Kingambit',
+      formatLabel: 'Rematch Injusta · Edgy R3 (Nv. 108)',
+      reserveAsLastAceSpecies: 'Absol-Mega',
       playerName: 'Príncipe Heredero',
       playerCharId: 'prince',
       rivalName: 'El Pelirrojo (Rival Edgy)',
@@ -899,23 +928,26 @@ export function resolveRomanceRematchBattle(
       rivalCharId: 'assassin',
       arenaTheme: 'wyndon-alleys',
       playerTeamSummary: 'Tu Escuadrón Completo (6 Pokémon · Sin Piedad)',
-      rivalTeamSummary: 'Counter-Team Edgy al Límite (Zoroark-H, Ceruledge, Dragapult, Hydreigon, Chien-Pao, Kingambit ★ Nv.106)',
+      rivalTeamSummary: 'Counter-Team Edgy al Límite (Zoroark-H, Ceruledge, Hydreigon, Kingambit, DARKRAI Nv.106, ABSOL-MEGA ★ Nv.108)',
       playerShowdownPaste: buildShowdownPaste(playerSquad),
       rivalShowdownPaste: buildShowdownPaste(rivalSquad),
       rivalIntel: {
         visibleSpeciesCount: 3,
         totalSlots: 6,
-        intelLabel: 'Rematch Injusta · Counter-Team Edgy',
+        intelLabel: 'Rematch Injusta · Counter-Team Edgy + Darkrai',
         intelNote:
-          'Arrancas con Trampa Rocas en tu campo frente a los 6 sweepers más edgys y rotos de El Pelirrojo. Si lo vences, sus 3 glass cannons se unen a tu Casa/PC.',
-        levelCap: 100,
+          'Arrancas con Trampa Rocas en tu campo frente a sus sweepers edgy, el legendario Darkrai y su Mega-Absol ★ (Espejo Mágico). Si lo vences, sus 3 glass cannons se unen a tu Casa/PC.',
+        levelCap: 106,
         hasBossAce: true,
-        bossAceWarning: 'Chien-Pao + Kingambit ★ (Nv. 106 · Supreme Overlord) cierran el duelo.',
+        bossAceWarning: 'Darkrai (Nv. 106 · Brecha Negra) y Absol-Mega ★ (Nv. 108 · Espejo Mágico) cierran la arena.',
       },
       puzzleConditions: {
         sideConditions: { p1: ['stealthrock'] },
+        biomeLabel: '🌃 Azotea de Ciudad Ryme · Trampa Rocas & Emboscada Edgy',
+        biomeCounterHint:
+          'Entras con Trampa Rocas activas. Trae respuestas contra Sueño (Dark Void de Darkrai) y golpes Hada/Lucha para Mega-Absol.',
         bannerLog:
-          '🗡️ ¡Rematch Injusta (El Pelirrojo)! Empiezas con Trampa Rocas y sus 6 sweepers edgy sobre el cap de nivel.',
+          '🗡️ ¡Rematch Injusta (El Pelirrojo)! Empiezas con Trampa Rocas frente a Darkrai y Absol-Mega ★ (Nv. 108).',
       },
       romanceMeta: {
         npcId: 'assassin',
@@ -1031,6 +1063,11 @@ export function resolveRomanceRematchBattle(
         hasBossAce: true,
         bossAceWarning: 'Urshifu-Rapid-Strike (Sash + Counter) y Skeledirge (Custap + Endure) castigan cualquier mal cruce.',
       },
+      puzzleConditions: {
+        biomeLabel: '⚔️ Sala de Duelos de Vayra · 1v1 Puro (Sin Clima ni Relevos)',
+        biomeCounterHint:
+          'Campo limpio sin clima ni relevos: gana el duelo mental de Bring 3, Pick 1. Cuidado con Focus Sash + Counter (Urshifu-R) y Custap + Endure (Skeledirge).',
+      },
       romanceMeta: {
         npcId: 'court_duelist',
         targetRank: 3,
@@ -1139,9 +1176,13 @@ export function resolveRomanceRematchBattle(
     },
     puzzleConditions: {
       weather: 'raindance',
+      extendedEnvironment: true,
       sideConditions: { p2: ['reflect'] },
+      biomeLabel: '👑 Nieves de la Corona · Lluvia Anything Goes + Reflejo',
+      biomeCounterHint:
+        'Lluvia persistente para Kyogre (Water Spout en Diablo) + Reflejo inicial. Trae control de clima y respuestas contra Mega-Rayquaza ★.',
       bannerLog:
-        '👑 ¡Anything Goes — La Graduación de la Campeona! Lluvia intensa, Reflejo inicial y Mega-Rayquaza ★ esperando en la reserva.',
+        '👑 ¡Anything Goes — La Graduación de la Campeona! Lluvia persistente, Reflejo inicial y Mega-Rayquaza ★ esperando en la reserva.',
     },
     romanceMeta: {
       npcId: 'champion',

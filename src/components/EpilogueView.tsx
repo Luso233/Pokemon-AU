@@ -22,6 +22,7 @@ import { CHAPTERS } from '../data/chapters';
 import { CURRENCY_NAME, DIFFICULTY_META } from '../data/economyCatalog';
 import { computeActiveSocialLinkPerks } from '../data/socialLinksCatalog';
 import { evaluateBabyModeComedyStamp } from '../engine/formatFallback';
+import { applyRivalNameToText, getRivalName } from '../engine/rivalName';
 import {
   buildDefeatTweetText,
   buildRunDeathSummary,
@@ -79,6 +80,8 @@ export const EpilogueView: React.FC<EpilogueViewProps> = ({
   onBackHome,
 }) => {
   const [copiedTweet, setCopiedTweet] = useState(false);
+  const rivalName = getRivalName(profile);
+  const fmt = (text: string) => applyRivalNameToText(text, rivalName);
   const isVersus = Boolean(config.isVersusMatch);
   const isPrologueCh1 = chapter.id === 'ch1-wyndon-chase';
   const babyStamp = useMemo(
@@ -244,7 +247,9 @@ export const EpilogueView: React.FC<EpilogueViewProps> = ({
                     </span>
                   </div>
                   <p className="mt-1.5 text-xs leading-relaxed text-amber-100/90">
-                    Maxeaste Rango 3 con todos los aliados romanceables del Batch 1 (El Pelirrojo, La Duelista y La Campeona). Ningún trono se sostiene solo: la nueva corona de Galar nace de cada pacto forjado durante el exilio.
+                    {fmt(
+                      'Maxeaste Rango 3 con todos los aliados romanceables del Batch 1 (El Pelirrojo, La Duelista y La Campeona). Ningún trono se sostiene solo: la nueva corona de Galar nace de cada pacto forjado durante el exilio.'
+                    )}
                   </p>
                 </div>
               )}
@@ -253,11 +258,11 @@ export const EpilogueView: React.FC<EpilogueViewProps> = ({
                   <div className="flex items-center gap-2 text-fuchsia-200">
                     <Heart className="h-4 w-4 fill-fuchsia-400 text-fuchsia-400" />
                     <span className="font-display text-sm font-extrabold">
-                      {perks.activeEndingNpc.endingTitle}
+                      {fmt(perks.activeEndingNpc.endingTitle)}
                     </span>
                   </div>
                   <p className="mt-1 text-xs leading-relaxed text-slate-200">
-                    {perks.activeEndingNpc.endingSummary}
+                    {fmt(perks.activeEndingNpc.endingSummary)}
                   </p>
                 </div>
               )}
@@ -446,7 +451,7 @@ export const EpilogueView: React.FC<EpilogueViewProps> = ({
                       key={cid}
                       className="rounded-lg border border-emerald-400/40 bg-emerald-500/15 px-2 py-0.5 text-[11px] text-emerald-100"
                     >
-                      {found ? `${found.number}: ${found.title}` : cid}
+                      {found ? `${found.number}: ${fmt(found.title)}` : cid}
                     </span>
                   );
                 })}

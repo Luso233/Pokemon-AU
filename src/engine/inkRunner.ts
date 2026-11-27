@@ -54,6 +54,16 @@ const VALID_CHAR_IDS = new Set<CharacterId>([
   'colossus_keeper',
   'tobias',
   'ash_ketchum',
+  'cordelia_astronomer',
+  'mesoa_boss',
+  'poketopia_croupier',
+  'ranger_commander',
+  'aeos_geneticist',
+  'kemetia_keeper',
+  'e4_ransei',
+  'e4_ferrum',
+  'e4_veridia',
+  'e4_kalos',
 ]);
 
 function parseCharId(val: string): CharacterId | null {

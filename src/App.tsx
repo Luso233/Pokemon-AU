@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { User } from 'firebase/auth';
 import { CHAPTERS } from './data/chapters';
 import { buildRivalProfileFromNpc, getNpcDefinition } from './data/npcProfiles';
@@ -58,6 +58,7 @@ import {
   saveLocalProfile,
   setCustomItemForSpecies,
   setCustomMoveForSpecies,
+  setCustomRivalName,
   setDevModeEnabled,
   spawnDevAgSpecimen,
   toggleRunModifiers,
@@ -65,6 +66,11 @@ import {
   unlockMoveSlotForSpecies,
   updatePokemonInstanceBuild,
 } from './engine/playerProfile';
+import {
+  applyRivalNameToBattleConfig,
+  applyRivalNameToChapter,
+  getRivalName,
+} from './engine/rivalName';
 import {
   appendRunHistoryEntry,
   buildRunDeathSummary,
@@ -74,7 +80,10 @@ import {
   loadSaveSlots,
   saveProfileToSlot,
 } from './engine/saveSlots';
-import { buildRomanceChapterDefinition } from './data/romanceChapters';
+import {
+  buildRomanceChapterDefinition,
+  ROMANCE_CHAPTERS,
+} from './data/romanceChapters';
 import type {
   AISettings,
   BattleDifficultyMode,
@@ -140,6 +149,12 @@ export default function App() {
 
   const profileRef = useRef(profile);
   profileRef.current = profile;
+
+  const activeRivalName = getRivalName(profile);
+  const personalizedActiveChapter = useMemo(
+    () => applyRivalNameToChapter(activeChapter, activeRivalName),
+    [activeChapter, activeRivalName]
+  );
 
   // Persist locally & auto-sync active save slot on every profile update (including Dev Mode & PC Box edits!)
   useEffect(() => {
@@ -222,7 +237,13 @@ export default function App() {
     chapter: ChapterDefinition,
     overrideVnMode?: VnPacingMode
   ) => {
-    setActiveChapter(chapter);
+    const rawChapter =
+      CHAPTERS.find((c) => c.id === chapter.id) ??
+      ROMANCE_CHAPTERS.find((c) => c.id === chapter.id) ??
+      chapter;
+    const rivalName = getRivalName(profileRef.current);
+    const localizedChapter = applyRivalNameToChapter(rawChapter, rivalName);
+    setActiveChapter(rawChapter);
     setResolvedConfig(null);
     setSuspendedInkState(null);
     setPersistedPartyState(null);
@@ -230,7 +251,7 @@ export default function App() {
     const effectiveVnMode =
       overrideVnMode ?? profileRef.current.vnPacingMode ?? 'full';
     if (effectiveVnMode === 'skip-to-battle') {
-      const runner = new InkVNRunner(chapter.inkSource);
+      const runner = new InkVNRunner(localizedChapter.inkSource);
       let cur = runner.step();
       let safety = 0;
       while (safety < 140 && !cur.isEnded && !cur.pendingBattleTrigger) {
@@ -240,22 +261,25 @@ export default function App() {
         safety++;
       }
       if (cur.pendingBattleTrigger) {
-        const resolver = chapter.resolveStageBattleConfig;
+        const resolver = localizedChapter.resolveStageBattleConfig;
         const rawStage = resolver
           ? resolver(cur.pendingBattleTrigger.battleId, cur.flags, undefined)
-          : chapter.resolveBattleConfig(cur.flags);
+          : localizedChapter.resolveBattleConfig(cur.flags);
         const npcDef = getNpcDefinition(rawStage.rivalCharId);
-        const stageConfig: ResolvedBattleConfig = {
-          ...rawStage,
-          rivalProfile: buildRivalProfileFromNpc(
-            rawStage.rivalCharId,
-            rawStage.rivalProfile ?? chapter.rivalProfile
-          ),
-          npcPersonality: rawStage.npcPersonality ?? npcDef.personality,
-          npcDialogues: rawStage.npcDialogues ?? npcDef.dialogues,
-        };
+        const stageConfig = applyRivalNameToBattleConfig(
+          {
+            ...rawStage,
+            rivalProfile: buildRivalProfileFromNpc(
+              rawStage.rivalCharId,
+              rawStage.rivalProfile ?? localizedChapter.rivalProfile
+            ),
+            npcPersonality: rawStage.npcPersonality ?? npcDef.personality,
+            npcDialogues: rawStage.npcDialogues ?? npcDef.dialogues,
+          },
+          rivalName
+        );
         if (!cur.pendingBattleTrigger.persist) {
-          recordChapterAttempt(chapter.id);
+          recordChapterAttempt(localizedChapter.id);
         }
         setSuspendedInkState(
           cur.pendingBattleTrigger.persist ? null : runner.exportStateJson()
@@ -264,17 +288,20 @@ export default function App() {
         setScreen('battle');
         return;
       }
-      const rawConfig = chapter.resolveBattleConfig(cur.flags);
+      const rawConfig = localizedChapter.resolveBattleConfig(cur.flags);
       const npcDef = getNpcDefinition(rawConfig.rivalCharId);
-      const config: ResolvedBattleConfig = {
-        ...rawConfig,
-        rivalProfile: buildRivalProfileFromNpc(
-          rawConfig.rivalCharId,
-          rawConfig.rivalProfile ?? chapter.rivalProfile
-        ),
-        npcPersonality: rawConfig.npcPersonality ?? npcDef.personality,
-        npcDialogues: rawConfig.npcDialogues ?? npcDef.dialogues,
-      };
+      const config = applyRivalNameToBattleConfig(
+        {
+          ...rawConfig,
+          rivalProfile: buildRivalProfileFromNpc(
+            rawConfig.rivalCharId,
+            rawConfig.rivalProfile ?? localizedChapter.rivalProfile
+          ),
+          npcPersonality: rawConfig.npcPersonality ?? npcDef.personality,
+          npcDialogues: rawConfig.npcDialogues ?? npcDef.dialogues,
+        },
+        rivalName
+      );
       setResolvedConfig(config);
       setScreen('teambuilder');
       return;
@@ -300,6 +327,7 @@ export default function App() {
       displayName: profileRef.current.displayName,
       email: profileRef.current.email,
       runName: options.runName,
+      rivalName: options.rivalName,
       slotIndex: options.slotIndex,
       vnPacingMode: options.vnPacingMode,
       defaultDifficulty: options.defaultDifficulty,
@@ -310,6 +338,16 @@ export default function App() {
     setProfile(fresh);
     setSaveSlots(saveProfileToSlot(fresh, options.slotIndex));
     startChapter(CHAPTERS[0], options.vnPacingMode);
+  };
+
+  const handleRenameRival = (name: string) => {
+    const next = setCustomRivalName(profileRef.current, name);
+    profileRef.current = next;
+    setProfile(next);
+    const clean = getRivalName(next);
+    setResolvedConfig((prev) =>
+      prev ? applyRivalNameToBattleConfig(prev, clean) : prev
+    );
   };
 
   const handleSaveToSlot = (slotIndex: number, customRunName?: string) => {
@@ -357,42 +395,50 @@ export default function App() {
 
   const handleFinishVN = (flags: StoryFlags) => {
     setSuspendedInkState(null);
-    const rawConfig = activeChapter.resolveBattleConfig(flags);
+    const rivalName = getRivalName(profileRef.current);
+    const rawConfig = personalizedActiveChapter.resolveBattleConfig(flags);
     const npcDef = getNpcDefinition(rawConfig.rivalCharId);
-    const config: ResolvedBattleConfig = {
-      ...rawConfig,
-      rivalProfile: buildRivalProfileFromNpc(
-        rawConfig.rivalCharId,
-        rawConfig.rivalProfile ?? activeChapter.rivalProfile
-      ),
-      npcPersonality: rawConfig.npcPersonality ?? npcDef.personality,
-      npcDialogues: rawConfig.npcDialogues ?? npcDef.dialogues,
-    };
+    const config = applyRivalNameToBattleConfig(
+      {
+        ...rawConfig,
+        rivalProfile: buildRivalProfileFromNpc(
+          rawConfig.rivalCharId,
+          rawConfig.rivalProfile ?? personalizedActiveChapter.rivalProfile
+        ),
+        npcPersonality: rawConfig.npcPersonality ?? npcDef.personality,
+        npcDialogues: rawConfig.npcDialogues ?? npcDef.dialogues,
+      },
+      rivalName
+    );
     setResolvedConfig(config);
     setScreen('teambuilder');
   };
 
   const handleTriggerMidStoryBattle = (req: MidStoryBattleRequest) => {
-    const resolver = activeChapter.resolveStageBattleConfig;
+    const rivalName = getRivalName(profileRef.current);
+    const resolver = personalizedActiveChapter.resolveStageBattleConfig;
     const rawConfig = resolver
       ? resolver(
           req.battleId,
           req.flags,
           req.persist ? persistedPartyState ?? undefined : undefined
         )
-      : activeChapter.resolveBattleConfig(req.flags);
+      : personalizedActiveChapter.resolveBattleConfig(req.flags);
     const npcDef = getNpcDefinition(rawConfig.rivalCharId);
-    const config: ResolvedBattleConfig = {
-      ...rawConfig,
-      rivalProfile: buildRivalProfileFromNpc(
-        rawConfig.rivalCharId,
-        rawConfig.rivalProfile ?? activeChapter.rivalProfile
-      ),
-      npcPersonality: rawConfig.npcPersonality ?? npcDef.personality,
-      npcDialogues: rawConfig.npcDialogues ?? npcDef.dialogues,
-    };
+    const config = applyRivalNameToBattleConfig(
+      {
+        ...rawConfig,
+        rivalProfile: buildRivalProfileFromNpc(
+          rawConfig.rivalCharId,
+          rawConfig.rivalProfile ?? personalizedActiveChapter.rivalProfile
+        ),
+        npcPersonality: rawConfig.npcPersonality ?? npcDef.personality,
+        npcDialogues: rawConfig.npcDialogues ?? npcDef.dialogues,
+      },
+      rivalName
+    );
     if (!req.persist) {
-      recordChapterAttempt(activeChapter.id);
+      recordChapterAttempt(personalizedActiveChapter.id);
     }
     setSuspendedInkState(req.persist ? null : req.inkStateJson);
     setResolvedConfig(config);
@@ -424,24 +470,27 @@ export default function App() {
           )
         : finalConfig.persistedPartyState;
 
-    const hydrated: ResolvedBattleConfig = {
-      ...finalConfig,
-      persistedPartyState: ironmanPersisted,
-      isIronmanActive: appliesSurvival && curProf.ironmanMode,
-      isNuzlockeActive: appliesSurvival && curProf.nuzlockePermadeath,
-      rivalProfile: finalConfig.isVersusMatch
-        ? finalConfig.rivalProfile
-        : buildRivalProfileFromNpc(
-            finalConfig.rivalCharId,
-            finalConfig.rivalProfile ?? activeChapter.rivalProfile
-          ),
-      npcPersonality: finalConfig.isVersusMatch
-        ? finalConfig.npcPersonality
-        : finalConfig.npcPersonality ?? npcDef.personality,
-      npcDialogues: finalConfig.isVersusMatch
-        ? finalConfig.npcDialogues
-        : finalConfig.npcDialogues ?? npcDef.dialogues,
-    };
+    const hydrated = applyRivalNameToBattleConfig(
+      {
+        ...finalConfig,
+        persistedPartyState: ironmanPersisted,
+        isIronmanActive: appliesSurvival && curProf.ironmanMode,
+        isNuzlockeActive: appliesSurvival && curProf.nuzlockePermadeath,
+        rivalProfile: finalConfig.isVersusMatch
+          ? finalConfig.rivalProfile
+          : buildRivalProfileFromNpc(
+              finalConfig.rivalCharId,
+              finalConfig.rivalProfile ?? personalizedActiveChapter.rivalProfile
+            ),
+        npcPersonality: finalConfig.isVersusMatch
+          ? finalConfig.npcPersonality
+          : finalConfig.npcPersonality ?? npcDef.personality,
+        npcDialogues: finalConfig.isVersusMatch
+          ? finalConfig.npcDialogues
+          : finalConfig.npcDialogues ?? npcDef.dialogues,
+      },
+      getRivalName(curProf)
+    );
     if (!hydrated.isVersusMatch) {
       recordChapterAttempt(activeChapter.id);
     }
@@ -876,7 +925,7 @@ export default function App() {
   } else if (screen === 'vn') {
     view = (
       <VisualNovelView
-        chapter={activeChapter}
+        chapter={personalizedActiveChapter}
         resumeInkStateJson={suspendedInkState}
         persistedPartyState={persistedPartyState}
         vnPacingMode={profile.vnPacingMode}
@@ -890,8 +939,8 @@ export default function App() {
       <TeambuilderBriefing
         config={resolvedConfig}
         profile={profile}
-        teamEditPolicy={activeChapter.teamEditPolicy}
-        teamMode={activeChapter.teamMode}
+        teamEditPolicy={personalizedActiveChapter.teamEditPolicy}
+        teamMode={personalizedActiveChapter.teamMode}
         onReplayVN={() => setScreen('vn')}
         onOpenShop={() => setScreen('shop')}
         onOpenDevMode={() => setDevModalOpen(true)}
@@ -948,7 +997,7 @@ export default function App() {
   } else if (screen === 'epilogue' && resolvedConfig) {
     view = (
       <EpilogueView
-        chapter={activeChapter}
+        chapter={personalizedActiveChapter}
         config={resolvedConfig}
         profile={profile}
         won={battleOutcome.won}
@@ -1033,6 +1082,7 @@ export default function App() {
         onHarvestBerry={handleHarvestBerry}
         onRecruitHousePokemon={handleRecruitHousePokemon}
         onResetSurvivalState={handleResetSurvivalState}
+        onRenameRival={handleRenameRival}
       />
     </>
   );

@@ -11,6 +11,7 @@ import type {
   OpenTeamsheetEntry,
   PartyPokemonState,
   PendingDecisionSlot,
+  PseudoWeatherId,
   PuzzlePokemonModifier,
   ResolvedBattleConfig,
   SpeedRange,
@@ -225,10 +226,15 @@ function weatherLabel(id: string): string {
     Snow: 'Nieve',
     snow: 'Nieve',
     Snowscape: 'Nieve',
+    snowscape: 'Nieve',
     Hail: 'Granizo',
+    hail: 'Granizo',
     DeltaStream: 'Ráfaga Delta',
+    deltastream: 'Ráfaga Delta',
     DesolateLand: 'Tierra del Ocaso',
+    desolateland: 'Tierra del Ocaso',
     PrimordialSea: 'Mar del Albor',
+    primordialsea: 'Mar del Albor',
     none: '',
   };
   return map[id] ?? id;
@@ -347,6 +353,7 @@ export class ShowdownBattleController {
       terrain: '',
       terrainTurnsLeft: null,
       trickRoomTurnsLeft: null,
+      activePseudoWeathers: [],
       levelCap: config.rivalIntel?.levelCap ?? defaultLevel,
       puzzleApplied: false,
       persistenceApplied: false,
@@ -479,6 +486,9 @@ export class ShowdownBattleController {
         ...s,
         pokemon: this.cloneMon(s.pokemon),
         moves: [...s.moves],
+      })),
+      activePseudoWeathers: (this.state.activePseudoWeathers ?? []).map((pw) => ({
+        ...pw,
       })),
       p2HumanParty: this.state.p2HumanParty.map((m) => this.cloneMon(m)),
       p2PendingSlots: this.state.p2PendingSlots.map((s) => ({
@@ -645,6 +655,14 @@ export class ShowdownBattleController {
     ) {
       this.state.trickRoomTurnsLeft -= 1;
     }
+    if (this.state.activePseudoWeathers?.length) {
+      this.state.activePseudoWeathers = this.state.activePseudoWeathers.map(
+        (pw) =>
+          pw.turnsLeft != null && pw.turnsLeft > 1
+            ? { ...pw, turnsLeft: pw.turnsLeft - 1 }
+            : pw
+      );
+    }
     for (const sideKey of ['p1', 'p2'] as const) {
       const timers = this.state[sideKey].sideTimers;
       for (const k of Object.keys(timers)) {
@@ -741,17 +759,47 @@ export class ShowdownBattleController {
         '🧩 Condiciones iniciales del Puzzle aplicadas al campo.'
     );
 
+    const envDuration = puzzle.extendedEnvironment ? 99 : 5;
+
     if (puzzle.weather && sourceMon) {
-      battle.field.setWeather(puzzle.weather, sourceMon);
+      const resolvedWeather =
+        puzzle.weather === 'snow' && !battle.dex.conditions.get('snow').exists
+          ? 'snowscape'
+          : puzzle.weather;
+      battle.field.setWeather(resolvedWeather, sourceMon);
+      if (puzzle.extendedEnvironment && battle.field.weatherState) {
+        battle.field.weatherState.duration = envDuration;
+      }
+      if (battle.field.weather) {
+        this.state.weather = weatherLabel(battle.field.weather);
+        this.state.weatherTurnsLeft = envDuration;
+      }
     }
 
     if (puzzle.terrain && sourceMon) {
       battle.field.setTerrain(puzzle.terrain, sourceMon);
+      if (puzzle.extendedEnvironment && battle.field.terrainState) {
+        battle.field.terrainState.duration = envDuration;
+      }
     }
 
-    if (puzzle.trickRoom && sourceMon) {
-      battle.field.addPseudoWeather('trickroom', sourceMon);
-      this.state.trickRoomTurnsLeft = 5;
+    const requestedPseudoWeathers = new Set<PseudoWeatherId>(
+      puzzle.pseudoWeathers ?? []
+    );
+    if (puzzle.trickRoom) requestedPseudoWeathers.add('trickroom');
+
+    if (requestedPseudoWeathers.size > 0 && sourceMon) {
+      for (const pw of requestedPseudoWeathers) {
+        battle.field.addPseudoWeather(pw, sourceMon);
+        if (puzzle.extendedEnvironment && battle.field.pseudoWeather[pw]) {
+          battle.field.pseudoWeather[pw].duration = envDuration;
+        }
+        if (pw === 'trickroom') {
+          this.state.trickRoomTurnsLeft = envDuration;
+        } else {
+          this.upsertPseudoWeatherState(pw, envDuration);
+        }
+      }
     }
 
     if (puzzle.sideConditions?.p1 && sourceMon) {
@@ -774,6 +822,36 @@ export class ShowdownBattleController {
 
     battle.add('-message', '__PUZZLE_READY__');
     battle.sendUpdates();
+  }
+
+  private pseudoWeatherLabel(id: PseudoWeatherId): string {
+    switch (id) {
+      case 'gravity':
+        return 'Gravedad';
+      case 'magicroom':
+        return 'Zona Mágica (Sin Objetos)';
+      case 'wonderroom':
+        return 'Zona Extraña (Def↔SpD)';
+      case 'trickroom':
+        return 'Espacio Raro';
+    }
+  }
+
+  private upsertPseudoWeatherState(
+    id: PseudoWeatherId,
+    turnsLeft: number | null
+  ): void {
+    const list = [...(this.state.activePseudoWeathers ?? [])].filter(
+      (p) => p.id !== id
+    );
+    list.push({ id, label: this.pseudoWeatherLabel(id), turnsLeft });
+    this.state.activePseudoWeathers = list;
+  }
+
+  private removePseudoWeatherState(id: PseudoWeatherId): void {
+    this.state.activePseudoWeathers = (
+      this.state.activePseudoWeathers ?? []
+    ).filter((p) => p.id !== id);
   }
 
   private applySinglePokemonModifier(
@@ -2473,14 +2551,27 @@ export class ShowdownBattleController {
 
       case '-fieldstart': {
         const field = cleanEffectName(parts[2] ?? '');
+        const isExtInitial =
+          Boolean(this.config.puzzleConditions?.extendedEnvironment) &&
+          this.state.turn <= 1;
+        const dur = isExtInitial ? 99 : 5;
         this.inspectTagsForReveals(undefined, parts.slice(3));
         if (field.includes('Terrain')) {
           this.state.terrain = terrainLabel(field);
-          this.state.terrainTurnsLeft = 5;
+          this.state.terrainTurnsLeft = dur;
         } else if (field.includes('Trick Room')) {
-          this.state.trickRoomTurnsLeft = 5;
+          this.state.trickRoomTurnsLeft = dur;
+        } else if (field.includes('Gravity')) {
+          this.upsertPseudoWeatherState('gravity', dur);
+        } else if (field.includes('Magic Room')) {
+          this.upsertPseudoWeatherState('magicroom', dur);
+        } else if (field.includes('Wonder Room')) {
+          this.upsertPseudoWeatherState('wonderroom', dur);
         }
-        this.pushLog('weather', `Campo activo: ${terrainLabel(field)}.`);
+        this.pushLog(
+          'weather',
+          `Campo activo: ${terrainLabel(field)}${isExtInitial ? ' (Bioma persistente)' : ''}.`
+        );
         break;
       }
 
@@ -2491,6 +2582,12 @@ export class ShowdownBattleController {
           this.state.terrainTurnsLeft = null;
         } else if (field.includes('Trick Room')) {
           this.state.trickRoomTurnsLeft = null;
+        } else if (field.includes('Gravity')) {
+          this.removePseudoWeatherState('gravity');
+        } else if (field.includes('Magic Room')) {
+          this.removePseudoWeatherState('magicroom');
+        } else if (field.includes('Wonder Room')) {
+          this.removePseudoWeatherState('wonderroom');
         }
         this.pushLog('weather', `Terminó ${terrainLabel(field)}.`);
         break;
@@ -2499,6 +2596,10 @@ export class ShowdownBattleController {
       case '-weather': {
         const w = parts[2] ?? '';
         const isUpkeep = Boolean(parts[3]?.includes('[upkeep]'));
+        const isExtInitial =
+          Boolean(this.config.puzzleConditions?.extendedEnvironment) &&
+          this.state.turn <= 1 &&
+          !isUpkeep;
         this.inspectTagsForReveals(undefined, parts.slice(3));
         if (w === 'none') {
           this.state.weather = '';
@@ -2507,11 +2608,18 @@ export class ShowdownBattleController {
           const lbl = weatherLabel(w);
           const isNew = !isUpkeep && this.state.weather !== lbl;
           this.state.weather = lbl;
-          if (isNew || this.state.weatherTurnsLeft == null) {
+          if (isExtInitial) {
+            this.state.weatherTurnsLeft = 99;
+          } else if (isNew || this.state.weatherTurnsLeft == null) {
             this.state.weatherTurnsLeft = 5;
           }
           if (!isUpkeep) {
-            this.pushLog('weather', `Clima activo: ${lbl} (5 turnos).`);
+            this.pushLog(
+              'weather',
+              isExtInitial
+                ? `Clima de bioma activo: ${lbl} (persistente hasta que cambies el clima).`
+                : `Clima activo: ${lbl} (5 turnos).`
+            );
           }
         }
         break;

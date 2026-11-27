@@ -9,6 +9,7 @@ import {
   ChevronUp,
   ClipboardList,
   ClipboardPaste,
+  CloudSun,
   Code2,
   Coins,
   Dices,
@@ -18,6 +19,7 @@ import {
   Heart,
   HelpCircle,
   ShieldAlert,
+  ShoppingBag,
   Swords,
   Wrench,
   Zap,
@@ -40,6 +42,7 @@ import {
   getSpeciesKey,
 } from '../engine/learnsetService';
 import { applyBabyOrDevNatDexFallback } from '../engine/formatFallback';
+import { getRivalName } from '../engine/rivalName';
 import {
   applyChapterProgressionToPaste,
   applyShinySlotsToPaste,
@@ -1025,13 +1028,13 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                   </div>
                 </div>
 
-                {/* Rank 1 Romance Anti-Diablo Tactical Scouting (El Pelirrojo) */}
+                {/* Rank 1 Romance Anti-Diablo Tactical Scouting (Rival Personalizado) */}
                 <div className="border-t border-white/10 pt-2">
                   {socialPerks.hasAntiDiabloScouting ? (
                     <div className="space-y-1.5 rounded-xl border border-sky-400/35 bg-sky-950/40 p-2.5">
                       <p className="flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider text-sky-200">
                         <ShieldAlert className="h-3 w-3 text-sky-400" />
-                        Scouting Anti-Diablo (El Pelirrojo R1 Activo)
+                        Scouting Anti-Diablo ({getRivalName(profile)} R1 Activo)
                       </p>
                       {scoutingAlerts.length > 0 ? (
                         scoutingAlerts.map((al, idx) => (
@@ -1050,7 +1053,7 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                     </div>
                   ) : (
                     <p className="text-[10px] text-slate-400">
-                      ♥ Sube a <strong>El Pelirrojo a Rango 1</strong> para revelar objetos y movimientos sorpresa del modo Tryhard/Diablo.
+                      ♥ Sube a <strong>{getRivalName(profile)} a Rango 1</strong> para revelar objetos y movimientos sorpresa del modo Tryhard/Diablo.
                     </p>
                   )}
                 </div>
@@ -1079,6 +1082,85 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                   </div>
                 )}
               </div>
+
+              {/* Turn-0 Biome Field Effect Sighting (Weather, Terrain, Gravity, Magic/Wonder/Trick Room) */}
+              {config.puzzleConditions &&
+                (config.puzzleConditions.biomeLabel ||
+                  config.puzzleConditions.weather ||
+                  config.puzzleConditions.terrain ||
+                  (config.puzzleConditions.pseudoWeathers &&
+                    config.puzzleConditions.pseudoWeathers.length > 0)) && (() => {
+                  const pc = config.puzzleConditions;
+                  const wxLabels: Record<string, string> = {
+                    sunnyday: '☀️ Sol Intenso',
+                    raindance: '🌧️ Lluvia',
+                    sandstorm: '🏜️ Tormenta de Arena',
+                    snow: '❄️ Nieve',
+                  };
+                  const trLabels: Record<string, string> = {
+                    electricterrain: '⚡ Campo Eléctrico',
+                    grassyterrain: '🌿 Campo de Hierba',
+                    psychicterrain: '🔮 Campo Psíquico',
+                    mistyterrain: '🌫️ Campo de Niebla',
+                  };
+                  const pwLabels: Record<string, string> = {
+                    gravity: '🌌 Gravedad',
+                    trickroom: '⏳ Espacio Raro',
+                    magicroom: '🃏 Zona Mágica',
+                    wonderroom: '🪞 Zona Extraña',
+                  };
+                  const activeTags: string[] = [];
+                  if (pc.weather) activeTags.push(wxLabels[pc.weather] ?? pc.weather);
+                  if (pc.terrain) activeTags.push(trLabels[pc.terrain] ?? pc.terrain);
+                  for (const pw of pc.pseudoWeathers ?? []) {
+                    activeTags.push(pwLabels[pw] ?? pw);
+                  }
+                  return (
+                    <div className="mb-4 rounded-2xl border border-cyan-400/40 bg-gradient-to-br from-cyan-950/45 via-slate-950/85 to-indigo-950/35 p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-1.5">
+                        <span className="inline-flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider text-cyan-200">
+                          <CloudSun className="h-3.5 w-3.5 text-cyan-300" />
+                          🌍 Avistamiento de Bioma (Turno 0)
+                        </span>
+                        {pc.extendedEnvironment && (
+                          <span className="rounded-md border border-amber-400/45 bg-amber-500/15 px-1.5 py-0.5 font-mono-code text-[9px] font-extrabold text-amber-200">
+                            ∞ Persistente (hasta sobrescribir)
+                          </span>
+                        )}
+                      </div>
+                      {pc.biomeLabel && (
+                        <p className="mt-1.5 text-xs font-extrabold text-white">
+                          {pc.biomeLabel}
+                        </p>
+                      )}
+                      {activeTags.length > 0 && (
+                        <div className="mt-1.5 flex flex-wrap gap-1">
+                          {activeTags.map((tag) => (
+                            <span
+                              key={tag}
+                              className="rounded-full border border-cyan-400/35 bg-cyan-500/15 px-2 py-0.5 text-[10px] font-bold text-cyan-100"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {pc.biomeCounterHint && (
+                        <p className="mt-2 text-[10.5px] leading-relaxed text-slate-300">
+                          💡 {pc.biomeCounterHint}
+                        </p>
+                      )}
+                      <button
+                        type="button"
+                        onClick={onOpenShop}
+                        className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-amber-400/45 bg-amber-500/15 px-2.5 py-1.5 text-[10.5px] font-extrabold text-amber-100 transition hover:bg-amber-500/25 cursor-pointer"
+                      >
+                        <ShoppingBag className="h-3.5 w-3.5 text-amber-300" />
+                        Buscar Counters en Tienda (Filtros Showdown)
+                      </button>
+                    </div>
+                  );
+                })()}
 
               {/* Fog of War Silhouettes (Masks Illusion Lead!) */}
               <div className="mb-4">

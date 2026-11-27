@@ -55,6 +55,7 @@ import {
   STARTER_UNLOCKED_POKEDEX,
 } from './pricingEngine';
 import { buildShowdownPaste, type ShowdownSetBlock } from './teamBuilderTree';
+import { DEFAULT_RIVAL_NAME, sanitizeRivalName } from './rivalName';
 
 const PROFILE_STORAGE_KEY = 'galar-crown-profile-v2';
 const LEGACY_PROGRESS_KEY = 'galar-crown-vn-progress-v1';
@@ -205,6 +206,7 @@ export function createDefaultProfile(
     displayName,
     email,
     runName: 'Exilio de Wyndon',
+    rivalName: DEFAULT_RIVAL_NAME,
     activeSaveSlot: 1,
     vnPacingMode: 'full',
     hasStartedRun: false,
@@ -440,6 +442,7 @@ export function normalizeProfile(
     displayName: raw.displayName || base.displayName,
     email: raw.email || '',
     runName: raw.runName || base.runName,
+    rivalName: sanitizeRivalName(raw.rivalName),
     activeSaveSlot:
       typeof raw.activeSaveSlot === 'number' &&
       raw.activeSaveSlot >= 1 &&
@@ -1890,6 +1893,7 @@ export function toggleRunModifiers(
     defaultDifficulty?: BattleDifficultyMode;
     vnPacingMode?: 'full' | 'decisions-only' | 'skip-to-battle';
     runName?: string;
+    rivalName?: string;
     hasStartedRun?: boolean;
   }
 ): PlayerSaveProfile {
@@ -1900,7 +1904,22 @@ export function toggleRunModifiers(
     defaultDifficulty: patch.defaultDifficulty ?? profile.defaultDifficulty,
     vnPacingMode: patch.vnPacingMode ?? profile.vnPacingMode,
     runName: patch.runName ?? profile.runName,
+    rivalName:
+      patch.rivalName !== undefined
+        ? sanitizeRivalName(patch.rivalName)
+        : profile.rivalName ?? DEFAULT_RIVAL_NAME,
     hasStartedRun: patch.hasStartedRun ?? profile.hasStartedRun,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function setCustomRivalName(
+  profile: PlayerSaveProfile,
+  rivalName: string
+): PlayerSaveProfile {
+  return {
+    ...profile,
+    rivalName: sanitizeRivalName(rivalName),
     updatedAt: new Date().toISOString(),
   };
 }
@@ -1909,6 +1928,7 @@ export function createNewConfiguredRunProfile(params: {
   displayName: string;
   email: string;
   runName: string;
+  rivalName?: string;
   slotIndex: number;
   vnPacingMode: 'full' | 'decisions-only' | 'skip-to-battle';
   defaultDifficulty: BattleDifficultyMode;
@@ -1919,6 +1939,7 @@ export function createNewConfiguredRunProfile(params: {
   return {
     ...fresh,
     runName: params.runName.trim() || `Run #${params.slotIndex}`,
+    rivalName: sanitizeRivalName(params.rivalName),
     activeSaveSlot: params.slotIndex,
     vnPacingMode: params.vnPacingMode,
     defaultDifficulty: params.defaultDifficulty,

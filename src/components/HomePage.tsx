@@ -25,6 +25,11 @@ import {
 } from '../data/economyCatalog';
 import { getActiveProviderLabel } from '../engine/aiProvider';
 import {
+  DEFAULT_RIVAL_NAME,
+  RIVAL_NAME_PRESETS,
+  sanitizeRivalName,
+} from '../engine/rivalName';
+import {
   buildDefeatTweetText,
   buildTwitterShareUrl,
   MAX_SAVE_SLOTS,
@@ -41,6 +46,7 @@ import { CharacterPortrait } from './CharacterPortrait';
 
 export interface NewRunLaunchOptions {
   runName: string;
+  rivalName: string;
   slotIndex: number;
   vnPacingMode: VnPacingMode;
   defaultDifficulty: BattleDifficultyMode;
@@ -110,6 +116,9 @@ export const HomePage: React.FC<HomePageProps> = ({
 
   // New Run Configurator state (defaults to active profile preferences!)
   const [newRunName, setNewRunName] = useState('Exilio de Wyndon');
+  const [newRivalName, setNewRivalName] = useState<string>(
+    profile.rivalName || DEFAULT_RIVAL_NAME
+  );
   const [newRunSlot, setNewRunSlot] = useState<number>(() => {
     for (let s = 1; s <= MAX_SAVE_SLOTS; s++) {
       if (!saveSlots[s]) return s;
@@ -592,6 +601,65 @@ export const HomePage: React.FC<HomePageProps> = ({
                     </div>
                   </div>
 
+                  {/* 4. Ancestral Pokémon Privilege: Name Your Rival ("Gary" / Mr. Tutorial Man / El Pelirrojo) */}
+                  <div className="rounded-xl border-2 border-fuchsia-500/40 bg-[#171026] p-3">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl border-2 border-rose-400/60 bg-slate-950">
+                        <CharacterPortrait
+                          charId="assassin"
+                          variant="bust"
+                          className="h-full w-full object-cover object-top"
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-pixel text-[10px] text-fuchsia-300">
+                          4. NOMBRA A TU RIVAL (TRADICIÓN ANCESTRAL POKÉMON)
+                        </p>
+                        <p className="mt-0.5 text-[10.5px] text-slate-300">
+                          Tu rival pelirrojo (Mr. Tutorial Man / Asesino / Enemies-to-Lovers). Escribe lo que quieras o elige un clásico de Gary Oak:
+                        </p>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <input
+                            type="text"
+                            value={newRivalName}
+                            onChange={(e) => setNewRivalName(e.target.value)}
+                            maxLength={24}
+                            placeholder={DEFAULT_RIVAL_NAME}
+                            aria-label="Nombre de tu rival"
+                            className="w-52 rounded-lg border-2 border-fuchsia-400/50 bg-[#0f0b1a] px-2.5 py-1.5 text-xs font-extrabold text-amber-100 focus:border-amber-400 focus:outline-none"
+                          />
+                          <span className="font-mono-code text-[10px] text-slate-400">
+                            Se verá como:{' '}
+                            <strong className="text-fuchsia-200">
+                              {sanitizeRivalName(newRivalName)}
+                            </strong>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-2.5 flex flex-wrap gap-1.5">
+                      {RIVAL_NAME_PRESETS.map((preset) => {
+                        const active =
+                          sanitizeRivalName(newRivalName) === preset.name;
+                        return (
+                          <button
+                            key={preset.name}
+                            type="button"
+                            onClick={() => setNewRivalName(preset.name)}
+                            title={preset.tag}
+                            className={`rounded-lg border px-2 py-1 text-[10px] font-extrabold transition cursor-pointer ${
+                              active
+                                ? 'border-amber-400 bg-amber-500/25 text-amber-100'
+                                : 'border-slate-700 bg-slate-950/90 text-slate-300 hover:border-fuchsia-400/60 hover:text-white'
+                            }`}
+                          >
+                            {preset.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                   {/* Launch New Run CTA */}
                   <div className="flex flex-wrap items-center justify-between gap-3 border-t-2 border-[#d9462f]/40 pt-3">
                     <span className="text-[11px] text-slate-400">
@@ -604,6 +672,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                       onClick={() =>
                         onStartNewRun({
                           runName: newRunName.trim() || `Run #${newRunSlot}`,
+                          rivalName: sanitizeRivalName(newRivalName),
                           slotIndex: newRunSlot,
                           vnPacingMode: newVnMode,
                           defaultDifficulty: newDifficulty,

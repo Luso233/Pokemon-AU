@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { Teams, TeamValidator } from '@pkmn/sim';
+import { Dex, Teams, TeamValidator } from '@pkmn/sim';
+import type { ChapterDefinition } from '../src/types/game';
 import { InkVNRunner } from '../src/engine/inkRunner';
 import {
   resolveAnimeAshVsTobiasBattle,
@@ -69,6 +70,7 @@ import {
   saveCurrentPartyAsTeam,
   setCustomItemForSpecies,
   setCustomMoveForSpecies,
+  setCustomRivalName,
   spawnDevAgSpecimen,
   toggleRunModifiers,
   unlockChapterWithCoins,
@@ -109,6 +111,13 @@ import {
   applyBabyOrDevNatDexFallback,
   evaluateBabyModeComedyStamp,
 } from '../src/engine/formatFallback';
+import {
+  applyRivalNameToBattleConfig,
+  applyRivalNameToChapter,
+  DEFAULT_RIVAL_NAME,
+  getRivalName,
+  RIVAL_NAME_PRESETS,
+} from '../src/engine/rivalName';
 import { REGIONAL_ROMANCE_BLUEPRINTS } from '../src/data/regionalRomanceBlueprints';
 import {
   BLOC_BY_ID,
@@ -2753,7 +2762,282 @@ IVs: 0 Atk
     `  OK: Baby Mode Auto-NatDex Fallback (Eternatus-Eternamax vs Monotype & VGC), Comedy Stamp (4 Tiers + Game Review), & ALL ${validatedRomanceBattles} Regional Romance Battles (13 NPCs × 3 Chapters covering ${coveredBlocs.size}/${WORLD_BLOCS.length} World Blocs incl. Cordelia TR+Burned Ursaluna, Kora, Borelia, Pokétopia Sniper, Ranger Palafin-Hero, Veridia Mew & Kalos Mega-Gardevoir) ALL VERIFIED!`
   );
 
-  console.log('\nALL 27 ENGINE, MAP, ROMANCE, POKÉROGUE RUN, DOUBLE-ZOROARK, SMOGON ECONOMY, NATDEX, BABY MODE & REGIONAL ROMANCE SUITES PASSED!');
+  console.log(
+    '\n=== 28. Zero-Duplicate 13 Aces & 13 R3 Legendaries, Persistent Biome Field Effects (Gravity/MagicRoom/WonderRoom) & Ancestral Rival Naming ==='
+  );
+  // 1) Programmatically verify ZERO duplicate Signature Aces & ZERO duplicate species across ALL 13 NPCs (R1 & R3)!
+  const seenAces = new Map<string, string>();
+  const speciesOwner = new Map<string, { npcId: string; rank: string }>();
+  const expectedR3Legendaries: Record<string, string> = {
+    assassin: 'Darkrai',
+    court_duelist: 'Iron Crown',
+    champion: 'Kyogre',
+    cordelia_astronomer: 'Cresselia',
+    mesoa_boss: 'Moltres-Galar',
+    poketopia_croupier: 'Suicune',
+    ranger_commander: 'Zapdos',
+    aeos_geneticist: 'Tapu Koko',
+    kemetia_keeper: 'Landorus-Therian',
+    e4_ransei: 'Chien-Pao',
+    e4_ferrum: 'Articuno',
+    e4_veridia: 'Mew',
+    e4_kalos: 'Latios',
+  };
+
+  for (const npc of ROMANCE_ROSTER) {
+    const ace = npc.bossAceRule?.aceSpecies;
+    if (!ace) {
+      throw new Error(`Missing bossAceRule.aceSpecies on NPC '${npc.id}'`);
+    }
+    const aceBase = Dex.species.get(ace).baseSpecies || ace;
+    if (seenAces.has(aceBase)) {
+      throw new Error(
+        `DUPLICATE ACE detected: '${ace}' (${aceBase}) shared between '${seenAces.get(aceBase)}' and '${npc.id}'!`
+      );
+    }
+    seenAces.set(aceBase, npc.id);
+
+    const r1Cfg = resolveRomanceEncounterDuel(npc.id);
+    const r2Cfg = resolveRomanceTagBattle(npc.id);
+    const r3Cfg = resolveRomanceRematchBattle(npc.id);
+
+    // Every single romance chapter (R1, R2, R3) must declare a Turn-0 Biome label & counter hint!
+    for (const [label, cfg] of [
+      ['R1', r1Cfg],
+      ['R2', r2Cfg],
+      ['R3', r3Cfg],
+    ] as const) {
+      if (!cfg.puzzleConditions?.biomeLabel || !cfg.puzzleConditions?.biomeCounterHint) {
+        throw new Error(
+          `Missing biomeLabel / biomeCounterHint on ${npc.id} ${label}!`
+        );
+      }
+    }
+
+    const r1Sets = Teams.import(r1Cfg.rivalShowdownPaste) ?? [];
+    const r3Sets = Teams.import(r3Cfg.rivalShowdownPaste) ?? [];
+
+    for (const [rankLabel, sets] of [
+      ['R1', r1Sets],
+      ['R3', r3Sets],
+    ] as const) {
+      for (const s of sets) {
+        const spObj = Dex.species.get(s.species);
+        const baseKey = spObj.baseSpecies || s.species;
+        const existing = speciesOwner.get(baseKey);
+        if (existing && existing.npcId !== npc.id) {
+          throw new Error(
+            `DUPLICATE ROSTER SPECIES across NPCs: '${s.species}' (base '${baseKey}') used by BOTH '${existing.npcId}' (${existing.rank}) AND '${npc.id}' (${rankLabel})!`
+          );
+        }
+        speciesOwner.set(baseKey, { npcId: npc.id, rank: rankLabel });
+      }
+    }
+
+    const reqLeg = expectedR3Legendaries[npc.id];
+    if (!r3Sets.some((s) => s.species === reqLeg)) {
+      throw new Error(
+        `Expected R3 Legendary '${reqLeg}' in ${npc.id} R3 rematch, got [${r3Sets.map((s) => s.species).join(', ')}]`
+      );
+    }
+  }
+  if (seenAces.size !== 13) {
+    throw new Error(`Expected 13 unique Signature Aces, got ${seenAces.size}`);
+  }
+
+  // Verify special signature item showcase: Pikachu @ Light Ball on aeos_geneticist!
+  const aeosR1Sets = Teams.import(resolveRomanceEncounterDuel('aeos_geneticist').rivalShowdownPaste) ?? [];
+  const aeosR3Sets = Teams.import(resolveRomanceRematchBattle('aeos_geneticist').rivalShowdownPaste) ?? [];
+  if (
+    !aeosR1Sets.some((s) => s.species === 'Pikachu' && s.item === 'Light Ball') ||
+    !aeosR3Sets.some((s) => s.species === 'Pikachu' && s.item === 'Light Ball')
+  ) {
+    throw new Error('Expected Pikachu @ Light Ball in aeos_geneticist R1 & R3!');
+  }
+
+  // 2) Run live @pkmn/sim battles verifying Turn-0 Persistent Biome Pseudo-Weathers & Extended Weather!
+  const mesoaR1 = resolveRomanceEncounterDuel('mesoa_boss');
+  const { turn1Snap: mesoaT1 } = await runFullSimMatch(
+    'Biome Pseudo-Weather — Mesoa R1 (Magic Room 5t)',
+    mesoaR1,
+    { maxTurns: 30 }
+  );
+  const magicPw = mesoaT1?.activePseudoWeathers?.find((p) => p.id === 'magicroom');
+  if (!magicPw || magicPw.turnsLeft !== 5) {
+    throw new Error(`Expected Magic Room (5t) on Mesoa R1 T1, got ${JSON.stringify(mesoaT1?.activePseudoWeathers)}`);
+  }
+
+  const pokeR1 = resolveRomanceEncounterDuel('poketopia_croupier');
+  const { turn1Snap: pokeT1 } = await runFullSimMatch(
+    'Biome Pseudo-Weather — Pokétopia R1 (Wonder Room 99t)',
+    pokeR1,
+    { maxTurns: 30 }
+  );
+  const wonderPw = pokeT1?.activePseudoWeathers?.find((p) => p.id === 'wonderroom');
+  if (!wonderPw || (wonderPw.turnsLeft ?? 0) < 90) {
+    throw new Error(`Expected persistent Wonder Room (99t) on Pokétopia R1 T1, got ${JSON.stringify(pokeT1?.activePseudoWeathers)}`);
+  }
+
+  const ranseiR1 = resolveRomanceEncounterDuel('e4_ransei');
+  const { turn1Snap: ranseiT1 } = await runFullSimMatch(
+    'Biome Pseudo-Weather — Ransei R1 (Gravity 99t + Gallade-Mega)',
+    ranseiR1,
+    { maxTurns: 30 }
+  );
+  const gravPw = ranseiT1?.activePseudoWeathers?.find((p) => p.id === 'gravity');
+  if (!gravPw || (gravPw.turnsLeft ?? 0) < 90) {
+    throw new Error(`Expected persistent Gravity (99t) on Ransei R1 T1, got ${JSON.stringify(ranseiT1?.activePseudoWeathers)}`);
+  }
+
+  const ferrumR3 = resolveRomanceRematchBattle('e4_ferrum');
+  const { turn1Snap: ferrumT1 } = await runFullSimMatch(
+    'Biome Extended Snow + Articuno + Metagross-Mega — Ferrum R3',
+    ferrumR3,
+    { maxTurns: 30 }
+  );
+  if (
+    !ferrumT1?.weather.includes('Nieve') ||
+    (ferrumT1.weatherTurnsLeft ?? 0) < 90 ||
+    !ferrumR3.rivalShowdownPaste.includes('Articuno') ||
+    !ferrumR3.rivalShowdownPaste.includes('Metagross-Mega')
+  ) {
+    throw new Error(
+      `Expected persistent Snow (99t) + Articuno + Metagross-Mega on Ferrum R3, got wx=${ferrumT1?.weather} (${ferrumT1?.weatherTurnsLeft}t)`
+    );
+  }
+
+  const assassinR3Diablo = applyNpcRunModifiers(
+    resolveRomanceRematchBattle('assassin'),
+    'nightmare',
+    'canonical'
+  );
+  await runFullSimMatch(
+    'Rival R3 Diablo — Darkrai + Absol-Mega',
+    assassinR3Diablo,
+    { maxTurns: 30 }
+  );
+  if (
+    !assassinR3Diablo.rivalShowdownPaste.includes('Darkrai') ||
+    !assassinR3Diablo.rivalShowdownPaste.includes('Absol-Mega')
+  ) {
+    throw new Error('Expected Darkrai + Absol-Mega in Assassin R3 Diablo rematch!');
+  }
+
+  // 3) Ancestral Pokémon Privilege: Custom Rival Naming ("Locke" default + Gary/Mr. Tutorial/Edgelord/Dickfart presets + dynamic Ink/Battle/Tag substitution)
+  if (
+    DEFAULT_RIVAL_NAME !== 'Locke' ||
+    RIVAL_NAME_PRESETS.length < 8 ||
+    !RIVAL_NAME_PRESETS.some((p) => p.name === 'Gary') ||
+    !RIVAL_NAME_PRESETS.some((p) => p.name === 'Dickfart')
+  ) {
+    throw new Error(`RIVAL_NAME_PRESETS validation failed: default=${DEFAULT_RIVAL_NAME}, count=${RIVAL_NAME_PRESETS.length}`);
+  }
+  let rivalProf = createNewConfiguredRunProfile({
+    displayName: 'Príncipe',
+    email: 'prince@galar.com',
+    runName: 'Run Gary',
+    rivalName: 'Dickfart',
+    slotIndex: 2,
+    vnPacingMode: 'full',
+    defaultDifficulty: 'kaizo',
+    ironmanMode: false,
+    nuzlockePermadeath: false,
+  });
+  rivalProf = normalizeProfile(rivalProf);
+  if (getRivalName(rivalProf) !== 'Dickfart') {
+    throw new Error(`Expected persisted rivalName='Dickfart', got '${getRivalName(rivalProf)}'`);
+  }
+  const ch1RawInk = readFileSync(
+    resolve(process.cwd(), 'src/stories/chapter1_chase.ink'),
+    'utf-8'
+  );
+  const mockCh1: ChapterDefinition = {
+    id: 'ch1-wyndon-chase',
+    number: 'CAPÍTULO 01',
+    category: 'story',
+    title: 'Persecución contra El Asesino Carmesí',
+    subtitle: 'Prólogo',
+    description: 'El Pelirrojo te acorrala en Wyndon.',
+    formatLabel: 'Dobles',
+    difficulty: 'Normal',
+    accentColor: 'amber',
+    showcaseSprite: { species: 'Absol-Mega', mode: 'boss' },
+    rivalPreview: 'El Asesino Carmesí',
+    rivalProfile: {
+      charId: 'assassin',
+      name: 'El Asesino Carmesí',
+      title: 'Cazador del Consejo',
+      bio: 'El Pelirrojo no perdona.',
+      tacticalInsight: 'Vigila al Pelirrojo.',
+    },
+    inkSource: ch1RawInk,
+    resolveBattleConfig: resolveChapter1ChaseBattle,
+    getEpilogue: () => ({
+      headline: 'Choque con El Pelirrojo',
+      subheadline: 'Asesino Carmesí en retirada',
+      badgeText: 'FIN',
+      paragraphs: ['El Pelirrojo escapó entre la niebla.'],
+    }),
+  };
+  const ch1Custom = applyRivalNameToChapter(mockCh1, getRivalName(rivalProf));
+  if (
+    !ch1Custom.inkSource.includes('Dickfart') ||
+    ch1Custom.inkSource.includes('Asesino Carmesí') ||
+    ch1Custom.inkSource.includes('El Pelirrojo') ||
+    !ch1Custom.title.includes('Dickfart')
+  ) {
+    throw new Error('Expected applyRivalNameToChapter to substitute rival name cleanly in Ch1 Ink source & metadata!');
+  }
+  // Compile & step the personalized Ch1 Ink script via InkVNRunner to prove zero syntax corruption!
+  const customInkRunner = new InkVNRunner(ch1Custom.inkSource);
+  let foundCustomInInk = false;
+  let inkStep = customInkRunner.step();
+  for (let i = 0; i < 60 && !inkStep.isEnded; i++) {
+    const lineText = inkStep.currentLine?.text ?? '';
+    const lineSpeaker = inkStep.currentLine?.speaker ?? '';
+    if (lineText.includes('Dickfart') || lineSpeaker.includes('Dickfart')) {
+      foundCustomInInk = true;
+      break;
+    }
+    inkStep = inkStep.canContinue
+      ? customInkRunner.step()
+      : inkStep.choices.length > 0
+        ? customInkRunner.choose(0)
+        : inkStep;
+  }
+  if (!foundCustomInInk) {
+    throw new Error('Expected personalized rivalName "Dickfart" to appear live inside InkVNRunner dialogue/speaker!');
+  }
+  const ch1CustomCfg = ch1Custom.resolveBattleConfig({});
+  if (ch1CustomCfg.rivalName !== 'Dickfart') {
+    throw new Error(`Expected Ch1 resolved battle rivalName='Dickfart', got '${ch1CustomCfg.rivalName}'`);
+  }
+  rivalProf = setCustomRivalName(rivalProf, 'Gary');
+  const tagRenamed = applyRivalNameToBattleConfig(
+    resolveRomanceTagBattle('assassin'),
+    getRivalName(rivalProf)
+  );
+  if (tagRenamed.playerName !== 'Príncipe + Gary') {
+    throw new Error(`Expected Tag 2v2 playerName='Príncipe + Gary', got '${tagRenamed.playerName}'`);
+  }
+  const unrelatedFerrum: ChapterDefinition = {
+    ...mockCh1,
+    id: 'romance-e4_ferrum-r1',
+    title: 'General Viktoria — Glaciar Ferrum',
+    description: 'Nieve eterna.',
+    rivalPreview: 'General Viktoria',
+    inkSource: 'Viktoria te espera en el glaciar.\n-> END',
+  };
+  const unrelatedCheck = applyRivalNameToChapter(unrelatedFerrum, 'Gary');
+  if (unrelatedCheck !== unrelatedFerrum) {
+    throw new Error('Expected unrelated chapters to remain unmodified by applyRivalNameToChapter!');
+  }
+
+  console.log(
+    `  OK: 13/13 Unique Aces, ZERO duplicate species across ${speciesOwner.size} distinct regional Pokémon (all 13 NPCs R1+R3), 13/13 Unique R3 Legendaries, Pikachu @ Light Ball, persistent Turn-0 Biomes (MagicRoom=${magicPw.turnsLeft}t, WonderRoom=${wonderPw.turnsLeft}t, Gravity=${gravPw.turnsLeft}t, Snow=${ferrumT1.weatherTurnsLeft}t), & Ancestral Rival Naming (default='${DEFAULT_RIVAL_NAME}', 'Dickfart'->Ink/Battle, 'Gary'->Tag 2v2) ALL VERIFIED!`
+  );
+
+  console.log('\nALL 28 ENGINE, MAP, ROMANCE, BIOME FIELD, ZERO-DUPLICATE ROSTER & RIVAL NAMING SUITES PASSED!');
 }
 
 let allSuitesCompleted = false;

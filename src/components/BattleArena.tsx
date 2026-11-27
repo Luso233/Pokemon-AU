@@ -934,7 +934,7 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                 <span>{snapshot.weather}</span>
                 {snapshot.weatherTurnsLeft != null && (
                   <span className="font-mono-code text-amber-200">
-                    · {snapshot.weatherTurnsLeft}t
+                    · {snapshot.weatherTurnsLeft >= 50 ? '∞' : `${snapshot.weatherTurnsLeft}t`}
                   </span>
                 )}
               </button>
@@ -953,7 +953,7 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                 <span>{snapshot.terrain}</span>
                 {snapshot.terrainTurnsLeft != null && (
                   <span className="font-mono-code text-amber-200">
-                    · {snapshot.terrainTurnsLeft}t
+                    · {snapshot.terrainTurnsLeft >= 50 ? '∞' : `${snapshot.terrainTurnsLeft}t`}
                   </span>
                 )}
               </button>
@@ -971,11 +971,42 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
               >
                 <span>Trick Room</span>
                 <span className="font-mono-code text-amber-200">
-                  · {snapshot.trickRoomTurnsLeft}t
+                  · {snapshot.trickRoomTurnsLeft >= 50 ? '∞' : `${snapshot.trickRoomTurnsLeft}t`}
                 </span>
               </button>
             </FieldEffectTooltip>
           )}
+
+          {(snapshot.activePseudoWeathers ?? [])
+            .filter((pw) => pw.id !== 'trickroom')
+            .map((pw) => {
+              const badgeStyle =
+                pw.id === 'gravity'
+                  ? 'border-amber-400/55 bg-amber-500/20 text-amber-100'
+                  : pw.id === 'magicroom'
+                    ? 'border-fuchsia-400/55 bg-fuchsia-500/20 text-fuchsia-100'
+                    : 'border-cyan-400/55 bg-cyan-500/20 text-cyan-100';
+              return (
+                <FieldEffectTooltip
+                  key={pw.id}
+                  effectName={pw.label}
+                  turnsLeft={pw.turnsLeft}
+                >
+                  <button
+                    type="button"
+                    className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-bold cursor-help ${badgeStyle}`}
+                  >
+                    <Sparkles className="h-3 w-3 opacity-85" />
+                    <span>{pw.label}</span>
+                    {pw.turnsLeft != null && (
+                      <span className="font-mono-code text-amber-200">
+                        · {pw.turnsLeft >= 50 ? '∞' : `${pw.turnsLeft}t`}
+                      </span>
+                    )}
+                  </button>
+                </FieldEffectTooltip>
+              );
+            })}
         </div>
 
         {/* Right Broadcast Wing: Rival KO + Open Teamsheet + Paste + Restart */}

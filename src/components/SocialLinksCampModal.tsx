@@ -7,6 +7,7 @@ import {
   Heart,
   Home,
   Lock,
+  Pencil,
   Play,
   ShieldAlert,
   Skull,
@@ -28,6 +29,12 @@ import {
   ROMANCE_ROSTER,
   type RomanceNpcDefinition,
 } from '../data/socialLinksCatalog';
+import {
+  applyRivalNameToText,
+  getRivalName,
+  RIVAL_NAME_PRESETS,
+  sanitizeRivalName,
+} from '../engine/rivalName';
 import type {
   BattleDifficultyMode,
   BerryKind,
@@ -60,6 +67,7 @@ interface SocialLinksCampModalProps {
   onHarvestBerry: (plotIndex: number) => { ok: boolean; error?: string };
   onRecruitHousePokemon: (mon: CustomTeamMember, slotIndex: number) => void;
   onResetSurvivalState: () => void;
+  onRenameRival?: (name: string) => void;
 }
 
 type ModalTab = 'links' | 'camp' | 'house' | 'rules';
@@ -75,13 +83,28 @@ export const SocialLinksCampModal: React.FC<SocialLinksCampModalProps> = ({
   onHarvestBerry,
   onRecruitHousePokemon,
   onResetSurvivalState,
+  onRenameRival,
 }) => {
   const [tab, setTab] = useState<ModalTab>('links');
   const [batchFilter, setBatchFilter] = useState<'all' | 1 | 2 | 3>('all');
   const [notice, setNotice] = useState<string | null>(null);
   const [recruitSlot, setRecruitSlot] = useState<number>(0);
+  const [showRivalRename, setShowRivalRename] = useState(false);
+  const [rivalDraft, setRivalDraft] = useState<string>(() =>
+    getRivalName(profile)
+  );
 
   if (!open) return null;
+
+  const rivalName = getRivalName(profile);
+  const fmt = (text: string) => applyRivalNameToText(text, rivalName);
+
+  const commitRivalName = (raw: string) => {
+    const clean = sanitizeRivalName(raw);
+    setRivalDraft(clean);
+    onRenameRival?.(clean);
+    setNotice(`🗡️ Tu rival ahora se llama "${clean}" en diálogos, combates y vínculos.`);
+  };
 
   const perks = computeActiveSocialLinkPerks(profile);
   const filteredRoster = ROMANCE_ROSTER.filter(
@@ -161,23 +184,92 @@ export const SocialLinksCampModal: React.FC<SocialLinksCampModalProps> = ({
               </span>
             </div>
 
-            <h3 className="mt-1 font-display text-sm font-bold text-white">
-              {npc.name}
-            </h3>
-            <p className="text-[11px] text-amber-200/80">{npc.title}</p>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <h3 className="font-display text-sm font-bold text-white">
+                {npc.id === 'assassin' ? fmt(npc.name) : npc.name}
+              </h3>
+              {npc.id === 'assassin' && onRenameRival && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRivalDraft(rivalName);
+                    setShowRivalRename((prev) => !prev);
+                  }}
+                  className="inline-flex items-center gap-1 rounded-lg border border-amber-400/45 bg-amber-500/15 px-2 py-0.5 text-[10px] font-extrabold text-amber-200 transition hover:bg-amber-500/25 cursor-pointer"
+                >
+                  <Pencil className="h-2.5 w-2.5" />
+                  {showRivalRename ? 'Cerrar Editor' : 'Renombrar Rival'}
+                </button>
+              )}
+            </div>
+            <p className="text-[11px] text-amber-200/80">
+              {npc.id === 'assassin' ? fmt(npc.title) : npc.title}
+            </p>
             <p className="mt-0.5 text-[10px] font-bold text-sky-300">
               🎯 Arquetipo: {npc.gimmickTag}
             </p>
             <p className="mt-1 text-[11px] leading-relaxed text-slate-300">
-              {npc.bio}
+              {npc.id === 'assassin' ? fmt(npc.bio) : npc.bio}
             </p>
+            {npc.id === 'assassin' && showRivalRename && onRenameRival && (
+              <div className="mt-2.5 rounded-xl border border-fuchsia-400/45 bg-slate-950/90 p-2.5">
+                <p className="text-[10px] font-extrabold uppercase tracking-wider text-fuchsia-200">
+                  ✏️ Privilegio Ancestral Pokémon · Nombra a tu Rival
+                </p>
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                  <input
+                    type="text"
+                    value={rivalDraft}
+                    onChange={(e) => setRivalDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        commitRivalName(rivalDraft);
+                        setShowRivalRename(false);
+                      }
+                    }}
+                    maxLength={24}
+                    aria-label="Renombrar rival"
+                    className="w-44 rounded-lg border border-fuchsia-400/50 bg-slate-900 px-2.5 py-1 text-xs font-bold text-white focus:border-amber-400 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      commitRivalName(rivalDraft);
+                      setShowRivalRename(false);
+                    }}
+                    className="rounded-lg bg-amber-400 px-2.5 py-1 text-[10.5px] font-extrabold text-slate-950 hover:brightness-110 cursor-pointer"
+                  >
+                    Guardar
+                  </button>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {RIVAL_NAME_PRESETS.map((preset) => (
+                    <button
+                      key={preset.name}
+                      type="button"
+                      onClick={() => commitRivalName(preset.name)}
+                      title={preset.tag}
+                      className={`rounded-md border px-2 py-0.5 text-[10px] font-bold transition cursor-pointer ${
+                        rivalName === preset.name
+                          ? 'border-amber-400 bg-amber-500/25 text-amber-100'
+                          : 'border-slate-700 bg-slate-900 text-slate-300 hover:border-fuchsia-400/60 hover:text-white'
+                      }`}
+                    >
+                      {preset.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {npc.bossAceRule && (
               <div className="mt-2 rounded-xl border border-rose-400/35 bg-rose-950/25 px-2.5 py-1.5 text-[10.5px]">
                 <span className="font-extrabold text-rose-200">
                   ⚡ Regla de Jefe ({npc.bossAceRule.ruleName}) · As {npc.bossAceRule.aceSpecies}:
                 </span>{' '}
                 <span className="text-slate-300">
-                  {npc.bossAceRule.ruleDetail}
+                  {npc.id === 'assassin'
+                    ? fmt(npc.bossAceRule.ruleDetail)
+                    : npc.bossAceRule.ruleDetail}
                 </span>
               </div>
             )}
@@ -361,7 +453,7 @@ export const SocialLinksCampModal: React.FC<SocialLinksCampModalProps> = ({
             ) : perks.activeEndingNpc ? (
               <span className="inline-flex items-center gap-1 rounded-full border border-pink-400/50 bg-pink-500/20 px-3 py-1 text-pink-200">
                 <Heart className="h-3 w-3 fill-pink-400 text-pink-400" />
-                Ending Actual: {perks.activeEndingNpc.name}
+                Ending Actual: {fmt(perks.activeEndingNpc.name)}
               </span>
             ) : (
               <span className="text-slate-500">
@@ -385,7 +477,7 @@ export const SocialLinksCampModal: React.FC<SocialLinksCampModalProps> = ({
               {/* Active Perks Summary Bar */}
               <div className="grid gap-2 rounded-2xl border border-fuchsia-400/25 bg-fuchsia-950/20 p-3.5 text-[11px] sm:grid-cols-4">
                 <div>
-                  <span className="text-[9.5px] uppercase text-slate-400">Scouting (Pelirrojo R1)</span>
+                  <span className="text-[9.5px] uppercase text-slate-400">Scouting ({rivalName} R1)</span>
                   <p className="text-sm font-extrabold text-sky-300">
                     {perks.hasAntiDiabloScouting ? '✓ Activo en Briefing' : 'Bloqueado (R1)'}
                   </p>
@@ -696,7 +788,7 @@ export const SocialLinksCampModal: React.FC<SocialLinksCampModalProps> = ({
                               {mon.species}
                             </p>
                             <p className="truncate text-[10px] text-fuchsia-300">
-                              De: {mon.donorName}
+                              De: {fmt(mon.donorName)}
                             </p>
                           </div>
                         </div>
@@ -711,7 +803,7 @@ export const SocialLinksCampModal: React.FC<SocialLinksCampModalProps> = ({
                           onClick={() => {
                             onRecruitHousePokemon(mon, recruitSlot);
                             setNotice(
-                              `🏠 ${mon.species} (de ${mon.donorName}) se unió a tu Slot ${recruitSlot + 1} del Equipo Libre.`
+                              `🏠 ${mon.species} (de ${fmt(mon.donorName)}) se unió a tu Slot ${recruitSlot + 1} del Equipo Libre.`
                             );
                           }}
                           className="mt-2 w-full rounded-lg bg-fuchsia-500/25 px-2.5 py-1 text-[10px] font-extrabold text-fuchsia-100 hover:bg-fuchsia-500/35 cursor-pointer"

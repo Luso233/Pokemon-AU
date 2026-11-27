@@ -87,7 +87,37 @@ const FIELD_EFFECT_INFO: Record<string, { title: string; detail: string }> = {
   'trick room': {
     title: 'Espacio Raro (Trick Room)',
     detail:
-      'Invierte el orden de velocidad: los Pokémon más lentos actúan primero durante 5 turnos.',
+      'Invierte el orden de velocidad: los Pokémon más lentos actúan primero. Puedes cancelarlo usando Trick Room tú mismo.',
+  },
+  gravedad: {
+    title: 'Gravedad (Gravity)',
+    detail:
+      'Aterriza a todos los Pokémon Voladores o con Levitación (vulnerables a Tierra y Púas), multiplica la Precisión ×1.67 (Hypnosis, Blizzard y Focus Blast no fallan) y bloquea vuelos/saltos.',
+  },
+  gravity: {
+    title: 'Gravedad (Gravity)',
+    detail:
+      'Aterriza a todos los Pokémon Voladores o con Levitación (vulnerables a Tierra y Púas), multiplica la Precisión ×1.67 y bloquea vuelos/saltos.',
+  },
+  'zona mágica': {
+    title: 'Zona Mágica (Magic Room)',
+    detail:
+      'Anula por completo el efecto de TODOS los objetos equipados (Focus Sash, Choice Specs, Leftovers, Life Orb, Assault Vest) mientras siga activa.',
+  },
+  'magic room': {
+    title: 'Zona Mágica (Magic Room)',
+    detail:
+      'Anula por completo el efecto de TODOS los objetos equipados (Focus Sash, Choice Specs, Leftovers, Life Orb) mientras siga activa.',
+  },
+  'zona extraña': {
+    title: 'Zona Extraña (Wonder Room)',
+    detail:
+      'Intercambia la Defensa física (Def) y la Defensa Especial (SpD) de TODOS los Pokémon en el campo. Los muros físicos se vuelven vulnerables a golpes físicos y viceversa.',
+  },
+  'wonder room': {
+    title: 'Zona Extraña (Wonder Room)',
+    detail:
+      'Intercambia la Defensa física (Def) y la Defensa Especial (SpD) de TODOS los Pokémon en el campo.',
   },
   tailwind: {
     title: 'Viento Afín (Tailwind)',
@@ -171,7 +201,11 @@ export const FieldEffectTooltip: React.FC<FieldEffectTooltipProps> = ({
         <span className="inline-flex items-center gap-1.5 text-xs font-extrabold text-sky-200">
           {sideLabel ? (
             <Shield className="h-3.5 w-3.5 text-amber-400" />
-          ) : key.includes('trick') ? (
+          ) : key.includes('trick') ||
+            key.includes('gravedad') ||
+            key.includes('gravity') ||
+            key.includes('zona') ||
+            key.includes('room') ? (
             <Sparkles className="h-3.5 w-3.5 text-violet-400" />
           ) : (
             <CloudSun className="h-3.5 w-3.5 text-amber-400" />
@@ -180,7 +214,7 @@ export const FieldEffectTooltip: React.FC<FieldEffectTooltipProps> = ({
         </span>
         {turnsLeft != null && (
           <span className="font-mono-code rounded border border-amber-400/40 bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold text-amber-200">
-            ~{turnsLeft}t
+            {turnsLeft >= 50 ? '∞ Bioma' : `~${turnsLeft}t`}
           </span>
         )}
       </div>

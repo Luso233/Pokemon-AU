@@ -180,6 +180,8 @@ export interface PlayerSaveProfile {
   email: string;
   /** Human-readable run title for Save/Load slots and X/Twitter sharing. */
   runName?: string;
+  /** Custom player-chosen name for our recurring Edgy Rival / Mr. Tutorial Man (default: 'Locke'). */
+  rivalName?: string;
   /** Active save slot index (1..5) in PokéRogue Save/Load system. */
   activeSaveSlot?: number;
   /** Narrative pacing preference chosen at New Game or Settings. */
@@ -555,6 +557,12 @@ export interface PuzzlePokemonModifier {
   preMega?: boolean;
 }
 
+export type PseudoWeatherId =
+  | 'gravity'
+  | 'trickroom'
+  | 'magicroom'
+  | 'wonderroom';
+
 export interface PuzzleConditions {
   weather?: 'sunnyday' | 'raindance' | 'sandstorm' | 'snow';
   terrain?:
@@ -562,8 +570,16 @@ export interface PuzzleConditions {
     | 'electricterrain'
     | 'mistyterrain'
     | 'psychicterrain';
-  /** Activates Trick Room immediately on Turn 0 (e.g. Cordelia Astronomer's Reloj de los Andes). */
+  /** Activates Trick Room immediately on Turn 0 (legacy shortcut; also supported inside `pseudoWeathers`). */
   trickRoom?: boolean;
+  /** Turn-0 room / atmospheric rules: Gravity, Trick Room, Magic Room (disables items), Wonder Room (swaps Def/SpD). */
+  pseudoWeathers?: PseudoWeatherId[];
+  /** When true, Turn-0 weather/terrain/pseudo-weathers last 99 turns until manually overwritten so you must play around or counter the biome! */
+  extendedEnvironment?: boolean;
+  /** Human-readable biome header displayed in Teambuilder Briefing BEFORE combat (e.g. "🌧️ Monzón de Vayra · Lluvia Permanente"). */
+  biomeLabel?: string;
+  /** Concrete teambuilding tip shown in Teambuilder Briefing so players can use the Showdown-style Shop to counter the biome! */
+  biomeCounterHint?: string;
   sideConditions?: { p1?: string[]; p2?: string[] };
   pokemonModifiers?: PuzzlePokemonModifier[];
   /** Optional custom log announcement when Turn 0 conditions activate. */
@@ -915,6 +931,11 @@ export interface BattleSnapshot {
   terrain: string;
   terrainTurnsLeft: number | null;
   trickRoomTurnsLeft: number | null;
+  activePseudoWeathers?: Array<{
+    id: PseudoWeatherId;
+    label: string;
+    turnsLeft: number | null;
+  }>;
   levelCap: number;
   puzzleApplied: boolean;
   persistenceApplied: boolean;
