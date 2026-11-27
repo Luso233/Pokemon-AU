@@ -30,6 +30,9 @@ import {
   applyDevPopulateAllSpeciesToBox,
   applyDevUnlockEverything,
   applyDevUnlockFullAgPokedex,
+  assignRingPokemonToChamber,
+  assignShadowToChamber,
+  autoOptimizePurificationChamber,
   awardArcadeCoins,
   buildIronmanPersistedStateForBattle,
   campHealPartyMember,
@@ -521,6 +524,10 @@ export default function App() {
     const hydrated = applyRivalNameToBattleConfig(
       {
         ...finalConfig,
+        playerCharId:
+          effectiveDiff === 'baby' && finalConfig.playerCharId === 'prince'
+            ? 'prince_baby'
+            : finalConfig.playerCharId,
         persistedPartyState: ironmanPersisted,
         isIronmanActive: appliesSurvival && curProf.ironmanMode,
         isNuzlockeActive: appliesSurvival && curProf.nuzlockePermadeath,
@@ -608,6 +615,7 @@ export default function App() {
             resolvedConfig?.difficultyMode ??
             profileRef.current.defaultDifficulty,
           faintLog: appliesSurvival ? snapshot.faintLog : undefined,
+          shadowCallCounts: snapshot.shadowCallCounts,
         }
       );
       if (won && resolvedConfig?.romanceMeta) {
@@ -719,6 +727,36 @@ export default function App() {
 
   const handlePurifyInstance = (uid: string) => {
     const res = purifyShadowPokemonInstance(profileRef.current, uid);
+    if (res.ok) setProfile(res.nextProfile);
+    return res;
+  };
+
+  const handleAssignShadowToChamber = (
+    chamberIndex: number,
+    shadowUid: string | null
+  ) => {
+    const res = assignShadowToChamber(profileRef.current, chamberIndex, shadowUid);
+    if (res.ok) setProfile(res.nextProfile);
+    return res;
+  };
+
+  const handleAssignRingPokemonToChamber = (
+    chamberIndex: number,
+    ringSlotIndex: number,
+    monUid: string | null
+  ) => {
+    const res = assignRingPokemonToChamber(
+      profileRef.current,
+      chamberIndex,
+      ringSlotIndex,
+      monUid
+    );
+    if (res.ok) setProfile(res.nextProfile);
+    return res;
+  };
+
+  const handleAutoOptimizeChamber = (chamberIndex: number) => {
+    const res = autoOptimizePurificationChamber(profileRef.current, chamberIndex);
     if (res.ok) setProfile(res.nextProfile);
     return res;
   };
@@ -967,6 +1005,9 @@ export default function App() {
         onSpawnDevSpecimen={handleSpawnDevSpecimen}
         onSpawnDevShadowSpecimen={handleSpawnDevShadowSpecimen}
         onPurifyInstance={handlePurifyInstance}
+        onAssignShadowToChamber={handleAssignShadowToChamber}
+        onAssignRingPokemonToChamber={handleAssignRingPokemonToChamber}
+        onAutoOptimizeChamber={handleAutoOptimizeChamber}
         onPopulateLivingDexBox={handlePopulateLivingDexBox}
         onImportShowdownPaste={handleImportShowdownPaste}
         onSaveCampaignTeam={handleSaveCampaignTeam}
@@ -1006,6 +1047,7 @@ export default function App() {
         resumeInkStateJson={suspendedInkState}
         persistedPartyState={persistedPartyState}
         vnPacingMode={profile.vnPacingMode}
+        isBabyMode={profile.defaultDifficulty === 'baby'}
         onExitToChapters={() => setScreen('chapters')}
         onFinishStory={handleFinishVN}
         onTriggerMidStoryBattle={handleTriggerMidStoryBattle}
@@ -1040,6 +1082,9 @@ export default function App() {
         onSpawnDevSpecimen={handleSpawnDevSpecimen}
         onSpawnDevShadowSpecimen={handleSpawnDevShadowSpecimen}
         onPurifyInstance={handlePurifyInstance}
+        onAssignShadowToChamber={handleAssignShadowToChamber}
+        onAssignRingPokemonToChamber={handleAssignRingPokemonToChamber}
+        onAutoOptimizeChamber={handleAutoOptimizeChamber}
         onPopulateLivingDexBox={handlePopulateLivingDexBox}
         onImportShowdownPaste={handleImportShowdownPaste}
         onSaveCampaignTeam={handleSaveCampaignTeam}

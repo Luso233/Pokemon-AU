@@ -45,6 +45,14 @@ export const CHARACTER_META: Record<CharacterId, CharacterVisualMeta> = {
     accentBorder: 'border-amber-400/55',
     accentGlow: 'drop-shadow-[0_12px_24px_rgba(251,191,36,0.22)]',
   },
+  prince_baby: {
+    name: 'Príncipe Bebé (Baby Mode)',
+    role: 'Heredero en Pañales · Sin Cap BST',
+    spriteUrl: charAsset('prince_baby_sprite.png'),
+    bustUrl: charAsset('prince_baby_bust.png'),
+    accentBorder: 'border-sky-300/70',
+    accentGlow: 'drop-shadow-[0_12px_24px_rgba(56,189,248,0.34)]',
+  },
   assassin: {
     name: 'Asesino Carmesí',
     role: 'Cazador de la Corona',
@@ -296,8 +304,10 @@ export const CHARACTER_META: Record<CharacterId, CharacterVisualMeta> = {
   bastard_brother: {
     name: 'El Hermano Bastardo',
     role: 'Usurpador de Wyndon · Escudo & Eternamax',
+    spriteUrl: charAsset('bastard_brother_sprite.png'),
+    bustUrl: charAsset('bastard_brother_bust.png'),
     accentBorder: 'border-rose-400/80',
-    accentGlow: 'drop-shadow-[0_12px_28px_rgba(244,63,94,0.48)]',
+    accentGlow: 'drop-shadow-[0_12px_28px_rgba(192,132,252,0.48)]',
     emblemGradient: 'from-rose-950 via-purple-950 to-black',
     emblemAccent: 'text-rose-300',
     emblemIcon: Crown,

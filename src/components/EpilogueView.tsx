@@ -41,6 +41,7 @@ import type {
   ResolvedBattleConfig,
   RunDeathSummary,
 } from '../types/game';
+import { CharacterPortrait } from './CharacterPortrait';
 import { GameReviewPanel } from './GameReviewPanel';
 import { PokemonSprite } from './PokemonSprite';
 import { SceneBackdrop } from './SceneBackdrop';
@@ -206,10 +207,10 @@ export const EpilogueView: React.FC<EpilogueViewProps> = ({
           ))}
         </div>
 
-        {/* Baby Mode Self-Aware Comedic Certification Stamp */}
+        {/* Baby Mode Self-Aware Comedic Certification Stamp (with Crying Baby Prince Sprite!) */}
         {babyStamp && (
           <div
-            className={`mb-5 rounded-2xl border-2 border-dashed p-4 shadow-lg ${
+            className={`mb-5 flex flex-col gap-4 rounded-2xl border-2 border-dashed p-4 shadow-lg sm:flex-row sm:items-center ${
               babyStamp.tier === 'baby-loss'
                 ? 'border-pink-400/55 bg-gradient-to-r from-pink-950/60 via-slate-950/90 to-rose-950/60'
                 : babyStamp.overCapBy > 0 || babyStamp.brokeOfficialFormat
@@ -217,32 +218,41 @@ export const EpilogueView: React.FC<EpilogueViewProps> = ({
                   : 'border-sky-400/55 bg-gradient-to-r from-sky-950/65 via-slate-950/85 to-cyan-950/55'
             }`}
           >
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-lg border border-sky-300/60 bg-sky-500/20 px-2.5 py-1 text-[11px] font-black uppercase tracking-wider text-sky-100 -rotate-1 shadow-sm">
-                {babyStamp.badgeTitle}
-              </span>
-              <div className="flex flex-wrap items-center gap-1.5 font-mono-code text-[10px]">
-                <span className="rounded-md border border-white/15 bg-black/45 px-2 py-0.5 font-bold text-amber-200">
-                  Equipo: {babyStamp.teamBst.toLocaleString()} BST
-                </span>
-                {babyStamp.overCapBy > 0 && (
-                  <span className="rounded-md border border-fuchsia-400/50 bg-fuchsia-500/25 px-2 py-0.5 font-extrabold text-fuchsia-100">
-                    +{babyStamp.overCapBy.toLocaleString()} BST sobre Licencia ({babyStamp.actNormalCap.toLocaleString()})
-                  </span>
-                )}
-                {babyStamp.brokeOfficialFormat && babyStamp.originalFormatLabel && (
-                  <span className="rounded-md border border-rose-400/50 bg-rose-500/25 px-2 py-0.5 font-extrabold text-rose-100">
-                    ⚡ Fallback NatDex ({babyStamp.originalFormatLabel})
-                  </span>
-                )}
-              </div>
+            <div className="mx-auto h-24 w-24 shrink-0 overflow-hidden rounded-2xl border-2 border-sky-300/70 bg-slate-950/85 p-1 shadow-xl sm:mx-0">
+              <CharacterPortrait
+                charId="prince_baby"
+                variant="sprite"
+                className="h-full w-full object-contain"
+              />
             </div>
-            <p className="mt-2 font-display text-sm font-extrabold text-white">
-              {babyStamp.headline}
-            </p>
-            <p className="mt-1 text-xs leading-relaxed text-sky-100/90">
-              {babyStamp.quip}
-            </p>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-lg border border-sky-300/60 bg-sky-500/20 px-2.5 py-1 text-[11px] font-black uppercase tracking-wider text-sky-100 -rotate-1 shadow-sm">
+                  {babyStamp.badgeTitle}
+                </span>
+                <div className="flex flex-wrap items-center gap-1.5 font-mono-code text-[10px]">
+                  <span className="rounded-md border border-white/15 bg-black/45 px-2 py-0.5 font-bold text-amber-200">
+                    Equipo: {babyStamp.teamBst.toLocaleString()} BST
+                  </span>
+                  {babyStamp.overCapBy > 0 && (
+                    <span className="rounded-md border border-fuchsia-400/50 bg-fuchsia-500/25 px-2 py-0.5 font-extrabold text-fuchsia-100">
+                      +{babyStamp.overCapBy.toLocaleString()} BST sobre Licencia ({babyStamp.actNormalCap.toLocaleString()})
+                    </span>
+                  )}
+                  {babyStamp.brokeOfficialFormat && babyStamp.originalFormatLabel && (
+                    <span className="rounded-md border border-rose-400/50 bg-rose-500/25 px-2 py-0.5 font-extrabold text-rose-100">
+                      ⚡ Fallback NatDex ({babyStamp.originalFormatLabel})
+                    </span>
+                  )}
+                </div>
+              </div>
+              <p className="mt-2 font-display text-sm font-extrabold text-white">
+                {babyStamp.headline}
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-sky-100/90">
+                {babyStamp.quip}
+              </p>
+            </div>
           </div>
         )}
 
@@ -348,21 +358,34 @@ export const EpilogueView: React.FC<EpilogueViewProps> = ({
           const finalEnding = resolveEnding(profile);
           return (
             <div className="mb-5 rounded-2xl border-2 border-amber-300/70 bg-gradient-to-br from-amber-950/60 via-fuchsia-950/50 to-slate-950/95 p-5 shadow-2xl">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/60 bg-amber-500/20 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-amber-100">
-                  <Crown className="h-3.5 w-3.5 text-amber-300" />
-                  {finalEnding.badge}
-                </span>
-                <span className="font-mono-code text-[10px] font-bold text-fuchsia-200">
-                  Confesiones: {finalEnding.confessedCount}/{finalEnding.totalRomanceables}
-                </span>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                {finalEnding.type === 'BABY_ENDING' && (
+                  <div className="mx-auto h-28 w-28 shrink-0 overflow-hidden rounded-2xl border-2 border-sky-300/75 bg-slate-950/85 p-1 shadow-xl sm:mx-0">
+                    <CharacterPortrait
+                      charId="prince_baby"
+                      variant="sprite"
+                      className="h-full w-full object-contain"
+                    />
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/60 bg-amber-500/20 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-amber-100">
+                      <Crown className="h-3.5 w-3.5 text-amber-300" />
+                      {finalEnding.badge}
+                    </span>
+                    <span className="font-mono-code text-[10px] font-bold text-fuchsia-200">
+                      Confesiones: {finalEnding.confessedCount}/{finalEnding.totalRomanceables}
+                    </span>
+                  </div>
+                  <h2 className="mt-2.5 font-display text-xl font-extrabold text-white">
+                    {finalEnding.headline}
+                  </h2>
+                  <p className="mt-1.5 text-xs leading-relaxed text-amber-50/90">
+                    {finalEnding.summary}
+                  </p>
+                </div>
               </div>
-              <h2 className="mt-2.5 font-display text-xl font-extrabold text-white">
-                {finalEnding.headline}
-              </h2>
-              <p className="mt-1.5 text-xs leading-relaxed text-amber-50/90">
-                {finalEnding.summary}
-              </p>
               <p className="mt-3 rounded-xl border border-purple-400/45 bg-purple-950/45 px-3 py-2 text-[11px] font-bold text-purple-100">
                 🏟️ ¡Postgame Desbloqueado! Ahora aparece en el Mapa el desafío opcional Anything Goes contra La Campeona de Galar (Cap. 13 · Nv. 115–120).
               </p>

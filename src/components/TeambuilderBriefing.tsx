@@ -133,6 +133,24 @@ interface TeambuilderBriefingProps {
   onPurifyInstance?: (
     uid: string
   ) => { ok: boolean; error?: string; species?: string; signatureGift?: string };
+  onAssignShadowToChamber?: (
+    chamberIndex: number,
+    shadowUid: string | null
+  ) => { ok: boolean; error?: string };
+  onAssignRingPokemonToChamber?: (
+    chamberIndex: number,
+    ringSlotIndex: number,
+    monUid: string | null
+  ) => { ok: boolean; error?: string };
+  onAutoOptimizeChamber?: (
+    chamberIndex: number
+  ) => {
+    ok: boolean;
+    error?: string;
+    tempo?: number;
+    isMaxTempo?: boolean;
+    isPerfectSet?: boolean;
+  };
   onPopulateLivingDexBox: () => { addedCount: number; totalLiving: number };
   onImportShowdownPaste: (
     rawPaste: string
@@ -174,6 +192,9 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
   onSpawnDevSpecimen,
   onSpawnDevShadowSpecimen,
   onPurifyInstance,
+  onAssignShadowToChamber,
+  onAssignRingPokemonToChamber,
+  onAutoOptimizeChamber,
   onPopulateLivingDexBox,
   onImportShowdownPaste,
   onSaveCampaignTeam,
@@ -595,9 +616,17 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
               {/* Top Mode Switcher Bar */}
               <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 overflow-hidden rounded-xl border border-amber-400/45 bg-slate-950 p-0.5">
+                  <div
+                    className={`h-11 w-11 overflow-hidden rounded-xl border bg-slate-950 p-0.5 ${
+                      isBabyMode ? 'border-sky-300/75 shadow shadow-sky-500/25' : 'border-amber-400/45'
+                    }`}
+                  >
                     <CharacterPortrait
-                      charId={config.playerCharId}
+                      charId={
+                        isBabyMode && config.playerCharId === 'prince'
+                          ? 'prince_baby'
+                          : config.playerCharId
+                      }
                       variant="bust"
                       className="h-full w-full object-cover object-top"
                     />
@@ -780,6 +809,9 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                   onSpawnDevSpecimen={onSpawnDevSpecimen}
                   onSpawnDevShadowSpecimen={onSpawnDevShadowSpecimen}
                   onPurifyInstance={onPurifyInstance}
+                  onAssignShadowToChamber={onAssignShadowToChamber}
+                  onAssignRingPokemonToChamber={onAssignRingPokemonToChamber}
+                  onAutoOptimizeChamber={onAutoOptimizeChamber}
                   onPopulateLivingDexBox={onPopulateLivingDexBox}
                   onImportShowdownPaste={onImportShowdownPaste}
                   onSaveCampaignTeam={onSaveCampaignTeam}

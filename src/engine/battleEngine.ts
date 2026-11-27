@@ -787,12 +787,20 @@ export class ShowdownBattleController {
       targetSet.has(toID(mon.baseSpecies.name)) ||
       targetSet.has(toID(mon.name));
 
+    const p1HeartMap = meta?.p1ShadowHeartBySpecies ?? {};
+    const p2HeartMap = meta?.p2ShadowHeartBySpecies ?? {};
+
     let p1ShadowCount = 0;
     let p2ShadowCount = 0;
 
     for (const mon of battle.p1.pokemon) {
       if (isMonInSet(mon, this.p1ShadowSpeciesSet)) {
+        const spId = toID(mon.species.name);
+        const baseId = toID(mon.baseSpecies.name);
+        const heart = p1HeartMap[spId] ?? p1HeartMap[baseId] ?? 100;
         mon.m.isShadow = true;
+        mon.m.heartGauge = heart;
+        mon.m.shadowCallCount = 0;
         mon.m.highBond = false;
         p1ShadowCount += 1;
       } else if (highBondSet.has(toID(mon.species.name)) || highBondSet.has(toID(mon.baseSpecies.name))) {
@@ -802,12 +810,15 @@ export class ShowdownBattleController {
 
     for (const mon of battle.p2.pokemon) {
       if (isMonInSet(mon, this.p2ShadowSpeciesSet)) {
+        const spId = toID(mon.species.name);
+        const baseId = toID(mon.baseSpecies.name);
         mon.m.isShadow = true;
+        mon.m.heartGauge = p2HeartMap[spId] ?? p2HeartMap[baseId] ?? 100;
         p2ShadowCount += 1;
       }
     }
 
-    // Sync isShadow badge flags onto already-known UI party/active objects
+    // Sync isShadow & heartGauge flags onto already-known UI party/active objects
     for (const m of [...this.state.p1.party, ...this.state.p1.active]) {
       if (!m) continue;
       const sp = Dex.species.get(m.species);
@@ -816,6 +827,10 @@ export class ShowdownBattleController {
         (sp.exists && this.p1ShadowSpeciesSet.has(toID(sp.baseSpecies)))
       ) {
         m.isShadow = true;
+        m.heartGauge =
+          p1HeartMap[toID(m.species)] ??
+          (sp.exists ? p1HeartMap[toID(sp.baseSpecies)] : undefined) ??
+          100;
       }
     }
     for (const m of [...this.state.p2.party, ...this.state.p2.active]) {
@@ -826,6 +841,10 @@ export class ShowdownBattleController {
         (sp.exists && this.p2ShadowSpeciesSet.has(toID(sp.baseSpecies)))
       ) {
         m.isShadow = true;
+        m.heartGauge =
+          p2HeartMap[toID(m.species)] ??
+          (sp.exists ? p2HeartMap[toID(sp.baseSpecies)] : undefined) ??
+          100;
       }
     }
 
@@ -839,18 +858,26 @@ export class ShowdownBattleController {
 
     battle.field.addPseudoWeather('shadowaffectioncore', sourceMon);
     const pwState = battle.field.pseudoWeather?.shadowaffectioncore as
-      | { affectionMode?: string; forceProc?: boolean; duration?: number }
+      | {
+          affectionMode?: string;
+          forceProc?: boolean;
+          shadowForceHyper?: boolean;
+          shadowForceDisobey?: boolean;
+          duration?: number;
+        }
       | undefined;
     if (pwState) {
       pwState.affectionMode = affectionMode;
       pwState.forceProc = Boolean(meta?.affectionForceProc);
+      pwState.shadowForceHyper = Boolean(meta?.shadowForceHyper);
+      pwState.shadowForceDisobey = Boolean(meta?.shadowForceDisobey);
       pwState.duration = 999;
     }
 
     if (p1ShadowCount > 0 || p2ShadowCount > 0) {
       this.pushLog(
         'puzzle',
-        `🟣 ¡Aura de Pokémon Oscuros detectada! (${p1ShadowCount} tuyos · ${p2ShadowCount} rivales) — Ataques Shadow: 2× a no-Oscuros, 0× Inmune Hada, 0.5× entre Oscuros. Modo Hiper bajo 50% PS.`
+        `🟣 ¡Aura de Pokémon Oscuros detectada! (${p1ShadowCount} tuyos · ${p2ShadowCount} rivales) — Shadow: 2× no-Oscuros, 0× Hada (salvo Shadow Tear), 0.5× Oscuros · Corazón Cerrado bloquea Mega/Tera/Z · Usa 📢 Llamar para calmar Modo Hiper.`
       );
     }
     if (affectionMode === 'classic-rng') {
@@ -1190,6 +1217,24 @@ export class ShowdownBattleController {
     if (autoEmptySlots.length > 0) {
       this.config = { ...this.config, emptyPlayerSlots: autoEmptySlots };
       this.state.emptyPlayerSlots = autoEmptySlots;
+    }
+
+    // Inject Colosseum / XD dedicated `shadowcall` (`📢 Llamar`) 5th moveSlot on player Shadow Pokémon
+    // (filtered out of the normal 4-move grid and rendered as the golden/fuchsia `📢 Llamar` button!)
+    for (const s of p1Sets) {
+      if (!s.species || s.name === '__EMPTY__') continue;
+      const sp = Dex.species.get(s.species);
+      const isP1Shadow =
+        this.p1ShadowSpeciesSet.has(toID(s.species)) ||
+        (sp.exists && this.p1ShadowSpeciesSet.has(toID(sp.baseSpecies))) ||
+        (s.name ? this.p1ShadowSpeciesSet.has(toID(s.name)) : false);
+      if (isP1Shadow) {
+        const curMoves = [...(s.moves ?? [])];
+        if (!curMoves.some((mv) => toID(mv) === 'shadowcall')) {
+          curMoves.push('shadowcall');
+        }
+        s.moves = curMoves;
+      }
     }
 
     const p1Packed = Teams.pack(p1Sets);
@@ -1700,10 +1745,18 @@ export class ShowdownBattleController {
           return;
         }
 
-        const moves: ActiveMoveOption[] = slot.moves.map((m, idx) => {
+        let shadowCallMoveIndex: number | undefined;
+        const moves: ActiveMoveOption[] = [];
+        slot.moves.forEach((m, idx) => {
           ensureShadowDexRegistered();
-          const data = Dex.moves.get(m.id || m.move);
           const moveId = toID(m.id || m.move);
+          if (moveId === 'shadowcall') {
+            if (!m.disabled) {
+              shadowCallMoveIndex = idx + 1;
+            }
+            return;
+          }
+          const data = Dex.moves.get(m.id || m.move);
           const isShadowMv =
             data.type === 'Shadow' || isShadowMoveName(m.id || m.move);
           const isMaxFrustration =
@@ -1711,7 +1764,7 @@ export class ShowdownBattleController {
             (mon.happiness === 0 || (m.move || '').includes('102'));
           const displayName =
             moveId === 'frustration' ? 'Frustration' : m.move || data.name;
-          return {
+          moves.push({
             index: idx + 1,
             id: m.id,
             name: displayName,
@@ -1728,14 +1781,14 @@ export class ShowdownBattleController {
             shortDesc: data.shortDesc || data.desc || '',
             userHappiness: mon.happiness,
             powerNote: isShadowMv
-              ? 'Tipo Oscuro · 2× a no-Oscuros · 0× Inmune Hada · 0.5× Oscuros'
+              ? 'Tipo Oscuro · 2× a no-Oscuros · 0× Hada (salvo Shadow Tear) · 0.5× Oscuros'
               : isMaxFrustration
                 ? 'Potencia máxima por Felicidad: 0 (Vínculo roto)'
                 : undefined,
-          };
+          });
         });
 
-        const canZMove = Array.isArray(slot.canZMove)
+        const rawCanZMove = Array.isArray(slot.canZMove)
           ? slot.canZMove.map((z) =>
               z && z.move
                 ? {
@@ -1746,14 +1799,26 @@ export class ShowdownBattleController {
             )
           : undefined;
 
+        // Closed Heart Lock (Candado de Corazón Cerrado):
+        // Shadow Pokémon CANNOT Mega Evolve, Terastallize, or use Z-Moves until purified!
+        const isShadowLocked = Boolean(mon.isShadow);
+        const closedHeartBlockedGimmicks = Boolean(
+          isShadowLocked &&
+            (slot.canMegaEvo ||
+              slot.canTerastallize ||
+              (rawCanZMove && rawCanZMove.some(Boolean)))
+        );
+
         pending.push({
           activeIndex,
           pokemon: mon,
           moves,
           trapped: Boolean(slot.trapped),
-          canMegaEvo: Boolean(slot.canMegaEvo),
-          canTerastallize: slot.canTerastallize || false,
-          canZMove,
+          canMegaEvo: isShadowLocked ? false : Boolean(slot.canMegaEvo),
+          canTerastallize: isShadowLocked ? false : slot.canTerastallize || false,
+          canZMove: isShadowLocked ? undefined : rawCanZMove,
+          shadowCallMoveIndex,
+          closedHeartBlockedGimmicks,
           forceSwitch: false,
           pass: false,
         });
@@ -2373,10 +2438,14 @@ export class ShowdownBattleController {
             turn: Math.max(1, this.state.turn),
           };
         }
+        const moveData = Dex.moves.get(moveName);
+        if (moveData.id === 'shadowcall' || toID(moveName) === 'llamar') {
+          this.pushLog('status', `📢 ¡Llamaste a ${name}!`);
+          break;
+        }
         this.emitCue({ attackerSide: side, attackerSlot: slotIndex });
         this.pushLog('move', `${name} usó ${moveName}!`);
 
-        const moveData = Dex.moves.get(moveName);
         if (!isFromSubMove && moveData.id !== 'struggle') {
           const { activeMon, partyMon } = this.getTargetMons(side, slotIndex, name);
           const maxPP = getShowdownMaxPP(moveName);
@@ -2994,6 +3063,16 @@ export class ShowdownBattleController {
             this.battleStreamRef.battle,
             this.config.battleStageId ?? this.config.chapterId
           );
+          const calls: Record<string, number> = {};
+          for (const mon of this.battleStreamRef.battle.p1.pokemon) {
+            const cnt = Number(mon.m?.shadowCallCount ?? 0);
+            if (cnt > 0) {
+              calls[toID(mon.species.name)] = (calls[toID(mon.species.name)] ?? 0) + cnt;
+            }
+          }
+          if (Object.keys(calls).length > 0) {
+            this.state.shadowCallCounts = calls;
+          }
         }
         this.pushLog('win', `🏆 ¡${winnerName} ganó el combate!`);
         this.emitNpcDialogue(
@@ -3016,6 +3095,16 @@ export class ShowdownBattleController {
             this.battleStreamRef.battle,
             this.config.battleStageId ?? this.config.chapterId
           );
+          const calls: Record<string, number> = {};
+          for (const mon of this.battleStreamRef.battle.p1.pokemon) {
+            const cnt = Number(mon.m?.shadowCallCount ?? 0);
+            if (cnt > 0) {
+              calls[toID(mon.species.name)] = (calls[toID(mon.species.name)] ?? 0) + cnt;
+            }
+          }
+          if (Object.keys(calls).length > 0) {
+            this.state.shadowCallCounts = calls;
+          }
         }
         this.pushLog('win', 'El combate terminó en empate.');
         break;

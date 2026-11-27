@@ -25,6 +25,8 @@ import { computePokemonBst } from '../engine/pricingEngine';
 import { getTypeBadgeClass } from '../engine/pokemonVisuals';
 import {
   ensureShadowDexRegistered,
+  getShadowNatureProfile,
+  getShadowUnlockState,
   isInstanceHighBond,
 } from '../engine/shadowEngine';
 import {
@@ -232,8 +234,25 @@ export const PokemonEditor: React.FC<PokemonEditorProps> = ({
     [species]
   );
 
+  const isShadowInstance = Boolean(mode === 'free' && instance?.isShadow);
+  const shadowUnlock = useMemo(
+    () =>
+      isShadowInstance && instance
+        ? getShadowUnlockState(instance, profile.devModeEnabled)
+        : null,
+    [isShadowInstance, instance, profile.devModeEnabled]
+  );
+  const shadowNatureProfile = useMemo(
+    () => (isShadowInstance ? getShadowNatureProfile(nature) : null),
+    [isShadowInstance, nature]
+  );
+  const maxEvCap = shadowUnlock ? shadowUnlock.maxEvTotal : 508;
+
   // Live Showdown-style EV/IV stat calculation for mode="free"
   const activeEvs: StatSpread = useMemo(() => {
+    if (maxEvCap === 0) {
+      return { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 };
+    }
     const raw = instance?.evs;
     if (raw && Object.keys(raw).length > 0) {
       return {
@@ -245,11 +264,14 @@ export const PokemonEditor: React.FC<PokemonEditorProps> = ({
         spe: raw.spe ?? 0,
       };
     }
+    if (maxEvCap < 508) {
+      return { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 };
+    }
     const bs = indexedMeta?.baseStats ?? { hp: 80, atk: 80, def: 80, spa: 80, spd: 80, spe: 80 };
     return bs.spa > bs.atk
       ? { hp: 4, atk: 0, def: 0, spa: 252, spd: 0, spe: 252 }
       : { hp: 4, atk: 252, def: 0, spa: 0, spd: 0, spe: 252 };
-  }, [instance?.evs, indexedMeta]);
+  }, [instance?.evs, indexedMeta, maxEvCap]);
 
   const activeIvs: StatSpread = useMemo(
     () => ({
@@ -270,7 +292,7 @@ export const PokemonEditor: React.FC<PokemonEditorProps> = ({
     activeEvs.spa +
     activeEvs.spd +
     activeEvs.spe;
-  const remainingEvs = Math.max(0, 508 - totalEvUsed);
+  const remainingEvs = Math.max(0, maxEvCap - totalEvUsed);
   const natureMods = useMemo(
     () => getNatureStatModifiers(nature || 'Serious'),
     [nature]
@@ -291,8 +313,7 @@ export const PokemonEditor: React.FC<PokemonEditorProps> = ({
     return Array.from(new Set(raw.length > 0 ? raw : [ability || 'Pressure']));
   }, [speciesObj, ability]);
 
-  // Full @pkmn/sim legal learnset for this species (plus ALL 24 Shadow Moves for Shadow Pokémon!)
-  const isShadowInstance = Boolean(mode === 'free' && instance?.isShadow);
+  // Full @pkmn/sim legal learnset for this species (plus ALL 23 Calibrated Shadow Moves for Shadow Pokémon!)
   const legalMoves = useMemo(() => {
     if (!species) return [];
     ensureShadowDexRegistered();
@@ -632,6 +653,60 @@ export const PokemonEditor: React.FC<PokemonEditorProps> = ({
         </div>
       ) : (
         <div className="space-y-4">
+          {/* Colosseum / XD 5-Bar Heart Gauge & Progressive Unlocks Strip for Shadow Pokémon */}
+          {mode === 'free' && instance?.isShadow && shadowUnlock && (
+            <div className="rounded-2xl border border-fuchsia-400/50 bg-gradient-to-r from-fuchsia-950/60 via-slate-950/90 to-purple-950/50 p-3 text-xs">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-extrabold text-fuchsia-200">
+                    🟣 Medidor de Corazón ({shadowUnlock.stageLabel} · {shadowUnlock.heartGauge}%)
+                  </span>
+                  {shadowUnlock.natureRevealed && shadowNatureProfile ? (
+                    <span
+                      title={shadowNatureProfile.tip}
+                      className="rounded-md border border-amber-400/45 bg-amber-500/15 px-2 py-0.5 text-[10px] font-extrabold text-amber-200"
+                    >
+                      Afinidad: {shadowNatureProfile.label}
+                    </span>
+                  ) : (
+                    <span className="rounded-md border border-slate-700 bg-slate-900 px-2 py-0.5 text-[10px] font-bold text-slate-400">
+                      🔒 Afinidad oculta (se revela al 3/5)
+                    </span>
+                  )}
+                </div>
+                <span className="font-mono-code text-[10px] text-fuchsia-200/85">
+                  Hiper: {shadowUnlock.hyperTriggerChance}% · Desob. no-Shadow: {shadowUnlock.disobeyChance}%
+                </span>
+              </div>
+
+              {/* 5 Segmented Bars (20% each) */}
+              <div className="mt-2 grid grid-cols-5 gap-1.5">
+                {[1, 2, 3, 4, 5].map((barIdx) => {
+                  const barFilled = shadowUnlock.barsClosed >= barIdx;
+                  return (
+                    <div
+                      key={`heart-bar-${barIdx}`}
+                      className={`h-2.5 rounded-full border transition-all ${
+                        barFilled
+                          ? 'border-fuchsia-300/60 bg-gradient-to-r from-fuchsia-600 to-purple-400 shadow shadow-fuchsia-500/30'
+                          : 'border-emerald-400/40 bg-emerald-500/20'
+                      }`}
+                    />
+                  );
+                })}
+              </div>
+              <p className="mt-1.5 text-[10.5px] text-slate-300">
+                {shadowUnlock.stageHint} ·{' '}
+                <strong className="text-fuchsia-200">🔒 Corazón Cerrado:</strong> bloquea Mega, Tera, Mov. Z y Poder de la Amistad hasta purificar.
+              </p>
+              {shadowUnlock.requiresMaxTempoSeal && (
+                <p className="mt-1 rounded-lg border border-amber-400/55 bg-amber-500/15 px-2.5 py-1 text-[10.5px] font-extrabold text-amber-200">
+                  ⚡ Sello Final XD001: coloca a Lugia Oscuro en la Cámara de Purificación con Tempo Máximo para romper la última barra (20% → 0%).
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Showdown Identity Strip: Apodo (Nickname) + Sexo (Gender) + Habilidad + Naturaleza + Teratipo */}
           {mode === 'free' && instance && onUpdateInstanceBuild && !isGen1 && (
             <>
@@ -703,19 +778,29 @@ export const PokemonEditor: React.FC<PokemonEditorProps> = ({
                   <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">
                     Naturaleza
                   </label>
-                  <select
-                    value={instance.nature}
-                    onChange={(e) =>
-                      onUpdateInstanceBuild(instance.uid, { nature: e.target.value })
-                    }
-                    className="w-full rounded-xl border border-slate-700 bg-slate-900 px-2 py-2 text-xs font-semibold text-white focus:border-amber-400 focus:outline-none"
-                  >
-                    {NATURES.map((n) => (
-                      <option key={n} value={n}>
-                        {n}
-                      </option>
-                    ))}
-                  </select>
+                  {shadowUnlock && !shadowUnlock.natureRevealed ? (
+                    <div
+                      title="Abre el Medidor de Corazón hasta 3/5 barras (≤60%) para revelar la Naturaleza de este Pokémon Oscuro"
+                      className="flex h-[34px] items-center justify-center gap-1 rounded-xl border border-fuchsia-500/45 bg-fuchsia-950/50 text-xs font-extrabold text-fuchsia-200 cursor-help"
+                    >
+                      <Lock className="h-3 w-3" />
+                      ????
+                    </div>
+                  ) : (
+                    <select
+                      value={instance.nature}
+                      onChange={(e) =>
+                        onUpdateInstanceBuild(instance.uid, { nature: e.target.value })
+                      }
+                      className="w-full rounded-xl border border-slate-700 bg-slate-900 px-2 py-2 text-xs font-semibold text-white focus:border-amber-400 focus:outline-none"
+                    >
+                      {NATURES.map((n) => (
+                        <option key={n} value={n}>
+                          {n}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
                 <div className="sm:col-span-2">
                   <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">
@@ -749,64 +834,73 @@ export const PokemonEditor: React.FC<PokemonEditorProps> = ({
                     Estadísticas, EVs e IVs (Nv. {level}) · Restantes:{' '}
                     <span
                       className={`font-mono-code ${
-                        remainingEvs === 0 ? 'text-amber-300' : 'text-emerald-200'
+                        maxEvCap === 0
+                          ? 'text-fuchsia-300'
+                          : remainingEvs === 0
+                            ? 'text-amber-300'
+                            : 'text-emerald-200'
                       }`}
                     >
-                      {remainingEvs}/508
+                      {maxEvCap === 0
+                        ? '🔒 0/0 (Corazón sellado)'
+                        : `${remainingEvs}/${maxEvCap}`}
                     </span>
                   </button>
 
-                  <div className="flex flex-wrap gap-1">
-                    {(
-                      [
-                        { label: '252 Atk/Spe', evs: { hp: 4, atk: 252, def: 0, spa: 0, spd: 0, spe: 252 } },
-                        { label: '252 SpA/Spe', evs: { hp: 4, atk: 0, def: 0, spa: 252, spd: 0, spe: 252 } },
-                        { label: '252 HP/Def', evs: { hp: 252, atk: 0, def: 252, spa: 0, spd: 4, spe: 0 } },
-                        { label: '252 HP/SpD', evs: { hp: 252, atk: 0, def: 4, spa: 0, spd: 252, spe: 0 } },
-                      ] as const
-                    ).map((preset) => (
+                  {maxEvCap > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {maxEvCap >= 508 &&
+                        (
+                          [
+                            { label: '252 Atk/Spe', evs: { hp: 4, atk: 252, def: 0, spa: 0, spd: 0, spe: 252 } },
+                            { label: '252 SpA/Spe', evs: { hp: 4, atk: 0, def: 0, spa: 252, spd: 0, spe: 252 } },
+                            { label: '252 HP/Def', evs: { hp: 252, atk: 0, def: 252, spa: 0, spd: 4, spe: 0 } },
+                            { label: '252 HP/SpD', evs: { hp: 252, atk: 0, def: 4, spa: 0, spd: 252, spe: 0 } },
+                          ] as const
+                        ).map((preset) => (
+                          <button
+                            key={preset.label}
+                            type="button"
+                            onClick={() =>
+                              onUpdateInstanceBuild(instance.uid, { evs: preset.evs })
+                            }
+                            className="rounded-md border border-slate-700 bg-slate-950 px-1.5 py-0.5 text-[9.5px] font-bold text-slate-300 hover:border-emerald-400/50 hover:text-emerald-200 cursor-pointer"
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
                       <button
-                        key={preset.label}
                         type="button"
                         onClick={() =>
-                          onUpdateInstanceBuild(instance.uid, { evs: preset.evs })
+                          onUpdateInstanceBuild(instance.uid, {
+                            ivs: { ...activeIvs, atk: activeIvs.atk === 0 ? 31 : 0 },
+                          })
                         }
-                        className="rounded-md border border-slate-700 bg-slate-950 px-1.5 py-0.5 text-[9.5px] font-bold text-slate-300 hover:border-emerald-400/50 hover:text-emerald-200 cursor-pointer"
+                        className={`rounded-md border px-1.5 py-0.5 text-[9.5px] font-bold cursor-pointer ${
+                          activeIvs.atk === 0
+                            ? 'border-amber-400/60 bg-amber-500/20 text-amber-200'
+                            : 'border-slate-700 bg-slate-950 text-slate-300 hover:text-amber-200'
+                        }`}
                       >
-                        {preset.label}
+                        0 Atk IV
                       </button>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() =>
-                        onUpdateInstanceBuild(instance.uid, {
-                          ivs: { ...activeIvs, atk: activeIvs.atk === 0 ? 31 : 0 },
-                        })
-                      }
-                      className={`rounded-md border px-1.5 py-0.5 text-[9.5px] font-bold cursor-pointer ${
-                        activeIvs.atk === 0
-                          ? 'border-amber-400/60 bg-amber-500/20 text-amber-200'
-                          : 'border-slate-700 bg-slate-950 text-slate-300 hover:text-amber-200'
-                      }`}
-                    >
-                      0 Atk IV
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        onUpdateInstanceBuild(instance.uid, {
-                          ivs: { ...activeIvs, spe: activeIvs.spe === 0 ? 31 : 0 },
-                        })
-                      }
-                      className={`rounded-md border px-1.5 py-0.5 text-[9.5px] font-bold cursor-pointer ${
-                        activeIvs.spe === 0
-                          ? 'border-violet-400/60 bg-violet-500/20 text-violet-200'
-                          : 'border-slate-700 bg-slate-950 text-slate-300 hover:text-violet-200'
-                      }`}
-                    >
-                      0 Spe IV
-                    </button>
-                  </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onUpdateInstanceBuild(instance.uid, {
+                            ivs: { ...activeIvs, spe: activeIvs.spe === 0 ? 31 : 0 },
+                          })
+                        }
+                        className={`rounded-md border px-1.5 py-0.5 text-[9.5px] font-bold cursor-pointer ${
+                          activeIvs.spe === 0
+                            ? 'border-violet-400/60 bg-violet-500/20 text-violet-200'
+                            : 'border-slate-700 bg-slate-950 text-slate-300 hover:text-violet-200'
+                        }`}
+                      >
+                        0 Spe IV
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {showStatsPanel && (
@@ -884,17 +978,19 @@ export const PokemonEditor: React.FC<PokemonEditorProps> = ({
                               min={0}
                               max={252}
                               step={4}
+                              disabled={maxEvCap === 0}
                               value={evVal}
                               onChange={(e) => setEv(Number(e.target.value))}
-                              className="h-1.5 w-full accent-emerald-400 cursor-pointer"
+                              className="h-1.5 w-full accent-emerald-400 disabled:opacity-30 cursor-pointer"
                             />
                             <input
                               type="number"
                               min={0}
                               max={252}
+                              disabled={maxEvCap === 0}
                               value={evVal}
                               onChange={(e) => setEv(Number(e.target.value))}
-                              className="font-mono-code w-12 rounded border border-slate-700 bg-slate-900 px-1 py-0.5 text-center text-[10.5px] font-bold text-emerald-200 focus:border-emerald-400 focus:outline-none"
+                              className="font-mono-code w-12 rounded border border-slate-700 bg-slate-900 px-1 py-0.5 text-center text-[10.5px] font-bold text-emerald-200 focus:border-emerald-400 focus:outline-none disabled:opacity-40"
                             />
                           </div>
                           <div className="col-span-2 flex justify-center">

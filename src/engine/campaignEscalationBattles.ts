@@ -95,7 +95,7 @@ export function resolveOrreShadowAmbushBattle(
       teraType: 'Flying',
       evs: '252 HP / 252 Atk / 4 SpD',
       nature: 'Adamant',
-      moves: ['Shadow Dominion', 'Shadow Rush', 'Shadow Break', 'Rock Slide'],
+      moves: ['Shadow Cataclysm', 'Shadow Rush', 'Shadow Break', 'Rock Slide'],
     },
     {
       species: 'Excadrill',
@@ -150,7 +150,7 @@ export function resolveOrreShadowAmbushBattle(
       teraType: 'Steel',
       evs: '252 HP / 252 Atk / 4 Spe',
       nature: 'Adamant',
-      moves: ['Shadow Rend', 'Shadow End', 'Shadow Rush', 'Meteor Mash'],
+      moves: ['Shadow Blast', 'Shadow End', 'Shadow Tear', 'Meteor Mash'],
     },
   ];
 
@@ -185,28 +185,28 @@ export function resolveOrreShadowAmbushBattle(
       levelCap: 88,
       hasBossAce: true,
       bossAceWarning:
-        'Metagross Oscuro ★ (Nv. 88 · Shadow Rend crítico garantizado + Shadow End 160 BP) entra en Modo Hiper bajo 50% PS. ¡Trae tipo Hada!',
+        'Metagross Oscuro ★ (Nv. 88 · Shadow Blast 100% Crítico en Modo Hiper + Shadow Tear anti-Hada + Shadow End 130 BP). ¡Vigila Shadow Tear contra tus Hada!',
     },
     puzzleConditions: {
       weather: 'shadowsky',
       extendedEnvironment: true,
       biomeLabel: '🌑 Cañón de Aura (Orre) · Cielo Oscuro Persistente (Shadow Sky)',
       biomeCounterHint:
-        'Cielo Oscuro potencia ataques Shadow ×1.35, da ×1.25 Def/SpD a Pokémon Oscuros y drena 1/16 PS por turno a no-Oscuros. ¡Los tipo Hada son INMUNES (0×) a ataques Shadow!',
+        'Cielo Oscuro potencia ataques Shadow ×1.3 y drena 1/16 PS por turno a no-Oscuros. ¡Los tipo Hada son INMUNES (0×) a ataques Shadow salvo que reciban Shadow Tear!',
       bannerLog:
         '🌑 ¡Cañón de Aura (Orre)! Cielo Oscuro (Shadow Sky) envuelve la emboscada del Sindicato de Pokémon Oscuros.',
     },
     scriptedEnemyRules: [
       {
-        id: 'orre-t1-ttar-shadow-dominion',
+        id: 'orre-t1-ttar-shadow-cataclysm',
         turn: 1,
         actorSpecies: 'Tyranitar',
-        forceMoveId: 'shadowdominion',
+        forceMoveId: 'shadowcataclysm',
         once: true,
         description:
-          'Sindicato T1: Tyranitar Oscuro desata Shadow Dominion (+2 Atk/+1 Def/+1 Spe) bajo Cielo Oscuro.',
+          'Sindicato T1: Tyranitar Oscuro desata Shadow Cataclysm (110 BP de área adaptativo + invoca Cielo Oscuro).',
         tauntLine:
-          '«¡En el desierto de Aura cerramos el corazón de nuestros Pokémon! ¡Siente el Cielo Oscuro y Shadow Dominion!»',
+          '«¡En el desierto de Aura cerramos el corazón de nuestros Pokémon! ¡Siente el Cielo Oscuro y Shadow Cataclysm!»',
       },
     ],
     traces: [
@@ -1145,7 +1145,7 @@ export function resolveXd001ShadowLugiaBattle(
       evs: '4 HP / 252 SpA / 252 Spe',
       nature: 'Timid',
       ivs: '0 Atk',
-      moves: ['Shadow Rave', 'Shadow Nova', 'Shadow Blitz', 'Draco Meteor'],
+      moves: ['Shadow Rave', 'Shadow Cataclysm', 'Shadow Tear', 'Draco Meteor'],
     },
     {
       nickname: 'XD001 Lugia Oscuro ★',
@@ -1200,7 +1200,7 @@ export function resolveXd001ShadowLugiaBattle(
       levelCap: 100,
       hasBossAce: true,
       bossAceWarning:
-        'XD001 Lugia Oscuro ★ (Nv. 102 · Multiscale): Shadow Eclipse (+2 SpA/+2 SpD/+1 Spe) + Shadow Aeroblast (115 BP de ÁREA + Alto Crítico) + Shadow Siphon (75% drenaje). ¡Trae tipo Hada o Haze!',
+        'XD001 Lugia Oscuro ★ (Nv. 102 · Multiscale): Shadow Eclipse (+2 SpA/+2 SpD + fuerza Modo Hiper al instante) + Shadow Aeroblast (95 BP área · 100% CRÍTICO en Modo Hiper) + Shadow Siphon (50% drenaje). ¡Cuidado con Shadow Tear de Salamence contra Hadas!',
     },
     puzzleConditions: {
       weather: 'shadowsky',

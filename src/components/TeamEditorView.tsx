@@ -68,6 +68,24 @@ interface TeamEditorViewProps {
   onPurifyInstance?: (
     uid: string
   ) => { ok: boolean; error?: string; species?: string; signatureGift?: string };
+  onAssignShadowToChamber?: (
+    chamberIndex: number,
+    shadowUid: string | null
+  ) => { ok: boolean; error?: string };
+  onAssignRingPokemonToChamber?: (
+    chamberIndex: number,
+    ringSlotIndex: number,
+    monUid: string | null
+  ) => { ok: boolean; error?: string };
+  onAutoOptimizeChamber?: (
+    chamberIndex: number
+  ) => {
+    ok: boolean;
+    error?: string;
+    tempo?: number;
+    isMaxTempo?: boolean;
+    isPerfectSet?: boolean;
+  };
   onPopulateLivingDexBox: () => { addedCount: number; totalLiving: number };
   onImportShowdownPaste: (
     rawPaste: string
@@ -105,6 +123,9 @@ export const TeamEditorView: React.FC<TeamEditorViewProps> = ({
   onSpawnDevSpecimen,
   onSpawnDevShadowSpecimen,
   onPurifyInstance,
+  onAssignShadowToChamber,
+  onAssignRingPokemonToChamber,
+  onAutoOptimizeChamber,
   onPopulateLivingDexBox,
   onImportShowdownPaste,
   onSaveCampaignTeam,
@@ -195,6 +216,9 @@ export const TeamEditorView: React.FC<TeamEditorViewProps> = ({
           onSpawnDevSpecimen={onSpawnDevSpecimen}
           onSpawnDevShadowSpecimen={onSpawnDevShadowSpecimen}
           onPurifyInstance={onPurifyInstance}
+          onAssignShadowToChamber={onAssignShadowToChamber}
+          onAssignRingPokemonToChamber={onAssignRingPokemonToChamber}
+          onAutoOptimizeChamber={onAutoOptimizeChamber}
           onPopulateLivingDexBox={onPopulateLivingDexBox}
           onImportShowdownPaste={onImportShowdownPaste}
           onSaveCampaignTeam={onSaveCampaignTeam}

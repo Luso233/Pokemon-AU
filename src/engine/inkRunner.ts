@@ -38,6 +38,7 @@ export interface VNFrameState {
 
 const VALID_CHAR_IDS = new Set<CharacterId>([
   'prince',
+  'prince_baby',
   'assassin',
   'champion',
   'dark_commander',

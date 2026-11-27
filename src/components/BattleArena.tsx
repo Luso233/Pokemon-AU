@@ -713,8 +713,8 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
             </span>
             {mon.hyperMode && (
               <span
-                title="Modo Hiper activo (+1 Crítico, ×1.25 daño, -1/8 PS/turno)"
-                className="rounded bg-fuchsia-600/80 px-1 text-[7.5px] font-black text-white"
+                title="Modo Hiper activo (+2 Crítico, +15% daño Shadow, -1/12 PS/turno, desobedece no-Shadow · Usa 📢 Llamar)"
+                className="animate-pulse rounded bg-fuchsia-600/90 px-1 text-[7.5px] font-black text-white shadow shadow-fuchsia-500/40"
               >
                 ⚡HIPER
               </span>
@@ -2074,7 +2074,51 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                         )}
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {currentSlot.pokemon.isShadow && (
+                          <ActionInfoTooltip
+                            title="Candado de Corazón Cerrado"
+                            badge="Pokémon Oscuro"
+                            description="Mientras su corazón esté cerrado (Oscuro), este Pokémon NO puede Megaevolucionar, Teracristalizar, usar Movimientos Z ni activar Poder de la Amistad. Purifícalo en la Cámara XD para liberar estas mecánicas."
+                            placement="top"
+                          >
+                            <span className="inline-flex items-center gap-1 rounded-lg border border-fuchsia-400/50 bg-fuchsia-950/75 px-2 py-1 text-[10.5px] font-extrabold text-fuchsia-200 cursor-help">
+                              <Lock className="h-3 w-3 text-fuchsia-300" />
+                              <span>Corazón Cerrado</span>
+                            </span>
+                          </ActionInfoTooltip>
+                        )}
+                        {currentSlot.shadowCallMoveIndex != null && (
+                          <ActionInfoTooltip
+                            title="📢 Llamar (Colosseum / XD)"
+                            badge="Prioridad +6"
+                            description="Consume este turno para llamar a tu Pokémon Oscuro: lo saca 100% del Modo Hiper, lo despierta del Sueño, cura Confusión y abre su Medidor de Corazón al terminar el combate (multiplicado por su Naturaleza)."
+                            placement="top"
+                          >
+                            <button
+                              type="button"
+                              onClick={() =>
+                                commitSlotCommand(
+                                  `move ${currentSlot.shadowCallMoveIndex}`
+                                )
+                              }
+                              className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[11px] font-extrabold transition cursor-pointer ${
+                                currentSlot.pokemon.hyperMode ||
+                                currentSlot.pokemon.status === 'slp' ||
+                                currentSlot.pokemon.volatiles.includes('confusion')
+                                  ? 'animate-pulse border-fuchsia-300 bg-gradient-to-r from-fuchsia-600 to-amber-500 text-slate-950 shadow-lg shadow-fuchsia-500/40 hover:brightness-110'
+                                  : 'border-fuchsia-400/60 bg-fuchsia-500/20 text-fuchsia-100 hover:bg-fuchsia-500/35'
+                              }`}
+                            >
+                              <span>📢</span>
+                              <span>
+                                {currentSlot.pokemon.hyperMode
+                                  ? 'Llamar (Calmar Hiper!)'
+                                  : 'Llamar'}
+                              </span>
+                            </button>
+                          </ActionInfoTooltip>
+                        )}
                         {canMegaNow && (
                           <ActionInfoTooltip
                             title="Megaevolución"

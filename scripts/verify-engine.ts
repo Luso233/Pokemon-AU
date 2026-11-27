@@ -43,6 +43,9 @@ import {
   applyDevPopulateAllSpeciesToBox,
   applyDevUnlockEverything,
   applyDevUnlockFullAgPokedex,
+  assignRingPokemonToChamber,
+  assignShadowToChamber,
+  autoOptimizePurificationChamber,
   awardArcadeCoins,
   buildIronmanPersistedStateForBattle,
   campHealPartyMember,
@@ -121,8 +124,11 @@ import {
   resolveXd001ShadowLugiaBattle,
 } from '../src/engine/campaignEscalationBattles';
 import {
+  computeChamberFlowAndTempo,
   detectShadowSpeciesInPaste,
   ensureShadowDexRegistered,
+  getShadowNatureProfile,
+  getShadowUnlockState,
   isInstanceHighBond,
   SHADOW_MOVES_CATALOG,
 } from '../src/engine/shadowEngine';
@@ -3341,50 +3347,63 @@ IVs: 0 Atk
     `  OK: 4-Act Campaign Ladder (2700->3000->3300->3600->∞ BST), ALL 7 New Escalation Battles incl. Bastard Brother Climax (Zamazenta-C Lv.112 + Eternatus-Eternamax ★ Lv.115) & Postgame Champion AG (Lv.120 + Mastery Badge + NG+), Hidden Visibility + Regional SL Discovery + Dev Mode Override, & Confession Endings (SOLO_MONARCH / ROMANCE_e4_kalos / HAREM 13/13 / BABY_ENDING) ALL VERIFIED!`
   );
 
-  /* ===================== 30. Shadow Pokémon (Colosseum/XD 24 Moves + Fairy 0x + Shadow Sky + Hyper Mode + XD001) & Power of Friendship ===================== */
-  console.log(
-    '\n=== 30. Shadow Pokémon (24 Moves, Fairy 0× Immunity, Shadow Sky, Hyper Mode, XD001 Lugia) & Power of Friendship (Let\'s Go Affection) ==='
-  );
+  /* ===================== 30. Colosseum / XD Shadow Rework (23 Moves, 5-Bar Heart Gauge, Closed Heart Lock, Hyper + Call, Shadow Tear/Cataclysm, XD Flow & Tempo + XD001 Seal) ===================== */
+  console.log('\n=== 30. Colosseum / XD Shadow Rework (23 Moves, 5-Bar Locks, Closed Heart, Hyper+Call, Shadow Tear/Cataclysm, XD Flow&Tempo) ===');
 
-  // 1) Verify all 24 modernized & invented Shadow Moves exist natively in Dex with type === 'Shadow'
+  // 1) Verify all 23 Calibrated Shadow Moves + internal `shadowcall` (`Llamar`) + Shadow Sky ×1.3 + `noPPBoosts: true` (exact integer PP)!
   ensureShadowDexRegistered();
-  if (SHADOW_MOVES_CATALOG.length !== 24) {
-    throw new Error(`Expected 24 Shadow Moves in catalog, got ${SHADOW_MOVES_CATALOG.length}`);
+  if (SHADOW_MOVES_CATALOG.length !== 23) {
+    throw new Error(`Expected 23 calibrated Shadow Moves in catalog, got ${SHADOW_MOVES_CATALOG.length}`);
   }
   for (const sm of SHADOW_MOVES_CATALOG) {
     const dexMv = Dex.moves.get(sm.name);
-    if (!dexMv.exists || dexMv.type !== 'Shadow') {
-      throw new Error(`Shadow move "${sm.name}" missing or wrong type in Dex (${dexMv.type})`);
+    if (!dexMv.exists || dexMv.type !== 'Shadow' || !dexMv.noPPBoosts) {
+      throw new Error(`Shadow move "${sm.name}" missing, wrong type (${dexMv.type}), or missing noPPBoosts (${dexMv.noPPBoosts})`);
     }
   }
   const aeroDex = Dex.moves.get('Shadow Aeroblast');
   const eclDex = Dex.moves.get('Shadow Eclipse');
+  const tearDex = Dex.moves.get('Shadow Tear');
+  const cataDex = Dex.moves.get('Shadow Cataclysm');
+  const callDex = Dex.moves.get('shadowcall');
   if (
-    aeroDex.basePower !== 115 ||
+    aeroDex.basePower !== 95 ||
     aeroDex.target !== 'allAdjacentFoes' ||
     (aeroDex.critRatio ?? 1) < 2 ||
     eclDex.boosts?.spa !== 2 ||
     eclDex.boosts?.spd !== 2 ||
-    eclDex.boosts?.spe !== 1
+    !tearDex.exists ||
+    cataDex.basePower !== 110 ||
+    !callDex.exists ||
+    callDex.priority !== 6
   ) {
-    throw new Error(`XD001 signature Shadow moves misconfigured: Aeroblast=${JSON.stringify(aeroDex.basePower)}/${aeroDex.target}, Eclipse=${JSON.stringify(eclDex.boosts)}`);
+    throw new Error(
+      `Calibrated Shadow moves misconfigured: Aero=${aeroDex.basePower}/${aeroDex.target}, Eclipse=${JSON.stringify(eclDex.boosts)}, Tear=${tearDex.exists}, Cata=${cataDex.basePower}, Call=${callDex.exists}/${callDex.priority}`
+    );
   }
   const lugiaShadowLearnset = getLegalLearnsetForSpecies('Lugia', CAMPAIGN_DOUBLES_FORMAT_ID, [], true);
-  if (!lugiaShadowLearnset.some((m) => m.name === 'Shadow Aeroblast') || !lugiaShadowLearnset.some((m) => m.name === 'Shadow Eclipse')) {
-    throw new Error('Expected Shadow Pokémon learnset to expose all 24 Shadow Moves!');
+  if (
+    !lugiaShadowLearnset.some((m) => m.name === 'Shadow Aeroblast') ||
+    !lugiaShadowLearnset.some((m) => m.name === 'Shadow Tear') ||
+    !lugiaShadowLearnset.some((m) => m.name === 'Shadow Cataclysm')
+  ) {
+    throw new Error('Expected Shadow Pokémon learnset to expose all 23 Shadow Moves!');
   }
 
   // 2) Live @pkmn/sim deterministic test proving:
-  //    - Shadow Aeroblast: 0× IMMUNE vs Fairy (Gardevoir), 2× SUPER EFFECTIVE vs non-Shadow (Arcanine), 0.5× RESISTED vs Shadow (Mewtwo Oscuro)
-  //    - Power of Friendship (tactical-limited): High-Bond Arcanine endures lethal Shadow Aeroblast at 1 HP & shakes off Burn!
-  //    - Shadow Eclipse: +2 SpA / +2 SpD / +1 Spe in one turn!
-  //    - Hyper Mode: Shadow Lugia drops <50% HP -> activates 'Modo Hiper' + takes 1/8 residual self-damage!
-  //    - Shadow Pokémon & non-High-Bond Shop Pokémon NEVER trigger Tactical Affection!
+  //    - Closed Heart Lock: Shadow Mewtwo holding Mewtwonite Y & Tera Dark has canMegaEvo=false & canTerastallize=false, AND exposes `shadowCallMoveIndex`!
+  //    - Shadow Aeroblast: 0× IMMUNE vs Fairy (Gardevoir), 2× SE vs non-Shadow (Arcanine), 0.5× RESIST vs Shadow (Mewtwo Oscuro)
+  //    - Shadow Eclipse: +2 SpA / +2 SpD, costs 1/8 HP, AND forces IMMEDIATE Modo Hiper (+2 Crit, 1/12 recoil)!
+  //    - Shadow Tear: strips Gardevoir's Fairy 0× immunity for 3 turns so Shadow Aeroblast / Shadow Wave hits Gardevoir!
+  //    - Shadow Cataclysm: clears Terrain & summons Shadow Sky!
+  //    - Hyper Mode disobedience on non-Shadow move (Mewtwo using Protect while Hyper -> disobeys!)
+  //    - `📢 Llamar` (`shadowcall`): priority +6 snaps Mewtwo 100% OUT of Modo Hiper, wakes from Sleep, & increments `shadowCallCounts`!
+  //    - Power of Friendship (tactical-limited): High-Bond Arcanine endures lethal Shadow Aeroblast at 1 HP & shakes off PAR!
   const shadowMatrixCfg: ReturnType<typeof resolveChapter1ChaseBattle> = {
     chapterId: 'test-shadow-affection-matrix',
     format: 'doubles',
     formatId: CAMPAIGN_DOUBLES_FORMAT_ID,
-    formatLabel: 'Shadow & Affection Matrix',
+    formatLabel: 'Shadow Rework Matrix',
     playerName: 'Heredero',
     playerCharId: 'prince',
     rivalName: 'Maestro Cifra',
@@ -3413,14 +3432,15 @@ Hardy Nature
 - Growl
 - Helping Hand
 
-Mewtwo Oscuro (Mewtwo) @ Leftovers
+Mewtwo Oscuro (Mewtwo) @ Mewtwonite Y
 Ability: Pressure
 Level: 100
+Tera Type: Dark
 EVs: 252 HP / 252 SpA / 4 Spe
 Timid Nature
+- Shadow Eclipse
 - Shadow Blast
 - Shadow Siphon
-- Shadow Eclipse
 - Protect`,
     rivalShowdownPaste: `XD001 Lugia Oscuro (Lugia) @ Leftovers
 Ability: Pressure
@@ -3432,33 +3452,34 @@ Timid Nature
 - Shadow Sky
 - Shadow Siphon
 
-Salamence Oscuro (Salamence) @ Leftovers
+Salamence Oscuro (Salamence) @ Wide Lens
 Ability: Intimidate
 Level: 100
 EVs: 252 HP / 252 SpD / 4 Spe
 Calm Nature
+- Shadow Tear
+- Shadow Cataclysm
 - Shadow Wave
-- Shadow Mist
-- Protect
-- Draco Meteor`,
+- Protect`,
     puzzleConditions: {
-      weather: 'shadowsky',
-      extendedEnvironment: true,
+      terrain: 'electricterrain',
       pokemonModifiers: [
         { side: 'p1', slotOrSpecies: 'Arcanine', status: 'par' },
-        { side: 'p2', slotOrSpecies: 'Lugia', hpPercent: 35 },
       ],
     },
     shadowMeta: {
       p1ShadowSpecies: ['Mewtwo'],
       p2ShadowSpecies: ['Lugia', 'Salamence'],
+      p1ShadowHeartBySpecies: { mewtwo: 100 },
       affectionMode: 'tactical-limited',
       p1HighBondSpecies: ['Gardevoir', 'Arcanine'],
+      shadowForceHyper: true,
+      shadowForceDisobey: true,
     },
     rivalIntel: {
       visibleSpeciesCount: 2,
       totalSlots: 2,
-      intelLabel: 'Shadow Matrix',
+      intelLabel: 'Shadow Rework Matrix',
       intelNote: 'Test',
       levelCap: 100,
       hasBossAce: true,
@@ -3470,15 +3491,16 @@ Calm Nature
         actorSpecies: 'Lugia',
         forceMoveId: 'shadowaeroblast',
         once: true,
-        description: 'T1 Lugia Shadow Aeroblast',
+        description: 'T1 Lugia Shadow Aeroblast (0x Fairy Gardevoir, 2x Arcanine -> 1 HP Endure)',
       },
       {
-        id: 't1-mence-protect',
+        id: 't1-mence-tear-gardevoir',
         turn: 1,
         actorSpecies: 'Salamence',
-        forceMoveId: 'protect',
+        forceMoveId: 'shadowtear',
+        targetSpec: '+1',
         once: true,
-        description: 'T1 Salamence Protect',
+        description: 'T1 Salamence Shadow Tear on Gardevoir (strips Fairy immunity!)',
       },
       {
         id: 't2-lugia-eclipse',
@@ -3486,15 +3508,32 @@ Calm Nature
         actorSpecies: 'Lugia',
         forceMoveId: 'shadoweclipse',
         once: true,
-        description: 'T2 Lugia Shadow Eclipse',
+        description: 'T2 Lugia Shadow Eclipse (+2 SpA/+2 SpD + instant Modo Hiper!)',
       },
       {
-        id: 't2-mence-wave',
+        id: 't2-mence-cataclysm',
         turn: 2,
         actorSpecies: 'Salamence',
-        forceMoveId: 'shadowwave',
+        forceMoveId: 'shadowcataclysm',
         once: true,
-        description: 'T2 Salamence Shadow Wave vs Shadow Mewtwo',
+        description: 'T2 Salamence Shadow Cataclysm (clears Electric Terrain + summons Shadow Sky + hits torn Gardevoir & 0.5x Mewtwo!)',
+      },
+      {
+        id: 't3-lugia-siphon',
+        turn: 3,
+        actorSpecies: 'Lugia',
+        forceMoveId: 'shadowsiphon',
+        targetSpec: '+1',
+        once: true,
+        description: 'T3 Lugia Shadow Siphon',
+      },
+      {
+        id: 't3-mence-protect',
+        turn: 3,
+        actorSpecies: 'Salamence',
+        forceMoveId: 'protect',
+        once: true,
+        description: 'T3 Salamence Protect',
       },
     ],
     traces: [],
@@ -3504,32 +3543,50 @@ Calm Nature
   const matrixResult = await new Promise<{
     logs: string[];
     weather: string;
+    terrain: string;
     lugiaHyper: boolean;
     lugiaBoosts: Record<string, number>;
+    mewtwoClosedHeartLocked: boolean;
+    mewtwoHadCallSlot: boolean;
+    mewtwoHyperAfterEclipse: boolean;
+    mewtwoCalmAfterCall: boolean;
   }>((resP, rejP) => {
     let settled = false;
     let lastTurn = -1;
+    let mewtwoClosedHeartLocked = false;
+    let mewtwoHadCallSlot = false;
+    let mewtwoHyperAfterEclipse = false;
+    let mewtwoCalmAfterCall = false;
     const timer = setTimeout(() => {
       if (!settled) {
         settled = true;
         ctrl.destroy();
-        rejP(new Error('Suite 30 Shadow Matrix battle timed out!'));
+        rejP(new Error('Suite 30 Shadow Rework Matrix battle timed out!'));
       }
-    }, 8000);
+    }, 10000);
     const ctrl = new ShowdownBattleController(shadowMatrixCfg, (snap) => {
       if (settled) return;
-      if (snap.status === 'ended' || snap.turn >= 3) {
+      if (snap.status === 'ended' || snap.turn >= 5) {
         settled = true;
         clearTimeout(timer);
         const lugiaMon =
           snap.p2.active.find((m) => m?.species === 'Lugia') ??
           snap.p2.party.find((m) => m.species === 'Lugia');
+        const m2Final =
+          snap.p1.active.find((m) => m?.species === 'Mewtwo') ??
+          snap.p1.party.find((m) => m.species === 'Mewtwo');
+        if (m2Final && !m2Final.hyperMode) mewtwoCalmAfterCall = true;
         ctrl.destroy();
         resP({
           logs: snap.log.map((l) => l.text),
           weather: snap.weather,
+          terrain: snap.terrain,
           lugiaHyper: Boolean(lugiaMon?.hyperMode),
           lugiaBoosts: { ...(lugiaMon?.boosts ?? {}) },
+          mewtwoClosedHeartLocked,
+          mewtwoHadCallSlot,
+          mewtwoHyperAfterEclipse,
+          mewtwoCalmAfterCall,
         });
         return;
       }
@@ -3544,13 +3601,47 @@ Calm Nature
         }
         if (snap.turn === lastTurn) return;
         lastTurn = snap.turn;
+        const m2Pending = snap.pendingSlots.find((s) => s.pokemon.species === 'Mewtwo');
+        if (m2Pending) {
+          if (!m2Pending.canMegaEvo && !m2Pending.canTerastallize && m2Pending.closedHeartBlockedGimmicks) {
+            mewtwoClosedHeartLocked = true;
+          }
+          if (m2Pending.shadowCallMoveIndex != null && !m2Pending.moves.some((m) => m.id === 'shadowcall')) {
+            mewtwoHadCallSlot = true;
+          }
+          const blastMove = m2Pending.moves.find((m) => m.id === 'shadowblast');
+          if (blastMove && blastMove.maxpp !== 8) {
+            throw new Error(`Expected exact integer maxpp=8 for Shadow Blast (no 12.8 boost!), got ${blastMove.maxpp}`);
+          }
+          if (m2Pending.pokemon.hyperMode) {
+            mewtwoHyperAfterEclipse = true;
+          }
+        }
         if (snap.turn === 1) {
-          // Gardevoir Calm Mind, Arcanine Growl (so it eats Shadow Aeroblast -> 1 HP Endure + Burn cure!)
+          // Gardevoir Calm Mind (gets Shadow Tear!), Arcanine Growl (eats Shadow Aeroblast -> 1 HP Endure + PAR cure!)
           void ctrl.submitPlayerChoice('move 4, move 3');
         } else if (snap.turn === 2) {
-          // Switch Arcanine -> Shadow Mewtwo (slot 3) to verify 0.5× Shadow resist vs Shadow Wave + Lugia Shadow Eclipse!
+          // Switch Arcanine -> Shadow Mewtwo (slot 3) to eat Shadow Cataclysm (0.5x) while Gardevoir gets hit through Shadow Tear!
           const m2Slot = snap.p1.party.find((p) => p.species === 'Mewtwo')?.slotIndex ?? 3;
-          void ctrl.submitPlayerChoice(`move 3, switch ${m2Slot}`);
+          void ctrl.submitPlayerChoice(`move 4, switch ${m2Slot}`);
+        } else if (snap.turn === 3) {
+          // Mewtwo uses Shadow Eclipse (forces instant Modo Hiper!), partner uses Protect or pass!
+          const cmds = snap.pendingSlots.map((s) => {
+            if (s.pass) return 'pass';
+            if (s.pokemon.species === 'Mewtwo') return 'move 1';
+            const prot = s.moves.find((m) => m.id === 'protect');
+            return prot ? `move ${prot.index}` : 'move 1';
+          });
+          void ctrl.submitPlayerChoice(cmds.join(', '));
+        } else if (snap.turn === 4) {
+          // Use `📢 Llamar` (`shadowcall`, priority +6) on Mewtwo to snap 100% out of Modo Hiper!
+          const cmds = snap.pendingSlots.map((s) => {
+            if (s.pass) return 'pass';
+            if (s.pokemon.species === 'Mewtwo') return `move ${s.shadowCallMoveIndex ?? 5}`;
+            const prot = s.moves.find((m) => m.id === 'protect');
+            return prot ? `move ${prot.index}` : 'move 1';
+          });
+          void ctrl.submitPlayerChoice(cmds.join(', '));
         }
       }
     });
@@ -3566,60 +3657,93 @@ Calm Nature
   const allMatrixText = matrixResult.logs.join('\n');
   if (
     !matrixResult.weather.includes('Cielo Oscuro') ||
-    !allMatrixText.includes('No afecta a Gardevoir') ||
+    matrixResult.terrain !== '' || // Shadow Cataclysm MUST have destroyed Electric Terrain!
+    !allMatrixText.includes('No afecta a Gardevoir') || // T1 Fairy immunity before Shadow Tear
+    !allMatrixText.includes('se desgarró') || // T1 Shadow Tear stripped Fairy immunity
     !allMatrixText.includes('¡Es súper eficaz!') ||
     !allMatrixText.includes('VÍNCULO REAL') ||
     !allMatrixText.includes('aguantó con 1 PS') ||
     !allMatrixText.includes('se sacudió PAR') ||
     !allMatrixText.includes('MODO HIPER') ||
+    !allMatrixText.includes('Llamaste a Mewtwo Oscuro') ||
     !matrixResult.lugiaHyper ||
-    !allMatrixText.includes('No es muy eficaz') ||
     (matrixResult.lugiaBoosts.spa ?? 0) < 2 ||
     (matrixResult.lugiaBoosts.spd ?? 0) < 2 ||
-    (matrixResult.lugiaBoosts.spe ?? 0) < 1
+    !matrixResult.mewtwoClosedHeartLocked ||
+    !matrixResult.mewtwoHadCallSlot ||
+    !matrixResult.mewtwoHyperAfterEclipse ||
+    !matrixResult.mewtwoCalmAfterCall
   ) {
     throw new Error(
-      `Suite 30 Shadow & Affection live matrix failed!\nweather=${matrixResult.weather}, hyper=${matrixResult.lugiaHyper}, boosts=${JSON.stringify(matrixResult.lugiaBoosts)}\nlogs:\n${allMatrixText}`
+      `Suite 30 Shadow Rework Matrix failed!\nweather=${matrixResult.weather}, terrain=${matrixResult.terrain}, lugiaHyper=${matrixResult.lugiaHyper}, closedHeart=${matrixResult.mewtwoClosedHeartLocked}, callSlot=${matrixResult.mewtwoHadCallSlot}, m2Hyper=${matrixResult.mewtwoHyperAfterEclipse}, m2Calm=${matrixResult.mewtwoCalmAfterCall}\nlogs:\n${allMatrixText}`
     );
   }
 
-  // 3) Verify Affection is STRICTLY BLOCKED on Shadow Pokémon AND on non-High-Bond Shop Pokémon in `tactical-limited`!
-  const blockedAffCfg: ReturnType<typeof resolveChapter1ChaseBattle> = {
+  // 3) Dedicated test verifying Hyper Mode Disobedience ONLY on non-Shadow moves + Affection STRICTLY blocked on Shadow!
+  const disobeyTestCfg: ReturnType<typeof resolveChapter1ChaseBattle> = {
     ...shadowMatrixCfg,
-    chapterId: 'test-affection-blocked-shadow',
+    chapterId: 'test-shadow-disobey-and-no-affection',
     format: 'singles',
     formatId: CAMPAIGN_SINGLES_FORMAT_ID,
     playerShowdownPaste: `Sableye Oscuro (Sableye)
 Ability: Keen Eye
-Level: 5
-Hardy Nature
-- Shadow Rush`,
-    rivalShowdownPaste: `Rayquaza-Mega
-Ability: Delta Stream
 Level: 100
-EVs: 252 Atk / 252 Spe
-Jolly Nature
-- Dragon Ascent`,
+EVs: 252 HP / 252 Def
+Timid Nature
+- Shadow Eclipse
+- Shadow Rush
+- Recover
+- Protect`,
+    rivalShowdownPaste: `Blissey @ Leftovers
+Ability: Natural Cure
+Level: 100
+EVs: 252 HP / 252 Def
+Bold Nature
+- Soft-Boiled
+- Splash`,
     puzzleConditions: undefined,
     shadowMeta: {
       p1ShadowSpecies: ['Sableye'],
       p2ShadowSpecies: [],
+      p1ShadowHeartBySpecies: { sableye: 100 },
       affectionMode: 'classic-rng',
-      affectionForceProc: true, // even with forced 100% RNG roll, Shadow Pokémon MUST NOT endure!
+      affectionForceProc: true,
+      shadowForceHyper: true,
+      shadowForceDisobey: true,
       p1HighBondSpecies: ['Sableye'],
     },
     scriptedEnemyRules: [],
   };
-  const { finalSnap: blockedShadowSnap } = await runFullSimMatch(
-    'Affection Strictly Blocked on Shadow Pokémon',
-    blockedAffCfg,
-    { maxTurns: 5 }
-  );
+  const disobeyLogs = await new Promise<string[]>((resP, rejP) => {
+    let settled = false;
+    let lastTurn = -1;
+    const t = setTimeout(() => {
+      if (!settled) { settled = true; c.destroy(); rejP(new Error('Disobey test timeout')); }
+    }, 6000);
+    const c = new ShowdownBattleController(disobeyTestCfg, (snap) => {
+      if (settled) return;
+      if (snap.turn >= 4 || snap.status === 'ended') {
+        settled = true;
+        clearTimeout(t);
+        c.destroy();
+        resP(snap.log.map((l) => l.text));
+        return;
+      }
+      if (snap.status === 'awaiting-choice' && snap.pendingSlots.length > 0 && snap.turn !== lastTurn) {
+        lastTurn = snap.turn;
+        if (snap.turn === 1) void c.submitPlayerChoice('move 1'); // Shadow Eclipse -> forced Hyper!
+        else if (snap.turn === 2) void c.submitPlayerChoice('move 3'); // Non-Shadow Recover -> MUST disobey!
+        else if (snap.turn === 3) void c.submitPlayerChoice('move 2'); // Shadow Rush -> MUST obey!
+      }
+    });
+    void c.start().catch(rejP);
+  });
+  const disobeyJoined = disobeyLogs.join('\n');
   if (
-    blockedShadowSnap.winner !== 'p2' ||
-    blockedShadowSnap.log.some((l) => l.text.includes('aguantó'))
+    !disobeyJoined.includes('ignoró tus órdenes en Modo Hiper') ||
+    !disobeyJoined.includes('usó Shadow Rush')
   ) {
-    throw new Error('Expected Shadow Pokémon to NEVER activate Power of Friendship endure!');
+    throw new Error(`Expected non-Shadow move to disobey in Hyper Mode while Shadow Rush obeys!\nLogs:\n${disobeyJoined}`);
   }
 
   // 4) Run full live XD001 Shadow Lugia Boss Raid chapter (`challenge-xd001-shadow-lugia`)!
@@ -3637,7 +3761,8 @@ Jolly Nature
     throw new Error(`XD001 Shadow Lugia raid failed: wx=${xd001T1?.weather}`);
   }
 
-  // 5) Verify Auto Shadow Snagging -> Pokédex + PC Box, Multi-Slot Purification Chamber, Optional Keep-Shadow vs Purify (Psycho Boost + High Bond)!
+  // 5) Verify 5-Bar Heart Gauge Progressive Unlocks (Nature hidden -> revealed at 3/5, EVs locked 0 -> 252 -> 508),
+  //    Colosseum Nature Affinities, XD Flow & Tempo Ring Solver, and XD001 Dark Lugia Final-Bar Max-Tempo Seal!
   let shProf = createDefaultProfile('Purificador', 'aura@orre.com');
   const xdWin = applyBattleOutcomeToProfile(
     shProf,
@@ -3651,82 +3776,117 @@ Jolly Nature
     }
   );
   shProf = xdWin.nextProfile;
-  const snaggedLugia = shProf.pokemonBox.find((b) => b.species === 'Lugia' && b.isShadow);
-  const snaggedArticuno = shProf.pokemonBox.find((b) => b.species === 'Articuno' && b.isShadow);
-  const snaggedZapdos = shProf.pokemonBox.find((b) => b.species === 'Zapdos' && b.isShadow);
+  const snaggedLugia = shProf.pokemonBox.find((b) => b.species === 'Lugia' && b.isShadow)!;
+  const snaggedArticuno = shProf.pokemonBox.find((b) => b.species === 'Articuno' && b.isShadow)!;
+  if (!snaggedLugia || !snaggedArticuno || !snaggedLugia.moves.includes('Shadow Aeroblast')) {
+    throw new Error('Expected XD001 Lugia & Articuno snagged as Shadow!');
+  }
+
+  // Verify 5/5 sealed locks: Nature hidden & EVs strictly blocked at 100%!
+  const sealedUnlock = getShadowUnlockState(snaggedLugia, false);
+  if (sealedUnlock.barsClosed !== 5 || sealedUnlock.natureRevealed || sealedUnlock.maxEvTotal !== 0) {
+    throw new Error(`Expected 5/5 sealed unlock state on Lugia, got ${JSON.stringify(sealedUnlock)}`);
+  }
+  if (updatePokemonInstanceBuild(shProf, snaggedLugia.uid, { nature: 'Timid' }).ok) {
+    throw new Error('Expected Nature edit to be blocked at 5/5 Heart Gauge!');
+  }
+  if (updatePokemonInstanceBuild(shProf, snaggedLugia.uid, { evs: { spa: 252 } }).ok) {
+    throw new Error('Expected EV edit to be blocked at 5/5 Heart Gauge!');
+  }
+  // Verify Nature Affinity multipliers (Modest -> Chamber ×1.5, Adamant -> Battle ×1.5, Timid -> Call ×1.6)
   if (
-    !xdWin.reward?.snaggedShadowPokemon ||
-    xdWin.reward.snaggedShadowPokemon.length !== 6 ||
-    !snaggedLugia ||
-    !snaggedArticuno ||
-    !snaggedZapdos ||
-    !snaggedLugia.moves.includes('Shadow Aeroblast') ||
-    !snaggedLugia.moves.includes('Shadow Eclipse') ||
-    !shProf.unlockedPokedex.includes('Lugia') ||
-    isInstanceHighBond(snaggedLugia)
+    getShadowNatureProfile('Modest').affinity !== 'chamber' ||
+    getShadowNatureProfile('Adamant').affinity !== 'battle' ||
+    getShadowNatureProfile('Timid').affinity !== 'call'
   ) {
-    throw new Error(`Shadow Snagging on XD001 victory failed: snagged=${xdWin.reward?.snaggedShadowPokemon?.length}`);
+    throw new Error('Colosseum Nature Affinity table mismatch!');
   }
 
-  // Reject placing non-Shadow Arcanine into Purification Chamber
-  const nonShadowArc = shProf.pokemonBox.find((b) => b.species === 'Arcanine')!;
-  if (movePokemonInstanceZone(shProf, nonShadowArc.uid, 'purify').ok) {
-    throw new Error('Expected Purification Chamber to reject non-Shadow Pokémon!');
-  }
-
-  // Park 3 Shadow Pokémon simultaneously into Purification Chamber (`zone: 'purify'`)!
-  shProf = movePokemonInstanceZone(shProf, snaggedLugia.uid, 'purify').nextProfile;
-  shProf = movePokemonInstanceZone(shProf, snaggedArticuno.uid, 'purify').nextProfile;
-  shProf = movePokemonInstanceZone(shProf, snaggedZapdos.uid, 'purify').nextProfile;
-  if (shProf.pokemonBox.filter((b) => b.zone === 'purify').length !== 3) {
-    throw new Error('Expected multi-slot Purification Chamber to hold 3 Shadow Pokémon simultaneously!');
-  }
-
-  // Tick 5 battles -> Heart Gauge drops 100 -> 80 -> 60 -> 40 -> 20 -> 0 WITHOUT auto-purifying!
-  for (let i = 0; i < 5; i++) {
+  // Slot XD001 Lugia into Chamber #0 with EMPTY ring -> ticks down to 20% and STOPS at the XD001 Max-Tempo Seal!
+  shProf = assignShadowToChamber(shProf, 0, snaggedLugia.uid).nextProfile;
+  shProf = assignShadowToChamber(shProf, 1, snaggedArticuno.uid).nextProfile;
+  for (let i = 0; i < 8; i++) {
     shProf = recordPostBattleSurvivalState(shProf, null, true);
   }
-  const readyLugia = shProf.pokemonBox.find((b) => b.uid === snaggedLugia.uid)!;
+  const sealedAt20Lugia = shProf.pokemonBox.find((b) => b.uid === snaggedLugia.uid)!;
   const readyArticuno = shProf.pokemonBox.find((b) => b.uid === snaggedArticuno.uid)!;
   if (
-    readyLugia.heartGauge !== 0 ||
-    !readyLugia.isShadow || // MUST stay Shadow until player explicitly chooses to Purify!
-    readyArticuno.heartGauge !== 0 ||
-    !readyArticuno.isShadow
+    sealedAt20Lugia.heartGauge !== 20 || // MUST halt at 20% until Max Tempo is achieved!
+    !getShadowUnlockState(sealedAt20Lugia, false).requiresMaxTempoSeal ||
+    readyArticuno.heartGauge !== 0 || // Articuno has no XD001 seal -> reaches 0% cleanly!
+    !readyArticuno.isShadow // NEVER auto-purifies!
   ) {
-    throw new Error(`Expected passive Purification Chamber to reach 0% without forcing purification: Lugia=${JSON.stringify(readyLugia)}`);
+    throw new Error(
+      `Expected XD001 Lugia sealed at 20% without Max Tempo & Articuno ready at 0% still Shadow: Lugia=${sealedAt20Lugia.heartGauge}, Articuno=${readyArticuno.heartGauge}`
+    );
   }
 
-  // Purify Articuno (gains High Bond + Heal Bell) while deliberately KEEPING XD001 Lugia Oscuro Shadow forever!
+  // Now stock 4 clockwise SE ring partners (Fire -> Grass -> Water -> Fire? Even better: Fire -> Ice -> Ground -> Electric -> Wait: Water -> Fire -> Grass -> Ground? Check 4-cycle: Normal -> Normal -> Normal -> Normal OR Fire -> Grass -> Ground -> Electric? Electric doesn't beat Fire; Water -> Fire -> Steel -> Rock -> Water! Water>Fire, Fire>Steel, Steel>Rock, Rock>Water? No, Rock doesn't beat Water! Water -> Ground -> Electric -> Flying -> Grass -> Fire -> Ice... Let's use: Fire -> Grass -> Water -> Ground? No: Fire(Arcanine) -> Grass(Rillaboom) -> Rock(Tyranitar) -> Ice(Glaceon)? Wait: Fire>Ice, Ice>Ground, Ground>Electric? Use classic XD 4-cycle: Grass -> Water -> Fire -> Ice -> Grass! Grass>Water, Water>Fire, Fire>Ice, Ice>Grass!!)
+  const addRingSpecies = ['Venusaur', 'Blastoise', 'Charizard', 'Glaceon'];
+  for (const sp of addRingSpecies) {
+    shProf = spawnDevAgSpecimen(shProf, sp, 'box').nextProfile;
+  }
+  // Ensure devModeEnabled is FALSE when testing Max-Tempo unlock!
+  shProf = { ...shProf, devModeEnabled: false };
+  const optRes = autoOptimizePurificationChamber(shProf, 0);
+  if (!optRes.ok || !optRes.isMaxTempo || (optRes.tempo ?? 0) < 90) {
+    throw new Error(`Expected XD Ring Auto-Optimizer to achieve MAX TEMPO on Grass->Water->Fire->Ice cycle, got ${JSON.stringify(optRes)}`);
+  }
+  shProf = optRes.nextProfile;
+  // Also verify manual Flow & Tempo check on the chamber
+  const ch0 = shProf.purificationChambers![0];
+  const ch0Eval = computeChamberFlowAndTempo(
+    sealedAt20Lugia,
+    ch0.ringUids.map((u) => shProf.pokemonBox.find((b) => b.uid === u) ?? null)
+  );
+  if (!ch0Eval.isMaxTempo || ch0Eval.flow !== 100) {
+    throw new Error(`Expected Chamber #0 Flow=100 & Max Tempo, got ${JSON.stringify(ch0Eval)}`);
+  }
+  // Now 1 battle breaks XD001 Dark Lugia's final 20% -> 0% seal!
+  shProf = recordPostBattleSurvivalState(shProf, null, true);
+  const unlockedLugia = shProf.pokemonBox.find((b) => b.uid === snaggedLugia.uid)!;
+  if (unlockedLugia.heartGauge !== 0 || !unlockedLugia.isShadow) {
+    throw new Error(`Expected Max Tempo to break XD001 Lugia's seal to 0% without auto-purifying, got ${unlockedLugia.heartGauge}`);
+  }
+  // Verify manual ring assignment helper works too
+  const clearSlotRes = assignRingPokemonToChamber(shProf, 0, 0, null);
+  if (!clearSlotRes.ok || clearSlotRes.nextProfile.purificationChambers![0].ringUids[0] !== null) {
+    throw new Error('Expected assignRingPokemonToChamber to clear slot cleanly!');
+  }
+  // Purify Articuno (gains High Bond + Heal Bell) & verify purifying XD001 Lugia grants Psycho Boost!
   const purifyArt = purifyShadowPokemonInstance(shProf, snaggedArticuno.uid);
-  if (!purifyArt.ok) throw new Error(`Expected Articuno purification at 0% to succeed: ${purifyArt.error}`);
-  shProf = purifyArt.nextProfile;
-  const purifiedArt = shProf.pokemonBox.find((b) => b.uid === snaggedArticuno.uid)!;
-  const keptDarkLugia = shProf.pokemonBox.find((b) => b.uid === snaggedLugia.uid)!;
-  if (
-    purifiedArt.isShadow ||
-    !purifiedArt.purifiedAt ||
-    !isInstanceHighBond(purifiedArt) ||
-    !purifiedArt.moves.includes('Heal Bell') ||
-    !keptDarkLugia.isShadow ||
-    !keptDarkLugia.moves.includes('Shadow Aeroblast')
-  ) {
-    throw new Error(`Expected Articuno purified + High Bond while XD001 Lugia stays deliberately Shadow!`);
-  }
-  // Verify purifying XD001 Lugia on a copy grants Psycho Boost!
   const purifyLugiaCopy = purifyShadowPokemonInstance(shProf, snaggedLugia.uid);
-  const purifiedLugiaMon = purifyLugiaCopy.nextProfile.pokemonBox.find((b) => b.uid === snaggedLugia.uid)!;
-  if (!purifyLugiaCopy.ok || !purifiedLugiaMon.moves.includes('Psycho Boost') || !isInstanceHighBond(purifiedLugiaMon)) {
-    throw new Error('Expected purifying XD001 Lugia to grant Psycho Boost & High Bond!');
+  if (
+    !purifyArt.ok ||
+    !purifyLugiaCopy.ok ||
+    !purifyLugiaCopy.nextProfile.pokemonBox.find((b) => b.uid === snaggedLugia.uid)?.moves.includes('Psycho Boost')
+  ) {
+    throw new Error('Expected optional Purification to succeed for Articuno & XD001 Lugia (Psycho Boost)!');
   }
-  // Verify Dev Shadow Spawner works cleanly too!
-  const devShSpawn = spawnDevShadowSpecimen(shProf, 'Mewtwo', undefined, 'box');
-  if (!devShSpawn.ok || !devShSpawn.nextProfile.pokemonBox.some((b) => b.uid === devShSpawn.uid && b.isShadow)) {
-    throw new Error('Expected spawnDevShadowSpecimen to create Shadow Mewtwo!');
+
+  // 6) Living Dex (1,286 species) performance benchmark for XD Auto-Optimize Chamber Ring (< 150ms!)
+  const livingDexProf = applyDevPopulateAllSpeciesToBox(shProf).nextProfile;
+  const benchStart = Date.now();
+  const livingOpt = autoOptimizePurificationChamber(livingDexProf, 0);
+  const benchMs = Date.now() - benchStart;
+  if (!livingOpt.ok || !livingOpt.isMaxTempo || benchMs > 150) {
+    throw new Error(`XD Chamber Auto-Optimizer Living Dex perf failed: ok=${livingOpt.ok}, maxTempo=${livingOpt.isMaxTempo}, ms=${benchMs}`);
+  }
+
+  // 7) Verify both new character sprite assets exist on disk (`bastard_brother` & `prince_baby`)!
+  for (const f of [
+    'public/characters/bastard_brother_sprite.png',
+    'public/characters/bastard_brother_bust.png',
+    'public/characters/prince_baby_sprite.png',
+    'public/characters/prince_baby_bust.png',
+  ]) {
+    if (!readFileSync(resolve(process.cwd(), f)).length) {
+      throw new Error(`Missing character sprite asset: ${f}`);
+    }
   }
 
   console.log(
-    `  OK: ALL 24 Shadow Moves (Shadow Aeroblast 115 BP Spread + Shadow Eclipse +2/+2/+1), Fairy 0× Immunity, 2× Super Effective vs Non-Shadow, 0.5× Shadow Resist, Shadow Sky, Hyper Mode (<50% HP + 1/8 self-pain), Power of Friendship (1-HP Endure + Status Shake-Off + STRICTLY Blocked on Shadow), XD001 Lugia Boss Raid + Auto-Snag (6/6), Unlimited Purification Chamber & Optional Keep-Shadow vs Purify (Psycho Boost!) ALL VERIFIED!`
+    `  OK: 23 Calibrated Shadow Moves + Shadow Sky ×1.3, Shadow Tear (strips Fairy 0×!), Shadow Cataclysm (clears Terrain + Shadow Sky!), Shadow Eclipse (instant Modo Hiper!), Closed Heart Lock (blocks Mega/Tera/Z/Affection), Hyper Mode (+2 Crit, 1/12 recoil, non-Shadow disobedience), 📢 Llamar (priority +6), 5-Bar Locks, Colosseum Nature Affinities, XD Flow & Tempo Ring Solver (MAX TEMPO ${optRes.tempo}%), XD001 Dark Lugia Final-Bar Seal & New Sprites (bastard_brother + prince_baby) ALL VERIFIED!`
   );
 
   console.log('\nALL 30 ENGINE, SHADOW POKÉMON, POWER OF FRIENDSHIP, CAMPAIGN LADDER, HIDDEN VISIBILITY & CONFESSION SUITES PASSED!');

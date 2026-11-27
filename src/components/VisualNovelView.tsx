@@ -29,6 +29,8 @@ interface VisualNovelViewProps {
   resumeInkStateJson?: string | null;
   persistedPartyState?: PersistedPartyState | null;
   vnPacingMode?: 'full' | 'decisions-only' | 'skip-to-battle';
+  /** When active, swaps the Prince's sprite & bust to the crying Baby Mode sprite (`prince_baby`)! */
+  isBabyMode?: boolean;
   onExitToChapters: () => void;
   onFinishStory: (flags: StoryFlags) => void;
   onTriggerMidStoryBattle?: (request: MidStoryBattleRequest) => void;
@@ -36,6 +38,7 @@ interface VisualNovelViewProps {
 
 const SPEAKER_TO_CHAR: Record<string, CharacterId> = {
   'Príncipe Heredero': 'prince',
+  'El Hermano Bastardo': 'bastard_brother',
   'La Campeona': 'champion',
   'Asesino Carmesí': 'assassin',
   'El Pelirrojo': 'assassin',
@@ -71,6 +74,7 @@ export const VisualNovelView: React.FC<VisualNovelViewProps> = ({
   resumeInkStateJson = null,
   persistedPartyState = null,
   vnPacingMode = 'full',
+  isBabyMode = false,
   onExitToChapters,
   onFinishStory,
   onTriggerMidStoryBattle,
@@ -239,11 +243,13 @@ export const VisualNovelView: React.FC<VisualNovelViewProps> = ({
   const displayedText = fullText.slice(0, typedLen);
   const bg = line?.bg ?? 'wyndon-alleys';
   const activeSide = line?.activeSide ?? 'left';
-  const leftChar = line?.leftChar ?? null;
-  const rightChar = line?.rightChar ?? null;
-  const activeSpeakerBust: CharacterId | null = line?.speaker
-    ? SPEAKER_TO_CHAR[line.speaker] ?? null
-    : null;
+  const mapCharForMode = (id: CharacterId | null): CharacterId | null =>
+    id === 'prince' && isBabyMode ? 'prince_baby' : id;
+  const leftChar = mapCharForMode(line?.leftChar ?? null);
+  const rightChar = mapCharForMode(line?.rightChar ?? null);
+  const activeSpeakerBust: CharacterId | null = mapCharForMode(
+    line?.speaker ? SPEAKER_TO_CHAR[line.speaker] ?? null : null
+  );
 
   return (
     <div className="relative flex min-h-screen flex-col justify-between overflow-hidden bg-slate-950 text-slate-100">
@@ -453,7 +459,11 @@ export const VisualNovelView: React.FC<VisualNovelViewProps> = ({
             <CharacterPortrait
               charId={leftChar}
               variant="sprite"
-              className="h-[18rem] w-auto sm:h-[24rem]"
+              className={
+                leftChar === 'prince_baby'
+                  ? 'h-[13rem] w-auto sm:h-[17rem]'
+                  : 'h-[18rem] w-auto sm:h-[24rem]'
+              }
             />
           )}
           {line?.pokemon && activeSide === 'left' && (

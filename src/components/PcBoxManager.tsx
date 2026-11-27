@@ -24,15 +24,24 @@ import {
   Upload,
   X,
 } from 'lucide-react';
+import { Dex } from '@pkmn/sim';
 import { DIFFICULTY_META, DIFFICULTY_ORDER } from '../data/economyCatalog';
-import { compileCustomTeamToShowdownPaste } from '../engine/playerProfile';
+import {
+  compileCustomTeamToShowdownPaste,
+  normalizePurificationChambers,
+} from '../engine/playerProfile';
 import {
   computePokemonBst,
   getAllAnythingGoesPlayableSpecies,
   getImperialBstLicense,
 } from '../engine/pricingEngine';
 import { getTypeBadgeClass } from '../engine/pokemonVisuals';
-import { isInstanceHighBond } from '../engine/shadowEngine';
+import {
+  computeChamberFlowAndTempo,
+  getShadowNatureProfile,
+  getShadowUnlockState,
+  isInstanceHighBond,
+} from '../engine/shadowEngine';
 import {
   compareByShowdownSort,
   getIndexedSpeciesMeta,
@@ -118,6 +127,24 @@ export interface PcBoxManagerProps {
   onPurifyInstance?: (
     uid: string
   ) => { ok: boolean; error?: string; species?: string; signatureGift?: string };
+  onAssignShadowToChamber?: (
+    chamberIndex: number,
+    shadowUid: string | null
+  ) => { ok: boolean; error?: string };
+  onAssignRingPokemonToChamber?: (
+    chamberIndex: number,
+    ringSlotIndex: number,
+    monUid: string | null
+  ) => { ok: boolean; error?: string };
+  onAutoOptimizeChamber?: (
+    chamberIndex: number
+  ) => {
+    ok: boolean;
+    error?: string;
+    tempo?: number;
+    isMaxTempo?: boolean;
+    isPerfectSet?: boolean;
+  };
   onPopulateLivingDexBox?: () => { addedCount: number; totalLiving: number };
   onImportShowdownPaste?: (
     rawPaste: string
@@ -161,6 +188,9 @@ export const PcBoxManager: React.FC<PcBoxManagerProps> = ({
   onSpawnDevSpecimen,
   onSpawnDevShadowSpecimen,
   onPurifyInstance,
+  onAssignShadowToChamber,
+  onAssignRingPokemonToChamber,
+  onAutoOptimizeChamber,
   onPopulateLivingDexBox,
   onImportShowdownPaste,
   onSaveCampaignTeam,
@@ -180,6 +210,7 @@ export const PcBoxManager: React.FC<PcBoxManagerProps> = ({
   const [activeZoneTab, setActiveZoneTab] = useState<
     'box' | 'purify' | 'house' | 'graveyard' | 'dev-lab'
   >('box');
+  const [activeChamberIdx, setActiveChamberIdx] = useState<number>(0);
   const [selectedUid, setSelectedUid] = useState<string>(
     profile.pokemonBox.find((b) => b.zone === 'party')?.uid ??
       profile.pokemonBox[0]?.uid ??
@@ -231,6 +262,53 @@ export const PcBoxManager: React.FC<PcBoxManagerProps> = ({
   );
   const savedTeams = profile.savedTeams ?? [];
   const deathLog = profile.nuzlockeDeathLog ?? [];
+  const chambers = useMemo(
+    () =>
+      normalizePurificationChambers(
+        profile.purificationChambers,
+        profile.pokemonBox
+      ),
+    [profile.purificationChambers, profile.pokemonBox]
+  );
+  const boxByUid = useMemo(
+    () => new Map(profile.pokemonBox.map((b) => [b.uid, b])),
+    [profile.pokemonBox]
+  );
+  const allLivingShadows = useMemo(
+    () =>
+      profile.pokemonBox.filter(
+        (b) => b.isShadow && b.zone !== 'graveyard'
+      ),
+    [profile.pokemonBox]
+  );
+  const ringSupportPool = useMemo(
+    () =>
+      profile.pokemonBox.filter(
+        (b) => !b.isShadow && (b.zone === 'box' || b.zone === 'house')
+      ),
+    [profile.pokemonBox]
+  );
+  // Lightweight dropdown options for XD Purification Ring slots (uses fast Dex.species.get, capped at 80 entries so Living Dex 1,286 renders in <2ms!)
+  const ringDropdownOptions = useMemo(() => {
+    const out: Array<{ uid: string; label: string; species: string }> = [];
+    const curRingSet = new Set<string>(
+      (chambers[activeChamberIdx]?.ringUids ?? []).filter((x): x is string => Boolean(x))
+    );
+    const prioritized = [
+      ...ringSupportPool.filter((m) => curRingSet.has(m.uid)),
+      ...ringSupportPool.filter((m) => !curRingSet.has(m.uid)).slice(0, 80),
+    ];
+    for (const cand of prioritized) {
+      const sp = Dex.species.get(cand.species);
+      const typesLabel = sp.exists && sp.types.length > 0 ? sp.types.join('/') : 'Normal';
+      out.push({
+        uid: cand.uid,
+        species: cand.species,
+        label: `${cand.nickname || cand.species} [${typesLabel}]`,
+      });
+    }
+    return out;
+  }, [ringSupportPool, chambers, activeChamberIdx]);
 
   const selectedInstance =
     profile.pokemonBox.find((b) => b.uid === selectedUid) ??
@@ -1331,22 +1409,379 @@ export const PcBoxManager: React.FC<PcBoxManagerProps> = ({
           </div>
         ) : (
           <div className="space-y-3">
-            {/* SHADOW PURIFICATION CHAMBER BANNER (Unlimited Multi-Slot Passive Purification + Optional Keep-Shadow Choice!) */}
-            {activeZoneTab === 'purify' && (
-              <div className="rounded-2xl border border-fuchsia-400/45 bg-gradient-to-r from-fuchsia-950/55 via-slate-950/90 to-purple-950/50 p-3.5 text-xs">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="font-extrabold text-fuchsia-200">
-                    🟣 Cámara de Purificación de Aura (Multiranura Ilimitada)
-                  </p>
-                  <span className="rounded-md border border-fuchsia-400/40 bg-fuchsia-500/20 px-2 py-0.5 font-mono-code text-[10px] font-bold text-fuchsia-100">
-                    -20% / batalla (Equipo: -25%)
+            {/* XD PURIFICATION CHAMBER: 9 PARALLEL FLOW & TEMPO RINGS + CLOCKWISE TYPE-ADVANTAGE VISUALIZER */}
+            {activeZoneTab === 'purify' && (() => {
+              const curChamber = chambers[activeChamberIdx] ?? chambers[0];
+              const centerShadow = curChamber.shadowUid
+                ? boxByUid.get(curChamber.shadowUid) ?? null
+                : null;
+              const ringMons = curChamber.ringUids.map((uid) =>
+                uid ? boxByUid.get(uid) ?? null : null
+              );
+              const flowTempo = computeChamberFlowAndTempo(centerShadow, ringMons);
+              const centerUnlock = centerShadow
+                ? getShadowUnlockState(centerShadow, profile.devModeEnabled)
+                : null;
+              const centerNatureProf = centerShadow
+                ? getShadowNatureProfile(centerShadow.nature)
+                : null;
+              const ringSlotLabels = ['Norte (1)', 'Este (2)', 'Sur (3)', 'Oeste (4)'];
+
+              const edgeBadge = (edgeIdx: number) => {
+                const e = flowTempo.edges[edgeIdx];
+                if (!e || e.outcome === 'empty') {
+                  return (
+                    <span className="rounded bg-slate-900/90 px-1.5 py-0.5 text-[9px] font-bold text-slate-500">
+                      → Vacío
+                    </span>
+                  );
+                }
+                if (e.outcome === 'super') {
+                  return (
+                    <span className="rounded border border-emerald-400/55 bg-emerald-500/20 px-1.5 py-0.5 text-[9px] font-extrabold text-emerald-200">
+                      → SE +6
+                    </span>
+                  );
+                }
+                if (e.outcome === 'neutral') {
+                  return (
+                    <span className="rounded border border-amber-400/40 bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold text-amber-200">
+                      → Neutro 0
+                    </span>
+                  );
+                }
+                return (
+                  <span className="rounded border border-rose-400/50 bg-rose-500/20 px-1.5 py-0.5 text-[9px] font-extrabold text-rose-200">
+                    → Resist -3
                   </span>
+                );
+              };
+
+              const renderRingCard = (slotIdx: number) => {
+                const mon = ringMons[slotIdx];
+                const meta = mon ? getIndexedSpeciesMeta(mon.species) : null;
+                return (
+                  <div
+                    key={`ring-slot-${slotIdx}`}
+                    className={`rounded-xl border p-2 transition ${
+                      mon
+                        ? 'border-sky-400/45 bg-slate-950/90'
+                        : 'border-dashed border-slate-700 bg-slate-950/50'
+                    }`}
+                  >
+                    <div className="mb-1 flex items-center justify-between gap-1">
+                      <span className="text-[9.5px] font-extrabold uppercase tracking-wider text-sky-300">
+                        {ringSlotLabels[slotIdx]}
+                      </span>
+                      {edgeBadge(slotIdx)}
+                    </div>
+                    {mon ? (
+                      <div className="mb-1.5 flex items-center gap-1.5">
+                        <PokemonIcon species={mon.species} className="scale-75 shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-[11px] font-bold text-white">
+                            {mon.nickname || mon.species}
+                          </p>
+                          <div className="flex flex-wrap gap-0.5">
+                            {meta?.types.map((t) => (
+                              <span
+                                key={t}
+                                className={`rounded border px-1 text-[8px] font-bold uppercase ${getTypeBadgeClass(t)}`}
+                              >
+                                {t}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="mb-1.5 text-[10px] text-slate-500">
+                        Sin aliado de soporte
+                      </p>
+                    )}
+                    {onAssignRingPokemonToChamber && (
+                      <select
+                        value={mon?.uid ?? ''}
+                        onChange={(e) => {
+                          const res = onAssignRingPokemonToChamber(
+                            activeChamberIdx,
+                            slotIdx,
+                            e.target.value || null
+                          );
+                          if (!res.ok) {
+                            emitNotice({ tone: 'err', text: res.error || '' });
+                          }
+                        }}
+                        className="w-full rounded-lg border border-slate-700 bg-slate-900 px-1.5 py-1 text-[10px] font-semibold text-slate-200 focus:border-sky-400 focus:outline-none"
+                      >
+                        <option value="">(Vaciar ranura)</option>
+                        {ringDropdownOptions.map((opt) => (
+                          <option key={opt.uid} value={opt.uid}>
+                            {opt.label}
+                          </option>
+                        ))}
+                        {ringSupportPool.length > 80 && (
+                          <option value="" disabled>
+                            — Usa «⚡ Auto-Optimizar Anillo» para escanear los {ringSupportPool.length} Pokémon —
+                          </option>
+                        )}
+                      </select>
+                    )}
+                  </div>
+                );
+              };
+
+              return (
+                <div className="space-y-3 rounded-2xl border border-fuchsia-400/50 bg-gradient-to-br from-fuchsia-950/55 via-slate-950/92 to-purple-950/45 p-3.5 text-xs">
+                  {/* Top Chamber Header + Auto-Optimize Button */}
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="font-extrabold text-fuchsia-200">
+                        🟣 Cámara de Purificación XD (9 Anillos · Flow &amp; Tempo Horario)
+                      </p>
+                      <p className="mt-0.5 text-[10.5px] text-slate-300">
+                        Rodea a cada Pokémon Oscuro con 4 aliados en sentido horario (<strong>Norte → Este → Sur → Oeste → Norte</strong>) con ventaja de tipo (Normal pega SE a Normal) para disparar el <strong>Tempo</strong> y romper el Sello Final de XD001 Lugia Oscuro.
+                      </p>
+                    </div>
+                    {onAutoOptimizeChamber && centerShadow && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const res = onAutoOptimizeChamber(activeChamberIdx);
+                          emitNotice(
+                            res.ok
+                              ? {
+                                  tone: 'ok',
+                                  text: `⚡ ¡Anillo de Cámara #${activeChamberIdx + 1} optimizado! Tempo ${res.tempo}%${res.isMaxTempo ? ' · 🏆 ¡TEMPO MÁXIMO!' : ''}${res.isPerfectSet ? ' · ✨ Set Perfecto!' : ''}`,
+                                }
+                              : { tone: 'err', text: res.error || '' }
+                          );
+                        }}
+                        className="inline-flex items-center gap-1 rounded-xl bg-gradient-to-r from-amber-400 to-fuchsia-400 px-3 py-1.5 text-[10.5px] font-black text-slate-950 shadow hover:brightness-110 cursor-pointer"
+                      >
+                        ⚡ Auto-Optimizar Anillo
+                      </button>
+                    )}
+                  </div>
+
+                  {/* 9-Chamber Selector Strip */}
+                  <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-9">
+                    {chambers.map((ch) => {
+                      const sh = ch.shadowUid ? boxByUid.get(ch.shadowUid) ?? null : null;
+                      const chRing = ch.ringUids.map((u) => (u ? boxByUid.get(u) ?? null : null));
+                      const chEval = computeChamberFlowAndTempo(sh, chRing);
+                      const isSelCh = ch.chamberIndex === activeChamberIdx;
+                      return (
+                        <button
+                          key={`chamber-tab-${ch.chamberIndex}`}
+                          type="button"
+                          onClick={() => setActiveChamberIdx(ch.chamberIndex)}
+                          className={`flex flex-col items-center rounded-xl border px-1.5 py-1.5 text-center transition cursor-pointer ${
+                            isSelCh
+                              ? 'border-fuchsia-300 bg-fuchsia-500/25 text-white ring-1 ring-fuchsia-300/60'
+                              : sh
+                                ? 'border-fuchsia-500/35 bg-slate-950/85 text-fuchsia-100 hover:border-fuchsia-400'
+                                : 'border-slate-800 bg-slate-950/50 text-slate-500 hover:text-slate-300'
+                          }`}
+                        >
+                          <span className="font-mono-code text-[9px] font-extrabold">
+                            C{ch.chamberIndex + 1}
+                          </span>
+                          {sh ? (
+                            <PokemonIcon species={sh.species} className="scale-[0.65] -my-1" />
+                          ) : (
+                            <span className="my-1 text-[10px] opacity-40">○</span>
+                          )}
+                          <span
+                            className={`font-mono-code text-[8px] font-bold ${
+                              chEval.isMaxTempo
+                                ? 'text-amber-300'
+                                : sh
+                                  ? 'text-fuchsia-200'
+                                  : 'text-slate-600'
+                            }`}
+                          >
+                            {chEval.isMaxTempo ? '★MAX' : sh ? `${sh.heartGauge ?? 100}%` : 'Libre'}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Interactive XD Circular Flow & Tempo Ring Layout */}
+                  <div className="grid gap-2.5 lg:grid-cols-3 lg:items-center">
+                    {/* West (3) + North (0) */}
+                    <div className="space-y-2">
+                      {renderRingCard(0)}
+                      {renderRingCard(3)}
+                    </div>
+
+                    {/* CENTER SHADOW PEDESTAL + FLOW & TEMPO METERS */}
+                    <div className="flex flex-col items-center rounded-2xl border-2 border-fuchsia-400/60 bg-slate-950/90 p-3 text-center shadow-xl shadow-fuchsia-950/50">
+                      <span className="text-[9.5px] font-black uppercase tracking-widest text-fuchsia-300">
+                        Cámara #{activeChamberIdx + 1} · Centro Oscuro
+                      </span>
+
+                      {centerShadow && centerUnlock ? (
+                        <>
+                          <div
+                            onClick={() => setSelectedUid(centerShadow.uid)}
+                            className="mt-1.5 flex h-16 w-16 items-center justify-center rounded-full border-2 border-fuchsia-400/70 bg-fuchsia-950/60 shadow-inner cursor-pointer hover:scale-105 transition"
+                          >
+                            <PokemonSprite
+                              species={centerShadow.species}
+                              shiny={centerShadow.shiny}
+                              side="p2"
+                              className="h-14 w-14"
+                            />
+                          </div>
+                          <p className="mt-1 text-xs font-extrabold text-white">
+                            🟣 {centerShadow.nickname || centerShadow.species}
+                          </p>
+                          <p className="text-[10px] font-bold text-fuchsia-200">
+                            {centerUnlock.stageLabel} ({centerUnlock.heartGauge}%)
+                          </p>
+
+                          {/* 5-Bar Heart Gauge */}
+                          <div className="mt-1.5 grid w-full grid-cols-5 gap-1">
+                            {[1, 2, 3, 4, 5].map((b) => (
+                              <div
+                                key={`center-bar-${b}`}
+                                className={`h-2 rounded-full ${
+                                  centerUnlock.barsClosed >= b
+                                    ? 'bg-gradient-to-r from-fuchsia-500 to-purple-400'
+                                    : 'bg-emerald-400/35 border border-emerald-400/50'
+                                }`}
+                              />
+                            ))}
+                          </div>
+
+                          <p className="mt-1 text-[9.5px] text-amber-200/90">
+                            {centerUnlock.natureRevealed && centerNatureProf
+                              ? `${centerShadow.nature} · ${centerNatureProf.label}`
+                              : '🔒 Naturaleza ???? (se revela al 3/5)'}
+                          </p>
+
+                          {centerUnlock.requiresMaxTempoSeal && (
+                            <p
+                              className={`mt-1.5 rounded-lg border px-2 py-1 text-[9.5px] font-extrabold ${
+                                flowTempo.isMaxTempo
+                                  ? 'border-emerald-400/60 bg-emerald-500/20 text-emerald-200'
+                                  : 'border-amber-400/55 bg-amber-500/15 text-amber-200'
+                              }`}
+                            >
+                              {flowTempo.isMaxTempo
+                                ? '🔓 ¡TEMPO MÁXIMO LISTO! Gana 1 combate para abrir XD001 a 0%.'
+                                : '🔒 Sello XD001 (20%): logra Tempo Máximo (4 flechas SE) para romper a 0%.'}
+                            </p>
+                          )}
+
+                          {onPurifyInstance &&
+                            (centerUnlock.heartGauge <= 0 || profile.devModeEnabled) && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const res = onPurifyInstance(centerShadow.uid);
+                                  emitNotice(
+                                    res.ok
+                                      ? {
+                                          tone: 'ok',
+                                          text: `✨ ¡${res.species} purificado! Regalo exclusivo: ${res.signatureGift}.`,
+                                        }
+                                      : { tone: 'err', text: res.error || '' }
+                                  );
+                                }}
+                                className="mt-2 w-full rounded-xl bg-gradient-to-r from-emerald-400 to-cyan-400 px-3 py-1.5 text-[10.5px] font-black text-slate-950 shadow hover:brightness-110 cursor-pointer"
+                              >
+                                ✨ Purificar Ahora (Opcional)
+                              </button>
+                            )}
+                        </>
+                      ) : (
+                        <div className="my-4 text-[10.5px] text-slate-400">
+                          Ranura central vacía. Elige un Pokémon Oscuro debajo o arrebata uno en Aura (Orre).
+                        </div>
+                      )}
+
+                      {onAssignShadowToChamber && (
+                        <select
+                          value={centerShadow?.uid ?? ''}
+                          onChange={(e) => {
+                            const res = onAssignShadowToChamber(
+                              activeChamberIdx,
+                              e.target.value || null
+                            );
+                            if (!res.ok) {
+                              emitNotice({ tone: 'err', text: res.error || '' });
+                            }
+                          }}
+                          className="mt-2 w-full rounded-lg border border-fuchsia-400/40 bg-slate-900 px-2 py-1 text-[10px] font-bold text-fuchsia-100 focus:border-fuchsia-300 focus:outline-none"
+                        >
+                          <option value="">(Vaciar centro de Cámara)</option>
+                          {allLivingShadows.map((sh) => (
+                            <option key={sh.uid} value={sh.uid}>
+                              🟣 {sh.nickname || sh.species} ({sh.heartGauge ?? 100}%)
+                            </option>
+                          ))}
+                        </select>
+                      )}
+
+                      {/* Live Flow & Tempo Gauges */}
+                      <div className="mt-2.5 w-full space-y-1.5 border-t border-white/10 pt-2 text-left">
+                        <div>
+                          <div className="flex justify-between font-mono-code text-[9.5px]">
+                            <span className="font-bold text-sky-300">FLOW (Anillo Horario)</span>
+                            <span className="font-extrabold text-white">{flowTempo.flow}%</span>
+                          </div>
+                          <div className="mt-0.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+                            <div
+                              className="h-full bg-gradient-to-r from-sky-500 to-cyan-300 transition-all"
+                              style={{ width: `${flowTempo.flow}%` }}
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <div className="flex justify-between font-mono-code text-[9.5px]">
+                            <span className="font-bold text-amber-300">
+                              TEMPO (×{flowTempo.centralFactor} centro)
+                            </span>
+                            <span className="font-extrabold text-white">
+                              {flowTempo.tempo}% {flowTempo.isMaxTempo ? '★ MÁX' : ''}
+                            </span>
+                          </div>
+                          <div className="mt-0.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+                            <div
+                              className={`h-full transition-all ${
+                                flowTempo.isMaxTempo
+                                  ? 'bg-gradient-to-r from-amber-400 via-yellow-300 to-emerald-400'
+                                  : 'bg-gradient-to-r from-fuchsia-500 to-amber-400'
+                              }`}
+                              style={{ width: `${flowTempo.tempo}%` }}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap items-center justify-between gap-1 pt-0.5 text-[9.5px]">
+                          <span className="font-mono-code font-extrabold text-emerald-300">
+                            -{flowTempo.effectiveHeartDropPerBattle}% Corazón / combate
+                          </span>
+                          {flowTempo.isPerfectSet && (
+                            <span className="rounded bg-amber-400/25 px-1.5 py-0.2 font-extrabold text-amber-200">
+                              ✨ Set Perfecto (+12)
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* East (1) + South (2) */}
+                    <div className="space-y-2">
+                      {renderRingCard(1)}
+                      {renderRingCard(2)}
+                    </div>
+                  </div>
                 </div>
-                <p className="mt-1 text-[11px] leading-relaxed text-slate-300">
-                  Coloca aquí a <strong>todos los Pokémon Oscuros que quieras al mismo tiempo</strong> para abrir su Medidor de Corazón pasivamente tras cada combate. Al llegar a <strong className="text-emerald-300">0%</strong>, tú decides: <strong>✨ Purificar</strong> (quita el daño de Modo Hiper, activa Poder de la Amistad y desbloquea su ataque exclusivo como <em>Psycho Boost</em> en XD001) o <strong>dejarlo Oscuro para siempre</strong> y conservar sus movimientos Shadow rotos.
-                </p>
-              </div>
-            )}
+              );
+            })()}
 
             {/* NUZLOCKE FORENSIC DEATH LOG (inside Graveyard tab!) */}
             {activeZoneTab === 'graveyard' && (

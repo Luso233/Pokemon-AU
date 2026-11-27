@@ -33,6 +33,8 @@ export interface CustomTeamMember {
   evs?: Partial<StatSpread>;
   ivs?: Partial<StatSpread>;
   shiny: boolean;
+  isShadow?: boolean;
+  heartGauge?: number;
 }
 
 export type PokemonStorageZone = 'party' | 'box' | 'house' | 'purify' | 'graveyard';
@@ -71,6 +73,15 @@ export interface SavedCampaignTeam {
   species: string[];
   memberUids?: string[];
   updatedAt: string;
+}
+
+export interface PurificationChamberSet {
+  /** XD Purification Chamber index (0..8 = 9 simultaneous rings!) */
+  chamberIndex: number;
+  /** Central Shadow Pokémon UID (zone === 'purify') */
+  shadowUid: string | null;
+  /** Up to 4 clockwise non-Shadow support Pokémon UIDs (0: Norte, 1: Este, 2: Sur, 3: Oeste) */
+  ringUids: [string | null, string | null, string | null, string | null];
 }
 
 export interface OwnedPokemonInstance {
@@ -262,6 +273,8 @@ export interface PlayerSaveProfile {
   savedTeams?: SavedCampaignTeam[];
   /** Persistent Nuzlocke Permadeath Forensic Log (victim, opponent, killer Pokémon, lethal move, chapter, turn). */
   nuzlockeDeathLog?: NuzlockeDeathLogEntry[];
+  /** XD Purification Chambers (9 parallel Flow & Tempo rings, each holding 1 central Shadow + 4 clockwise support Pokémon). */
+  purificationChambers?: PurificationChamberSet[];
   updatedAt: string;
 }
 
@@ -391,12 +404,20 @@ export interface ShadowBattleMeta {
   p1ShadowSpecies?: string[];
   /** Species names on rival's side (p2) that are Shadow Pokémon (snaggable into PC Box on victory!). */
   p2ShadowSpecies?: string[];
+  /** Player Shadow Heart Gauge (0..100) by lowercase species key — scales Hyper Mode trigger & non-Shadow disobedience! */
+  p1ShadowHeartBySpecies?: Record<string, number>;
+  /** Rival Shadow Heart Gauge (0..100) by lowercase species key (defaults to 100 for Cipher/Orre bosses). */
+  p2ShadowHeartBySpecies?: Record<string, number>;
   /** Power of Friendship / Let's Go Affection rule mode (blocked on Shadow Pokémon!). */
   affectionMode?: AffectionMode;
   /** Species on p1 eligible for high-bond Affection in Difícil/Tryhard (Starters, R3 House, Purified, Rewards). */
   p1HighBondSpecies?: string[];
-  /** Deterministic test override (0..1) for classic-rng Affection rolls in automated engine tests. */
+  /** Deterministic test override for classic-rng Affection rolls in automated engine tests. */
   affectionForceProc?: boolean;
+  /** Deterministic test override forcing Hyper Mode activation on Shadow move use in automated engine tests. */
+  shadowForceHyper?: boolean;
+  /** Deterministic test override forcing Hyper Mode disobedience on non-Shadow moves in automated engine tests. */
+  shadowForceDisobey?: boolean;
 }
 
 export type BattleFormat = 'singles' | 'doubles' | 'triples';
@@ -428,6 +449,7 @@ export type SupportedFormatId =
 
 export type CharacterId =
   | 'prince'
+  | 'prince_baby'
   | 'assassin'
   | 'champion'
   | 'dark_commander'
@@ -893,10 +915,12 @@ export interface PartyPokemonState {
   isBossAce?: boolean;
   happiness?: number;
   shiny?: boolean;
-  /** True when this Pokémon is a Colosseum/XD Shadow Pokémon (aura oscura, 0.5× resist Shadow, Hyper Mode <50% HP, no Affection). */
+  /** True when this Pokémon is a Colosseum/XD Shadow Pokémon (aura oscura, 0.5× resist Shadow, Hyper Mode, Closed Heart Lock). */
   isShadow?: boolean;
-  /** True while this Shadow Pokémon has entered Modo Hiper (<50% HP: +1 Crit, ×1.25 dmg, 1/8 residual self-pain). */
+  /** True while this Shadow Pokémon has entered Modo Hiper (+2 Crit, +15% Shadow dmg, 1/12 residual pain, non-Shadow disobedience). */
   hyperMode?: boolean;
+  /** Current Heart Gauge (0..100) for Shadow Pokémon in battle. */
+  heartGauge?: number;
 }
 
 export interface OpenTeamsheetEntry {
@@ -966,6 +990,10 @@ export interface PendingDecisionSlot {
   canMegaEvo: boolean;
   canTerastallize: string | false;
   canZMove?: (ActiveZMoveOption | null)[];
+  /** 1-based Showdown move index for the dedicated Colosseum/XD `📢 Llamar` (`shadowcall`) action on Shadow Pokémon. */
+  shadowCallMoveIndex?: number;
+  /** True when Mega / Tera / Z-Move were suppressed by Closed Heart Lock (`isShadow`). */
+  closedHeartBlockedGimmicks?: boolean;
   forceSwitch: boolean;
   pass?: boolean;
 }
@@ -1048,4 +1076,6 @@ export interface BattleSnapshot {
   faintLog?: BattleFatalBlow[];
   /** Indices of hidden empty placeholder slots auto-fainted at Turn 0 (for 1v6 / 1v3 / solo-run Doubles/Triples!). */
   emptyPlayerSlots?: number[];
+  /** Number of times `📢 Llamar` (`shadowcall`) was used per lowercase species key on p1 during this battle (syncs Heart Gauge drop!). */
+  shadowCallCounts?: Record<string, number>;
 }

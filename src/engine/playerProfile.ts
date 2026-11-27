@@ -33,6 +33,7 @@ import type {
   PlayerSaveProfile,
   PokemonGender,
   PokemonStorageZone,
+  PurificationChamberSet,
   SavedCampaignTeam,
   SocialLinkProgress,
   SocialLinkRank,
@@ -61,9 +62,13 @@ import {
 import { buildShowdownPaste, type ShowdownSetBlock } from './teamBuilderTree';
 import { DEFAULT_RIVAL_NAME, sanitizeRivalName } from './rivalName';
 import {
+  autoOptimizeChamberRing,
   buildPurifiedMovesetForSpecies,
+  computeChamberFlowAndTempo,
   detectShadowSpeciesInPaste,
   ensureShadowDexRegistered,
+  getShadowNatureProfile,
+  getShadowUnlockState,
   isShadowMoveName,
 } from './shadowEngine';
 
@@ -122,15 +127,16 @@ const STAT_SHOWDOWN_LABEL: Record<keyof StatSpread, string> = {
 };
 
 export function sanitizeEvSpread(
-  raw?: Partial<StatSpread>
+  raw?: Partial<StatSpread>,
+  maxTotal = 508
 ): Partial<StatSpread> | undefined {
-  if (!raw || typeof raw !== 'object') return undefined;
+  if (!raw || typeof raw !== 'object' || maxTotal <= 0) return undefined;
   const out: Partial<StatSpread> = {};
   let total = 0;
   for (const k of STAT_KEYS) {
     const val = Math.max(0, Math.min(252, Math.floor(Number(raw[k] ?? 0))));
     if (!Number.isFinite(val) || val <= 0) continue;
-    const allowed = Math.min(val, Math.max(0, 508 - total));
+    const allowed = Math.min(val, Math.max(0, maxTotal - total));
     if (allowed > 0) {
       out[k] = allowed;
       total += allowed;
@@ -188,6 +194,75 @@ function formatIvsLine(ivs?: Partial<StatSpread>): string | undefined {
   return parts.length > 0 ? parts.join(' / ') : undefined;
 }
 
+export const MAX_PURIFICATION_CHAMBERS = 9;
+
+export function createDefaultPurificationChambers(): PurificationChamberSet[] {
+  return Array.from({ length: MAX_PURIFICATION_CHAMBERS }, (_, idx) => ({
+    chamberIndex: idx,
+    shadowUid: null,
+    ringUids: [null, null, null, null],
+  }));
+}
+
+export function normalizePurificationChambers(
+  rawChambers: PurificationChamberSet[] | undefined,
+  box: OwnedPokemonInstance[]
+): PurificationChamberSet[] {
+  const byUid = new Map(box.map((b) => [b.uid, b]));
+  const usedShadows = new Set<string>();
+  const usedRingMons = new Set<string>();
+
+  const chambers: PurificationChamberSet[] = Array.from(
+    { length: MAX_PURIFICATION_CHAMBERS },
+    (_, idx) => {
+      const src = rawChambers?.[idx];
+      let shadowUid: string | null = null;
+      if (src?.shadowUid) {
+        const sh = byUid.get(src.shadowUid);
+        if (sh && sh.isShadow && sh.zone === 'purify' && !usedShadows.has(sh.uid)) {
+          shadowUid = sh.uid;
+          usedShadows.add(sh.uid);
+        }
+      }
+      const ringUids: [string | null, string | null, string | null, string | null] = [
+        null,
+        null,
+        null,
+        null,
+      ];
+      if (Array.isArray(src?.ringUids)) {
+        for (let r = 0; r < 4; r++) {
+          const ruid = src.ringUids[r];
+          if (!ruid || usedRingMons.has(ruid)) continue;
+          const mon = byUid.get(ruid);
+          if (
+            mon &&
+            !mon.isShadow &&
+            (mon.zone === 'box' || mon.zone === 'house')
+          ) {
+            ringUids[r] = mon.uid;
+            usedRingMons.add(mon.uid);
+          }
+        }
+      }
+      return { chamberIndex: idx, shadowUid, ringUids };
+    }
+  );
+
+  // Auto-slot any `zone === 'purify'` Shadow Pokémon not yet assigned to a Chamber!
+  for (const mon of box) {
+    if (mon.isShadow && mon.zone === 'purify' && !usedShadows.has(mon.uid)) {
+      const free = chambers.find((c) => c.shadowUid === null);
+      if (free) {
+        free.shadowUid = mon.uid;
+        usedShadows.add(mon.uid);
+      }
+    }
+  }
+
+  return chambers;
+}
+
 export function syncCustomTeamFromBox(
   box: OwnedPokemonInstance[]
 ): CustomTeamMember[] {
@@ -204,6 +279,7 @@ export function syncCustomTeamFromBox(
     ...(m.evs ? { evs: { ...m.evs } } : {}),
     ...(m.ivs ? { ivs: { ...m.ivs } } : {}),
     shiny: m.shiny,
+    ...(m.isShadow ? { isShadow: true, heartGauge: m.heartGauge ?? 100 } : {}),
   }));
 }
 
@@ -262,6 +338,7 @@ export function createDefaultProfile(
     unlockedPokedex: [...STARTER_UNLOCKED_POKEDEX],
     savedTeams: [],
     nuzlockeDeathLog: [],
+    purificationChambers: createDefaultPurificationChambers(),
     updatedAt: new Date().toISOString(),
   };
 }
@@ -633,6 +710,10 @@ export function normalizeProfile(
     nuzlockeDeathLog: Array.isArray(raw.nuzlockeDeathLog)
       ? raw.nuzlockeDeathLog.slice(0, 200)
       : [],
+    purificationChambers: normalizePurificationChambers(
+      raw.purificationChambers,
+      normalizedBox
+    ),
     updatedAt: raw.updatedAt || new Date().toISOString(),
   };
 }
@@ -2013,6 +2094,21 @@ export function compileCustomTeamToShowdownPaste(
     const customEvsLine = formatEvsLine(m.evs);
     const customIvsLine = formatIvsLine(m.ivs);
     const cleanGender = sanitizeGenderForSpecies(m.species, m.gender);
+    // 5-Bar Heart Gauge EV Lock: sealed Shadow Pokémon (5/5..3/5 bars -> maxEvTotal === 0) fight with 0 EVs!
+    const shadowUnlock = m.isShadow
+      ? getShadowUnlockState({
+          isShadow: true,
+          heartGauge: m.heartGauge ?? 100,
+          species: m.species,
+        })
+      : null;
+    const resolvedEvsLine =
+      shadowUnlock && shadowUnlock.maxEvTotal === 0
+        ? undefined
+        : customEvsLine ??
+          (usesSpecial
+            ? '4 HP / 252 SpA / 252 Spe'
+            : '4 HP / 252 Atk / 252 Spe');
     return {
       nickname: m.nickname?.trim() || undefined,
       species: m.species,
@@ -2023,11 +2119,7 @@ export function compileCustomTeamToShowdownPaste(
       happiness: hasFrustration ? 0 : undefined,
       shiny: m.shiny || undefined,
       teraType: m.teraType || sp.types?.[0] || 'Normal',
-      evs:
-        customEvsLine ??
-        (usesSpecial
-          ? '4 HP / 252 SpA / 252 Spe'
-          : '4 HP / 252 Atk / 252 Spe'),
+      evs: resolvedEvsLine,
       ivs: customIvsLine,
       nature: m.nature || (usesSpecial ? 'Timid' : 'Jolly'),
       moves: m.moves.length > 0 ? m.moves.slice(0, 4) : ['Protect'],
@@ -2342,6 +2434,8 @@ export function recordPostBattleSurvivalState(
     turn?: number;
     difficulty?: BattleDifficultyMode;
     faintLog?: BattleFatalBlow[];
+    /** Count of `📢 Llamar` (`shadowcall`) uses per lowercase species key on p1 during this battle! */
+    shadowCallCounts?: Record<string, number>;
   }
 ): PlayerSaveProfile {
   const perks = computeActiveSocialLinkPerks(profile);
@@ -2460,24 +2554,55 @@ export function recordPostBattleSurvivalState(
     });
   }
 
-  // Tick Shadow Pokémon Heart Gauges (Party: -25/battle; Purification Chamber 'purify': -20/battle or -30 with Nature perks!)
-  // NEVER auto-purifies at 0 — player ALWAYS chooses whether to Purify or deliberately keep Shadow moves forever!
-  const purifyStep =
-    (profile.socialLinks?.e4_veridia?.r1Done || profile.socialLinks?.kemetia_guardian?.r1Done)
-      ? 30
-      : 20;
+  // Tick Shadow Pokémon Heart Gauges using authentic Colosseum Nature Affinities + `📢 Llamar` + XD Chamber Flow & Tempo!
+  // - Party combat: -18 × Nature battleMult (+ -15 × Nature callMult per `📢 Llamar` used in battle!)
+  // - Purification Chamber (`zone === 'purify'`): XD Flow & Tempo ring math × Nature chamberMult (+6 Veridia/Kemetia R1 perk)
+  // - XD001 Dark Lugia Final-Bar Seal: breaking from 20% -> 0% REQUIRES Maximum Tempo in a Purification Chamber (unless Dev Mode)!
+  // - NEVER auto-purifies at 0 — player ALWAYS chooses whether to Purify or deliberately keep Shadow moves forever!
+  const chambers = normalizePurificationChambers(profile.purificationChambers, nextBox);
+  const byUid = new Map(nextBox.map((m) => [m.uid, m]));
+  const naturePerkBonus =
+    profile.socialLinks?.e4_veridia?.r1Done || profile.socialLinks?.kemetia_guardian?.r1Done
+      ? 6
+      : 0;
+  const callCounts = battleContext?.shadowCallCounts ?? {};
+
   nextBox = nextBox.map((inst) => {
     if (!inst.isShadow || inst.zone === 'graveyard') return inst;
     const curGauge = inst.heartGauge ?? 100;
     if (curGauge <= 0) return inst;
+
+    const natureProf = getShadowNatureProfile(inst.nature);
+    const isXd001Lugia = getSpeciesKey(inst.species) === 'lugia';
+    let drop = 0;
+    let hasMaxTempoChamber = false;
+
     if (inst.zone === 'party') {
-      return { ...inst, heartGauge: Math.max(0, curGauge - 25) };
+      const battleDrop = Math.round(18 * natureProf.battleMult);
+      const calls = callCounts[getSpeciesKey(inst.species)] ?? 0;
+      const callDrop = calls * Math.round(15 * natureProf.callMult);
+      drop = battleDrop + callDrop;
+    } else if (inst.zone === 'purify') {
+      const ch = chambers.find((c) => c.shadowUid === inst.uid);
+      const ringMons = ch
+        ? ch.ringUids.map((ruid) => (ruid ? byUid.get(ruid) ?? null : null))
+        : [null, null, null, null];
+      const flowTempo = computeChamberFlowAndTempo(inst, ringMons);
+      hasMaxTempoChamber = flowTempo.isMaxTempo;
+      drop = flowTempo.effectiveHeartDropPerBattle + naturePerkBonus;
+    } else {
+      return inst;
     }
-    if (inst.zone === 'purify') {
-      return { ...inst, heartGauge: Math.max(0, curGauge - purifyStep) };
+
+    let nextGauge = Math.max(0, curGauge - drop);
+    // XD001 Dark Lugia Final-Bar Max-Tempo Seal (authentic Pokémon XD mechanic!)
+    if (isXd001Lugia && nextGauge < 20 && !hasMaxTempoChamber && !profile.devModeEnabled) {
+      nextGauge = Math.min(curGauge, 20);
     }
-    return inst;
+    return { ...inst, heartGauge: nextGauge };
   });
+
+  const syncedChambers = normalizePurificationChambers(chambers, nextBox);
 
   const nextEmergencyHeals =
     perks.hasFreeEmergencyHealPerk && won
@@ -2495,6 +2620,7 @@ export function recordPostBattleSurvivalState(
     fallenPokemon: Array.from(fallenSet),
     ironmanPartyState: nextIronmanState,
     pokemonBox: nextBox,
+    purificationChambers: syncedChambers,
     nuzlockeDeathLog: nextDeathLog,
     customTeam:
       nextBox !== profile.pokemonBox
@@ -2846,12 +2972,241 @@ export function movePokemonInstanceZone(
   const nextBox = profile.pokemonBox.map((b) =>
     b.uid === uid ? { ...b, zone: targetZone } : b
   );
+  const nextChambers = normalizePurificationChambers(
+    profile.purificationChambers,
+    nextBox
+  );
   return {
     ok: true,
     nextProfile: {
       ...profile,
       pokemonBox: nextBox,
+      purificationChambers: nextChambers,
       customTeam: syncCustomTeamFromBox(nextBox),
+      updatedAt: new Date().toISOString(),
+    },
+  };
+}
+
+/* ================= XD Purification Chamber Management (9 Flow & Tempo Rings!) ================= */
+
+export function assignShadowToChamber(
+  profile: PlayerSaveProfile,
+  chamberIndex: number,
+  shadowUid: string | null
+): { ok: boolean; error?: string; nextProfile: PlayerSaveProfile } {
+  if (chamberIndex < 0 || chamberIndex >= MAX_PURIFICATION_CHAMBERS) {
+    return { ok: false, error: 'Cámara de Purificación inválida.', nextProfile: profile };
+  }
+  const chambers = normalizePurificationChambers(
+    profile.purificationChambers,
+    profile.pokemonBox
+  );
+  const prevShadowUid = chambers[chamberIndex].shadowUid;
+
+  if (!shadowUid) {
+    if (!prevShadowUid) return { ok: true, nextProfile: profile };
+    const nextBox = profile.pokemonBox.map((b) =>
+      b.uid === prevShadowUid ? { ...b, zone: 'box' as const } : b
+    );
+    const updatedChambers = chambers.map((c, idx) =>
+      idx === chamberIndex ? { ...c, shadowUid: null } : c
+    );
+    return {
+      ok: true,
+      nextProfile: {
+        ...profile,
+        pokemonBox: nextBox,
+        purificationChambers: normalizePurificationChambers(updatedChambers, nextBox),
+        customTeam: syncCustomTeamFromBox(nextBox),
+        updatedAt: new Date().toISOString(),
+      },
+    };
+  }
+
+  const target = profile.pokemonBox.find((b) => b.uid === shadowUid);
+  if (!target || !target.isShadow || target.zone === 'graveyard') {
+    return {
+      ok: false,
+      error: 'Solo un Pokémon Oscuro vivo puede ocupar el centro de la Cámara de Purificación.',
+      nextProfile: profile,
+    };
+  }
+  if (target.zone === 'party') {
+    const partyCount = profile.pokemonBox.filter((b) => b.zone === 'party').length;
+    if (partyCount <= 1) {
+      return {
+        ok: false,
+        error: 'Debes mantener al menos 1 Pokémon en tu Equipo Activo.',
+        nextProfile: profile,
+      };
+    }
+  }
+
+  const nextBox = profile.pokemonBox.map((b) => {
+    if (b.uid === shadowUid) return { ...b, zone: 'purify' as const };
+    if (prevShadowUid && prevShadowUid !== shadowUid && b.uid === prevShadowUid) {
+      return { ...b, zone: 'box' as const };
+    }
+    return b;
+  });
+  const updatedChambers = chambers.map((c, idx) => {
+    if (idx === chamberIndex) return { ...c, shadowUid };
+    if (c.shadowUid === shadowUid) return { ...c, shadowUid: null };
+    return c;
+  });
+
+  return {
+    ok: true,
+    nextProfile: {
+      ...profile,
+      pokemonBox: nextBox,
+      purificationChambers: normalizePurificationChambers(updatedChambers, nextBox),
+      customTeam: syncCustomTeamFromBox(nextBox),
+      updatedAt: new Date().toISOString(),
+    },
+  };
+}
+
+export function assignRingPokemonToChamber(
+  profile: PlayerSaveProfile,
+  chamberIndex: number,
+  ringSlotIndex: number,
+  monUid: string | null
+): { ok: boolean; error?: string; nextProfile: PlayerSaveProfile } {
+  if (
+    chamberIndex < 0 ||
+    chamberIndex >= MAX_PURIFICATION_CHAMBERS ||
+    ringSlotIndex < 0 ||
+    ringSlotIndex > 3
+  ) {
+    return { ok: false, error: 'Ranura de anillo inválida.', nextProfile: profile };
+  }
+  const chambers = normalizePurificationChambers(
+    profile.purificationChambers,
+    profile.pokemonBox
+  );
+
+  if (monUid) {
+    const mon = profile.pokemonBox.find((b) => b.uid === monUid);
+    if (!mon || mon.isShadow || (mon.zone !== 'box' && mon.zone !== 'house')) {
+      return {
+        ok: false,
+        error:
+          'Solo Pokémon no-Oscuros de tu Caja de Reserva o Casa R3 pueden colocarse en el anillo exterior.',
+        nextProfile: profile,
+      };
+    }
+  }
+
+  const updatedChambers = chambers.map((c, cIdx) => {
+    const nextRing: [string | null, string | null, string | null, string | null] = [
+      c.ringUids[0],
+      c.ringUids[1],
+      c.ringUids[2],
+      c.ringUids[3],
+    ];
+    // Prevent placing the exact same Pokémon instance in two ring slots at once
+    if (monUid) {
+      for (let i = 0; i < 4; i++) {
+        if (nextRing[i] === monUid) nextRing[i] = null;
+      }
+    }
+    if (cIdx === chamberIndex) {
+      nextRing[ringSlotIndex] = monUid;
+    }
+    return { ...c, ringUids: nextRing };
+  });
+
+  return {
+    ok: true,
+    nextProfile: {
+      ...profile,
+      purificationChambers: normalizePurificationChambers(
+        updatedChambers,
+        profile.pokemonBox
+      ),
+      updatedAt: new Date().toISOString(),
+    },
+  };
+}
+
+export function autoOptimizePurificationChamber(
+  profile: PlayerSaveProfile,
+  chamberIndex: number
+): {
+  ok: boolean;
+  error?: string;
+  tempo?: number;
+  isMaxTempo?: boolean;
+  isPerfectSet?: boolean;
+  nextProfile: PlayerSaveProfile;
+} {
+  if (chamberIndex < 0 || chamberIndex >= MAX_PURIFICATION_CHAMBERS) {
+    return { ok: false, error: 'Cámara inválida.', nextProfile: profile };
+  }
+  const chambers = normalizePurificationChambers(
+    profile.purificationChambers,
+    profile.pokemonBox
+  );
+  const targetChamber = chambers[chamberIndex];
+  const shadowMon = targetChamber.shadowUid
+    ? profile.pokemonBox.find((b) => b.uid === targetChamber.shadowUid)
+    : null;
+  if (!shadowMon) {
+    return {
+      ok: false,
+      error: 'Coloca primero un Pokémon Oscuro en el centro de esta Cámara.',
+      nextProfile: profile,
+    };
+  }
+
+  // Exclude ring Pokémon currently occupied in OTHER chambers
+  const busyInOtherChambers = new Set<string>();
+  chambers.forEach((c, idx) => {
+    if (idx === chamberIndex) return;
+    for (const ruid of c.ringUids) {
+      if (ruid) busyInOtherChambers.add(ruid);
+    }
+  });
+
+  const candidates = profile.pokemonBox.filter(
+    (b) =>
+      !b.isShadow &&
+      (b.zone === 'box' || b.zone === 'house') &&
+      !busyInOtherChambers.has(b.uid)
+  );
+  if (candidates.length === 0) {
+    return {
+      ok: false,
+      error:
+        'Necesitas Pokémon no-Oscuros en tu Caja de Reserva o Casa R3 para formar el anillo de Flow y Tempo.',
+      nextProfile: profile,
+    };
+  }
+
+  const optimalRing = autoOptimizeChamberRing(shadowMon, candidates);
+  const byUid = new Map(profile.pokemonBox.map((b) => [b.uid, b]));
+  const evalRes = computeChamberFlowAndTempo(
+    shadowMon,
+    optimalRing.map((uid) => (uid ? byUid.get(uid) ?? null : null))
+  );
+
+  const updatedChambers = chambers.map((c, idx) =>
+    idx === chamberIndex ? { ...c, ringUids: optimalRing } : c
+  );
+
+  return {
+    ok: true,
+    tempo: evalRes.tempo,
+    isMaxTempo: evalRes.isMaxTempo,
+    isPerfectSet: evalRes.isPerfectSet,
+    nextProfile: {
+      ...profile,
+      purificationChambers: normalizePurificationChambers(
+        updatedChambers,
+        profile.pokemonBox
+      ),
       updatedAt: new Date().toISOString(),
     },
   };
@@ -2909,6 +3264,11 @@ export function purifyShadowPokemonInstance(
     };
   });
 
+  const nextChambers = normalizePurificationChambers(
+    profile.purificationChambers,
+    nextBox
+  );
+
   return {
     ok: true,
     species: target.species,
@@ -2916,6 +3276,7 @@ export function purifyShadowPokemonInstance(
     nextProfile: {
       ...profile,
       pokemonBox: nextBox,
+      purificationChambers: nextChambers,
       customTeam: syncCustomTeamFromBox(nextBox),
       updatedAt: nowIso,
     },
@@ -2945,8 +3306,8 @@ export function spawnDevShadowSpecimen(
     spKey === 'lugia'
       ? ['Shadow Aeroblast', 'Shadow Eclipse', 'Shadow Sky', 'Shadow Siphon']
       : isPhys
-        ? ['Shadow Dominion', 'Shadow Rend', 'Shadow Rush', 'Shadow End']
-        : ['Shadow Eclipse', 'Shadow Blast', 'Shadow Storm', 'Shadow Siphon'];
+        ? ['Shadow Cataclysm', 'Shadow Blast', 'Shadow Rush', 'Shadow End']
+        : ['Shadow Eclipse', 'Shadow Storm', 'Shadow Tear', 'Shadow Siphon'];
 
   const currentParty = profile.pokemonBox.filter((m) => m.zone === 'party');
   let baseBox = profile.pokemonBox;
@@ -2984,6 +3345,10 @@ export function spawnDevShadowSpecimen(
   };
 
   const nextBox = [...baseBox, inst];
+  const nextChambers = normalizePurificationChambers(
+    profile.purificationChambers,
+    nextBox
+  );
   const nextPokedex = profile.unlockedPokedex.some((s) => getSpeciesKey(s) === spKey)
     ? profile.unlockedPokedex
     : [...profile.unlockedPokedex, canonical];
@@ -3000,6 +3365,7 @@ export function spawnDevShadowSpecimen(
       inventory: { ...profile.inventory, pokemon: nextInvPokemon },
       unlockedPokedex: nextPokedex,
       pokemonBox: nextBox,
+      purificationChambers: nextChambers,
       customTeam: syncCustomTeamFromBox(nextBox),
       updatedAt: new Date().toISOString(),
     },
@@ -3135,6 +3501,49 @@ export function updatePokemonInstanceBuild(
     return { ok: false, error: 'Instancia no modificable.', nextProfile: profile };
   }
 
+  // Enforce Colosseum/XD 5-Bar Heart Gauge progressive unlocks on Shadow Pokémon (unless Dev Mode!)
+  const shadowUnlock = target.isShadow
+    ? getShadowUnlockState(target, profile.devModeEnabled)
+    : null;
+  if (shadowUnlock && !profile.devModeEnabled) {
+    if (patch.nature !== undefined && !shadowUnlock.natureRevealed) {
+      return {
+        ok: false,
+        error:
+          '🔒 Corazón sellado (5/5–4/5): la Naturaleza permanece oculta (????) hasta abrir 2 barras (≤60%).',
+        nextProfile: profile,
+      };
+    }
+    if (patch.evs !== undefined && shadowUnlock.maxEvTotal === 0) {
+      return {
+        ok: false,
+        error:
+          '🔒 Corazón sellado (5/5–3/5): los EVs están bloqueados en 0 hasta abrir 3 barras (≤40%).',
+        nextProfile: profile,
+      };
+    }
+    if (patch.moves !== undefined) {
+      const prevSet = new Set(target.moves.map((m) => m.toLowerCase()));
+      const newlyAddedNonShadow = patch.moves.filter(
+        (m) => m && !isShadowMoveName(m) && !prevSet.has(m.toLowerCase())
+      );
+      const totalNonShadow = patch.moves.filter((m) => m && !isShadowMoveName(m)).length;
+      if (
+        newlyAddedNonShadow.length > 0 &&
+        totalNonShadow > shadowUnlock.unlockedNonShadowSlots
+      ) {
+        return {
+          ok: false,
+          error:
+            shadowUnlock.unlockedNonShadowSlots === 0
+              ? '🔒 Corazón 5/5 sellado: solo puede aprender movimientos Shadow hasta bajar a 4/5 barras (≤80%).'
+              : `🔒 Corazón ${shadowUnlock.barsClosed}/5: solo tiene ${shadowUnlock.unlockedNonShadowSlots} slot(s) normal(es) abierto(s). Baja a 2/5 barras (≤40%) para liberar todo el moveset.`,
+          nextProfile: profile,
+        };
+      }
+    }
+  }
+
   if (patch.shiny === true && !target.shiny && !profile.devModeEnabled) {
     const currentShinies = profile.pokemonBox.filter(
       (b) => b.zone !== 'graveyard' && b.shiny
@@ -3148,6 +3557,7 @@ export function updatePokemonInstanceBuild(
     }
   }
 
+  const maxEvCap = shadowUnlock ? shadowUnlock.maxEvTotal : 508;
   const nextBox = profile.pokemonBox.map((b) => {
     if (b.uid !== uid) return b;
     const nextNick =
@@ -3159,7 +3569,7 @@ export function updatePokemonInstanceBuild(
         ? sanitizeGenderForSpecies(b.species, patch.gender) || undefined
         : b.gender;
     const nextEvs =
-      patch.evs !== undefined ? sanitizeEvSpread(patch.evs) : b.evs;
+      patch.evs !== undefined ? sanitizeEvSpread(patch.evs, maxEvCap) : b.evs;
     const nextIvs =
       patch.ivs !== undefined ? sanitizeIvSpread(patch.ivs) : b.ivs;
     return {

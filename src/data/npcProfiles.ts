@@ -29,6 +29,24 @@ export const NPC_REGISTRY: Record<CharacterId, NpcDefinition> = {
     dialogues: {},
   },
 
+  prince_baby: {
+    id: 'prince_baby',
+    name: 'Príncipe Bebé (Baby Mode)',
+    title: 'Heredero en Pañales · Sin Cap BST',
+    bio: 'Versión en pañales del Heredero cuando activa Baby Mode para aplastar jefes sin límite de BST y con equipos pegados de Showdown.',
+    tacticalInsight: 'Poder desmedido en modo sandbox narrativo sin estrés.',
+    archetypeTag: 'Protagonista · Baby Mode',
+    personality: {
+      styleName: 'Berrinche Real (Sin Cap)',
+      aggression: 0.9,
+      disruptionBias: 0.2,
+      protectBias: 0.1,
+      switchDiscipline: 0.2,
+      directiveSummary: 'Pulsa el botón más fuerte con equipos legendarios sin restricciones.',
+    },
+    dialogues: {},
+  },
+
   assassin: {
     id: 'assassin',
     name: 'Asesino Carmesí',
