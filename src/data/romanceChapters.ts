@@ -14,6 +14,7 @@ import {
   resolveRomanceRematchBattle,
   resolveRomanceTagBattle,
 } from '../engine/romanceBattles';
+import { isRomanceChapterPlayable } from '../engine/campaignProgression';
 
 const HANDCRAFTED_R1_INK: Record<string, string> = {
   assassin: romanceAssassinR1Ink,
@@ -113,18 +114,17 @@ function buildGeneratedRomanceInk(
 
 /**
  * Checks whether a specific romance chapter (R1/R2/R3) is currently playable for a profile:
- * - R1 (Duelo de Encuentro): ALWAYS unlocked so players can explore every region on Earth!
- * - R2 (Amigos Tag 2v2): Unlocked once R1 is completed (or Dev Mode enabled).
- * - R3 (Revancha Cap Alta): Unlocked once R2 is completed (or Dev Mode enabled).
+ * - Main 3 (Pelirrojo, Duelista, Campeona): R1 unlocked from Act I.
+ * - Regional / Alto Mando NPCs: hidden & locked until main story reaches their region!
+ * - R2 requires R1 completed; R3 requires R2 completed.
+ * - Dev Mode (`devModeEnabled === true`) unlocks everything immediately.
  */
 export function isRomanceChapterUnlocked(
   profile: PlayerSaveProfile,
   npcId: string,
   targetRank: 1 | 2 | 3
 ): boolean {
-  if (profile.devModeEnabled || targetRank === 1) return true;
-  const curRank = profile.socialLinks[npcId]?.rank ?? 0;
-  return curRank >= targetRank - 1;
+  return isRomanceChapterPlayable(profile, npcId, targetRank);
 }
 
 /**

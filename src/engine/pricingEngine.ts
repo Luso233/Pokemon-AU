@@ -231,13 +231,13 @@ export function computeCasualtyIndemnification(
 /* ===================== 3. Imperial License Laws (Dynamic Team Total BST Cap by Act + Difficulty) ===================== */
 
 export interface ImperialBstLicense {
-  actNumber: 1 | 2 | 3 | 4;
+  actNumber: 1 | 2 | 3 | 4 | 5;
   actLabel: string;
   shortLabel: string;
   difficultyUsed: BattleDifficultyMode;
   difficultyDeltaLabel: string;
   baseActCap: number | null;
-  maxTeamBst: number | null; // null = unlimited (Baby Mode / Clímax / Dev Mode)
+  maxTeamBst: number | null; // null = unlimited (Baby Mode / Clímax / Postgame / Dev Mode)
   currentPartyBst: number;
   isOverCap: boolean;
   remainingBst: number | null;
@@ -251,6 +251,7 @@ export function getImperialBstLicense(
   const completedCount = Object.values(profile.completedChapters).filter(
     (c) => c?.completed
   ).length;
+  const isDone = (id: string) => Boolean(profile.completedChapters[id]?.completed);
   const partyMons = profile.pokemonBox.filter((m) => m.zone === 'party');
   const currentPartyBst = partyMons.reduce(
     (sum, m) => sum + computePokemonBst(m.species),
@@ -259,15 +260,22 @@ export function getImperialBstLicense(
   const effDiff: BattleDifficultyMode =
     difficultyOverride ?? profile.defaultDifficulty ?? 'kaizo';
 
-  if (profile.devModeEnabled || completedCount >= 12) {
+  const reachedClimax =
+    profile.devModeEnabled ||
+    Boolean(profile.mainStoryCleared) ||
+    isDone('ch11-poketopia-traitor-council') ||
+    isDone('ch12-bastard-brother-climax') ||
+    completedCount >= 12;
+
+  if (reachedClimax) {
     return {
-      actNumber: 4,
+      actNumber: 5,
       actLabel: 'Clímax y Postgame · Sin Restricción Imperial',
       shortLabel: 'Sin Límite (∞ BST)',
       difficultyUsed: effDiff,
       difficultyDeltaLabel: profile.devModeEnabled
         ? 'Dev Mode (∞)'
-        : 'Clímax (∞)',
+        : 'Clímax / Postgame (∞)',
       baseActCap: null,
       maxTeamBst: null,
       currentPartyBst,
@@ -278,44 +286,63 @@ export function getImperialBstLicense(
     };
   }
 
-  // Base Act Cap (Normal difficulty baseline): Acto 1 = 3,000 · Acto 2 = 3,250 · Acto 3 = 3,550
+  // 4-Act Campaign Escalation Ladder (Base Normal Cap; Tryhard = -300 -> 2,700 / 3,000 / 3,300 / 3,600):
+  //  - Acto I (La Fuga): Base 3,000 (Difícil 2,850 · Tryhard 2,700)
+  //  - Acto II (El Exilio): Base 3,300 (Difícil 3,150 · Tryhard 3,000)
+  //  - Acto III (La Herida Imperial): Base 3,600 (Difícil 3,450 · Tryhard 3,300)
+  //  - Acto IV (El Regreso): Base 3,900 (Difícil 3,750 · Tryhard 3,600)
   const actInfo: {
-    actNumber: 1 | 2 | 3;
+    actNumber: 1 | 2 | 3 | 4;
+    roman: 'I' | 'II' | 'III' | 'IV';
     actLabel: string;
     baseCap: number;
     nextHint: string;
   } =
-    completedCount >= 7
+    isDone('ch9-aeos-ditto-blacksite') || completedCount >= 9
       ? {
-          actNumber: 3,
-          actLabel: 'Acto III · Licencia de Regreso a Wyndon',
-          baseCap: 3550,
-          nextHint: `Supera ${12 - completedCount} capítulo(s) más para abolir el límite BST (Clímax/Postgame).`,
+          actNumber: 4,
+          roman: 'IV',
+          actLabel: 'Acto IV: El Regreso · Licencia de Coalición',
+          baseCap: 3900,
+          nextHint:
+            'Derrota al Consejo Traidor en Pokétopia (Cap. 11) para abolir el límite BST en el Clímax.',
         }
-      : completedCount >= 3
+      : isDone('challenge-three-knights') || completedCount >= 6
         ? {
-            actNumber: 2,
-            actLabel: 'Acto II · Licencia del Exilio Global',
-            baseCap: 3250,
-            nextHint: `Supera ${7 - completedCount} capítulo(s) más para subir al Acto III (Base 3,550 BST).`,
+            actNumber: 3,
+            roman: 'III',
+            actLabel: 'Acto III: La Herida Imperial · Licencia de Asalto',
+            baseCap: 3600,
+            nextHint:
+              'Completa el Black Site de Isla Æos (Cap. 09) para ascender al Acto IV (Tryhard 3,600 BST).',
           }
-        : {
-            actNumber: 1,
-            actLabel: 'Acto I · Licencia de Fuga Imperial',
-            baseCap: 3000,
-            nextHint: `Supera ${3 - completedCount} capítulo(s) más para subir al Acto II (Base 3,250 BST).`,
-          };
+        : isDone('showcase-triples-phalanx') || completedCount >= 3
+          ? {
+              actNumber: 2,
+              roman: 'II',
+              actLabel: 'Acto II: El Exilio · Licencia Global',
+              baseCap: 3300,
+              nextHint:
+                'Supera Cordelia (Tres Caballeros) para abrir el Acto III (Tryhard 3,300 BST).',
+            }
+          : {
+              actNumber: 1,
+              roman: 'I',
+              actLabel: 'Acto I: La Fuga · Licencia de Escape',
+              baseCap: 3000,
+              nextHint: `Supera ${Math.max(1, 3 - completedCount)} capítulo(s) o el Paso de los Pirineos para subir al Acto II (Tryhard 3,000 BST).`,
+            };
 
   // Dynamic Difficulty Modifier:
   //  - Baby Mode: NO CAP (∞ BST)
-  //  - Normal: Base Act Cap (3,000 / 3,250 / 3,550)
-  //  - Difícil (Kaizo): Strict Cap (-150 BST -> 2,850 / 3,100 / 3,400)
-  //  - Tryhard (Diablo): Brutal Cap (-300 BST -> 2,700 / 2,950 / 3,250)
+  //  - Normal: Base Act Cap (3,000 / 3,300 / 3,600 / 3,900)
+  //  - Difícil (Kaizo): Strict Cap (-150 BST -> 2,850 / 3,150 / 3,450 / 3,750)
+  //  - Tryhard (Diablo): Brutal Cap (-300 BST -> 2,700 / 3,000 / 3,300 / 3,600)
   if (effDiff === 'baby') {
     return {
       actNumber: actInfo.actNumber,
       actLabel: `${actInfo.actLabel} · Baby Mode`,
-      shortLabel: `Acto ${actInfo.actNumber === 1 ? 'I' : actInfo.actNumber === 2 ? 'II' : 'III'} · Sin Cap (Baby Mode)`,
+      shortLabel: `Acto ${actInfo.roman} · Sin Cap (Baby Mode)`,
       difficultyUsed: effDiff,
       difficultyDeltaLabel: 'Sin Cap (Baby Mode)',
       baseActCap: actInfo.baseCap,
@@ -337,13 +364,11 @@ export function getImperialBstLicense(
         ? 'Difícil (-150 BST)'
         : 'Normal (Base)';
   const cap = actInfo.baseCap + diffDelta;
-  const roman =
-    actInfo.actNumber === 1 ? 'I' : actInfo.actNumber === 2 ? 'II' : 'III';
 
   return {
     actNumber: actInfo.actNumber,
     actLabel: `${actInfo.actLabel} · ${difficultyDeltaLabel}`,
-    shortLabel: `Acto ${roman} · Cap ${cap.toLocaleString()} BST`,
+    shortLabel: `Acto ${actInfo.roman} · Cap ${cap.toLocaleString()} BST`,
     difficultyUsed: effDiff,
     difficultyDeltaLabel,
     baseActCap: actInfo.baseCap,
@@ -353,9 +378,9 @@ export function getImperialBstLicense(
     remainingBst: cap - currentPartyBst,
     nextActUnlockHint:
       effDiff === 'nightmare'
-        ? `Modo Tryhard recorta -300 BST al Acto ${roman}: combina carries con LC/PU/cheese. ${actInfo.nextHint}`
+        ? `Modo Tryhard fija ${cap.toLocaleString()} BST en Acto ${actInfo.roman}: combina carries con soportes LC/PU. ${actInfo.nextHint}`
         : effDiff === 'kaizo'
-          ? `Modo Difícil recorta -150 BST al Acto ${roman}: exige sinergias y soportes económicos. ${actInfo.nextHint}`
+          ? `Modo Difícil fija ${cap.toLocaleString()} BST en Acto ${actInfo.roman}. ${actInfo.nextHint}`
           : actInfo.nextHint,
   };
 }

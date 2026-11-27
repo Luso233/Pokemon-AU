@@ -1082,6 +1082,37 @@ export const NPC_REGISTRY: Record<CharacterId, NpcDefinition> = {
       onVictory: ['«El telón cae por hoy, príncipe. Afina tu respuesta ante la Megaevolución y vuelve a bailar.»'],
     },
   },
+
+  bastard_brother: {
+    id: 'bastard_brother',
+    name: 'El Hermano Bastardo',
+    title: 'Usurpador del Trono de Galar · Escudo & Eternamax',
+    bio: 'El arquitecto del golpe en Wyndon y socio silencioso de la CRU. Usurpó el Escudo Real de Zamazenta y desató el núcleo prohibido de Eternatus-Eternamax para someter al planeta entero.',
+    tacticalInsight: 'Combina pantallas duales y Trampa Rocas desde Turno 0 con presión Uber (Koraidon, Calyrex-Shadow), Zamazenta-Crowned y Eternatus-Eternamax Nv. 115.',
+    archetypeTag: 'Clímax Final · Escudo & Energía Dinamax',
+    personality: {
+      styleName: 'Tirano Dinamax',
+      aggression: 0.92,
+      disruptionBias: 0.82,
+      protectBias: 0.45,
+      switchDiscipline: 0.88,
+      directiveSummary: 'Aplasta con sinergias Uber bajo pantallas duales y reserva a Eternatus-Eternamax para quebrar equipos desgastados.',
+    },
+    socialLink: {
+      bondTrack: 'antagonist',
+      romanceable: false,
+      canTagPartner: false,
+      bondNote: 'Jefe Final de la Campaña Principal (Clímax: La Corona)',
+    },
+    dialogues: {
+      onBattleStart: ['«Al fin regresaste a casa, hermanito. Lástima que esta Ciudadela ya solo obedece al Escudo Usurpado y a la Energía Dinamax.»'],
+      onFirstFoeKO: ['«Un peón menos… ¿Crees que eso detendrá la maquinaria de Wyndon?»'],
+      onPlayerFaint: ['«Así de frágil fue siempre tu derecho de nacimiento. ¡Arrodíllate!»'],
+      onAceEntry: ['«¡Se acabó el juego! ¡Que la Ciudadela entera tiemble ante la Energía Dinamax infinita de ETERNATUS-ETERNAMAX!»'],
+      onDefeat: ['«Imposible… ¡El Escudo, el núcleo Dinamax, toda la CRU…! ¿Cómo pudiste derribarlo con los desterrados del mundo…?»'],
+      onVictory: ['«Vuelve al exilio si todavía puedes respirar. La Corona de Galar jamás volverá a ser tuya.»'],
+    },
+  },
 };
 
 export function getNpcDefinition(charId: CharacterId): NpcDefinition {

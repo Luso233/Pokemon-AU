@@ -434,9 +434,13 @@ export const WorldWarMap: React.FC<WorldWarMapProps> = ({
       isLongHaul: boolean;
     }> = [];
 
-    for (let i = 0; i < CAMPAIGN_ROUTE_ORDER.length - 1; i++) {
-      const fromId = CAMPAIGN_ROUTE_ORDER[i];
-      const toId = CAMPAIGN_ROUTE_ORDER[i + 1];
+    const visibleRouteOrder = CAMPAIGN_ROUTE_ORDER.filter(
+      (id) => Boolean(chapterById[id])
+    );
+
+    for (let i = 0; i < visibleRouteOrder.length - 1; i++) {
+      const fromId = visibleRouteOrder[i];
+      const toId = visibleRouteOrder[i + 1];
       const fromLoc = CHAPTER_MAP_LOCATIONS[fromId];
       const toLoc = CHAPTER_MAP_LOCATIONS[toId];
       if (!fromLoc || !toLoc) continue;
@@ -466,7 +470,7 @@ export const WorldWarMap: React.FC<WorldWarMapProps> = ({
       });
     }
     return legs;
-  }, [geoBundle, completedChapterIds, nextObjectiveChapterId]);
+  }, [geoBundle, chapterById, completedChapterIds, nextObjectiveChapterId]);
 
   const handleJumpToNextObjective = () => {
     if (!nextObjectiveChapter || !nextObjectiveLocation) return;

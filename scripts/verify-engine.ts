@@ -65,6 +65,7 @@ import {
   purchaseShinyCharm,
   purchaseTM,
   recordPostBattleSurvivalState,
+  recordRomanceConfession,
   releasePokemonInstance,
   resetStoryProgress,
   saveCurrentPartyAsTeam,
@@ -107,6 +108,21 @@ import {
   resolveRomanceRematchBattle,
   resolveRomanceTagBattle,
 } from '../src/engine/romanceBattles';
+import {
+  resolveAeosDittoBlackSiteBattle,
+  resolveBastardBrotherClimaxBattle,
+  resolveOrreShadowAmbushBattle,
+  resolvePoketopiaTraitorCouncilBattle,
+  resolvePostgameChampionBattle,
+  resolveTamraCruViceroyBattle,
+  resolveTohjoShentaiTrialBattle,
+} from '../src/engine/campaignEscalationBattles';
+import {
+  isBabyShamed,
+  isChapterVisible,
+  isRomanceNpcVisible,
+  resolveEnding,
+} from '../src/engine/campaignProgression';
 import {
   applyBabyOrDevNatDexFallback,
   evaluateBabyModeComedyStamp,
@@ -1723,9 +1739,14 @@ async function main() {
   const chaptersSource = readFileSync(resolve('src/data/chapters.ts'), 'utf8');
   const editableMatches = chaptersSource.match(/teamEditPolicy:\s*'editable'/g) ?? [];
   const fixedMatches = chaptersSource.match(/teamEditPolicy:\s*'fixed'/g) ?? [];
-  if (editableMatches.length + fixedMatches.length !== 16 || editableMatches.length < 4 || fixedMatches.length < 8) {
+  const expectedTotalChapters = Object.keys(CHAPTER_UNLOCK_RULES).length;
+  if (
+    editableMatches.length + fixedMatches.length !== expectedTotalChapters ||
+    editableMatches.length < 4 ||
+    fixedMatches.length < 8
+  ) {
     throw new Error(
-      `Expected all 16 chapters split between editable & fixed teamEditPolicy, got editable=${editableMatches.length}, fixed=${fixedMatches.length}`
+      `Expected all ${expectedTotalChapters} chapters split between editable & fixed teamEditPolicy, got editable=${editableMatches.length}, fixed=${fixedMatches.length}`
     );
   }
   for (const [cid, rule] of Object.entries(CHAPTER_UNLOCK_RULES)) {
@@ -2062,12 +2083,12 @@ async function main() {
   const lockedMatches = chaptersSrc.match(/teamMode:\s*'locked'/g) ?? [];
   const challengeMatches = chaptersSrc.match(/teamMode:\s*'challenge'/g) ?? [];
   if (
-    campaignMatches.length !== 5 ||
+    campaignMatches.length !== 12 ||
     lockedMatches.length !== 6 ||
     challengeMatches.length !== 5
   ) {
     throw new Error(
-      `Expected 3-mode distribution 5 campaign / 6 locked / 5 challenge in chapters.ts, got campaign=${campaignMatches.length}, locked=${lockedMatches.length}, challenge=${challengeMatches.length}`
+      `Expected 3-mode distribution 12 campaign / 6 locked / 5 challenge in chapters.ts, got campaign=${campaignMatches.length}, locked=${lockedMatches.length}, challenge=${challengeMatches.length}`
     );
   }
   if (
@@ -3037,7 +3058,275 @@ IVs: 0 Atk
     `  OK: 13/13 Unique Aces, ZERO duplicate species across ${speciesOwner.size} distinct regional Pokémon (all 13 NPCs R1+R3), 13/13 Unique R3 Legendaries, Pikachu @ Light Ball, persistent Turn-0 Biomes (MagicRoom=${magicPw.turnsLeft}t, WonderRoom=${wonderPw.turnsLeft}t, Gravity=${gravPw.turnsLeft}t, Snow=${ferrumT1.weatherTurnsLeft}t), & Ancestral Rival Naming (default='${DEFAULT_RIVAL_NAME}', 'Dickfart'->Ink/Battle, 'Gary'->Tag 2v2) ALL VERIFIED!`
   );
 
-  console.log('\nALL 28 ENGINE, MAP, ROMANCE, BIOME FIELD, ZERO-DUPLICATE ROSTER & RIVAL NAMING SUITES PASSED!');
+  console.log(
+    '\n=== 29. 4-Act Campaign Escalation -> Bastard Brother Climax (Zamazenta + Eternamax) -> Postgame Champion, Hidden Visibility & Confession Endings ==='
+  );
+  // 1) Run live @pkmn/sim matches for ALL 7 new escalation battles including Bastard Brother Climax & Postgame Champion!
+  const orreCfg = resolveOrreShadowAmbushBattle({});
+  const { turn1Snap: orreT1 } = await runFullSimMatch(
+    'Act II — Orre Shadow Ambush (Sandstorm 99t + Life Orb/Choice)',
+    orreCfg,
+    { maxTurns: 30 }
+  );
+  if (!orreT1?.weather.includes('Arena') || (orreT1.weatherTurnsLeft ?? 0) < 90) {
+    throw new Error(`Expected persistent Sandstorm on Orre Act II, got ${orreT1?.weather} (${orreT1?.weatherTurnsLeft}t)`);
+  }
+
+  const tamraCfg = resolveTamraCruViceroyBattle({});
+  const { turn1Snap: tamraT1 } = await runFullSimMatch(
+    'Act III — Tamra CRU Viceroy (Hazards T0 + Copperajah ★ Lv.102)',
+    tamraCfg,
+    { maxTurns: 30 }
+  );
+  if (!tamraT1?.p1.sideConditions.some((c) => c.toLowerCase().includes('stealth'))) {
+    throw new Error(`Expected Turn-0 Stealth Rock on player side in Tamra Viceroy, got [${tamraT1?.p1.sideConditions.join(', ')}]`);
+  }
+
+  const aeosSiteCfg = resolveAeosDittoBlackSiteBattle({});
+  const { turn1Snap: aeosT1 } = await runFullSimMatch(
+    'Act III — Isla Æos Ditto Black Site (Electric Terrain 99t + Imposter Ditto Lv.115)',
+    aeosSiteCfg,
+    { maxTurns: 30 }
+  );
+  if (
+    !aeosT1?.terrain.includes('Eléctrico') ||
+    !aeosSiteCfg.rivalShowdownPaste.includes('Level: 115')
+  ) {
+    throw new Error(`Expected Electric Terrain + Lv.115 Imposter Ditto in Isla Æos Black Site!`);
+  }
+
+  const tohjoTrialCfg = resolveTohjoShentaiTrialBattle({});
+  const { turn1Snap: tohjoT1 } = await runFullSimMatch(
+    'Act IV — Tohjo/Shentai Free Powers Trial (Gravity 99t + OU/Uber)',
+    tohjoTrialCfg,
+    { maxTurns: 30 }
+  );
+  if (!tohjoT1?.activePseudoWeathers?.some((p) => p.id === 'gravity' && (p.turnsLeft ?? 0) >= 90)) {
+    throw new Error(`Expected persistent Gravity (99t) on Act IV Tohjo/Shentai Trial!`);
+  }
+
+  const councilCfg = resolvePoketopiaTraitorCouncilBattle({});
+  const { turn1Snap: councilT1 } = await runFullSimMatch(
+    'Act IV — Pokétopia Traitor Council (Trick Room + Wonder Room + Miraidon/Calyrex-Ice)',
+    councilCfg,
+    { maxTurns: 30 }
+  );
+  if (
+    !councilT1?.trickRoomTurnsLeft ||
+    !councilT1.activePseudoWeathers?.some((p) => p.id === 'wonderroom')
+  ) {
+    throw new Error(`Expected Trick Room + Wonder Room on Act IV Traitor Council!`);
+  }
+
+  const climaxCfg = resolveBastardBrotherClimaxBattle({});
+  const { turn1Snap: climaxT1 } = await runFullSimMatch(
+    'CLIMAX — Bastard Brother (Zamazenta-Crowned Lv.112 + Eternatus-Eternamax ★ Lv.115 + Dual Screens)',
+    climaxCfg,
+    { maxTurns: 35 }
+  );
+  if (
+    !climaxCfg.rivalShowdownPaste.includes('Zamazenta-Crowned') ||
+    !climaxCfg.rivalShowdownPaste.includes('Eternatus-Eternamax') ||
+    !climaxT1?.p2.sideConditions.some((c) => c.toLowerCase().includes('reflect')) ||
+    !climaxT1?.p2.sideConditions.some((c) => c.toLowerCase().includes('light screen')) ||
+    !climaxT1?.p1.sideConditions.some((c) => c.toLowerCase().includes('stealth'))
+  ) {
+    throw new Error(
+      `Bastard Brother Climax failed: p2Conds=[${climaxT1?.p2.sideConditions.join(', ')}], p1Conds=[${climaxT1?.p1.sideConditions.join(', ')}]`
+    );
+  }
+
+  const postgameCfg = resolvePostgameChampionBattle({});
+  const { turn1Snap: pgT1 } = await runFullSimMatch(
+    'POSTGAME — Champion Anything Goes (Kyogre/Xerneas/Zacian-C/Calyrex-S/Arceus/Mega-Rayquaza ★ Lv.120)',
+    postgameCfg,
+    { maxTurns: 35 }
+  );
+  if (
+    !pgT1?.weather.includes('Lluvia') ||
+    !pgT1?.p2.sideConditions.some((c) => c.toLowerCase().includes('tailwind')) ||
+    !postgameCfg.rivalShowdownPaste.includes('Rayquaza-Mega') ||
+    !postgameCfg.rivalShowdownPaste.includes('Level: 120')
+  ) {
+    throw new Error(`Postgame Champion AG failed: wx=${pgT1?.weather}, p2Conds=[${pgT1?.p2.sideConditions.join(', ')}]`);
+  }
+
+  // 2) Hidden Visibility (`hideWhenLocked`, Regional Social Link gating, Postgame lock, & Dev Mode override) + 4-Act BST Ladder!
+  let campProf = createDefaultProfile('Exiliado', 'exile@galar.com');
+  if (
+    !isChapterVisible(campProf, 'ch1-wyndon-chase') ||
+    !isChapterVisible(campProf, 'ch2-monotype-banners') ||
+    isChapterVisible(campProf, 'ch4-orre-shadow-ambush') ||
+    isChapterVisible(campProf, 'ch12-bastard-brother-climax') ||
+    isChapterVisible(campProf, 'ch13-postgame-champion')
+  ) {
+    throw new Error('Initial Act I hideWhenLocked visibility rules mismatch!');
+  }
+  // Main 3 SLs visible at R1; ALL 10 regional SLs HIDDEN initially!
+  if (
+    !isRomanceNpcVisible(campProf, 'assassin') ||
+    !isRomanceNpcVisible(campProf, 'court_duelist') ||
+    !isRomanceNpcVisible(campProf, 'champion') ||
+    isRomanceNpcVisible(campProf, 'mesoa_boss') ||
+    isRomanceNpcVisible(campProf, 'cordelia_astronomer') ||
+    isRomanceNpcVisible(campProf, 'kemetia_keeper') ||
+    isRomanceNpcVisible(campProf, 'aeos_geneticist') ||
+    isRomanceNpcVisible(campProf, 'e4_kalos') ||
+    isChapterVisible(campProf, 'romance-assassin-r2')
+  ) {
+    throw new Error('Initial Regional Social Link visibility gating mismatch!');
+  }
+  // Dev Mode MUST make EVERY hidden chapter, Postgame, and ALL 13 Social Links visible immediately!
+  const devVisProf = { ...campProf, devModeEnabled: true };
+  if (
+    !isChapterVisible(devVisProf, 'ch12-bastard-brother-climax') ||
+    !isChapterVisible(devVisProf, 'ch13-postgame-champion') ||
+    !isRomanceNpcVisible(devVisProf, 'e4_veridia') ||
+    !isChapterVisible(devVisProf, 'romance-e4_veridia-r3')
+  ) {
+    throw new Error('Dev Mode visibility bypass failed!');
+  }
+
+  // Step through Acts I -> II -> III -> IV -> Climax -> Postgame verifying Tryhard BST Caps & Regional SL Discovery!
+  if (getImperialBstLicense(campProf, 'nightmare').maxTeamBst !== 2700) {
+    throw new Error('Expected Act I Tryhard BST Cap = 2700!');
+  }
+  campProf = applyBattleOutcomeToProfile(campProf, 'showcase-triples-phalanx', true, 8, undefined, { difficulty: 'kaizo' }).nextProfile;
+  if (getImperialBstLicense(campProf, 'nightmare').maxTeamBst !== 3000) {
+    throw new Error(`Expected Act II Tryhard BST Cap = 3000, got ${getImperialBstLicense(campProf, 'nightmare').maxTeamBst}`);
+  }
+  const mesoaClear = applyBattleOutcomeToProfile(campProf, 'ch3-clandestine-tamer', true, 10, undefined, { difficulty: 'kaizo' });
+  campProf = mesoaClear.nextProfile;
+  if (!isRomanceNpcVisible(campProf, 'mesoa_boss')) {
+    throw new Error('Expected Mesoa Boss SL to become visible upon clearing Mesoa story chapter!');
+  }
+  const orreClear = applyBattleOutcomeToProfile(campProf, 'ch4-orre-shadow-ambush', true, 11, undefined, { difficulty: 'kaizo' });
+  campProf = orreClear.nextProfile;
+  if (
+    !isRomanceNpcVisible(campProf, 'cordelia_astronomer') ||
+    !orreClear.reward?.newlyUnlockedSocialLinks?.some((s) => s.npcId === 'cordelia_astronomer')
+  ) {
+    throw new Error('Expected Cordelia Astronomer SL notification + visibility upon clearing Orre!');
+  }
+  campProf = applyBattleOutcomeToProfile(campProf, 'challenge-three-knights', true, 9, undefined, { difficulty: 'kaizo' }).nextProfile;
+  if (getImperialBstLicense(campProf, 'nightmare').maxTeamBst !== 3300) {
+    throw new Error(`Expected Act III Tryhard BST Cap = 3300, got ${getImperialBstLicense(campProf, 'nightmare').maxTeamBst}`);
+  }
+  campProf = applyBattleOutcomeToProfile(campProf, 'ch9-aeos-ditto-blacksite', true, 12, undefined, { difficulty: 'kaizo' }).nextProfile;
+  if (
+    getImperialBstLicense(campProf, 'nightmare').maxTeamBst !== 3600 ||
+    !isRomanceNpcVisible(campProf, 'aeos_geneticist') ||
+    !isRomanceNpcVisible(campProf, 'poketopia_croupier')
+  ) {
+    throw new Error('Expected Act IV Tryhard BST Cap = 3600 + Isla Æos / Pokétopia SLs unlocked!');
+  }
+  campProf = applyBattleOutcomeToProfile(campProf, 'ch10-tohjo-shentai-trial', true, 12, undefined, { difficulty: 'kaizo' }).nextProfile;
+  if (
+    !isRomanceNpcVisible(campProf, 'e4_ransei') ||
+    !isRomanceNpcVisible(campProf, 'e4_ferrum') ||
+    !isRomanceNpcVisible(campProf, 'e4_veridia') ||
+    !isRomanceNpcVisible(campProf, 'e4_kalos')
+  ) {
+    throw new Error('Expected all 4 Late-Game Alto Mando SLs visible after Act IV Tohjo/Shentai Trial!');
+  }
+  campProf = applyBattleOutcomeToProfile(campProf, 'ch11-poketopia-traitor-council', true, 14, undefined, { difficulty: 'kaizo' }).nextProfile;
+  if (
+    getImperialBstLicense(campProf, 'nightmare').maxTeamBst !== null ||
+    !isChapterVisible(campProf, 'ch12-bastard-brother-climax') ||
+    isChapterVisible(campProf, 'ch13-postgame-champion')
+  ) {
+    throw new Error('Expected Climax unlocked with unlimited BST Cap while Postgame remains hidden before beating Bastard Brother!');
+  }
+  campProf = applyBattleOutcomeToProfile(campProf, 'ch12-bastard-brother-climax', true, 18, undefined, { difficulty: 'kaizo' }).nextProfile;
+  if (!campProf.mainStoryCleared || !isChapterVisible(campProf, 'ch13-postgame-champion')) {
+    throw new Error('Expected Postgame Optional Champion (Ch13) to reveal ONLY after defeating Bastard Brother Climax!');
+  }
+  campProf = applyBattleOutcomeToProfile(campProf, 'ch13-postgame-champion', true, 20, undefined, { difficulty: 'kaizo' }).nextProfile;
+  if (!campProf.masteryBadgeUnlocked || !campProf.newGamePlusUnlocked) {
+    throw new Error('Expected Postgame Champion clear to grant True Mastery Badge & New Game+!');
+  }
+  const ngpProf = createNewConfiguredRunProfile({
+    displayName: campProf.displayName,
+    email: campProf.email,
+    runName: 'NG+ Run',
+    rivalName: 'Locke',
+    slotIndex: 3,
+    vnPacingMode: 'full',
+    defaultDifficulty: 'nightmare',
+    ironmanMode: true,
+    nuzlockePermadeath: true,
+    newGamePlusFrom: campProf,
+  });
+  if (!ngpProf.masteryBadgeUnlocked || (ngpProf.newGamePlusCount ?? 0) !== 1) {
+    throw new Error('Expected New Game+ profile to carry over True Mastery Badge and increment newGamePlusCount!');
+  }
+
+  // 3) Post-R3 Confession vs Platonic System + resolveEnding() (SOLO_MONARCH -> ROMANCE_e4_kalos -> HAREM -> BABY_ENDING)!
+  let endProf = createDefaultProfile('Príncipe', 'prince@galar.com');
+  // Max early-game Assassin & Duelist to R3, pick PLATONIC for both -> keeps all 6 House Pokémon, heart stays FREE!
+  endProf = completeRomanceRank(endProf, 'assassin', 3);
+  endProf = completeRomanceRank(endProf, 'court_duelist', 3);
+  endProf = recordRomanceConfession(endProf, 'assassin', 'platonic').nextProfile;
+  endProf = recordRomanceConfession(endProf, 'court_duelist', 'platonic').nextProfile;
+  if (
+    endProf.firstConfessionNpcId !== null ||
+    endProf.pokemonBox.filter((b) => b.zone === 'house').length !== 6 ||
+    resolveEnding(endProf).type !== 'SOLO_MONARCH_ENDING'
+  ) {
+    throw new Error(`Expected Platonic R3 early-game allies to grant 6 House Pokémon while keeping SOLO_MONARCH_ENDING!`);
+  }
+  // Now save FIRST confession for Late-Game Alto Mando (`e4_kalos`), then confess to `champion` too -> Ending stays `ROMANCE_e4_kalos`!
+  endProf = completeRomanceRank(endProf, 'e4_kalos', 3);
+  const firstConf = recordRomanceConfession(endProf, 'e4_kalos', 'confess');
+  endProf = firstConf.nextProfile;
+  endProf = completeRomanceRank(endProf, 'champion', 3);
+  const secondConf = recordRomanceConfession(endProf, 'champion', 'confess');
+  endProf = secondConf.nextProfile;
+  if (
+    !firstConf.isFirstConfession ||
+    secondConf.isFirstConfession ||
+    endProf.firstConfessionNpcId !== 'e4_kalos' ||
+    (endProf.confessedNpcIds?.length ?? 0) !== 2 ||
+    resolveEnding(endProf).type !== 'ROMANCE_e4_kalos'
+  ) {
+    throw new Error(`Expected FIRST confession ('e4_kalos') to lock ROMANCE_e4_kalos even after secondary confession!`);
+  }
+  // Confess to ALL 13 romanceables -> HAREM_ENDING!
+  let haremProf = endProf;
+  for (const npc of ROMANCE_ROSTER) {
+    haremProf = completeRomanceRank(haremProf, npc.id, 3);
+    haremProf = recordRomanceConfession(haremProf, npc.id, 'confess').nextProfile;
+  }
+  if (resolveEnding(haremProf).type !== 'HAREM_ENDING') {
+    throw new Error(`Expected 13/13 confessions to trigger HAREM_ENDING, got ${resolveEnding(haremProf).type}`);
+  }
+  // Baby Mode win -> isBabyShamed === true -> Humiliating Rejection on confess + BABY_ENDING!
+  const babyWinProf = applyBattleOutcomeToProfile(
+    createDefaultProfile('Bebe', 'baby@galar.com'),
+    'ch1-wyndon-chase',
+    true,
+    5,
+    undefined,
+    { difficulty: 'baby' }
+  ).nextProfile;
+  const babyReject = recordRomanceConfession(
+    completeRomanceRank(babyWinProf, 'assassin', 3),
+    'assassin',
+    'confess'
+  );
+  if (
+    !isBabyShamed(babyWinProf) ||
+    babyReject.outcome !== 'rejected_baby' ||
+    resolveEnding(babyReject.nextProfile).type !== 'BABY_ENDING'
+  ) {
+    throw new Error(`Expected Baby Mode shame rejection & BABY_ENDING, got outcome=${babyReject.outcome}, ending=${resolveEnding(babyReject.nextProfile).type}`);
+  }
+
+  console.log(
+    `  OK: 4-Act Campaign Ladder (2700->3000->3300->3600->∞ BST), ALL 7 New Escalation Battles incl. Bastard Brother Climax (Zamazenta-C Lv.112 + Eternatus-Eternamax ★ Lv.115) & Postgame Champion AG (Lv.120 + Mastery Badge + NG+), Hidden Visibility + Regional SL Discovery + Dev Mode Override, & Confession Endings (SOLO_MONARCH / ROMANCE_e4_kalos / HAREM 13/13 / BABY_ENDING) ALL VERIFIED!`
+  );
+
+  console.log('\nALL 29 ENGINE, CAMPAIGN LADDER, HIDDEN VISIBILITY, CONFESSION ENDINGS, BIOME & RIVAL NAMING SUITES PASSED!');
 }
 
 let allSuitesCompleted = false;

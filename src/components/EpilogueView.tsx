@@ -20,7 +20,10 @@ import {
 } from 'lucide-react';
 import { CHAPTERS } from '../data/chapters';
 import { CURRENCY_NAME, DIFFICULTY_META } from '../data/economyCatalog';
-import { computeActiveSocialLinkPerks } from '../data/socialLinksCatalog';
+import {
+  buildPostRank3ConfessionScene,
+  resolveEnding,
+} from '../engine/campaignProgression';
 import { evaluateBabyModeComedyStamp } from '../engine/formatFallback';
 import { applyRivalNameToText, getRivalName } from '../engine/rivalName';
 import {
@@ -59,6 +62,14 @@ interface EpilogueViewProps {
   onOpenShop?: () => void;
   onOpenVersus: () => void;
   onBackHome: () => void;
+  onRecordConfession?: (
+    npcId: string,
+    choice: 'confess' | 'platonic'
+  ) => {
+    outcome: 'confessed' | 'platonic' | 'rejected_baby';
+    isFirstConfession: boolean;
+  };
+  onStartNewGamePlus?: () => void;
 }
 
 export const EpilogueView: React.FC<EpilogueViewProps> = ({
@@ -78,8 +89,14 @@ export const EpilogueView: React.FC<EpilogueViewProps> = ({
   onOpenShop,
   onOpenVersus,
   onBackHome,
+  onRecordConfession,
+  onStartNewGamePlus,
 }) => {
   const [copiedTweet, setCopiedTweet] = useState(false);
+  const [confessionFeedback, setConfessionFeedback] = useState<{
+    outcome: 'confessed' | 'platonic' | 'rejected_baby';
+    isFirstConfession: boolean;
+  } | null>(null);
   const rivalName = getRivalName(profile);
   const fmt = (text: string) => applyRivalNameToText(text, rivalName);
   const isVersus = Boolean(config.isVersusMatch);
@@ -229,40 +246,216 @@ export const EpilogueView: React.FC<EpilogueViewProps> = ({
           </div>
         )}
 
-        {/* Romance / Harem Ending & Ultra Nuzlocke Survival Banner */}
+        {/* Post-Rank-3 Confession Bifurcation Scene (Ink-style Closing Choice) */}
+        {!isVersus &&
+          won &&
+          config.romanceMeta?.targetRank === 3 &&
+          profile &&
+          onRecordConfession && (() => {
+            const npcId = config.romanceMeta.npcId;
+            const scene = buildPostRank3ConfessionScene(npcId, profile);
+            const savedChoice = profile.socialLinks?.[npcId]?.r3Choice;
+            const resolvedOutcome =
+              confessionFeedback?.outcome ??
+              (savedChoice === 'confess'
+                ? 'confessed'
+                : savedChoice === 'platonic'
+                  ? 'platonic'
+                  : savedChoice === 'rejected_baby'
+                    ? 'rejected_baby'
+                    : null);
+            const isFirst =
+              confessionFeedback?.isFirstConfession ??
+              profile.firstConfessionNpcId === npcId;
+            return (
+              <div className="mb-5 rounded-2xl border-2 border-fuchsia-400/55 bg-gradient-to-br from-fuchsia-950/55 via-slate-950/92 to-pink-950/45 p-5 shadow-xl">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="inline-flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-fuchsia-200">
+                    <Heart className="h-4 w-4 fill-fuchsia-400 text-fuchsia-400" />
+                    {scene.promptHeader}
+                  </span>
+                  <span className="rounded-full border border-emerald-400/40 bg-emerald-500/15 px-2.5 py-0.5 text-[10px] font-bold text-emerald-200">
+                    ✓ Casa PC R3 Desbloqueada (sin compromiso obligatorio)
+                  </span>
+                </div>
+                <p className="mt-2 text-xs leading-relaxed text-slate-200">
+                  {scene.promptQuestion}
+                </p>
+
+                {!resolvedOutcome ? (
+                  <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const res = onRecordConfession(npcId, 'confess');
+                        setConfessionFeedback(res);
+                      }}
+                      className="rounded-xl border-2 border-pink-400/70 bg-gradient-to-r from-pink-600/35 to-fuchsia-600/35 px-4 py-3 text-left transition hover:brightness-125 cursor-pointer"
+                    >
+                      <p className="text-xs font-extrabold text-pink-100">
+                        {scene.confessButtonLabel}
+                      </p>
+                      <p className="mt-1 text-[10.5px] text-pink-200/80">
+                        {profile.firstConfessionNpcId
+                          ? 'Suma hacia el Ending Harem (13/13); tu Ending principal sigue fijado en tu primera confesión.'
+                          : '¡Tu primera confesión! Define oficialmente tu Ending Romántico tras el Clímax.'}
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const res = onRecordConfession(npcId, 'platonic');
+                        setConfessionFeedback(res);
+                      }}
+                      className="rounded-xl border-2 border-sky-400/55 bg-sky-950/45 px-4 py-3 text-left transition hover:bg-sky-900/55 cursor-pointer"
+                    >
+                      <p className="text-xs font-extrabold text-sky-100">
+                        {scene.platonicButtonLabel}
+                      </p>
+                      <p className="mt-1 text-[10.5px] text-sky-200/80">
+                        Cierre emotivo de camaradería: conservas Rango 3 y sus 3 Pokémon en Casa PC sin ocupar tu Ending Romántico.
+                      </p>
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    className={`mt-3 rounded-xl border p-3.5 text-xs leading-relaxed ${
+                      resolvedOutcome === 'rejected_baby'
+                        ? 'border-sky-400/55 bg-sky-950/50 text-sky-100'
+                        : resolvedOutcome === 'confessed'
+                          ? 'border-pink-400/55 bg-pink-950/40 text-pink-50'
+                          : 'border-emerald-400/45 bg-emerald-950/35 text-emerald-50'
+                    }`}
+                  >
+                    <p>
+                      {resolvedOutcome === 'rejected_baby'
+                        ? scene.babyRejectionScene
+                        : resolvedOutcome === 'confessed'
+                          ? isFirst
+                            ? scene.confessFirstScene
+                            : scene.confessSecondaryScene
+                          : scene.platonicScene}
+                    </p>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+        {/* Climax Definitive Ending Showcase (Chapter 12: Bastard Brother) & Postgame Mastery Showcase (Chapter 13) */}
+        {!isVersus && won && profile && chapter.id === 'ch12-bastard-brother-climax' && (() => {
+          const finalEnding = resolveEnding(profile);
+          return (
+            <div className="mb-5 rounded-2xl border-2 border-amber-300/70 bg-gradient-to-br from-amber-950/60 via-fuchsia-950/50 to-slate-950/95 p-5 shadow-2xl">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/60 bg-amber-500/20 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-amber-100">
+                  <Crown className="h-3.5 w-3.5 text-amber-300" />
+                  {finalEnding.badge}
+                </span>
+                <span className="font-mono-code text-[10px] font-bold text-fuchsia-200">
+                  Confesiones: {finalEnding.confessedCount}/{finalEnding.totalRomanceables}
+                </span>
+              </div>
+              <h2 className="mt-2.5 font-display text-xl font-extrabold text-white">
+                {finalEnding.headline}
+              </h2>
+              <p className="mt-1.5 text-xs leading-relaxed text-amber-50/90">
+                {finalEnding.summary}
+              </p>
+              <p className="mt-3 rounded-xl border border-purple-400/45 bg-purple-950/45 px-3 py-2 text-[11px] font-bold text-purple-100">
+                🏟️ ¡Postgame Desbloqueado! Ahora aparece en el Mapa el desafío opcional Anything Goes contra La Campeona de Galar (Cap. 13 · Nv. 115–120).
+              </p>
+            </div>
+          );
+        })()}
+
+        {!isVersus && won && profile && chapter.id === 'ch13-postgame-champion' && (
+          <div className="mb-5 rounded-2xl border-2 border-amber-300/80 bg-gradient-to-r from-amber-500/20 via-purple-950/70 to-amber-500/20 p-5 shadow-2xl">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-amber-200">
+                  <Trophy className="h-4 w-4 text-amber-300" />
+                  🏆 TRUE MASTERY BADGE OBTENIDO
+                </p>
+                <p className="mt-1 text-xs text-slate-200">
+                  Conquistaste Anything Goes puro (Nv. 115–120) contra La Campeona de Galar. New Game+ queda desbloqueado permanentemente.
+                </p>
+              </div>
+              {onStartNewGamePlus && (
+                <button
+                  type="button"
+                  onClick={onStartNewGamePlus}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-300 px-4 py-2 text-xs font-black text-slate-950 shadow-lg hover:brightness-110 cursor-pointer"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Iniciar New Game+
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Discreet Regional Social Link Discovery Banner */}
+        {!isVersus &&
+          won &&
+          reward?.newlyUnlockedSocialLinks &&
+          reward.newlyUnlockedSocialLinks.length > 0 && (
+            <div className="mb-5 rounded-2xl border border-fuchsia-400/50 bg-fuchsia-950/35 p-3.5 text-xs text-fuchsia-100">
+              <div className="flex items-center gap-1.5 font-extrabold text-fuchsia-200">
+                <Heart className="h-4 w-4 fill-fuchsia-400 text-fuchsia-400" />
+                Nuevos Vínculos Regionales Descubiertos en el Mapa:
+              </div>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {reward.newlyUnlockedSocialLinks.map((sl) => (
+                  <span
+                    key={sl.npcId}
+                    className="rounded-lg border border-fuchsia-400/40 bg-fuchsia-500/20 px-2.5 py-1 text-[11px] font-bold text-white"
+                  >
+                    ♥ Nuevo Vínculo disponible en {sl.regionName}: {sl.npcName}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+        {/* Romance / Ending Preview & Ultra Nuzlocke Survival Banner */}
         {!isVersus && profile && (() => {
-          const perks = computeActiveSocialLinkPerks(profile);
+          const finalEnding = resolveEnding(profile);
           const fallenInBattle =
             profile.nuzlockePermadeath && battleSummary
               ? battleSummary.p1.party.filter((p) => p.fainted).map((p) => p.species)
               : [];
+          const showEndingPreview =
+            won &&
+            chapter.id !== 'ch12-bastard-brother-climax' &&
+            (finalEnding.type === 'HAREM_ENDING' ||
+              finalEnding.type.startsWith('ROMANCE_'));
           return (
             <div className="mb-5 space-y-3">
-              {won && perks.activeEndingKind === 'harem' && (
+              {showEndingPreview && finalEnding.type === 'HAREM_ENDING' && (
                 <div className="rounded-2xl border border-amber-300/65 bg-gradient-to-r from-fuchsia-950/70 via-amber-950/50 to-rose-950/70 p-4">
                   <div className="flex items-center gap-2 text-amber-200">
                     <Crown className="h-4 w-4 text-amber-300" />
                     <span className="font-display text-sm font-extrabold uppercase tracking-wider">
-                      👑 Ending Secreto Desbloqueado: Harem — Corona de Vínculos
+                      {finalEnding.headline}
                     </span>
                   </div>
                   <p className="mt-1.5 text-xs leading-relaxed text-amber-100/90">
-                    {fmt(
-                      'Maxeaste Rango 3 con todos los aliados romanceables del Batch 1 (El Pelirrojo, La Duelista y La Campeona). Ningún trono se sostiene solo: la nueva corona de Galar nace de cada pacto forjado durante el exilio.'
-                    )}
+                    {finalEnding.summary}
                   </p>
                 </div>
               )}
-              {won && perks.activeEndingKind === 'single' && perks.activeEndingNpc && (
+              {showEndingPreview && finalEnding.npc && (
                 <div className="rounded-2xl border border-fuchsia-400/45 bg-fuchsia-950/35 p-4">
                   <div className="flex items-center gap-2 text-fuchsia-200">
                     <Heart className="h-4 w-4 fill-fuchsia-400 text-fuchsia-400" />
                     <span className="font-display text-sm font-extrabold">
-                      {fmt(perks.activeEndingNpc.endingTitle)}
+                      {finalEnding.headline}
                     </span>
                   </div>
                   <p className="mt-1 text-xs leading-relaxed text-slate-200">
-                    {fmt(perks.activeEndingNpc.endingSummary)}
+                    {finalEnding.summary}
                   </p>
                 </div>
               )}

@@ -293,6 +293,15 @@ export const CHARACTER_META: Record<CharacterId, CharacterVisualMeta> = {
     emblemAccent: 'text-lime-200',
     emblemIcon: Flame,
   },
+  bastard_brother: {
+    name: 'El Hermano Bastardo',
+    role: 'Usurpador de Wyndon · Escudo & Eternamax',
+    accentBorder: 'border-rose-400/80',
+    accentGlow: 'drop-shadow-[0_12px_28px_rgba(244,63,94,0.48)]',
+    emblemGradient: 'from-rose-950 via-purple-950 to-black',
+    emblemAccent: 'text-rose-300',
+    emblemIcon: Crown,
+  },
 };
 
 interface CharacterPortraitProps {

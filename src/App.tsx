@@ -50,6 +50,7 @@ import {
   purchaseShinyCharm,
   recordChapterAttemptInProfile,
   recordPostBattleSurvivalState,
+  recordRomanceConfession,
   recruitHousePokemonToCustomSlot,
   releasePokemonInstance,
   resetSpeciesCustomizations,
@@ -136,6 +137,9 @@ export default function App() {
   const [accountModalOpen, setAccountModalOpen] = useState(false);
   const [devModalOpen, setDevModalOpen] = useState(false);
   const [campModalOpen, setCampModalOpen] = useState(false);
+  const [recentSocialLinkAlerts, setRecentSocialLinkAlerts] = useState<
+    Array<{ npcId: string; npcName: string; regionName: string }>
+  >([]);
 
   const [aiSettings, setAiSettings] = useState<AISettings>(() =>
     loadAISettings()
@@ -333,11 +337,40 @@ export default function App() {
       defaultDifficulty: options.defaultDifficulty,
       ironmanMode: options.ironmanMode,
       nuzlockePermadeath: options.nuzlockePermadeath,
+      newGamePlusFrom: options.useNewGamePlus ? profileRef.current : null,
     });
     profileRef.current = fresh;
     setProfile(fresh);
+    setRecentSocialLinkAlerts([]);
     setSaveSlots(saveProfileToSlot(fresh, options.slotIndex));
     startChapter(CHAPTERS[0], options.vnPacingMode);
+  };
+
+  const handleStartNewGamePlus = () => {
+    const cur = profileRef.current;
+    handleStartNewRun({
+      runName: `New Game+ #${(cur.newGamePlusCount ?? 0) + 1}`,
+      rivalName: getRivalName(cur),
+      slotIndex: cur.activeSaveSlot ?? 1,
+      vnPacingMode: cur.vnPacingMode ?? 'full',
+      defaultDifficulty: cur.defaultDifficulty ?? 'kaizo',
+      ironmanMode: cur.ironmanMode,
+      nuzlockePermadeath: cur.nuzlockePermadeath,
+      useNewGamePlus: true,
+    });
+  };
+
+  const handleRecordConfession = (
+    npcId: string,
+    choice: 'confess' | 'platonic'
+  ) => {
+    const res = recordRomanceConfession(profileRef.current, npcId, choice);
+    profileRef.current = res.nextProfile;
+    setProfile(res.nextProfile);
+    return {
+      outcome: res.outcome,
+      isFirstConfession: res.isFirstConfession,
+    };
   };
 
   const handleRenameRival = (name: string) => {
@@ -540,6 +573,9 @@ export default function App() {
         }
       );
       earnedReward = res.reward;
+      if (won && res.reward?.newlyUnlockedSocialLinks?.length) {
+        setRecentSocialLinkAlerts(res.reward.newlyUnlockedSocialLinks);
+      }
       let nextProf = appliesSurvival
         ? recordPostBattleSurvivalState(
             res.nextProfile,
@@ -864,6 +900,8 @@ export default function App() {
         onSelectChapter={(ch) => startChapter(ch)}
         onUnlockChapterWithCoins={handleUnlockChapterWithCoins}
         profile={profile}
+        recentSocialLinkAlerts={recentSocialLinkAlerts}
+        onDismissSocialLinkAlerts={() => setRecentSocialLinkAlerts([])}
       />
     );
   } else if (screen === 'shop') {
@@ -1029,6 +1067,8 @@ export default function App() {
         onOpenShop={() => setScreen('shop')}
         onOpenVersus={() => setScreen('versus')}
         onBackHome={() => setScreen('home')}
+        onRecordConfession={handleRecordConfession}
+        onStartNewGamePlus={handleStartNewGamePlus}
       />
     );
   }
@@ -1083,6 +1123,7 @@ export default function App() {
         onRecruitHousePokemon={handleRecruitHousePokemon}
         onResetSurvivalState={handleResetSurvivalState}
         onRenameRival={handleRenameRival}
+        onRecordConfession={handleRecordConfession}
       />
     </>
   );

@@ -38,6 +38,7 @@ import {
   CAMPAIGN_ROUTE_ORDER,
   CHAPTER_MAP_LOCATIONS,
 } from '../data/worldGeopolitics';
+import { isChapterVisible } from '../engine/campaignProgression';
 import { isChapterUnlocked } from '../engine/playerProfile';
 import { applyRivalNameToChapter, getRivalName } from '../engine/rivalName';
 import type {
@@ -65,6 +66,12 @@ interface ChapterSelectProps {
     error?: string;
   };
   profile: PlayerSaveProfile;
+  recentSocialLinkAlerts?: Array<{
+    npcId: string;
+    npcName: string;
+    regionName: string;
+  }>;
+  onDismissSocialLinkAlerts?: () => void;
 }
 
 const CATEGORY_META: Array<{
@@ -163,6 +170,8 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
   onSelectChapter,
   onUnlockChapterWithCoins,
   profile,
+  recentSocialLinkAlerts,
+  onDismissSocialLinkAlerts,
 }) => {
   const [activeFilter, setActiveFilter] = useState<'all' | ChapterCategory>(
     'all'
@@ -175,24 +184,35 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
   const [unlockNotice, setUnlockNotice] = useState<string | null>(null);
   const progress = profile.completedChapters;
   const rivalName = getRivalName(profile);
+  const visibleCoreChapters = useMemo(
+    () => CHAPTERS.filter((ch) => isChapterVisible(profile, ch.id)),
+    [profile]
+  );
+  const visibleRomanceChapters = useMemo(
+    () => ROMANCE_CHAPTERS.filter((ch) => isChapterVisible(profile, ch.id)),
+    [profile]
+  );
   const localizedAllChapters = useMemo(
     () =>
-      ALL_SELECTABLE_CHAPTERS.map((ch) =>
+      [...visibleCoreChapters, ...visibleRomanceChapters].map((ch) =>
         applyRivalNameToChapter(ch, rivalName)
       ),
-    [rivalName]
+    [visibleCoreChapters, visibleRomanceChapters, rivalName]
   );
+  const hiddenTotalCount =
+    ALL_SELECTABLE_CHAPTERS.length -
+    (visibleCoreChapters.length + visibleRomanceChapters.length);
   const activeDiffMeta =
     DIFFICULTY_META[profile.defaultDifficulty] ?? DIFFICULTY_META.kaizo;
   const resolveMode = (c: ChapterDefinition): ChapterTeamMode =>
     c.teamMode ?? (c.teamEditPolicy === 'editable' ? 'campaign' : 'locked');
-  const campaignCount = CHAPTERS.filter(
+  const campaignCount = visibleCoreChapters.filter(
     (c) => resolveMode(c) === 'campaign'
   ).length;
-  const lockedCount = CHAPTERS.filter(
+  const lockedCount = visibleCoreChapters.filter(
     (c) => resolveMode(c) === 'locked'
   ).length;
-  const challengeCount = CHAPTERS.filter(
+  const challengeCount = visibleCoreChapters.filter(
     (c) => resolveMode(c) === 'challenge'
   ).length;
 
@@ -226,20 +246,24 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
     return set;
   }, [progress, profile.socialLinks]);
 
-  // First unlocked & uncompleted chapter along the canonical Exile Campaign Route
+  // First visible, unlocked & uncompleted chapter along the canonical 4-Act Exile Campaign Route
   const nextObjectiveChapterId = useMemo(() => {
     for (const routeId of CAMPAIGN_ROUTE_ORDER) {
-      if (unlockedChapterIds.has(routeId) && !completedChapterIds.has(routeId)) {
+      if (
+        isChapterVisible(profile, routeId) &&
+        unlockedChapterIds.has(routeId) &&
+        !completedChapterIds.has(routeId)
+      ) {
         return routeId;
       }
     }
-    for (const ch of CHAPTERS) {
+    for (const ch of visibleCoreChapters) {
       if (unlockedChapterIds.has(ch.id) && !completedChapterIds.has(ch.id)) {
         return ch.id;
       }
     }
-    return CHAPTERS[0]?.id ?? null;
-  }, [unlockedChapterIds, completedChapterIds]);
+    return visibleCoreChapters[0]?.id ?? CHAPTERS[0]?.id ?? null;
+  }, [profile, unlockedChapterIds, completedChapterIds, visibleCoreChapters]);
 
   const handleFocusChapterCard = (chapterId: string) => {
     setActiveFilter(chapterId.startsWith('romance-') ? 'romance' : 'all');
@@ -267,7 +291,9 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
     })
       .map((sec) => ({
         ...sec,
-        chapters: (sec.id === 'romance' ? ROMANCE_CHAPTERS : CHAPTERS)
+        chapters: (
+          sec.id === 'romance' ? visibleRomanceChapters : visibleCoreChapters
+        )
           .filter(
             (ch) =>
               ch.category === sec.id &&
@@ -276,7 +302,13 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
           .map((ch) => applyRivalNameToChapter(ch, rivalName)),
       }))
       .filter((sec) => sec.chapters.length > 0);
-  }, [activeFilter, teamModeFilter, rivalName]);
+  }, [
+    activeFilter,
+    teamModeFilter,
+    rivalName,
+    visibleCoreChapters,
+    visibleRomanceChapters,
+  ]);
 
   return (
     <div className="relative min-h-screen bg-[#060a14] text-slate-100">
@@ -319,6 +351,24 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
                     Nuzlocke
                   </span>
                 )}
+                {profile.masteryBadgeUnlocked && (
+                  <span className="inline-flex items-center gap-0.5 rounded-md border border-amber-300/70 bg-amber-500/25 px-1.5 py-0.2 text-[9.5px] font-extrabold text-amber-100">
+                    <Trophy className="h-2.5 w-2.5 text-amber-300" />
+                    True Mastery
+                  </span>
+                )}
+                {profile.devModeEnabled ? (
+                  <span className="rounded-md border border-fuchsia-400/50 bg-fuchsia-500/20 px-1.5 py-0.2 text-[9.5px] font-extrabold text-fuchsia-200">
+                    🧪 Dev · Todo Revelado
+                  </span>
+                ) : hiddenTotalCount > 0 ? (
+                  <span
+                    title="Los actos futuros, postgame y Social Links regionales permanecen ocultos hasta descubrir sus regiones en la historia."
+                    className="rounded-md border border-slate-700 bg-slate-900 px-1.5 py-0.2 text-[9.5px] font-bold text-slate-400"
+                  >
+                    🗺️ {hiddenTotalCount} ocultos por descubrir
+                  </span>
+                ) : null}
               </div>
               <h1 className="font-display text-2xl font-bold text-white sm:text-3xl">
                 Selector de Capítulos
@@ -399,6 +449,43 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
           </div>
         </div>
 
+        {recentSocialLinkAlerts && recentSocialLinkAlerts.length > 0 && (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-fuchsia-400/45 bg-gradient-to-r from-fuchsia-950/60 via-slate-950/90 to-amber-950/40 px-4 py-2.5 text-xs text-fuchsia-100">
+            <div className="flex flex-wrap items-center gap-2">
+              <Heart className="h-4 w-4 shrink-0 fill-fuchsia-400 text-fuchsia-400" />
+              <span>
+                {recentSocialLinkAlerts
+                  .map(
+                    (a) =>
+                      `Nuevo Vínculo disponible en ${a.regionName}: ${a.npcName}`
+                  )
+                  .join(' · ')}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  onDismissSocialLinkAlerts?.();
+                  onOpenCamp();
+                }}
+                className="rounded-lg border border-fuchsia-400/55 bg-fuchsia-500/25 px-2.5 py-1 text-[10.5px] font-extrabold text-white hover:bg-fuchsia-500/35 cursor-pointer"
+              >
+                Abrir Vínculos
+              </button>
+              {onDismissSocialLinkAlerts && (
+                <button
+                  type="button"
+                  onClick={onDismissSocialLinkAlerts}
+                  className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-[10px] text-slate-400 hover:text-white cursor-pointer"
+                >
+                  Ocultar
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {unlockNotice && (
           <div className="mb-4 rounded-2xl border border-amber-400/40 bg-amber-500/15 px-4 py-2.5 text-xs font-semibold text-amber-100">
             {unlockNotice}
@@ -433,14 +520,15 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
                     : 'border-slate-800 bg-slate-900/70 text-slate-400 hover:border-slate-700 hover:text-slate-200'
                 }`}
               >
-                Campaña Base ({CHAPTERS.length})
+                Campaña Base ({visibleCoreChapters.length})
               </button>
               {CATEGORY_META.map((cat) => {
                 const Icon = cat.icon;
                 const count =
                   cat.id === 'romance'
-                    ? ROMANCE_CHAPTERS.length
-                    : CHAPTERS.filter((c) => c.category === cat.id).length;
+                    ? visibleRomanceChapters.length
+                    : visibleCoreChapters.filter((c) => c.category === cat.id).length;
+                if (count === 0 && cat.id !== 'romance') return null;
                 const isRomTab = cat.id === 'romance';
                 return (
                   <button
@@ -470,7 +558,7 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
               </span>
               {(
                 [
-                  { id: 'all', label: `Todos (${CHAPTERS.length})` },
+                  { id: 'all', label: `Todos (${visibleCoreChapters.length})` },
                   {
                     id: 'campaign',
                     label: `⚔️ Campaña NatDex (${campaignCount})`,

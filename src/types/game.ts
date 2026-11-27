@@ -124,7 +124,15 @@ export interface SocialLinkProgress {
   r2Done: boolean;
   /** Rank 3 Unfair Rematch completed */
   r3Done: boolean;
+  /** Post-Rank-3 confession bifurcation choice ('confess' | 'platonic' | 'rejected_baby'). */
+  r3Choice?: 'confess' | 'platonic' | 'rejected_baby';
 }
+
+export type ResolvedEndingType =
+  | 'BABY_ENDING'
+  | 'HAREM_ENDING'
+  | `ROMANCE_${string}`
+  | 'SOLO_MONARCH_ENDING';
 
 export type VnPacingMode = 'full' | 'decisions-only' | 'skip-to-battle';
 
@@ -206,8 +214,24 @@ export interface PlayerSaveProfile {
   devFullAgPokedex?: boolean;
   /** Affinity / Romance ranks per romanceable NPC ID (0..3). */
   socialLinks: Record<string, SocialLinkProgress>;
-  /** First romanceable NPC to reach Rank 3 (never overwritten; defines default Romantic Ending). */
+  /** First romanceable NPC to reach Rank 3 (legacy compatibility). */
   firstRomanceMaxedId: string | null;
+  /** Assigned ONLY on the FIRST romantic confession after a Rank 3 victory (defines Romantic Ending!). */
+  firstConfessionNpcId?: string | null;
+  /** All romanceable NPC IDs the player has confessed romantic feelings to (13/13 -> HAREM_ENDING). */
+  confessedNpcIds?: string[];
+  /** Regions unlocked via main story progression (controls visibility of non-Main-3 Regional Social Links). */
+  visitedRegions?: string[];
+  /** Number of campaign/romance wins achieved under Baby Mode (triggers Baby Shame / BABY_ENDING). */
+  babyModeWinsCount?: number;
+  /** True once the player defeats the Bastard Brother Climax (ch12-bastard-brother-climax). */
+  mainStoryCleared?: boolean;
+  /** True once the player defeats the Postgame Optional Champion (ch13-postgame-champion). */
+  masteryBadgeUnlocked?: boolean;
+  /** Unlocks New Game+ option on HomePage & EpilogueView after Postgame Champion clear. */
+  newGamePlusUnlocked?: boolean;
+  /** Incremented each time the player starts a New Game+ run. */
+  newGamePlusCount?: number;
   /** Survival Run Modifiers: Ironman (persistent HP/PP/status across chapters) & Ultra Nuzlocke Diablo (permadeath). */
   ironmanMode: boolean;
   nuzlockePermadeath: boolean;
@@ -260,6 +284,14 @@ export interface BattleRewardSummary {
   /** True when replaying a cleared chapter under strict Anti-Grind rules (Ironman/Nuzlocke/Difícil/Tryhard). */
   antiGrindBlocked?: boolean;
   newlyUnlockedChapterIds: string[];
+  /** Discreet regional Social Links revealed when a main story mission opens a new region! */
+  newlyUnlockedSocialLinks?: Array<{
+    npcId: string;
+    npcName: string;
+    regionName: string;
+  }>;
+  /** Newly visited world bloc IDs unlocked by this mission. */
+  newlyVisitedRegions?: string[];
   rewardItems?: string[];
   rewardPokemon?: Array<{ species: string; note: string }>;
 }
@@ -389,7 +421,8 @@ export type CharacterId =
   | 'e4_ransei'
   | 'e4_ferrum'
   | 'e4_veridia'
-  | 'e4_kalos';
+  | 'e4_kalos'
+  | 'bastard_brother';
 
 export type BattleDifficultyMode = 'baby' | 'standard' | 'kaizo' | 'nightmare';
 

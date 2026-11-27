@@ -64,6 +64,7 @@ const VALID_CHAR_IDS = new Set<CharacterId>([
   'e4_ferrum',
   'e4_veridia',
   'e4_kalos',
+  'bastard_brother',
 ]);
 
 function parseCharId(val: string): CharacterId | null {

@@ -52,6 +52,7 @@ export interface NewRunLaunchOptions {
   defaultDifficulty: BattleDifficultyMode;
   ironmanMode: boolean;
   nuzlockePermadeath: boolean;
+  useNewGamePlus?: boolean;
 }
 
 interface HomePageProps {
@@ -133,6 +134,9 @@ export const HomePage: React.FC<HomePageProps> = ({
   );
   const [newIronman, setNewIronman] = useState<boolean>(false);
   const [newNuzlocke, setNewNuzlocke] = useState<boolean>(false);
+  const [newGamePlus, setNewGamePlus] = useState<boolean>(
+    Boolean(profile.newGamePlusUnlocked || profile.masteryBadgeUnlocked)
+  );
 
   const completedCount = Object.values(profile.completedChapters).filter(
     (p) => p?.completed
@@ -373,6 +377,8 @@ export const HomePage: React.FC<HomePageProps> = ({
             {activeDiffMeta.shortLabel}
             {profile.ironmanMode ? ' · Ironman' : ''}
             {profile.nuzlockePermadeath ? ' · Nuzlocke' : ''}
+            {profile.masteryBadgeUnlocked ? ' · 🏆 True Mastery' : ''}
+            {(profile.newGamePlusCount ?? 0) > 0 ? ` · NG+${profile.newGamePlusCount}` : ''}
           </p>
         </div>
       </header>
@@ -660,6 +666,32 @@ export const HomePage: React.FC<HomePageProps> = ({
                     </div>
                   </div>
 
+                  {(profile.newGamePlusUnlocked || profile.masteryBadgeUnlocked) && (
+                    <label
+                      className={`flex cursor-pointer items-start gap-2.5 rounded-xl border-2 p-3 transition ${
+                        newGamePlus
+                          ? 'border-amber-300 bg-amber-500/20 text-white'
+                          : 'border-slate-700/80 bg-[#151022] text-slate-300'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={newGamePlus}
+                        onChange={(e) => setNewGamePlus(e.target.checked)}
+                        className="mt-0.5 h-4 w-4 accent-amber-400"
+                      />
+                      <div>
+                        <p className="flex items-center gap-1 text-xs font-extrabold text-amber-200">
+                          <Crown className="h-3.5 w-3.5 text-amber-300" />
+                          🏆 Activar New Game+ (True Mastery Badge)
+                        </p>
+                        <p className="mt-0.5 text-[10px] text-slate-300">
+                          Conserva tu Pokédex desbloqueada, tus Amuletos Shiny y tu Insignia de Maestría mientras reinicias la escalera de 4 Actos y tus confesiones románticas.
+                        </p>
+                      </div>
+                    </label>
+                  )}
+
                   {/* Launch New Run CTA */}
                   <div className="flex flex-wrap items-center justify-between gap-3 border-t-2 border-[#d9462f]/40 pt-3">
                     <span className="text-[11px] text-slate-400">
@@ -678,6 +710,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                           defaultDifficulty: newDifficulty,
                           ironmanMode: newIronman,
                           nuzlockePermadeath: newNuzlocke,
+                          useNewGamePlus: newGamePlus,
                         })
                       }
                       className="font-pixel inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 px-5 py-2.5 text-xs font-bold text-slate-950 shadow-lg transition hover:brightness-110 cursor-pointer"

@@ -30,6 +30,10 @@ import {
   type RomanceNpcDefinition,
 } from '../data/socialLinksCatalog';
 import {
+  isRomanceNpcVisible,
+  resolveEnding,
+} from '../engine/campaignProgression';
+import {
   applyRivalNameToText,
   getRivalName,
   RIVAL_NAME_PRESETS,
@@ -68,6 +72,13 @@ interface SocialLinksCampModalProps {
   onRecruitHousePokemon: (mon: CustomTeamMember, slotIndex: number) => void;
   onResetSurvivalState: () => void;
   onRenameRival?: (name: string) => void;
+  onRecordConfession?: (
+    npcId: string,
+    choice: 'confess' | 'platonic'
+  ) => {
+    outcome: 'confessed' | 'platonic' | 'rejected_baby';
+    isFirstConfession: boolean;
+  };
 }
 
 type ModalTab = 'links' | 'camp' | 'house' | 'rules';
@@ -84,6 +95,7 @@ export const SocialLinksCampModal: React.FC<SocialLinksCampModalProps> = ({
   onRecruitHousePokemon,
   onResetSurvivalState,
   onRenameRival,
+  onRecordConfession,
 }) => {
   const [tab, setTab] = useState<ModalTab>('links');
   const [batchFilter, setBatchFilter] = useState<'all' | 1 | 2 | 3>('all');
@@ -107,7 +119,12 @@ export const SocialLinksCampModal: React.FC<SocialLinksCampModalProps> = ({
   };
 
   const perks = computeActiveSocialLinkPerks(profile);
-  const filteredRoster = ROMANCE_ROSTER.filter(
+  const resolvedEnding = resolveEnding(profile);
+  const visibleRoster = ROMANCE_ROSTER.filter((n) =>
+    isRomanceNpcVisible(profile, n.id)
+  );
+  const hiddenRosterCount = ROMANCE_ROSTER.length - visibleRoster.length;
+  const filteredRoster = visibleRoster.filter(
     (n) => batchFilter === 'all' || n.batch === batchFilter
   );
 
@@ -121,7 +138,10 @@ export const SocialLinksCampModal: React.FC<SocialLinksCampModalProps> = ({
       r2Done: false,
       r3Done: false,
     };
-    const isFirstEnding = profile.firstRomanceMaxedId === npc.id;
+    const isFirstEnding = profile.firstConfessionNpcId === npc.id;
+    const isConfessed = (profile.confessedNpcIds ?? []).includes(npc.id);
+    const isPlatonic = prog.r3Choice === 'platonic';
+    const isBabyRejected = prog.r3Choice === 'rejected_baby';
 
     return (
       <div
@@ -164,7 +184,22 @@ export const SocialLinksCampModal: React.FC<SocialLinksCampModalProps> = ({
               </span>
               {isFirstEnding && (
                 <span className="rounded-md border border-pink-400/60 bg-pink-500/25 px-1.5 py-0.5 text-[9px] font-extrabold text-pink-100">
-                  ♥ Ending Principal
+                  ♥ Confesión Principal (Ending)
+                </span>
+              )}
+              {!isFirstEnding && isConfessed && (
+                <span className="rounded-md border border-fuchsia-400/50 bg-fuchsia-500/20 px-1.5 py-0.5 text-[9px] font-extrabold text-fuchsia-200">
+                  ♥ Confesado ({(profile.confessedNpcIds ?? []).length}/{PLAYABLE_ROMANCE_NPCS.length})
+                </span>
+              )}
+              {isPlatonic && (
+                <span className="rounded-md border border-sky-400/45 bg-sky-500/15 px-1.5 py-0.5 text-[9px] font-extrabold text-sky-200">
+                  🤝 Camarada Platónico
+                </span>
+              )}
+              {isBabyRejected && (
+                <span className="rounded-md border border-rose-400/45 bg-rose-500/15 px-1.5 py-0.5 text-[9px] font-extrabold text-rose-200">
+                  🍼 Rechazado (Baby Mode)
                 </span>
               )}
               <span className="ml-auto inline-flex items-center gap-0.5 text-xs font-extrabold text-fuchsia-300">
@@ -375,6 +410,55 @@ export const SocialLinksCampModal: React.FC<SocialLinksCampModalProps> = ({
             )}
           </div>
         </div>
+
+        {/* Post-Rank-3 Confession vs Platonic Decision Strip (never locks out Late-Game endings!) */}
+        {prog.rank >= 3 && onRecordConfession && (
+          <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-fuchsia-400/35 bg-fuchsia-950/25 px-3 py-2 text-[10.5px]">
+            <span className="text-slate-200">
+              {isFirstEnding
+                ? `♥ Primera Confesión sellada con ${fmt(npc.name)} — define tu Ending Romántico.`
+                : isConfessed
+                  ? `♥ Confesión registrada (${(profile.confessedNpcIds ?? []).length}/${PLAYABLE_ROMANCE_NPCS.length} hacia Harem).`
+                  : isPlatonic
+                    ? '🤝 Elegiste cierre platónico (R3 y Casa PC activos; tu Ending queda libre).'
+                    : isBabyRejected
+                      ? '🍼 Rechazo cómico por Baby Mode (R3 y Casa PC siguen activos).'
+                      : '💌 Decisión de cierre Rango 3 pendiente: ¿confiesas tus sentimientos o prefieres lealtad platónica?'}
+            </span>
+            {!prog.r3Choice && (
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const res = onRecordConfession(npc.id, 'confess');
+                    setNotice(
+                      res.outcome === 'rejected_baby'
+                        ? `🍼 ${fmt(npc.name)} te rechazó entre risas por usar Baby Mode (te dejó sus Pokémon de Casa PC por lástima).`
+                        : res.isFirstConfession
+                          ? `♥ ¡Primera Confesión sellada con ${fmt(npc.name)}! Definirá tu Ending Romántico al vencer al Hermano Bastardo.`
+                          : `♥ Confesión adicional registrada con ${fmt(npc.name)} (${(profile.confessedNpcIds ?? []).length + 1}/${PLAYABLE_ROMANCE_NPCS.length} hacia Ending Harem).`
+                    );
+                  }}
+                  className="rounded-lg border border-pink-400/60 bg-pink-500/25 px-2.5 py-1 text-[10px] font-extrabold text-pink-100 hover:bg-pink-500/35 cursor-pointer"
+                >
+                  ♥ Confesar Sentimientos
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onRecordConfession(npc.id, 'platonic');
+                    setNotice(
+                      `🤝 Cierre platónico con ${fmt(npc.name)}: conservas sus Pokémon de Casa PC y tu Ending queda libre para Late Game.`
+                    );
+                  }}
+                  className="rounded-lg border border-sky-400/45 bg-sky-500/15 px-2.5 py-1 text-[10px] font-extrabold text-sky-100 hover:bg-sky-500/25 cursor-pointer"
+                >
+                  🤝 Camarada Platónico
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   };
@@ -443,21 +527,26 @@ export const SocialLinksCampModal: React.FC<SocialLinksCampModalProps> = ({
             })}
           </div>
 
-          {/* Ending Status Pill */}
+          {/* Ending Status Pill (Driven by Confession Engine!) */}
           <div className="text-[11px] font-bold">
-            {perks.isHaremUnlocked ? (
+            {resolvedEnding.type === 'BABY_ENDING' ? (
+              <span className="inline-flex items-center gap-1 rounded-full border border-sky-300/70 bg-sky-500/20 px-3 py-1 text-sky-100">
+                🍼 Ending Actual: Baby Mode (Shamed)
+              </span>
+            ) : resolvedEnding.type === 'HAREM_ENDING' ? (
               <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/70 bg-gradient-to-r from-fuchsia-500/30 to-amber-500/30 px-3 py-1 text-amber-100">
                 <Crown className="h-3.5 w-3.5 text-amber-300" />
-                ENDING HAREM DESBLOQUEADO (Batch 1 Completo)
+                ENDING HAREM ({resolvedEnding.confessedCount}/{resolvedEnding.totalRomanceables} Confesiones)
               </span>
-            ) : perks.activeEndingNpc ? (
+            ) : resolvedEnding.npc ? (
               <span className="inline-flex items-center gap-1 rounded-full border border-pink-400/50 bg-pink-500/20 px-3 py-1 text-pink-200">
                 <Heart className="h-3 w-3 fill-pink-400 text-pink-400" />
-                Ending Actual: {fmt(perks.activeEndingNpc.name)}
+                Ending: {fmt(resolvedEnding.npc.name)} ({resolvedEnding.confessedCount}/{resolvedEnding.totalRomanceables} conf.)
               </span>
             ) : (
-              <span className="text-slate-500">
-                Ending Romántico: Ningún Rango 3 aún
+              <span className="inline-flex items-center gap-1 rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-slate-300">
+                <Crown className="h-3 w-3 text-amber-300" />
+                Ending Actual: Monarca Solitario (Sin confesión)
               </span>
             )}
           </div>
@@ -530,6 +619,14 @@ export const SocialLinksCampModal: React.FC<SocialLinksCampModalProps> = ({
               <div className="space-y-3">
                 {filteredRoster.map(renderNpcCard)}
               </div>
+
+              {hiddenRosterCount > 0 && !profile.devModeEnabled && (
+                <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-950/70 px-4 py-3 text-xs text-slate-400">
+                  <Lock className="mr-1.5 inline h-3.5 w-3.5 text-amber-300" />
+                  <strong>{hiddenRosterCount} vínculo(s) regional(es) oculto(s):</strong>{' '}
+                  Avanza en las misiones principales de los Actos II, III y IV para descubrir sus regiones y revelar sus Social Links en el mapa (o activa <strong>Dev Mode</strong> para verlos al instante).
+                </div>
+              )}
             </div>
           )}
 
@@ -1006,9 +1103,9 @@ export const SocialLinksCampModal: React.FC<SocialLinksCampModalProps> = ({
 
               <div className="rounded-2xl border border-fuchsia-400/25 bg-fuchsia-950/15 p-3.5 text-xs text-fuchsia-100">
                 <Sparkles className="mr-1.5 inline h-3.5 w-3.5 text-fuchsia-300" />
-                <strong>Regla de Endings:</strong> El primer NPC en llegar a Rango 3 fija tu{' '}
-                <em>Ending Romántico</em> (<code className="text-amber-200">firstRomanceMaxedId</code>). Alcanzar Rango 3 con todos los romanceables jugables sobrescribe el epílogo con el{' '}
-                <strong>Ending Harem: Corona de Vínculos</strong>.
+                <strong>Regla de Confesiones y Endings:</strong> Maxear a cualquier aliado a Rango 3 siempre te entrega sus 3 Pokémon en tu Casa PC y sus beneficios de Ironman. Al cerrar Rango 3 eliges entre{' '}
+                <em>Confesar tus sentimientos</em> o <em>Agradecer como camarada (Platónico)</em>: <strong>solo tu primera confesión</strong> (<code className="text-amber-200">firstConfessionNpcId</code>) define tu Ending Romántico (así puedes maxear aliados de early game y guardar tu confesión para Late Game). Confesar a los 13 desbloquea el{' '}
+                <strong>Ending Harem</strong>; no confesar a nadie da el <strong>Ending Monarca Solitario</strong>; ganar con Baby Mode dispara el <strong>Ending Baby Mode</strong>.
               </div>
             </div>
           )}

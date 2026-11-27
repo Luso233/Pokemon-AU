@@ -40,6 +40,10 @@ import type {
   StoryFlags,
 } from '../types/game';
 import {
+  diffNewlyRevealedSocialLinks,
+  isBabyShamed,
+} from './campaignProgression';
+import {
   getFormatGeneration,
   getMoveSlotUnlockCost,
   getSpeciesKey,
@@ -228,6 +232,14 @@ export function createDefaultProfile(
     devFullAgPokedex: false,
     socialLinks: {},
     firstRomanceMaxedId: null,
+    firstConfessionNpcId: null,
+    confessedNpcIds: [],
+    visitedRegions: ['galar_empire'],
+    babyModeWinsCount: 0,
+    mainStoryCleared: false,
+    masteryBadgeUnlocked: false,
+    newGamePlusUnlocked: false,
+    newGamePlusCount: 0,
     ironmanMode: false,
     nuzlockePermadeath: false,
     defaultDifficulty: 'kaizo',
@@ -492,6 +504,45 @@ export function normalizeProfile(
       typeof raw.firstRomanceMaxedId === 'string' && raw.firstRomanceMaxedId
         ? raw.firstRomanceMaxedId
         : null,
+    firstConfessionNpcId:
+      typeof raw.firstConfessionNpcId === 'string' && raw.firstConfessionNpcId
+        ? raw.firstConfessionNpcId
+        : null,
+    confessedNpcIds: Array.isArray(raw.confessedNpcIds)
+      ? Array.from(new Set(raw.confessedNpcIds.filter((s): s is string => typeof s === 'string' && Boolean(s))))
+      : [],
+    visitedRegions: (() => {
+      const set = new Set<string>(['galar_empire']);
+      if (Array.isArray(raw.visitedRegions)) {
+        for (const r of raw.visitedRegions) {
+          if (typeof r === 'string' && r) set.add(r);
+        }
+      }
+      // Backfill visited regions from completed chapters on legacy saves
+      for (const [chId, prog] of Object.entries(raw.completedChapters ?? {})) {
+        if (!prog?.completed) continue;
+        const loc = CHAPTER_MAP_LOCATIONS[chId];
+        if (loc?.blocId) set.add(loc.blocId);
+        const r = CHAPTER_UNLOCK_RULES[chId];
+        for (const reg of r?.unlocksRegions ?? []) set.add(reg);
+      }
+      return Array.from(set);
+    })(),
+    babyModeWinsCount: Math.max(0, Math.floor(Number(raw.babyModeWinsCount ?? 0))),
+    mainStoryCleared: Boolean(
+      raw.mainStoryCleared ||
+        raw.completedChapters?.['ch12-bastard-brother-climax']?.completed
+    ),
+    masteryBadgeUnlocked: Boolean(
+      raw.masteryBadgeUnlocked ||
+        raw.completedChapters?.['ch13-postgame-champion']?.completed
+    ),
+    newGamePlusUnlocked: Boolean(
+      raw.newGamePlusUnlocked ||
+        raw.masteryBadgeUnlocked ||
+        raw.completedChapters?.['ch13-postgame-champion']?.completed
+    ),
+    newGamePlusCount: Math.max(0, Math.floor(Number(raw.newGamePlusCount ?? 0))),
     ironmanMode: Boolean(raw.ironmanMode),
     nuzlockePermadeath: Boolean(raw.nuzlockePermadeath),
     defaultDifficulty:
@@ -930,13 +981,51 @@ export function applyBattleOutcomeToProfile(
     }
   }
 
-  const newlyUnlocked = computeNewlyEligibleUnlocks(nextProfile);
+  const prevVisitedSet = new Set<string>(
+    nextProfile.visitedRegions ?? ['galar_empire']
+  );
+  const candidateRegions: string[] = [];
+  const chLoc = CHAPTER_MAP_LOCATIONS[chapterId];
+  if (chLoc?.blocId) candidateRegions.push(chLoc.blocId);
+  for (const reg of rule?.unlocksRegions ?? []) {
+    candidateRegions.push(reg);
+  }
+  const newlyVisitedRegions: string[] = [];
+  for (const reg of candidateRegions) {
+    if (!prevVisitedSet.has(reg)) {
+      prevVisitedSet.add(reg);
+      newlyVisitedRegions.push(reg);
+    }
+  }
+
+  const nextBabyModeWinsCount =
+    effectiveDifficulty === 'baby'
+      ? (nextProfile.babyModeWinsCount ?? 0) + 1
+      : nextProfile.babyModeWinsCount ?? 0;
+
+  const isClimaxClear = chapterId === 'ch12-bastard-brother-climax';
+  const isPostgameClear = chapterId === 'ch13-postgame-champion';
+
+  const newlyUnlocked = computeNewlyEligibleUnlocks({
+    ...nextProfile,
+    mainStoryCleared: nextProfile.mainStoryCleared || isClimaxClear,
+  });
+
   nextProfile = {
     ...nextProfile,
     hasStartedRun: true,
     coins: Math.min(10000000, nextProfile.coins + coinsEarned),
     unlockedChapters: Array.from(
       new Set([...nextProfile.unlockedChapters, chapterId, ...newlyUnlocked])
+    ),
+    visitedRegions: Array.from(prevVisitedSet),
+    babyModeWinsCount: nextBabyModeWinsCount,
+    mainStoryCleared: Boolean(nextProfile.mainStoryCleared || isClimaxClear),
+    masteryBadgeUnlocked: Boolean(
+      nextProfile.masteryBadgeUnlocked || isPostgameClear
+    ),
+    newGamePlusUnlocked: Boolean(
+      nextProfile.newGamePlusUnlocked || isPostgameClear
     ),
     inventory: {
       ...nextProfile.inventory,
@@ -947,6 +1036,11 @@ export function applyBattleOutcomeToProfile(
     itemStock: nextItemStock,
     unlockedPokedex: nextUnlockedPokedex,
   };
+
+  const newlyUnlockedSocialLinks = diffNewlyRevealedSocialLinks(
+    profile,
+    nextProfile
+  );
 
   return {
     nextProfile,
@@ -961,6 +1055,8 @@ export function applyBattleOutcomeToProfile(
       unlockedPokedexSpecies,
       antiGrindBlocked,
       newlyUnlockedChapterIds: newlyUnlocked,
+      newlyUnlockedSocialLinks,
+      newlyVisitedRegions,
       rewardItems,
       rewardPokemon,
     },
@@ -1934,19 +2030,122 @@ export function createNewConfiguredRunProfile(params: {
   defaultDifficulty: BattleDifficultyMode;
   ironmanMode: boolean;
   nuzlockePermadeath: boolean;
+  newGamePlusFrom?: PlayerSaveProfile | null;
 }): PlayerSaveProfile {
   const fresh = createDefaultProfile(params.displayName, params.email);
+  const ngpSource =
+    params.newGamePlusFrom &&
+    (params.newGamePlusFrom.newGamePlusUnlocked ||
+      params.newGamePlusFrom.masteryBadgeUnlocked ||
+      params.newGamePlusFrom.devModeEnabled)
+      ? params.newGamePlusFrom
+      : null;
+
   return {
     ...fresh,
-    runName: params.runName.trim() || `Run #${params.slotIndex}`,
-    rivalName: sanitizeRivalName(params.rivalName),
+    runName:
+      params.runName.trim() ||
+      (ngpSource
+        ? `New Game+ #${(ngpSource.newGamePlusCount ?? 0) + 1}`
+        : `Run #${params.slotIndex}`),
+    rivalName: sanitizeRivalName(params.rivalName ?? ngpSource?.rivalName),
     activeSaveSlot: params.slotIndex,
     vnPacingMode: params.vnPacingMode,
     defaultDifficulty: params.defaultDifficulty,
     ironmanMode: params.ironmanMode,
     nuzlockePermadeath: params.nuzlockePermadeath,
     hasStartedRun: true,
+    ...(ngpSource
+      ? {
+          inventory: {
+            ...fresh.inventory,
+            shinyCharms: ngpSource.inventory.shinyCharms,
+          },
+          unlockedPokedex: Array.from(
+            new Set([...fresh.unlockedPokedex, ...ngpSource.unlockedPokedex])
+          ),
+          masteryBadgeUnlocked: true,
+          newGamePlusUnlocked: true,
+          newGamePlusCount: (ngpSource.newGamePlusCount ?? 0) + 1,
+        }
+      : {}),
     updatedAt: new Date().toISOString(),
+  };
+}
+
+/**
+ * Post-Rank-3 Confession Bifurcation:
+ * - Mechanical rewards (House PC Pokémon & Ironman perks) are ALREADY awarded on Rank 3 victory.
+ * - Choosing `'platonic'` preserves Rank 3 without consuming `firstConfessionNpcId` (so players
+ *   can max Early-Game allies and save their romantic Ending for a Late-Game partner!).
+ * - Choosing `'confess'` triggers a humiliating Baby-Mode rejection if `isBabyShamed(profile)` is true,
+ *   otherwise locks `firstConfessionNpcId` ONLY on the VERY FIRST confession and appends to `confessedNpcIds`.
+ */
+export function recordRomanceConfession(
+  profile: PlayerSaveProfile,
+  npcId: string,
+  choice: 'confess' | 'platonic'
+): {
+  outcome: 'confessed' | 'platonic' | 'rejected_baby';
+  isFirstConfession: boolean;
+  nextProfile: PlayerSaveProfile;
+} {
+  const prev: SocialLinkProgress = profile.socialLinks[npcId] ?? {
+    rank: 3,
+    r1Done: true,
+    r2Done: true,
+    r3Done: true,
+  };
+
+  if (choice === 'platonic') {
+    return {
+      outcome: 'platonic',
+      isFirstConfession: false,
+      nextProfile: {
+        ...profile,
+        socialLinks: {
+          ...profile.socialLinks,
+          [npcId]: { ...prev, r3Choice: 'platonic' },
+        },
+        updatedAt: new Date().toISOString(),
+      },
+    };
+  }
+
+  if (isBabyShamed(profile)) {
+    return {
+      outcome: 'rejected_baby',
+      isFirstConfession: false,
+      nextProfile: {
+        ...profile,
+        socialLinks: {
+          ...profile.socialLinks,
+          [npcId]: { ...prev, r3Choice: 'rejected_baby' },
+        },
+        updatedAt: new Date().toISOString(),
+      },
+    };
+  }
+
+  const isFirstConfession = !profile.firstConfessionNpcId;
+  const nextFirst = profile.firstConfessionNpcId ?? npcId;
+  const nextConfessed = Array.from(
+    new Set([...(profile.confessedNpcIds ?? []), npcId])
+  );
+
+  return {
+    outcome: 'confessed',
+    isFirstConfession,
+    nextProfile: {
+      ...profile,
+      firstConfessionNpcId: nextFirst,
+      confessedNpcIds: nextConfessed,
+      socialLinks: {
+        ...profile.socialLinks,
+        [npcId]: { ...prev, r3Choice: 'confess' },
+      },
+      updatedAt: new Date().toISOString(),
+    },
   };
 }
 
