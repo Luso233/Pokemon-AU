@@ -1,6 +1,10 @@
 import { Dex } from '@pkmn/sim';
 import { getLegalLearnsetForSpecies, getSpeciesKey } from './learnsetService';
-import { computePokemonBst, computePokemonShopPricing } from './pricingEngine';
+import {
+  computePokemonBst,
+  computePokemonShopPricing,
+  type PokemonShopPricing,
+} from './pricingEngine';
 import type { OwnedPokemonInstance, StatSpread } from '../types/game';
 
 export type ShowdownFilterKind = 'type' | 'ability' | 'move' | 'tier';
@@ -11,7 +15,17 @@ export interface ShowdownSearchFilter {
   label: string;
 }
 
-export type ShowdownSortKey = 'name' | 'bst' | 'spe' | 'atk' | 'spa' | 'hp' | 'def' | 'spd';
+export type ShowdownSortKey =
+  | 'name'
+  | 'bst'
+  | 'spe'
+  | 'atk'
+  | 'spa'
+  | 'hp'
+  | 'def'
+  | 'spd'
+  | 'price-asc'
+  | 'price-desc';
 
 export interface IndexedSpeciesMeta {
   name: string;
@@ -22,6 +36,7 @@ export interface IndexedSpeciesMeta {
   bst: number;
   tierBand: string;
   rawTier: string;
+  pricing: PokemonShopPricing;
   /** 'M' (male-only), 'F' (female-only), 'N' (genderless), or '' (can be M or F). */
   fixedGender: '' | 'M' | 'F' | 'N';
 }
@@ -54,7 +69,7 @@ const ALL_TYPES = [
   'Fairy',
 ];
 
-const ALL_TIERS = ['Uber', 'OU', 'UUBL / UU', 'RU / NU', 'PU / ZU', 'LC'];
+const ALL_TIERS = ['Uber / AG', 'OU', 'UU / UUBL', 'RU / NU', 'PU / ZU', 'LC'];
 
 const speciesMetaCache = new Map<string, IndexedSpeciesMeta>();
 const speciesMoveSetCache = new Map<string, Set<string>>();
@@ -155,6 +170,7 @@ export function getIndexedSpeciesMeta(speciesName: string): IndexedSpeciesMeta {
     bst: computePokemonBst(canonical),
     tierBand: pricing.tierBand,
     rawTier: pricing.rawTier,
+    pricing,
     fixedGender,
   };
   speciesMetaCache.set(key, meta);
@@ -356,6 +372,14 @@ export function compareByShowdownSort(
   }
   const a = getIndexedSpeciesMeta(speciesA);
   const b = getIndexedSpeciesMeta(speciesB);
+  if (sortBy === 'price-asc') {
+    const diff = a.pricing.finalPrice - b.pricing.finalPrice;
+    return diff !== 0 ? diff : b.bst - a.bst;
+  }
+  if (sortBy === 'price-desc') {
+    const diff = b.pricing.finalPrice - a.pricing.finalPrice;
+    return diff !== 0 ? diff : b.bst - a.bst;
+  }
   const diff =
     sortBy === 'bst' ? b.bst - a.bst : b.baseStats[sortBy] - a.baseStats[sortBy];
   return diff !== 0 ? diff : a.name.localeCompare(b.name);

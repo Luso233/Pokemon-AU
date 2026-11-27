@@ -117,6 +117,7 @@ import {
 } from '../src/data/npcProfiles';
 import {
   calculatePokemonStats,
+  compareByShowdownSort,
   getIndexedSpeciesMeta,
   matchesShowdownFilters,
   queryShowdownSuggestions,
@@ -2469,8 +2470,37 @@ Adamant Nature
     throw new Error(`Expected solo 1-Pokémon Falinks Doubles auto-pad to succeed, got active0=${soloT1?.p1.active[0]?.species}, empty=${JSON.stringify(soloT1?.emptyPlayerSlots)}`);
   }
 
+  // 7) Shop Showdown Tactical Strat Search: fastest Tailwind users under 1,000 PC & tankiest Def Wide Guard users!
+  const allShopAg = getAllAnythingGoesPlayableSpecies();
+  const fastBudgetTailwind = allShopAg
+    .filter(
+      (sp) =>
+        getIndexedSpeciesMeta(sp).pricing.finalPrice <= 1000 &&
+        matchesShowdownFilters(sp, '', [
+          { kind: 'move', value: 'Tailwind', label: 'Mov: Tailwind' },
+        ])
+    )
+    .sort((a, b) => compareByShowdownSort(a, b, 'spe'));
+  const tankyWideGuard = allShopAg
+    .filter((sp) =>
+      matchesShowdownFilters(sp, '', [
+        { kind: 'move', value: 'Wide Guard', label: 'Mov: Wide Guard' },
+      ])
+    )
+    .sort((a, b) => compareByShowdownSort(a, b, 'def'));
+  if (
+    fastBudgetTailwind.length === 0 ||
+    getIndexedSpeciesMeta(fastBudgetTailwind[0]).baseStats.spe < 120 ||
+    tankyWideGuard.length === 0 ||
+    getIndexedSpeciesMeta(tankyWideGuard[0]).baseStats.def < 150
+  ) {
+    throw new Error(
+      `Shop Showdown strat filtering/sorting failed: fastestTailwind=${fastBudgetTailwind[0]}, tankiestWG=${tankyWideGuard[0]}`
+    );
+  }
+
   console.log(
-    `  OK: Showdown Editor (Solarius M · 508-clamped EVs · IVs · L100 HP=384/Atk=350), Release Guard, Saved Teams Library, Nuzlocke Forensic Death Log (Solarius KO'd T6 by Zoroark-Hisui's Bitter Malice), Dev Living Dex (+${ldexRes.addedCount} -> ${ldexRes.totalLiving} living), Indexed Search (${fastFighters.length} Fighting+CC+Spe>=110 hits) & Solo 1-Pokémon Doubles Paste (Falinks) ALL VERIFIED!`
+    `  OK: Showdown Editor (Solarius M · 508-clamped EVs · IVs · L100 HP=384/Atk=350), Release Guard, Saved Teams Library, Nuzlocke Forensic Death Log, Dev Living Dex (+${ldexRes.addedCount} -> ${ldexRes.totalLiving}), Indexed Search (${fastFighters.length} Fighting+CC+Spe>=110), Shop Strats (Fast Tailwind <=1000 PC: ${fastBudgetTailwind[0]} Spe ${getIndexedSpeciesMeta(fastBudgetTailwind[0]).baseStats.spe}; Top Def Wide Guard: ${tankyWideGuard[0]} Def ${getIndexedSpeciesMeta(tankyWideGuard[0]).baseStats.def}) & Solo 1-Pokémon Doubles Paste (Falinks) ALL VERIFIED!`
   );
 
   console.log('\nALL 26 ENGINE, MAP, ROMANCE, POKÉROGUE RUN, DOUBLE-ZOROARK, SMOGON ECONOMY, NATDEX & SHOWDOWN TEAMBUILDER SUITES PASSED!');
