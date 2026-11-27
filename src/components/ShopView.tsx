@@ -4,7 +4,6 @@ import {
   Backpack,
   CheckCircle2,
   Coins,
-  Disc3,
   Gamepad2,
   Scale,
   Search,
@@ -21,18 +20,17 @@ import {
   POKEMON_CATALOG_MAP,
   SHINY_CHARM_PRICE,
   SHOP_ITEMS,
-  SHOP_TMS,
 } from '../data/economyCatalog';
 import { computeActiveSocialLinkPerks } from '../data/socialLinksCatalog';
 import { getSpeciesKey } from '../engine/learnsetService';
 import {
   buildSmartDefaultMemberForSpecies,
   computePokemonShopPricing,
+  getAllAnythingGoesPlayableSpecies,
   getAllBiomePokedexSpecies,
   getImperialBstLicense,
   type SmogonPriceBand,
 } from '../engine/pricingEngine';
-import { getTypeBadgeClass } from '../engine/pokemonVisuals';
 import type { PlayerSaveProfile } from '../types/game';
 import { PokemonSprite } from './PokemonSprite';
 
@@ -43,11 +41,10 @@ interface ShopViewProps {
   onOpenArcade: () => void;
   onBuyPokemon: (species: string) => { ok: boolean; error?: string };
   onBuyItem: (itemName: string) => { ok: boolean; error?: string };
-  onBuyTM: (moveName: string) => { ok: boolean; error?: string };
   onBuyShinyCharm: () => { ok: boolean; error?: string };
 }
 
-type ShopTab = 'pokemon' | 'items' | 'tms' | 'shiny';
+type ShopTab = 'pokemon' | 'items' | 'shiny';
 
 const SHINY_SHOWCASE_SPECIES = [
   'Arcanine',
@@ -65,7 +62,6 @@ export const ShopView: React.FC<ShopViewProps> = ({
   onOpenArcade,
   onBuyPokemon,
   onBuyItem,
-  onBuyTM,
   onBuyShinyCharm,
 }) => {
   const [tab, setTab] = useState<ShopTab>('pokemon');
@@ -78,13 +74,31 @@ export const ShopView: React.FC<ShopViewProps> = ({
 
   const bstLicense = useMemo(() => getImperialBstLicense(profile), [profile]);
   const perks = useMemo(() => computeActiveSocialLinkPerks(profile), [profile]);
-  const totalWorldSpeciesCount = useMemo(() => getAllBiomePokedexSpecies().length, []);
+  const fullAgDexActive = Boolean(profile.devFullAgPokedex);
+  const totalWorldSpeciesCount = useMemo(
+    () =>
+      fullAgDexActive
+        ? getAllAnythingGoesPlayableSpecies().length
+        : getAllBiomePokedexSpecies().length,
+    [fullAgDexActive]
+  );
 
   const buyablePokedexRows = useMemo(() => {
-    const unlockedList = profile.devModeEnabled
-      ? getAllBiomePokedexSpecies()
-      : profile.unlockedPokedex;
-    const rows = unlockedList.map((species) => {
+    const q = pokeSearch.trim().toLowerCase();
+    const rawSource = fullAgDexActive
+      ? getAllAnythingGoesPlayableSpecies()
+      : profile.devModeEnabled
+        ? getAllBiomePokedexSpecies()
+        : profile.unlockedPokedex;
+
+    // Fast pre-filter by search string before Dex pricing calculation when browsing 1,150+ AG species!
+    const preFiltered = q
+      ? rawSource.filter((sp) => sp.toLowerCase().includes(q))
+      : fullAgDexActive && tierFilter === 'all'
+        ? rawSource.slice(0, 72)
+        : rawSource;
+
+    const rows = preFiltered.map((species) => {
       const cat = POKEMON_CATALOG_MAP.get(species.toLowerCase());
       const def = buildSmartDefaultMemberForSpecies(species, cat);
       const pricing = computePokemonShopPricing(def.species, def.ability);
@@ -106,7 +120,6 @@ export const ShopView: React.FC<ShopViewProps> = ({
       };
     });
 
-    const q = pokeSearch.trim().toLowerCase();
     const filtered = rows.filter((r) => {
       if (tierFilter !== 'all' && r.pricing.tierBand !== tierFilter) return false;
       if (!q) return true;
@@ -123,8 +136,16 @@ export const ShopView: React.FC<ShopViewProps> = ({
       if (sortBy === 'bst-desc') return b.pricing.bst - a.pricing.bst;
       return a.pricing.finalPrice - b.pricing.finalPrice;
     });
-    return filtered;
-  }, [profile.unlockedPokedex, profile.pokemonBox, profile.devModeEnabled, pokeSearch, tierFilter, sortBy]);
+    return filtered.slice(0, 60);
+  }, [
+    fullAgDexActive,
+    profile.unlockedPokedex,
+    profile.pokemonBox,
+    profile.devModeEnabled,
+    pokeSearch,
+    tierFilter,
+    sortBy,
+  ]);
 
   const showFeedback = (res: { ok: boolean; error?: string }, okMsg: string) => {
     setToast(
@@ -218,18 +239,15 @@ export const ShopView: React.FC<ShopViewProps> = ({
             [
               {
                 id: 'pokemon',
-                label: `Pokédex de Compra (${profile.unlockedPokedex.length}/${totalWorldSpeciesCount})`,
+                label: fullAgDexActive
+                  ? `Pokédex Nacional AG (${totalWorldSpeciesCount})`
+                  : `Pokédex de Compra (${profile.unlockedPokedex.length}/${totalWorldSpeciesCount})`,
                 icon: Shield,
               },
               {
                 id: 'items',
                 label: `Objetos (${profile.inventory.items.length})`,
                 icon: Backpack,
-              },
-              {
-                id: 'tms',
-                label: `MTs / Moves (${profile.inventory.tms.length})`,
-                icon: Disc3,
               },
               {
                 id: 'shiny',
@@ -498,66 +516,7 @@ export const ShopView: React.FC<ShopViewProps> = ({
           </div>
         )}
 
-        {/* TAB 3: TMs */}
-        {tab === 'tms' && (
-          <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
-            {SHOP_TMS.map((tm) => {
-              const owned = profile.inventory.tms.includes(tm.move);
-              const canAfford = profile.coins >= tm.price;
-              return (
-                <div
-                  key={tm.move}
-                  className="flex flex-col justify-between rounded-2xl border border-slate-800 bg-slate-900/80 p-4"
-                >
-                  <div>
-                    <div className="mb-1.5 flex items-center justify-between gap-2">
-                      <span
-                        className={`rounded border px-2 py-0.5 text-[10px] font-bold uppercase ${getTypeBadgeClass(
-                          tm.type
-                        )}`}
-                      >
-                        MT · {tm.type}
-                      </span>
-                      <span className="font-mono-code text-xs font-extrabold text-amber-300">
-                        {tm.price.toLocaleString()} {CURRENCY_SHORT}
-                      </span>
-                    </div>
-                    <h3 className="text-sm font-extrabold text-white">
-                      {tm.move}
-                    </h3>
-                    <p className="mt-1 text-xs leading-relaxed text-slate-400">
-                      {tm.desc}
-                    </p>
-                  </div>
-                  <div className="mt-3.5">
-                    {owned ? (
-                      <div className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-400/35 bg-emerald-500/15 py-2 text-xs font-bold text-emerald-300">
-                        <CheckCircle2 className="h-4 w-4" />
-                        En tu Mochila de MTs
-                      </div>
-                    ) : (
-                      <button
-                        disabled={!canAfford}
-                        onClick={() =>
-                          showFeedback(
-                            onBuyTM(tm.move),
-                            `¡MT ${tm.move} añadida! Ahora puedes enseñarla en el Editor de Equipo.`
-                          )
-                        }
-                        className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-amber-500 py-2 text-xs font-extrabold text-slate-950 hover:brightness-110 disabled:opacity-35 cursor-pointer"
-                      >
-                        <Disc3 className="h-3.5 w-3.5" />
-                        Comprar MT ({tm.price.toLocaleString()} {CURRENCY_SHORT})
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* TAB 4: SHINY CHARMS (ENDGAME PRESTIGE — MAX 6) */}
+        {/* TAB 3: SHINY CHARMS (ENDGAME PRESTIGE — MAX 6) */}
         {tab === 'shiny' && (
           <div className="rounded-3xl border border-fuchsia-400/45 bg-gradient-to-br from-fuchsia-950/40 via-slate-950 to-amber-950/30 p-6 shadow-2xl">
             <div className="grid items-center gap-6 lg:grid-cols-12">

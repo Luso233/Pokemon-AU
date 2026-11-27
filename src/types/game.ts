@@ -144,6 +144,8 @@ export interface PlayerSaveProfile {
   customItems: Record<string, string>;
   /** Dev Mode sandbox toggle (free move slots + debug tools). */
   devModeEnabled: boolean;
+  /** Dev Mode Anything Goes Full National Pokédex (~1,150+ playable species + Showdown Paste importer/spawner). */
+  devFullAgPokedex?: boolean;
   /** Affinity / Romance ranks per romanceable NPC ID (0..3). */
   socialLinks: Record<string, SocialLinkProgress>;
   /** First romanceable NPC to reach Rank 3 (never overwritten; defines default Romantic Ending). */

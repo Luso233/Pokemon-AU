@@ -1,6 +1,10 @@
 import { Dex } from '@pkmn/sim';
 import type { WorldBlocId } from '../data/worldGeopolitics';
-import type { CustomTeamMember, PlayerSaveProfile } from '../types/game';
+import type {
+  BattleDifficultyMode,
+  CustomTeamMember,
+  PlayerSaveProfile,
+} from '../types/game';
 import { getLegalLearnsetForSpecies, getSpeciesKey } from './learnsetService';
 
 /* ===================== 1. Smogon Tier + BST + Broken Ability Tax Pricing ===================== */
@@ -224,13 +228,16 @@ export function computeCasualtyIndemnification(
   };
 }
 
-/* ===================== 3. Imperial License Laws (Team Total BST Cap: Early -> Late -> Clímax) ===================== */
+/* ===================== 3. Imperial License Laws (Dynamic Team Total BST Cap by Act + Difficulty) ===================== */
 
 export interface ImperialBstLicense {
   actNumber: 1 | 2 | 3 | 4;
   actLabel: string;
   shortLabel: string;
-  maxTeamBst: number | null; // null = unlimited (Clímax / Postgame / Dev Mode)
+  difficultyUsed: BattleDifficultyMode;
+  difficultyDeltaLabel: string;
+  baseActCap: number | null;
+  maxTeamBst: number | null; // null = unlimited (Baby Mode / Clímax / Dev Mode)
   currentPartyBst: number;
   isOverCap: boolean;
   remainingBst: number | null;
@@ -238,7 +245,8 @@ export interface ImperialBstLicense {
 }
 
 export function getImperialBstLicense(
-  profile: PlayerSaveProfile
+  profile: PlayerSaveProfile,
+  difficultyOverride?: BattleDifficultyMode
 ): ImperialBstLicense {
   const completedCount = Object.values(profile.completedChapters).filter(
     (c) => c?.completed
@@ -248,12 +256,19 @@ export function getImperialBstLicense(
     (sum, m) => sum + computePokemonBst(m.species),
     0
   );
+  const effDiff: BattleDifficultyMode =
+    difficultyOverride ?? profile.defaultDifficulty ?? 'kaizo';
 
   if (profile.devModeEnabled || completedCount >= 12) {
     return {
       actNumber: 4,
       actLabel: 'Clímax y Postgame · Sin Restricción Imperial',
       shortLabel: 'Sin Límite (∞ BST)',
+      difficultyUsed: effDiff,
+      difficultyDeltaLabel: profile.devModeEnabled
+        ? 'Dev Mode (∞)'
+        : 'Clímax (∞)',
+      baseActCap: null,
       maxTeamBst: null,
       currentPartyBst,
       isOverCap: false,
@@ -263,44 +278,85 @@ export function getImperialBstLicense(
     };
   }
 
-  if (completedCount >= 7) {
-    const cap = 3500;
+  // Base Act Cap (Normal difficulty baseline): Acto 1 = 3,000 · Acto 2 = 3,250 · Acto 3 = 3,550
+  const actInfo: {
+    actNumber: 1 | 2 | 3;
+    actLabel: string;
+    baseCap: number;
+    nextHint: string;
+  } =
+    completedCount >= 7
+      ? {
+          actNumber: 3,
+          actLabel: 'Acto III · Licencia de Regreso a Wyndon',
+          baseCap: 3550,
+          nextHint: `Supera ${12 - completedCount} capítulo(s) más para abolir el límite BST (Clímax/Postgame).`,
+        }
+      : completedCount >= 3
+        ? {
+            actNumber: 2,
+            actLabel: 'Acto II · Licencia del Exilio Global',
+            baseCap: 3250,
+            nextHint: `Supera ${7 - completedCount} capítulo(s) más para subir al Acto III (Base 3,550 BST).`,
+          }
+        : {
+            actNumber: 1,
+            actLabel: 'Acto I · Licencia de Fuga Imperial',
+            baseCap: 3000,
+            nextHint: `Supera ${3 - completedCount} capítulo(s) más para subir al Acto II (Base 3,250 BST).`,
+          };
+
+  // Dynamic Difficulty Modifier:
+  //  - Baby Mode: NO CAP (∞ BST)
+  //  - Normal: Base Act Cap (3,000 / 3,250 / 3,550)
+  //  - Difícil (Kaizo): Strict Cap (-150 BST -> 2,850 / 3,100 / 3,400)
+  //  - Tryhard (Diablo): Brutal Cap (-300 BST -> 2,700 / 2,950 / 3,250)
+  if (effDiff === 'baby') {
     return {
-      actNumber: 3,
-      actLabel: 'Acto III · Licencia de Regreso a Wyndon (Late Game)',
-      shortLabel: 'Acto III · Cap 3,500 BST',
-      maxTeamBst: cap,
+      actNumber: actInfo.actNumber,
+      actLabel: `${actInfo.actLabel} · Baby Mode`,
+      shortLabel: `Acto ${actInfo.actNumber === 1 ? 'I' : actInfo.actNumber === 2 ? 'II' : 'III'} · Sin Cap (Baby Mode)`,
+      difficultyUsed: effDiff,
+      difficultyDeltaLabel: 'Sin Cap (Baby Mode)',
+      baseActCap: actInfo.baseCap,
+      maxTeamBst: null,
       currentPartyBst,
-      isOverCap: currentPartyBst > cap,
-      remainingBst: cap - currentPartyBst,
-      nextActUnlockHint: `Supera ${12 - completedCount} capítulo(s) más para abolir el límite BST (Clímax/Postgame).`,
+      isOverCap: false,
+      remainingBst: null,
+      nextActUnlockHint:
+        'Baby Mode elimina el límite de BST: lleva a tus favoritos desde el Capítulo 1 sin restricciones.',
     };
   }
 
-  if (completedCount >= 3) {
-    const cap = 3150;
-    return {
-      actNumber: 2,
-      actLabel: 'Acto II · Licencia del Exilio Global (Mid Game)',
-      shortLabel: 'Acto II · Cap 3,150 BST',
-      maxTeamBst: cap,
-      currentPartyBst,
-      isOverCap: currentPartyBst > cap,
-      remainingBst: cap - currentPartyBst,
-      nextActUnlockHint: `Supera ${7 - completedCount} capítulo(s) más para subir a 3,500 BST (Acto III).`,
-    };
-  }
+  const diffDelta =
+    effDiff === 'nightmare' ? -300 : effDiff === 'kaizo' ? -150 : 0;
+  const difficultyDeltaLabel =
+    effDiff === 'nightmare'
+      ? 'Tryhard (-300 BST)'
+      : effDiff === 'kaizo'
+        ? 'Difícil (-150 BST)'
+        : 'Normal (Base)';
+  const cap = actInfo.baseCap + diffDelta;
+  const roman =
+    actInfo.actNumber === 1 ? 'I' : actInfo.actNumber === 2 ? 'II' : 'III';
 
-  const cap = 2800;
   return {
-    actNumber: 1,
-    actLabel: 'Acto I · Licencia de Fuga Imperial (Early Game)',
-    shortLabel: 'Acto I · Cap 2,800 BST',
+    actNumber: actInfo.actNumber,
+    actLabel: `${actInfo.actLabel} · ${difficultyDeltaLabel}`,
+    shortLabel: `Acto ${roman} · Cap ${cap.toLocaleString()} BST`,
+    difficultyUsed: effDiff,
+    difficultyDeltaLabel,
+    baseActCap: actInfo.baseCap,
     maxTeamBst: cap,
     currentPartyBst,
     isOverCap: currentPartyBst > cap,
     remainingBst: cap - currentPartyBst,
-    nextActUnlockHint: `Supera ${3 - completedCount} capítulo(s) más para subir a 3,150 BST (Acto II). Combina un carry fuerte con soportes económicos (LC/PU/cheese).`,
+    nextActUnlockHint:
+      effDiff === 'nightmare'
+        ? `Modo Tryhard recorta -300 BST al Acto ${roman}: combina carries con LC/PU/cheese. ${actInfo.nextHint}`
+        : effDiff === 'kaizo'
+          ? `Modo Difícil recorta -150 BST al Acto ${roman}: exige sinergias y soportes económicos. ${actInfo.nextHint}`
+          : actInfo.nextHint,
   };
 }
 
@@ -611,6 +667,51 @@ export function getAllBiomePokedexSpecies(): string[] {
     }
   }
   return Array.from(seen.values());
+}
+
+let cachedAgSpecies: string[] | null = null;
+
+/**
+ * Returns EVERY playable Pokémon & battle forme in Anything Goes directly from @pkmn/sim Dex (~1,150+ species),
+ * excluding CAP/fictional/cosmetic-only clutter while preserving Megas, Regional formes, Primals, Crowned, Therian, etc.!
+ */
+export function getAllAnythingGoesPlayableSpecies(): string[] {
+  if (cachedAgSpecies) return cachedAgSpecies;
+  const result: string[] = [];
+  const seen = new Set<string>();
+
+  for (const sp of Dex.species.all()) {
+    if (!sp.exists || sp.num <= 0) continue;
+    if (
+      sp.isNonstandard === 'CAP' ||
+      sp.isNonstandard === 'Custom' ||
+      sp.isNonstandard === 'Future' ||
+      sp.isNonstandard === 'LGPE' ||
+      sp.isNonstandard === 'Unobtainable'
+    ) {
+      continue;
+    }
+    if (sp.isCosmeticForme) continue;
+    // Skip Gigantamax & Totem wrappers (Gmax isn't selectable as standalone base species in customgame)
+    if (
+      sp.forme === 'Gmax' ||
+      sp.forme === 'Totem' ||
+      sp.forme === 'Totem-Alola' ||
+      sp.forme === 'Eternamax'
+    ) {
+      continue;
+    }
+    // Keep base species + genuine distinct battle formes (Mega, Primal, Regional, Crowned, Therian, Origin, etc.)
+    const k = getSpeciesKey(sp.name);
+    if (!seen.has(k)) {
+      seen.add(k);
+      result.push(sp.name);
+    }
+  }
+
+  result.sort((a, b) => a.localeCompare(b));
+  cachedAgSpecies = result;
+  return result;
 }
 
 /**

@@ -44,6 +44,7 @@ import {
   buildSmartDefaultMemberForSpecies,
   computeCasualtyIndemnification,
   computePokemonShopPricing,
+  getAllAnythingGoesPlayableSpecies,
   getAllBiomePokedexSpecies,
   rollRegionalPokedexUnlocks,
   STARTER_UNLOCKED_POKEDEX,
@@ -136,6 +137,7 @@ export function createDefaultProfile(
     customMoves: {},
     customItems: {},
     devModeEnabled: false,
+    devFullAgPokedex: false,
     socialLinks: {},
     firstRomanceMaxedId: null,
     ironmanMode: false,
@@ -299,6 +301,7 @@ export function normalizeProfile(
     customMoves: normalizeCustomMoves(raw.customMoves),
     customItems: normalizeCustomItems(raw.customItems),
     devModeEnabled: Boolean(raw.devModeEnabled),
+    devFullAgPokedex: Boolean(raw.devFullAgPokedex),
     socialLinks:
       raw.socialLinks && typeof raw.socialLinks === 'object'
         ? { ...raw.socialLinks }
@@ -885,6 +888,7 @@ export function purchasePokemon(
   const canonicalName = dexSp.name;
   const isInUnlockedPokedex =
     profile.devModeEnabled ||
+    Boolean(profile.devFullAgPokedex) ||
     profile.unlockedPokedex.some((s) => getSpeciesKey(s) === spKey) ||
     SHOP_POKEMON.some((p) => getSpeciesKey(p.species) === spKey);
 
@@ -1323,6 +1327,11 @@ export function applyDevUnlockEverything(
     ])
   );
 
+  const allItemStock: Record<string, number> = { ...profile.itemStock };
+  for (const it of allItems) {
+    allItemStock[it] = Math.max(6, allItemStock[it] ?? 0);
+  }
+
   return {
     ...profile,
     coins: 9999999,
@@ -1333,10 +1342,188 @@ export function applyDevUnlockEverything(
       tms: allTms,
       shinyCharms: MAX_SHINY_CHARMS,
     },
+    itemStock: allItemStock,
     unlockedPokedex: allBiomeSpecies,
     unlockedMoveSlots,
     devModeEnabled: true,
+    devFullAgPokedex: true,
     updatedAt: new Date().toISOString(),
+  };
+}
+
+/**
+ * Dev Mode: Unlocks the complete Anything Goes National Pokédex (~1,150+ playable species)
+ * + 6x stock of all competitive held items + free move slots for playtesting any Showdown composition!
+ */
+export function applyDevUnlockFullAgPokedex(
+  profile: PlayerSaveProfile
+): PlayerSaveProfile {
+  const base = applyDevUnlockEverything(profile);
+  return {
+    ...base,
+    devModeEnabled: true,
+    devFullAgPokedex: true,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+/**
+ * Dev Mode Playtesting Helper: Spawns a ready-to-customize specimen of ANY playable Anything Goes species
+ * directly into your Active Party (if < 6 slots) or Reserve Box at 0 PC!
+ */
+export function spawnDevAgSpecimen(
+  profile: PlayerSaveProfile,
+  species: string,
+  targetZone: 'party' | 'box' = 'party'
+): { ok: boolean; error?: string; uid?: string; nextProfile: PlayerSaveProfile } {
+  const sp = Dex.species.get(species);
+  if (!sp.exists) {
+    return { ok: false, error: `Especie "${species}" no encontrada en @pkmn/sim.`, nextProfile: profile };
+  }
+  const canonical = sp.name;
+  const spKey = getSpeciesKey(canonical);
+  const def = buildDefaultMemberForSpecies(canonical);
+  const currentParty = profile.pokemonBox.filter((m) => m.zone === 'party');
+  const dupInParty = currentParty.some(
+    (m) => getSpeciesKey(m.species) === spKey
+  );
+  const resolvedZone: 'party' | 'box' =
+    targetZone === 'party' && currentParty.length < 6 && !dupInParty
+      ? 'party'
+      : 'box';
+
+  const uid = `dev-${spKey}-${Date.now().toString(36)}-${profile.pokemonBox.length}`;
+  const inst: OwnedPokemonInstance = {
+    uid,
+    species: def.species,
+    origin: 'Dev Lab · Anything Goes',
+    zone: resolvedZone,
+    item: '',
+    ability: def.ability,
+    nature: def.nature,
+    teraType: def.teraType,
+    moves: [...def.moves],
+    shiny: false,
+    hp: null,
+    maxhp: null,
+    status: '',
+  };
+
+  const nextBox = [...profile.pokemonBox, inst];
+  const nextInvPokemon = profile.inventory.pokemon.some(
+    (s) => getSpeciesKey(s) === spKey
+  )
+    ? profile.inventory.pokemon
+    : [...profile.inventory.pokemon, canonical];
+
+  return {
+    ok: true,
+    uid,
+    nextProfile: {
+      ...profile,
+      inventory: { ...profile.inventory, pokemon: nextInvPokemon },
+      pokemonBox: nextBox,
+      customTeam: syncCustomTeamFromBox(nextBox),
+      updatedAt: new Date().toISOString(),
+    },
+  };
+}
+
+/**
+ * Dev Mode Playtesting Helper: Imports a full Showdown Paste directly into Active Party
+ * (moving old party specimens safely into the Reserve Box), enabling rapid level playtesting
+ * and round-trip Showdown import/export!
+ */
+export function importShowdownPasteToParty(
+  profile: PlayerSaveProfile,
+  rawPaste: string
+): { ok: boolean; error?: string; importedCount: number; nextProfile: PlayerSaveProfile } {
+  let sets: ReturnType<typeof Teams.import> = null;
+  try {
+    sets = Teams.import(rawPaste.trim());
+  } catch {
+    sets = null;
+  }
+  if (!sets || sets.length === 0) {
+    return {
+      ok: false,
+      error: 'No se pudo parsear el Paste de Showdown. Verifica el formato.',
+      importedCount: 0,
+      nextProfile: profile,
+    };
+  }
+
+  const validSets = sets
+    .slice(0, 6)
+    .filter((s) => Dex.species.get(s.species).exists);
+  if (validSets.length === 0) {
+    return {
+      ok: false,
+      error: 'Ninguna especie del paste es válida en @pkmn/sim.',
+      importedCount: 0,
+      nextProfile: profile,
+    };
+  }
+
+  // Park current party into Reserve Box (preserving Ironman state — zero data loss!)
+  const nextBox: OwnedPokemonInstance[] = profile.pokemonBox.map((m) =>
+    m.zone === 'party' ? { ...m, zone: 'box' as const } : m
+  );
+  const nextItemStock = { ...profile.itemStock };
+  const nextItems = new Set(profile.inventory.items);
+  const nextPokemon = new Set(profile.inventory.pokemon);
+
+  validSets.forEach((s, idx) => {
+    const sp = Dex.species.get(s.species);
+    const canonical = sp.name;
+    const def = buildDefaultMemberForSpecies(canonical);
+    const item = s.item?.trim() || '';
+    if (item) {
+      nextItems.add(item);
+      nextItemStock[item] = Math.max(
+        nextItemStock[item] ?? 0,
+        validSets.filter((x) => x.item?.trim() === item).length
+      );
+    }
+    nextPokemon.add(canonical);
+    nextBox.push({
+      uid: `imp-${getSpeciesKey(canonical)}-${Date.now().toString(36)}-${idx}`,
+      species: canonical,
+      nickname: s.name && s.name !== canonical ? s.name : undefined,
+      origin: 'Importado · Showdown Playtest',
+      zone: 'party',
+      item,
+      ability: s.ability || def.ability,
+      nature: s.nature || def.nature,
+      teraType: s.teraType || def.teraType,
+      moves:
+        s.moves && s.moves.length > 0 ? s.moves.slice(0, 4) : [...def.moves],
+      shiny: Boolean(s.shiny && profile.inventory.shinyCharms > 0),
+      hp: null,
+      maxhp: null,
+      status: '',
+    });
+  });
+
+  // Expose helper count sanity check
+  void getAllAnythingGoesPlayableSpecies;
+
+  return {
+    ok: true,
+    importedCount: validSets.length,
+    nextProfile: {
+      ...profile,
+      useCustomTeamInStory: true,
+      inventory: {
+        ...profile.inventory,
+        pokemon: Array.from(nextPokemon),
+        items: Array.from(nextItems),
+      },
+      itemStock: nextItemStock,
+      pokemonBox: nextBox,
+      customTeam: syncCustomTeamFromBox(nextBox),
+      updatedAt: new Date().toISOString(),
+    },
   };
 }
 

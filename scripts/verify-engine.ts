@@ -40,6 +40,7 @@ import {
   applyBattleOutcomeToProfile,
   applyChapterProgressionToPaste,
   applyDevUnlockEverything,
+  applyDevUnlockFullAgPokedex,
   awardArcadeCoins,
   buildIronmanPersistedStateForBattle,
   campHealPartyMember,
@@ -49,6 +50,7 @@ import {
   createNewConfiguredRunProfile,
   equipItemOnInstance,
   harvestCampBerry,
+  importShowdownPasteToParty,
   isChapterUnlocked,
   isMoveSlotUnlocked,
   movePokemonInstanceZone,
@@ -61,6 +63,7 @@ import {
   resetStoryProgress,
   setCustomItemForSpecies,
   setCustomMoveForSpecies,
+  spawnDevAgSpecimen,
   toggleRunModifiers,
   unlockChapterWithCoins,
   unlockMoveSlotForSpecies,
@@ -82,6 +85,7 @@ import {
   computeCasualtyIndemnification,
   computePokemonBst,
   computePokemonShopPricing,
+  getAllAnythingGoesPlayableSpecies,
   getImperialBstLicense,
   REGIONAL_FAUNA_POOLS,
 } from '../src/engine/pricingEngine';
@@ -1944,12 +1948,26 @@ async function main() {
     throw new Error('Missing canonical biogeographical species in regional fauna pools!');
   }
 
-  // 5) Imperial License Team Total BST Cap (Act 1: 2,800 -> Act 2: 3,150 -> Act 3: 3,500 -> Clímax: ∞)
-  const act1Lic = getImperialBstLicense(econProf);
-  if (act1Lic.actNumber !== 1 || act1Lic.maxTeamBst !== 2800 || !act1Lic.isOverCap) {
-    throw new Error(`Expected starter 3,073 BST party to exceed Act 1 cap (2,800), got ${JSON.stringify(act1Lic)}`);
+  // 5) Dynamic Difficulty-Linked Imperial BST Cap (Baby=∞, Normal=3000, Difícil=2850, Tryhard=2700 in Act 1!)
+  const act1Baby = getImperialBstLicense(econProf, 'baby');
+  const act1Normal = getImperialBstLicense(econProf, 'standard');
+  const act1Hard = getImperialBstLicense(econProf, 'kaizo');
+  const act1Tryhard = getImperialBstLicense(econProf, 'nightmare');
+  if (
+    act1Baby.maxTeamBst !== null ||
+    act1Baby.isOverCap ||
+    act1Normal.maxTeamBst !== 3000 ||
+    !act1Normal.isOverCap ||
+    act1Hard.maxTeamBst !== 2850 ||
+    !act1Hard.isOverCap ||
+    act1Tryhard.maxTeamBst !== 2700 ||
+    !act1Tryhard.isOverCap
+  ) {
+    throw new Error(
+      `Dynamic difficulty BST cap mismatch: baby=${act1Baby.maxTeamBst}, normal=${act1Normal.maxTeamBst}, hard=${act1Hard.maxTeamBst}, tryhard=${act1Tryhard.maxTeamBst}`
+    );
   }
-  // Buy cheap Cottonee (312 PC, 280 BST) & Shedinja (441 PC, 236 BST) and swap into party to fit under 2,800 BST!
+  // Buy cheap Cottonee (312 PC, 280 BST) and drop Arcanine + Milotic -> fits cleanly under Tryhard 2,700 BST!
   const buyCot = purchasePokemon(econProf, 'Cottonee');
   if (!buyCot.ok) throw new Error(`Expected Cottonee purchase (312 PC) to succeed: ${buyCot.error}`);
   econProf = buyCot.nextProfile;
@@ -1958,15 +1976,46 @@ async function main() {
   if (!miloticUid || !cotUid) throw new Error('Expected Milotic and purchased Cottonee in box!');
   econProf = movePokemonInstanceZone(econProf, miloticUid, 'box').nextProfile;
   econProf = movePokemonInstanceZone(econProf, cotUid, 'party').nextProfile;
-  // Drop one more heavy guard (Arcanine 555 BST) -> remaining 5 mons cleanly <= 2,800 BST!
   const arcUid24 = econProf.pokemonBox.find((b) => b.zone === 'party' && b.species === 'Arcanine')?.uid;
   if (arcUid24) econProf = movePokemonInstanceZone(econProf, arcUid24, 'box').nextProfile;
-  const legalAct1Lic = getImperialBstLicense(econProf);
-  if (legalAct1Lic.isOverCap || legalAct1Lic.currentPartyBst > 2800) {
-    throw new Error(`Expected adjusted Act 1 party with Cottonee (${computePokemonBst('Cottonee')} BST) to fit under 2,800 BST, got ${JSON.stringify(legalAct1Lic)}`);
+  const legalAct1Tryhard = getImperialBstLicense(econProf, 'nightmare');
+  if (legalAct1Tryhard.isOverCap || legalAct1Tryhard.currentPartyBst > 2700) {
+    throw new Error(`Expected adjusted Act 1 party with Cottonee (${computePokemonBst('Cottonee')} BST) to fit under Tryhard 2,700 BST, got ${JSON.stringify(legalAct1Tryhard)}`);
   }
+
+  // 6) Dev Mode Anything Goes Full National Pokédex (~1,150+ species) + Specimen Spawner + Showdown Paste Playtest Importer!
+  const agSpecies = getAllAnythingGoesPlayableSpecies();
+  if (
+    agSpecies.length < 1000 ||
+    !agSpecies.includes('Rayquaza-Mega') ||
+    !agSpecies.includes('Zacian-Crowned') ||
+    !agSpecies.includes('Shedinja') ||
+    !agSpecies.includes('Bidoof')
+  ) {
+    throw new Error(`Expected >=1,000 playable Anything Goes species including Rayquaza-Mega/Shedinja/Bidoof, got ${agSpecies.length}`);
+  }
+  let devAgProf = applyDevUnlockFullAgPokedex(createDefaultProfile('DevPlaytester', 'dev@galar.com'));
+  if (!devAgProf.devFullAgPokedex || !devAgProf.devModeEnabled || getImperialBstLicense(devAgProf, 'nightmare').maxTeamBst !== null) {
+    throw new Error('Expected applyDevUnlockFullAgPokedex to unlock full AG dex & unlimited BST cap!');
+  }
+  const spawnRay = spawnDevAgSpecimen(devAgProf, 'Rayquaza-Mega', 'box');
+  if (!spawnRay.ok || !spawnRay.nextProfile.pokemonBox.some((m) => m.species === 'Rayquaza-Mega')) {
+    throw new Error(`Expected Dev AG specimen spawn of Rayquaza-Mega to succeed: ${spawnRay.error}`);
+  }
+  devAgProf = spawnRay.nextProfile;
+  const testImportPaste = `Flutter Mane @ Booster Energy\nAbility: Protosynthesis\nTera Type: Fairy\nTimid Nature\n- Moonblast\n- Shadow Ball\n- Icy Wind\n- Protect\n\nBidoof @ Focus Sash\nAbility: Moody\nTera Type: Normal\nJolly Nature\n- Quick Attack\n- Protect`;
+  const impRes = importShowdownPasteToParty(devAgProf, testImportPaste);
+  if (
+    !impRes.ok ||
+    impRes.importedCount !== 2 ||
+    impRes.nextProfile.pokemonBox.filter((m) => m.zone === 'party').length !== 2 ||
+    !compileCustomTeamToShowdownPaste(impRes.nextProfile.customTeam, 100).includes('Flutter Mane')
+  ) {
+    throw new Error(`Expected Showdown Playtest Paste import/export round-trip to succeed: ${JSON.stringify(impRes)}`);
+  }
+
   console.log(
-    `  OK: Smogon Pricing (Cottonee=312 PC, Kingambit=825 PC, Miraidon=1340 PC), Nuzlocke Indemnification (+${ch1EconWin.reward.casualtyIndemnificationCoins} PC), 18-Region Fauna Pokédex, Anti-Grind Lock & Imperial BST Cap (${legalAct1Lic.currentPartyBst}/2800 BST) ALL VERIFIED!`
+    `  OK: Smogon Pricing (Cottonee=312 PC, Kingambit=825 PC, Miraidon=1340 PC), Nuzlocke Indemnification (+${ch1EconWin.reward.casualtyIndemnificationCoins} PC), 18-Region Fauna Pokédex, Anti-Grind Lock, Dynamic Difficulty BST Cap (Baby=∞ / Normal=3000 / Difícil=2850 / Tryhard=2700 -> ${legalAct1Tryhard.currentPartyBst}/2700) & Dev AG Pokédex (${agSpecies.length} species + Showdown Import/Export) ALL VERIFIED!`
   );
 
   console.log('\nALL 24 ENGINE, MAP, ROMANCE, POKÉROGUE RUN, DOUBLE-ZOROARK & SMOGON ECONOMY SUITES PASSED!');

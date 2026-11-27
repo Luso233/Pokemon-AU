@@ -28,6 +28,7 @@ import {
   addDevCoins,
   applyBattleOutcomeToProfile,
   applyDevUnlockEverything,
+  applyDevUnlockFullAgPokedex,
   awardArcadeCoins,
   buildIronmanPersistedStateForBattle,
   campHealPartyMember,
@@ -36,6 +37,7 @@ import {
   createNewConfiguredRunProfile,
   equipItemOnInstance,
   harvestCampBerry,
+  importShowdownPasteToParty,
   loadLocalProfile,
   mergeCloudAndLocalProfiles,
   movePokemonInstanceZone,
@@ -43,7 +45,6 @@ import {
   purchaseHeldItem,
   purchasePokemon,
   purchaseShinyCharm,
-  purchaseTM,
   recordChapterAttemptInProfile,
   recordPostBattleSurvivalState,
   recruitHousePokemonToCustomSlot,
@@ -53,6 +54,7 @@ import {
   setCustomItemForSpecies,
   setCustomMoveForSpecies,
   setDevModeEnabled,
+  spawnDevAgSpecimen,
   toggleRunModifiers,
   unlockChapterWithCoins,
   unlockMoveSlotForSpecies,
@@ -568,14 +570,23 @@ export default function App() {
     return res;
   };
 
-  const handleBuyTM = (moveName: string) => {
-    const res = purchaseTM(profileRef.current, moveName);
+  const handleBuyShinyCharm = () => {
+    const res = purchaseShinyCharm(profileRef.current);
     if (res.ok) setProfile(res.nextProfile);
     return res;
   };
 
-  const handleBuyShinyCharm = () => {
-    const res = purchaseShinyCharm(profileRef.current);
+  const handleSpawnDevSpecimen = (
+    species: string,
+    targetZone: 'party' | 'box'
+  ) => {
+    const res = spawnDevAgSpecimen(profileRef.current, species, targetZone);
+    if (res.ok) setProfile(res.nextProfile);
+    return res;
+  };
+
+  const handleImportShowdownPaste = (rawPaste: string) => {
+    const res = importShowdownPasteToParty(profileRef.current, rawPaste);
     if (res.ok) setProfile(res.nextProfile);
     return res;
   };
@@ -689,6 +700,10 @@ export default function App() {
     setProfile((prev) => applyDevUnlockEverything(prev));
   };
 
+  const handleDevUnlockFullAgPokedex = () => {
+    setProfile((prev) => applyDevUnlockFullAgPokedex(prev));
+  };
+
   const handleDevAddMillionCoins = () => {
     setProfile((prev) => addDevCoins(prev, 1000000));
   };
@@ -754,7 +769,6 @@ export default function App() {
         onOpenArcade={() => setScreen('arcade')}
         onBuyPokemon={handleBuyPokemon}
         onBuyItem={handleBuyItem}
-        onBuyTM={handleBuyTM}
         onBuyShinyCharm={handleBuyShinyCharm}
       />
     );
@@ -767,6 +781,9 @@ export default function App() {
         onMoveInstanceZone={handleMoveInstanceZone}
         onEquipInstanceItem={handleEquipInstanceItem}
         onUpdateInstanceBuild={handleUpdateInstanceBuild}
+        onUnlockMoveSlot={handleUnlockMoveSlot}
+        onSpawnDevSpecimen={handleSpawnDevSpecimen}
+        onImportShowdownPaste={handleImportShowdownPaste}
         onToggleUseCustomTeam={(enabled) =>
           setProfile((prev) => ({
             ...prev,
@@ -820,6 +837,11 @@ export default function App() {
         onSetCustomMove={handleSetCustomMove}
         onSetCustomItem={handleSetCustomItem}
         onResetSpecies={handleResetSpecies}
+        onMoveInstanceZone={handleMoveInstanceZone}
+        onEquipInstanceItem={handleEquipInstanceItem}
+        onUpdateInstanceBuild={handleUpdateInstanceBuild}
+        onSpawnDevSpecimen={handleSpawnDevSpecimen}
+        onImportShowdownPaste={handleImportShowdownPaste}
         onLaunchBattle={handleLaunchBattle}
       />
     );
@@ -919,6 +941,7 @@ export default function App() {
         onClose={() => setDevModalOpen(false)}
         profile={profile}
         onUnlockEverything={handleDevUnlockEverything}
+        onUnlockFullAgPokedex={handleDevUnlockFullAgPokedex}
         onAddMillionCoins={handleDevAddMillionCoins}
         onToggleDevMode={handleDevToggle}
         onResetStoryProgress={handleResetStory}

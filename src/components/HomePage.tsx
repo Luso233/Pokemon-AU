@@ -201,7 +201,7 @@ export const HomePage: React.FC<HomePageProps> = ({
       {
         id: 'shop',
         label: 'Tienda & Shiny Charms',
-        hint: `Gasta tus ${profile.coins.toLocaleString()} PC en Pokémon, objetos competitivos, MTs y Amuletos Shiny.`,
+        hint: `Gasta tus ${profile.coins.toLocaleString()} PC en Pokémon de tu Pokédex regional, objetos competitivos y Amuletos Shiny.`,
         action: onOpenShop,
       },
       {

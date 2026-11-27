@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   Coins,
+  FlaskConical,
   RotateCcw,
   ShieldAlert,
   Sparkles,
@@ -10,6 +11,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { CHAPTER_UNLOCK_RULES, CURRENCY_SHORT } from '../data/economyCatalog';
+import { getAllAnythingGoesPlayableSpecies } from '../engine/pricingEngine';
 import type { PlayerSaveProfile } from '../types/game';
 
 interface DevModeModalProps {
@@ -17,6 +19,7 @@ interface DevModeModalProps {
   onClose: () => void;
   profile: PlayerSaveProfile;
   onUnlockEverything: () => void;
+  onUnlockFullAgPokedex: () => void;
   onAddMillionCoins: () => void;
   onToggleDevMode: (enabled: boolean) => void;
   onResetStoryProgress: () => void;
@@ -27,6 +30,7 @@ export const DevModeModal: React.FC<DevModeModalProps> = ({
   onClose,
   profile,
   onUnlockEverything,
+  onUnlockFullAgPokedex,
   onAddMillionCoins,
   onToggleDevMode,
   onResetStoryProgress,
@@ -37,6 +41,7 @@ export const DevModeModal: React.FC<DevModeModalProps> = ({
   if (!open) return null;
 
   const totalChapters = Object.keys(CHAPTER_UNLOCK_RULES).length;
+  const totalAgSpecies = getAllAnythingGoesPlayableSpecies().length;
   const completedCount = Object.values(profile.completedChapters).filter(
     (p) => p.completed
   ).length;
@@ -99,26 +104,51 @@ export const DevModeModal: React.FC<DevModeModalProps> = ({
         )}
 
         <div className="space-y-2.5">
-          {/* Action 1: Unlock Everything */}
+          {/* Action 1: Unlock Full Anything Goes National Pokédex (~1,150+ playable species + Playtesting Lab) */}
+          <button
+            type="button"
+            onClick={() => {
+              onUnlockFullAgPokedex();
+              setConfirmReset(false);
+              setFeedback(
+                `🧪 ¡Pokédex Completo Anything Goes desbloqueado (${totalAgSpecies} especies jugables)! Abre Cajas PC (o "Usar Equipo Libre" dentro de cualquier Briefing) para generar cualquier espécimen o importar/exportar equipos de Showdown.`
+              );
+            }}
+            className="flex w-full items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-sky-400 via-fuchsia-500 to-amber-400 px-4 py-3 text-left text-slate-950 shadow-lg shadow-fuchsia-500/25 transition hover:brightness-110 cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <FlaskConical className="h-5 w-5 shrink-0" />
+              <div>
+                <p className="text-sm font-extrabold">
+                  Pokédex Nacional Completo (Anything Goes · {totalAgSpecies} especies)
+                </p>
+                <p className="text-[11px] font-semibold text-slate-900/85">
+                  Espécimen de CUALQUIER Pokémon jugable + Importador/Exportador Showdown + 6× objetos + todos los slots abiertos
+                </p>
+              </div>
+            </div>
+          </button>
+
+          {/* Action 2: Unlock Everything */}
           <button
             type="button"
             onClick={() => {
               onUnlockEverything();
               setConfirmReset(false);
               setFeedback(
-                '¡Todo desbloqueado! 15/15 capítulos, catálogo completo de Pokémon/Objetos/MTs, 6 Shiny Charms, todos los slots de movimiento libres y 9,999,999 PC.'
+                `¡Todo desbloqueado! ${totalChapters}/${totalChapters} capítulos, Pokédex completo, 6× todos los objetos, 6 Shiny Charms, todos los slots de movimiento libres y 9,999,999 PC.`
               );
             }}
-            className="flex w-full items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-fuchsia-500 via-purple-500 to-amber-500 px-4 py-3 text-left text-slate-950 shadow-lg shadow-fuchsia-500/20 transition hover:brightness-110 cursor-pointer"
+            className="flex w-full items-center justify-between gap-3 rounded-2xl border border-fuchsia-400/50 bg-fuchsia-500/20 px-4 py-2.5 text-left text-fuchsia-100 transition hover:bg-fuchsia-500/30 cursor-pointer"
           >
             <div className="flex items-center gap-3">
-              <Zap className="h-5 w-5 shrink-0 fill-current" />
+              <Zap className="h-4 w-4 shrink-0 fill-current text-amber-300" />
               <div>
-                <p className="text-sm font-extrabold">
-                  Desbloquear TODO de golpe
+                <p className="text-xs font-extrabold">
+                  Desbloquear TODO de golpe ({totalChapters} capítulos + 9.9M PC)
                 </p>
-                <p className="text-[11px] font-semibold text-slate-900/85">
-                  15 capítulos + todos los Pokémon, objetos, MTs, 6 Shiny Charms, todos los slots de moves y 9.9M PC
+                <p className="text-[10px] text-fuchsia-200/80">
+                  Capítulos + todos los Pokémon, objetos (6×), 6 Shiny Charms y slots de learnset completo
                 </p>
               </div>
             </div>

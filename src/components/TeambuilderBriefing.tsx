@@ -3,7 +3,7 @@ import { Dex, Teams } from '@pkmn/sim';
 import {
   AlertTriangle,
   ArrowLeft,
-  Backpack,
+  Box,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
@@ -16,13 +16,8 @@ import {
   Flame,
   Heart,
   HelpCircle,
-  Lock,
-  RotateCcw,
-  Search,
   ShieldAlert,
-  Sparkles,
   Swords,
-  Unlock,
   Wrench,
 } from 'lucide-react';
 import { CHAPTERS } from '../data/chapters';
@@ -40,28 +35,28 @@ import {
 } from '../data/npcProfiles';
 import {
   getFormatGeneration,
-  getLegalLearnsetForSpecies,
-  getMoveSlotUnlockCost,
   getSpeciesKey,
 } from '../engine/learnsetService';
 import {
   applyChapterProgressionToPaste,
   applyShinySlotsToPaste,
   compileCustomTeamToShowdownPaste,
-  isMoveSlotUnlocked,
 } from '../engine/playerProfile';
 import { getImperialBstLicense } from '../engine/pricingEngine';
-import { getTypeBadgeClass } from '../engine/pokemonVisuals';
 import type {
   BattleDifficultyMode,
   ChapterTeamPolicy,
   OpenTeamsheetEntry,
+  OwnedPokemonInstance,
   PlayerSaveProfile,
+  PokemonStorageZone,
   ResolvedBattleConfig,
 } from '../types/game';
 import { CharacterPortrait } from './CharacterPortrait';
 import { OpenTeamsheetModal } from './OpenTeamsheetModal';
-import { PokemonIcon, PokemonSprite } from './PokemonSprite';
+import { PcBoxManager } from './PcBoxManager';
+import { PokemonEditor } from './PokemonEditor';
+import { PokemonIcon } from './PokemonSprite';
 import { RivalPortraitTooltip } from './RivalPortraitTooltip';
 
 interface TeambuilderBriefingProps {
@@ -83,6 +78,30 @@ interface TeambuilderBriefingProps {
   ) => { ok: boolean; error?: string };
   onSetCustomItem: (species: string, itemName: string) => void;
   onResetSpecies: (species: string) => void;
+  onMoveInstanceZone: (
+    uid: string,
+    targetZone: Exclude<PokemonStorageZone, 'graveyard'>
+  ) => { ok: boolean; error?: string };
+  onEquipInstanceItem: (
+    uid: string,
+    itemName: string
+  ) => { ok: boolean; error?: string; transferredFrom?: string };
+  onUpdateInstanceBuild: (
+    uid: string,
+    patch: Partial<
+      Pick<
+        OwnedPokemonInstance,
+        'ability' | 'nature' | 'teraType' | 'moves' | 'shiny' | 'nickname'
+      >
+    >
+  ) => { ok: boolean; error?: string };
+  onSpawnDevSpecimen: (
+    species: string,
+    targetZone: 'party' | 'box'
+  ) => { ok: boolean; error?: string; uid?: string };
+  onImportShowdownPaste: (
+    rawPaste: string
+  ) => { ok: boolean; error?: string; importedCount: number };
   onLaunchBattle: (finalConfig: ResolvedBattleConfig) => void;
 }
 
@@ -98,6 +117,11 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
   onSetCustomMove,
   onSetCustomItem,
   onResetSpecies,
+  onMoveInstanceZone,
+  onEquipInstanceItem,
+  onUpdateInstanceBuild,
+  onSpawnDevSpecimen,
+  onImportShowdownPaste,
   onLaunchBattle,
 }) => {
   const isGen1 = getFormatGeneration(config.formatId) === 1;
@@ -105,16 +129,19 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
     teamEditPolicy ??
     CHAPTERS.find((c) => c.id === config.chapterId)?.teamEditPolicy ??
     'fixed';
+
+  // Dev Mode lets you test ANY chapter with custom PC / Showdown-imported compositions!
   const canSwapCustomTeam =
-    effectiveTeamPolicy === 'editable' &&
     profile.customTeam.length > 0 &&
-    config.formatId !== 'gen1customgame' &&
-    config.formatId !== 'gen6triplescustomgame' &&
-    config.formatId !== 'gen91v1' &&
-    config.formatId !== 'gen9monotype' &&
-    config.formatId !== 'gen9vgc2024regg' &&
     !config.emptyPlayerSlots?.length &&
-    !config.persistedPartyState;
+    !config.persistedPartyState &&
+    (profile.devModeEnabled ||
+      (effectiveTeamPolicy === 'editable' &&
+        config.formatId !== 'gen1customgame' &&
+        config.formatId !== 'gen6triplescustomgame' &&
+        config.formatId !== 'gen91v1' &&
+        config.formatId !== 'gen9monotype' &&
+        config.formatId !== 'gen9vgc2024regg'));
 
   const [useCustomTeam, setUseCustomTeam] = useState(
     Boolean(canSwapCustomTeam && profile.useCustomTeamInStory)
@@ -128,10 +155,6 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
     }
     return [];
   });
-  const [activeMovePickerSlot, setActiveMovePickerSlot] = useState<
-    number | null
-  >(null);
-  const [moveSearch, setMoveSearch] = useState('');
   const [notice, setNotice] = useState<{
     tone: 'ok' | 'err';
     text: string;
@@ -154,10 +177,16 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
     () => computeActiveSocialLinkPerks(profile),
     [profile]
   );
-  const bstLicense = useMemo(() => getImperialBstLicense(profile), [profile]);
+
+  // LIVE Dynamic BST Cap recalculated instantaneously whenever you click Baby Mode / Normal / Difícil / Tryhard!
+  const bstLicense = useMemo(
+    () => getImperialBstLicense(profile, difficultyMode),
+    [profile, difficultyMode]
+  );
   const isCustomTeamBlockedByBstCap = Boolean(
     useCustomTeam && canSwapCustomTeam && bstLicense.isOverCap
   );
+
   const scoutingAlerts = useMemo(
     () =>
       socialPerks.hasAntiDiabloScouting
@@ -195,14 +224,6 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
     );
   }, [canonicalSets]);
 
-  // Union of chapter's canonical held items + player's owned inventory items
-  const availableItems = useMemo(() => {
-    return Array.from(
-      new Set([...chapterDefaultItems, ...profile.inventory.items])
-    ).sort((a, b) => a.localeCompare(b));
-  }, [chapterDefaultItems, profile.inventory.items]);
-
-  // Dynamically computed Showdown paste reflecting story roster + progression overrides
   const effectivePlayerPaste = useMemo(() => {
     if (manualPasteOverride !== null) return manualPasteOverride;
     if (useCustomTeam && canSwapCustomTeam) {
@@ -210,8 +231,11 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
         profile.customTeam,
         config.rivalIntel?.levelCap ?? 100
       );
-      return shinySlots.length > 0
-        ? applyShinySlotsToPaste(customPaste, shinySlots, ownedShinyCharms)
+      const customShinies = profile.customTeam
+        .map((m, idx) => (m.shiny ? idx : -1))
+        .filter((idx) => idx >= 0);
+      return customShinies.length > 0
+        ? applyShinySlotsToPaste(customPaste, customShinies, ownedShinyCharms)
         : customPaste;
     }
     return applyChapterProgressionToPaste(
@@ -254,29 +278,6 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
   );
   const activeSet = parsedPlayer[clampedSlot];
   const canonicalActiveSet = canonicalSets[clampedSlot];
-
-  const legalMovesForActive = useMemo(() => {
-    if (!activeSet) return [];
-    const baseMoves = canonicalActiveSet?.moves ?? activeSet.moves ?? [];
-    return getLegalLearnsetForSpecies(
-      activeSet.species,
-      config.formatId,
-      baseMoves
-    );
-  }, [activeSet, canonicalActiveSet, config.formatId]);
-
-  const filteredMoves = useMemo(() => {
-    const q = moveSearch.trim().toLowerCase();
-    if (!q) return legalMovesForActive.slice(0, 60);
-    return legalMovesForActive
-      .filter(
-        (m) =>
-          m.name.toLowerCase().includes(q) ||
-          m.type.toLowerCase().includes(q) ||
-          m.shortDesc.toLowerCase().includes(q)
-      )
-      .slice(0, 60);
-  }, [legalMovesForActive, moveSearch]);
 
   const buildSheet = (
     sets: ReturnType<typeof Teams.import>
@@ -322,42 +323,6 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
     });
   };
 
-  const handleUnlockSlot = (species: string, slotIdx: number) => {
-    setManualPasteOverride(null);
-    const res = onUnlockMoveSlot(species, slotIdx);
-    if (res.ok) {
-      setNotice({
-        tone: 'ok',
-        text: `🔓 ¡Slot ${slotIdx + 1} de ${species} desbloqueado! Ya puedes elegir cualquier movimiento legal de su learnset.`,
-      });
-      setActiveMovePickerSlot(slotIdx);
-      setMoveSearch('');
-    } else {
-      setNotice({
-        tone: 'err',
-        text: res.error || 'No tienes suficientes PokéCoronas.',
-      });
-    }
-  };
-
-  const handlePickMove = (species: string, slotIdx: number, moveName: string) => {
-    setManualPasteOverride(null);
-    const res = onSetCustomMove(species, slotIdx, moveName);
-    if (res.ok) {
-      setNotice({
-        tone: 'ok',
-        text: `✓ ${species} aprendió ${moveName} en el Slot ${slotIdx + 1}.`,
-      });
-      setActiveMovePickerSlot(null);
-      setMoveSearch('');
-    } else {
-      setNotice({
-        tone: 'err',
-        text: res.error || 'No se pudo asignar el movimiento.',
-      });
-    }
-  };
-
   const handleStart = () => {
     if (!isValid) return;
     const baseWithPlayer: ResolvedBattleConfig = {
@@ -376,17 +341,9 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
     onLaunchBattle(finalWithNpc);
   };
 
-  const activeSpeciesKey = activeSet ? getSpeciesKey(activeSet.species) : '';
-  const activeHasCustomizations = Boolean(
-    activeSpeciesKey &&
-      (profile.customItems[activeSpeciesKey] ||
-        (profile.customMoves[activeSpeciesKey] &&
-          Object.keys(profile.customMoves[activeSpeciesKey]).length > 0))
-  );
-
   return (
     <div className="min-h-screen bg-[#060a14] text-slate-100">
-      <div className="mx-auto max-w-6xl px-5 py-7">
+      <div className="mx-auto max-w-7xl px-5 py-7">
         {/* Header */}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
           <div className="flex items-center gap-3.5">
@@ -464,12 +421,12 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
           </div>
         )}
 
-        {/* Main 12-Col Layout: Story-Locked Teambuilder (Left 8) + Fog-of-War Rival Card (Right 4) */}
-        <section className="mb-6 grid gap-6 lg:grid-cols-12">
-          {/* LEFT 8 COLS: Interactive Story-Locked Teambuilder */}
+        {/* Main 12-Col Layout: Narrative Editor OR Embedded <PcBoxManager /> (Left 8) + Sticky Rival Sighting & Difficulty (Right 4) */}
+        <section className="mb-6 grid gap-6 lg:grid-cols-12 lg:items-start">
+          {/* LEFT 8 COLS */}
           <div className="space-y-4 lg:col-span-8">
             <div className="rounded-3xl border border-amber-400/25 bg-slate-900/80 p-5">
-              {/* Roster Bar */}
+              {/* Top Mode Switcher Bar */}
               <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 overflow-hidden rounded-xl border border-amber-400/45 bg-slate-950 p-0.5">
@@ -484,28 +441,35 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                       {config.playerName}
                     </h2>
                     <p className="text-[11px] text-slate-400">
-                      Escuadrón disponible en este punto de la historia · Personaliza objetos y desbloquea slots de movimientos
+                      {useCustomTeam && canSwapCustomTeam
+                        ? 'Cajas PC embebidas — ajusta tu equipo viendo al rival en tiempo real'
+                        : 'Escuadrón narrativo · Personaliza objetos y desbloquea slots para elegir cualquier movimiento del learnset'}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   {canSwapCustomTeam && (
                     <button
                       type="button"
                       onClick={() => {
                         setManualPasteOverride(null);
-                        setActiveMovePickerSlot(null);
                         setUseCustomTeam((v) => !v);
                       }}
-                      className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-bold transition cursor-pointer ${
+                      className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-extrabold transition cursor-pointer ${
                         useCustomTeam
-                          ? 'border-sky-400 bg-sky-500/20 text-sky-100'
-                          : 'border-slate-700 bg-slate-950 text-slate-300 hover:border-sky-400/40'
+                          ? 'border-sky-400 bg-sky-500/25 text-sky-100 shadow-lg shadow-sky-500/15'
+                          : 'border-amber-400/45 bg-amber-500/15 text-amber-200 hover:bg-amber-500/25'
                       }`}
                     >
-                      <Wrench className="h-3 w-3" />
-                      {useCustomTeam ? '✓ Equipo Libre' : 'Usar Equipo Libre'}
+                      <Box className="h-3.5 w-3.5" />
+                      {useCustomTeam
+                        ? '← Volver al Equipo Narrativo'
+                        : `Usar Equipo Libre (Cajas PC${
+                            effectiveTeamPolicy === 'fixed' && profile.devModeEnabled
+                              ? ' · DEV'
+                              : ''
+                          })`}
                     </button>
                   )}
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-semibold text-emerald-300">
@@ -515,7 +479,7 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                 </div>
               </div>
 
-              {/* Chapter Team Policy Banner (Fixed Single-Team vs Editable Squad) */}
+              {/* Chapter Team Policy Banner */}
               <div
                 className={`mb-4 rounded-2xl border px-3.5 py-2.5 text-xs ${
                   effectiveTeamPolicy === 'editable'
@@ -528,467 +492,128 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                     <strong className="text-sky-200">
                       🛠️ Capítulo de Equipo Modificable:
                     </strong>{' '}
-                    Puedes usar el escuadrón narrativo o cambiar a tu{' '}
-                    <strong>Equipo Libre (Cajas PC)</strong> con los Pokémon que hayas desbloqueado en tu run.
+                    Alterna a <strong>Cajas PC embebidas</strong> sin salir de esta pantalla para armar tu equipo viendo el Avistamiento enemigo y el límite BST de cada dificultad.
                   </p>
                 ) : (
                   <p>
                     <strong className="text-amber-200">
                       🔒 Capítulo de Equipo Único Fijo:
                     </strong>{' '}
-                    Este escenario se juega con un único equipo predefinido para respetar el reto táctico (puedes seguir ajustando objetos y slots desbloqueados).
+                    Este escenario se juega con un único equipo predefinido para respetar el reto táctico (puedes ajustar objetos y desbloquear slots de movimientos).
+                    {profile.devModeEnabled
+                      ? ' [Dev Mode activo: puedes abrir Cajas PC / Importador Showdown para testear.]'
+                      : ''}
                   </p>
                 )}
               </div>
 
-              {/* Imperial BST Cap Warning if Custom PC Team exceeds current Act cap! */}
-              {isCustomTeamBlockedByBstCap && (
-                <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-rose-500/60 bg-rose-950/45 px-3.5 py-2.5 text-xs text-rose-100">
-                  <p className="flex-1">
-                    <strong>⚖️ Excedes la Licencia Imperial ({bstLicense.shortLabel}):</strong>{' '}
-                    Tu Equipo del PC suma{' '}
-                    <span className="font-mono-code font-extrabold text-rose-300">
-                      {bstLicense.currentPartyBst} / {bstLicense.maxTeamBst} BST
-                    </span>
-                    . Cambia titulares pesados por opciones baratas (LC/PU/cheese) en Cajas PC o juega con el equipo narrativo.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setUseCustomTeam(false)}
-                    className="rounded-lg bg-amber-400 px-3 py-1 text-[11px] font-extrabold text-slate-950 hover:brightness-110 cursor-pointer"
-                  >
-                    Usar Equipo Narrativo
-                  </button>
-                </div>
-              )}
+              {/* EMBEDDED <PcBoxManager /> when Using Custom PC Team! */}
+              {useCustomTeam && canSwapCustomTeam ? (
+                <PcBoxManager
+                  profile={profile}
+                  difficultyMode={difficultyMode}
+                  embedded
+                  formatId={config.formatId}
+                  onMoveInstanceZone={onMoveInstanceZone}
+                  onEquipInstanceItem={onEquipInstanceItem}
+                  onUpdateInstanceBuild={onUpdateInstanceBuild}
+                  onUnlockMoveSlot={onUnlockMoveSlot}
+                  onSpawnDevSpecimen={onSpawnDevSpecimen}
+                  onImportShowdownPaste={onImportShowdownPaste}
+                  onOpenShop={onOpenShop}
+                  onNotice={setNotice}
+                />
+              ) : (
+                <>
+                  {/* Narrative Squad Slot Selector */}
+                  <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {parsedPlayer.map((set, i) => {
+                      const isSelected = i === clampedSlot;
+                      const isSlotShiny =
+                        Boolean(set.shiny) || shinySlots.includes(i);
+                      const spKey = getSpeciesKey(set.species);
+                      const unlockedCount = profile.devModeEnabled
+                        ? 4
+                        : (profile.unlockedMoveSlots[spKey]?.length ?? 0);
 
-              {/* Selectable Party Slots */}
-              <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {parsedPlayer.map((set, i) => {
-                  const isSelected = i === clampedSlot;
-                  const isSlotShiny =
-                    Boolean(set.shiny) || shinySlots.includes(i);
-                  const spKey = getSpeciesKey(set.species);
-                  const unlockedCount = profile.devModeEnabled
-                    ? 4
-                    : (profile.unlockedMoveSlots[spKey]?.length ?? 0);
-
-                  return (
-                    <button
-                      key={`${set.species}-${i}`}
-                      type="button"
-                      onClick={() => {
-                        setSelectedSlot(i);
-                        setActiveMovePickerSlot(null);
-                        setMoveSearch('');
-                      }}
-                      className={`flex items-center justify-between gap-1.5 rounded-2xl border px-3 py-2 text-left transition cursor-pointer ${
-                        isSelected
-                          ? 'border-amber-400 bg-amber-500/15 shadow-lg shadow-amber-500/10'
-                          : 'border-slate-800 bg-slate-950/80 hover:border-slate-600'
-                      }`}
-                    >
-                      <div className="flex min-w-0 items-center gap-2">
-                        <PokemonIcon
-                          species={set.species}
-                          className="scale-95"
-                        />
-                        <div className="min-w-0">
-                          <p className="truncate text-xs font-bold text-white">
-                            {isSlotShiny ? '✨ ' : ''}
-                            {set.species}
-                          </p>
-                          <p className="truncate text-[10px] text-amber-300/80">
-                            {isGen1
-                              ? `Nv. ${set.level || 100}`
-                              : set.item || 'Sin objeto'}
-                          </p>
-                        </div>
-                      </div>
-                      <span
-                        title={`${unlockedCount}/4 slots de movimiento desbloqueados`}
-                        className="shrink-0 rounded-md border border-slate-700/80 bg-slate-900 px-1.5 py-0.5 font-mono-code text-[9px] font-bold text-slate-300"
-                      >
-                        {unlockedCount}/4
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Active Pokémon Progression Editor */}
-              {activeSet && (
-                <div className="rounded-2xl border border-slate-800 bg-slate-950/90 p-4">
-                  {/* Top Pokémon Banner */}
-                  <div className="mb-4 flex flex-wrap items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
-                    <div className="flex items-center gap-3.5">
-                      <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-slate-800 bg-slate-900/90">
-                        <PokemonSprite
-                          species={activeSet.species}
-                          side="p2"
-                          shiny={
-                            Boolean(activeSet.shiny) ||
-                            shinySlots.includes(clampedSlot)
-                          }
-                          className="h-16 w-16"
-                        />
-                      </div>
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="font-display text-xl font-bold text-white">
-                            {activeSet.species}
-                          </h3>
-                          <span className="rounded-md border border-slate-700 bg-slate-900 px-2 py-0.5 font-mono-code text-[10px] font-bold text-slate-300">
-                            Nv. {activeSet.level || 100}
-                          </span>
-                          {activeSet.teraType && !isGen1 && (
-                            <span
-                              className={`rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase ${getTypeBadgeClass(
-                                activeSet.teraType
-                              )}`}
-                            >
-                              Tera {activeSet.teraType}
-                            </span>
-                          )}
-                        </div>
-                        <p className="mt-1 text-xs text-slate-400">
-                          {!isGen1 && activeSet.ability ? (
-                            <>
-                              Habilidad:{' '}
-                              <strong className="text-slate-200">
-                                {activeSet.ability}
-                              </strong>
-                              {' · '}
-                            </>
-                          ) : null}
-                          {activeSet.nature ? (
-                            <>
-                              Naturaleza:{' '}
-                              <strong className="text-slate-200">
-                                {activeSet.nature}
-                              </strong>
-                            </>
-                          ) : (
-                            'Reglas clásicas de Era Antigua'
-                          )}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      {ownedShinyCharms > 0 && (
+                      return (
                         <button
+                          key={`${set.species}-${i}`}
                           type="button"
-                          onClick={() => handleToggleSlotShiny(clampedSlot)}
-                          className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition cursor-pointer ${
-                            Boolean(activeSet.shiny) ||
-                            shinySlots.includes(clampedSlot)
-                              ? 'border-fuchsia-400 bg-fuchsia-500/25 text-fuchsia-100'
-                              : 'border-slate-700 bg-slate-900 text-slate-300 hover:border-fuchsia-400/50'
+                          onClick={() => setSelectedSlot(i)}
+                          className={`flex items-center justify-between gap-1.5 rounded-2xl border px-3 py-2 text-left transition cursor-pointer ${
+                            isSelected
+                              ? 'border-amber-400 bg-amber-500/15 shadow-lg shadow-amber-500/10'
+                              : 'border-slate-800 bg-slate-950/80 hover:border-slate-600'
                           }`}
                         >
-                          <Sparkles className="h-3.5 w-3.5" />
-                          Shiny ({shinySlots.length}/{ownedShinyCharms})
-                        </button>
-                      )}
-
-                      {!useCustomTeam && activeHasCustomizations && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setManualPasteOverride(null);
-                            onResetSpecies(activeSet.species);
-                            setActiveMovePickerSlot(null);
-                            setNotice({
-                              tone: 'ok',
-                              text: `Set original restaurado para ${activeSet.species} (tus slots desbloqueados se mantienen).`,
-                            });
-                          }}
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:border-amber-400/40 hover:text-white cursor-pointer"
-                        >
-                          <RotateCcw className="h-3.5 w-3.5" />
-                          Restaurar original
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Held Item Selector (Restricted to Chapter Defaults + Player Inventory) */}
-                  <div className="mb-4">
-                    <div className="mb-1.5 flex items-center justify-between">
-                      <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-amber-300">
-                        <Backpack className="h-3.5 w-3.5" />
-                        Objeto Equipado (Inventario + Set del Capítulo)
-                      </label>
-                      {!isGen1 && (
-                        <button
-                          type="button"
-                          onClick={onOpenShop}
-                          className="text-[11px] font-semibold text-amber-300/80 hover:text-amber-200 cursor-pointer"
-                        >
-                          + Comprar más objetos en la Tienda
-                        </button>
-                      )}
-                    </div>
-
-                    {isGen1 ? (
-                      <div className="rounded-xl border border-slate-800 bg-slate-900/70 px-3.5 py-2 text-xs text-slate-400">
-                        En Generación 1 (Reliquia de Silph Co.) no existen objetos equipados.
-                      </div>
-                    ) : useCustomTeam ? (
-                      <div className="rounded-xl border border-slate-800 bg-slate-900/70 px-3.5 py-2 text-xs text-slate-300">
-                        Objeto del Equipo Libre:{' '}
-                        <strong className="text-amber-200">
-                          {activeSet.item || 'Ninguno'}
-                        </strong>
-                      </div>
-                    ) : (
-                      <select
-                        value={activeSet.item || ''}
-                        onChange={(e) => {
-                          setManualPasteOverride(null);
-                          onSetCustomItem(activeSet.species, e.target.value);
-                          setNotice({
-                            tone: 'ok',
-                            text: e.target.value
-                              ? `✓ ${activeSet.species} equipó ${e.target.value}.`
-                              : `Se retiró el objeto de ${activeSet.species}.`,
-                          });
-                        }}
-                        className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-2.5 text-sm font-semibold text-white focus:border-amber-400 focus:outline-none"
-                      >
-                        <option value="">
-                          (Por defecto:{' '}
-                          {canonicalActiveSet?.item || 'Sin objeto'})
-                        </option>
-                        {availableItems.map((itemName) => {
-                          const fromChapter =
-                            chapterDefaultItems.includes(itemName);
-                          const fromInventory =
-                            profile.inventory.items.includes(itemName);
-                          const tag =
-                            fromChapter && fromInventory
-                              ? 'Capítulo + Inventario'
-                              : fromChapter
-                                ? 'Set del capítulo'
-                                : 'Tu inventario';
-                          return (
-                            <option key={itemName} value={itemName}>
-                              {itemName} — {tag}
-                            </option>
-                          );
-                        })}
-                      </select>
-                    )}
-                  </div>
-
-                  {/* 4 Unlockable Move Slots */}
-                  <div>
-                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-xs font-bold uppercase tracking-wider text-sky-300">
-                        Movimientos · Rompe candados para asignar cualquier ataque legal del Learnset
-                      </p>
-                      <span className="text-[10px] text-slate-400">
-                        {legalMovesForActive.length} movimientos legales en @pkmn/sim
-                      </span>
-                    </div>
-
-                    <div className="grid gap-2.5 sm:grid-cols-2">
-                      {(activeSet.moves ?? []).slice(0, 4).map((mvName, slotIdx) => {
-                        const mvData = Dex.moves.get(mvName);
-                        const unlocked =
-                          !useCustomTeam &&
-                          isMoveSlotUnlocked(
-                            profile,
-                            activeSet.species,
-                            slotIdx
-                          );
-                        const slotCost =
-                          profile.devModeEnabled || socialPerks.hasFreeTutoringPerk
-                            ? 0
-                            : getMoveSlotUnlockCost(slotIdx);
-                        const canonicalMove =
-                          canonicalActiveSet?.moves?.[slotIdx] ?? mvName;
-                        const isCustomized =
-                          canonicalMove.toLowerCase() !== mvName.toLowerCase();
-                        const isPickerOpen = activeMovePickerSlot === slotIdx;
-
-                        return (
-                          <div
-                            key={`${activeSet.species}-mv-${slotIdx}`}
-                            className={`rounded-2xl border p-3 transition ${
-                              isPickerOpen
-                                ? 'border-sky-400 bg-sky-950/25'
-                                : unlocked
-                                  ? 'border-emerald-400/35 bg-slate-900/90'
-                                  : 'border-slate-800 bg-slate-900/65'
-                            }`}
-                          >
-                            <div className="mb-1.5 flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-mono-code text-[10px] font-bold text-slate-500">
-                                  SLOT {slotIdx + 1}
-                                </span>
-                                {mvData.exists && (
-                                  <span
-                                    className={`rounded border px-1.5 py-0.2 text-[9px] font-bold uppercase ${getTypeBadgeClass(
-                                      mvData.type
-                                    )}`}
-                                  >
-                                    {mvData.type}
-                                  </span>
-                                )}
-                              </div>
-
-                              {!useCustomTeam &&
-                                (unlocked ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setActiveMovePickerSlot(
-                                        isPickerOpen ? null : slotIdx
-                                      );
-                                      setMoveSearch('');
-                                    }}
-                                    className="inline-flex items-center gap-1 rounded-lg border border-emerald-400/40 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-200 hover:bg-emerald-500/25 cursor-pointer"
-                                  >
-                                    <Unlock className="h-3 w-3" />
-                                    {isPickerOpen ? 'Cerrar' : 'Cambiar'}
-                                  </button>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      handleUnlockSlot(
-                                        activeSet.species,
-                                        slotIdx
-                                      )
-                                    }
-                                    disabled={profile.coins < slotCost}
-                                    className="inline-flex items-center gap-1 rounded-lg border border-amber-400/45 bg-amber-500/15 px-2 py-0.5 text-[10px] font-extrabold text-amber-200 transition hover:bg-amber-500/25 disabled:cursor-not-allowed disabled:opacity-45 cursor-pointer"
-                                  >
-                                    <Lock className="h-3 w-3" />
-                                    {slotCost === 0
-                                      ? 'Abrir · GRATIS (Campeona R1)'
-                                      : `Abrir · ${slotCost.toLocaleString()} ${CURRENCY_SHORT}`}
-                                  </button>
-                                ))}
-                            </div>
-
-                            <p className="text-sm font-bold text-white">
-                              {mvName}
-                            </p>
-                            <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] text-slate-400">
-                              <span>
-                                {mvData.exists
-                                  ? `${mvData.category} · ${
-                                      mvData.basePower
-                                        ? `${mvData.basePower} BP`
-                                        : 'Estado'
-                                    }`
-                                  : 'Movimiento'}
-                              </span>
-                              {isCustomized && (
-                                <span className="text-sky-300">
-                                  (Base: {canonicalMove})
-                                </span>
-                              )}
+                          <div className="flex min-w-0 items-center gap-2">
+                            <PokemonIcon
+                              species={set.species}
+                              className="scale-95"
+                            />
+                            <div className="min-w-0">
+                              <p className="truncate text-xs font-bold text-white">
+                                {isSlotShiny ? '✨ ' : ''}
+                                {set.species}
+                              </p>
+                              <p className="truncate text-[10px] text-amber-300/80">
+                                {isGen1
+                                  ? `Nv. ${set.level || 100}`
+                                  : set.item || 'Sin objeto'}
+                              </p>
                             </div>
                           </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Searchable @pkmn/sim Dex Learnset Picker */}
-                    {activeMovePickerSlot !== null && !useCustomTeam && (
-                      <div className="mt-3 rounded-2xl border border-sky-400/45 bg-[#080d1a] p-3.5">
-                        <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
-                          <p className="text-xs font-bold text-sky-200">
-                            Learnset legal de {activeSet.species} → Slot{' '}
-                            {activeMovePickerSlot + 1}
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => setActiveMovePickerSlot(null)}
-                            className="text-[11px] font-semibold text-slate-400 hover:text-white cursor-pointer"
+                          <span
+                            title={`${unlockedCount}/4 slots de movimiento desbloqueados`}
+                            className="shrink-0 rounded-md border border-slate-700/80 bg-slate-900 px-1.5 py-0.5 font-mono-code text-[9px] font-bold text-slate-300"
                           >
-                            Cerrar buscador
-                          </button>
-                        </div>
-
-                        <div className="relative mb-2.5">
-                          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-                          <input
-                            type="text"
-                            value={moveSearch}
-                            onChange={(e) => setMoveSearch(e.target.value)}
-                            placeholder="Buscar movimiento por nombre o tipo (ej. Extreme Speed, Protect, Fire)..."
-                            className="w-full rounded-xl border border-slate-700 bg-slate-950 py-2 pl-9 pr-3 text-xs text-white placeholder-slate-500 focus:border-sky-400 focus:outline-none"
-                          />
-                        </div>
-
-                        <div className="grid max-h-56 gap-1.5 overflow-y-auto pr-1 sm:grid-cols-2">
-                          {filteredMoves.map((opt) => {
-                            const alreadyEquipped = (activeSet.moves ?? []).some(
-                              (m, idx) =>
-                                idx !== activeMovePickerSlot &&
-                                m.toLowerCase() === opt.name.toLowerCase()
-                            );
-                            return (
-                              <button
-                                key={opt.id}
-                                type="button"
-                                disabled={alreadyEquipped}
-                                onClick={() =>
-                                  handlePickMove(
-                                    activeSet.species,
-                                    activeMovePickerSlot,
-                                    opt.name
-                                  )
-                                }
-                                className="flex flex-col rounded-xl border border-slate-800 bg-slate-900/90 px-3 py-2 text-left transition hover:border-sky-400/60 hover:bg-slate-800/90 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
-                              >
-                                <div className="flex items-center justify-between gap-2">
-                                  <span className="truncate text-xs font-bold text-white">
-                                    {opt.name}
-                                  </span>
-                                  <span
-                                    className={`shrink-0 rounded border px-1.5 py-0.2 text-[9px] font-bold uppercase ${getTypeBadgeClass(
-                                      opt.type
-                                    )}`}
-                                  >
-                                    {opt.type}
-                                  </span>
-                                </div>
-                                <div className="mt-0.5 flex items-center gap-2 text-[10px] text-slate-400">
-                                  <span>{opt.category}</span>
-                                  <span>
-                                    {opt.basePower ? `${opt.basePower} BP` : '—'}
-                                  </span>
-                                  <span>
-                                    {opt.accuracy === true
-                                      ? 'Prec. ∞'
-                                      : `${opt.accuracy}%`}
-                                  </span>
-                                  {opt.priority !== 0 && (
-                                    <span className="text-amber-300">
-                                      Prio {opt.priority > 0 ? `+${opt.priority}` : opt.priority}
-                                    </span>
-                                  )}
-                                </div>
-                              </button>
-                            );
-                          })}
-                          {filteredMoves.length === 0 && (
-                            <p className="col-span-2 py-4 text-center text-xs text-slate-500">
-                              Ningún movimiento legal coincide con «{moveSearch}».
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    )}
+                            {unlockedCount}/4
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
-                </div>
+
+                  {/* Unified <PokemonEditor mode="narrative" /> */}
+                  {activeSet && (
+                    <PokemonEditor
+                      key={`narrative-${activeSet.species}-${clampedSlot}`}
+                      mode="narrative"
+                      profile={profile}
+                      formatId={config.formatId}
+                      narrativeSet={activeSet}
+                      canonicalSet={canonicalActiveSet}
+                      chapterDefaultItems={chapterDefaultItems}
+                      isSlotShiny={
+                        Boolean(activeSet.shiny) ||
+                        shinySlots.includes(clampedSlot)
+                      }
+                      shinyUsedCount={shinySlots.length}
+                      onToggleNarrativeShiny={() =>
+                        handleToggleSlotShiny(clampedSlot)
+                      }
+                      onSetCustomItem={(sp, it) => {
+                        setManualPasteOverride(null);
+                        onSetCustomItem(sp, it);
+                      }}
+                      onSetCustomMove={(sp, slotIdx, mv) => {
+                        setManualPasteOverride(null);
+                        return onSetCustomMove(sp, slotIdx, mv);
+                      }}
+                      onResetSpecies={(sp) => {
+                        setManualPasteOverride(null);
+                        onResetSpecies(sp);
+                      }}
+                      onUnlockMoveSlot={(sp, slotIdx) => {
+                        setManualPasteOverride(null);
+                        return onUnlockMoveSlot(sp, slotIdx);
+                      }}
+                      onOpenShop={onOpenShop}
+                      onNotice={setNotice}
+                    />
+                  )}
+                </>
               )}
 
               {/* Collapsible Raw Showdown Paste */}
@@ -1037,8 +662,8 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
             </div>
           </div>
 
-          {/* RIGHT 4 COLS: Rival Atmosphere & Fog of War (Spoiler-Free) */}
-          <div className="flex flex-col justify-between rounded-3xl border border-rose-400/25 bg-slate-900/75 p-5 lg:col-span-4">
+          {/* RIGHT 4 COLS (STICKY): Rival Atmosphere, Dynamic Difficulty (live BST Cap!) & Fog of War Sighting */}
+          <div className="flex flex-col justify-between rounded-3xl border border-rose-400/25 bg-slate-900/75 p-5 lg:sticky lg:top-4 lg:col-span-4">
             <div>
               <div className="mb-4 flex items-center gap-3">
                 {config.rivalProfile ? (
@@ -1102,21 +727,30 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                   {npcDef.personality.directiveSummary}
                 </p>
 
-                {/* 4-Tier Difficulty Selector (Baby Mode / Normal / Difícil / Tryhard) */}
+                {/* 4-Tier Difficulty Selector (Recalculates BST Cap LIVE!) */}
                 <div className="border-t border-white/10 pt-2">
-                  <p className="mb-1.5 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-amber-200">
-                    <Flame className="h-3 w-3 text-amber-400" />
-                    Dificultad del Rival
-                  </p>
+                  <div className="mb-1.5 flex items-center justify-between gap-1">
+                    <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-amber-200">
+                      <Flame className="h-3 w-3 text-amber-400" />
+                      Dificultad &amp; Cap BST
+                    </p>
+                    <span className="font-mono-code text-[9.5px] font-bold text-sky-300">
+                      Cap:{' '}
+                      {bstLicense.maxTeamBst !== null
+                        ? `${bstLicense.maxTeamBst} BST`
+                        : '∞'}
+                    </span>
+                  </div>
                   <div className="grid grid-cols-2 gap-1.5">
                     {DIFFICULTY_ORDER.map((diffId) => {
                       const meta = DIFFICULTY_META[diffId];
+                      const previewLic = getImperialBstLicense(profile, diffId);
                       return (
                         <button
                           key={diffId}
                           type="button"
                           onClick={() => setDifficultyMode(diffId)}
-                          className={`rounded-lg border px-2 py-1 text-[10px] font-bold transition cursor-pointer ${
+                          className={`rounded-lg border px-2 py-1.5 text-left transition cursor-pointer ${
                             difficultyMode === diffId
                               ? diffId === 'nightmare'
                                 ? 'border-rose-400 bg-rose-500/25 text-rose-100'
@@ -1128,7 +762,12 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                               : 'border-slate-800 bg-slate-950/80 text-slate-400 hover:text-slate-200'
                           }`}
                         >
-                          {meta.label}
+                          <p className="text-[10px] font-extrabold">{meta.label}</p>
+                          <p className="font-mono-code text-[9px] opacity-80">
+                            {previewLic.maxTeamBst !== null
+                              ? `${previewLic.maxTeamBst} BST`
+                              : 'Sin Cap ∞'}
+                          </p>
                         </button>
                       );
                     })}
@@ -1190,7 +829,7 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                 )}
               </div>
 
-              {/* Fog of War Silhouettes */}
+              {/* Fog of War Silhouettes (Masks Illusion Lead!) */}
               <div className="mb-4">
                 <div className="mb-2 flex items-center justify-between text-[11px]">
                   <span className="font-bold text-slate-300">
@@ -1217,7 +856,10 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                         key={`visible-rival-${maskedSpecies}-${i}`}
                         className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/90 px-2.5 py-1.5"
                       >
-                        <PokemonIcon species={maskedSpecies} className="scale-90" />
+                        <PokemonIcon
+                          species={maskedSpecies}
+                          className="scale-90"
+                        />
                         <p className="truncate text-xs font-semibold text-white">
                           {maskedSpecies}
                         </p>
@@ -1238,7 +880,7 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                 </div>
               </div>
 
-              {/* Narrative Decision Consequence Summary (Clean, non-spoilery) */}
+              {/* Narrative Decision Consequence Summary */}
               {config.traces.length > 0 && (
                 <div className="space-y-2 border-t border-slate-800/80 pt-3">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-amber-300">
@@ -1303,9 +945,9 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
           <div>
             {!isValid ? (
               <p className="flex items-center gap-2 text-sm font-semibold text-rose-400">
-                <AlertTriangle className="h-4 w-4" />
+                <AlertTriangle className="h-4 w-4 shrink-0" />
                 {isCustomTeamBlockedByBstCap
-                  ? `Tu Equipo del PC excede el tope de ${bstLicense.maxTeamBst} BST (${bstLicense.shortLabel}). Ajusta tus Cajas PC o vuelve al equipo narrativo.`
+                  ? `Excedes el límite BST de ${DIFFICULTY_META[difficultyMode]?.label} (${bstLicense.currentPartyBst} / ${bstLicense.maxTeamBst} BST). Ajusta tu equipo en las Cajas PC arriba, cambia a Baby Mode o vuelve al equipo narrativo.`
                   : 'Ambos equipos deben tener al menos un Pokémon válido.'}
               </p>
             ) : (
@@ -1315,7 +957,14 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                 </p>
                 <p className="text-xs text-slate-400">
                   {config.formatLabel ?? config.formatId} · {parsedPlayer.length}{' '}
-                  Pokémon en posición
+                  Pokémon · {DIFFICULTY_META[difficultyMode]?.label}
+                  {useCustomTeam && canSwapCustomTeam
+                    ? ` · ${bstLicense.currentPartyBst} / ${
+                        bstLicense.maxTeamBst !== null
+                          ? `${bstLicense.maxTeamBst} BST`
+                          : '∞ BST'
+                      }`
+                    : ''}
                 </p>
               </div>
             )}
