@@ -11,10 +11,12 @@ import {
 } from 'lucide-react';
 import { generatePostGameReview } from '../engine/battleCoach';
 import { getActiveProviderLabel } from '../engine/aiProvider';
+import { evaluateBabyModeComedyStamp } from '../engine/formatFallback';
 import type {
   AISettings,
   BattleSnapshot,
   MoveAnnotationGrade,
+  PlayerSaveProfile,
   PostGameReview,
   ResolvedBattleConfig,
 } from '../types/game';
@@ -22,6 +24,7 @@ import type {
 interface GameReviewPanelProps {
   snapshot: BattleSnapshot;
   config: ResolvedBattleConfig;
+  profile?: PlayerSaveProfile;
   aiSettings: AISettings;
   onOpenAISettings: () => void;
 }
@@ -65,11 +68,17 @@ const GRADE_STYLE: Record<
 export const GameReviewPanel: React.FC<GameReviewPanelProps> = ({
   snapshot,
   config,
+  profile,
   aiSettings,
   onOpenAISettings,
 }) => {
   const [review, setReview] = useState<PostGameReview | null>(null);
   const [loading, setLoading] = useState(false);
+  const babyStamp = evaluateBabyModeComedyStamp(
+    config,
+    profile,
+    snapshot.winner === 'p1'
+  );
 
   const handleAnalyze = async () => {
     setLoading(true);
@@ -149,6 +158,16 @@ export const GameReviewPanel: React.FC<GameReviewPanelProps> = ({
             </div>
 
             <div className="flex flex-col justify-between rounded-2xl border border-slate-800 bg-slate-950/80 p-3 sm:col-span-8">
+              {babyStamp && (
+                <div className="mb-2 inline-flex flex-wrap items-center gap-1.5 rounded-lg border border-dashed border-sky-400/60 bg-sky-500/15 px-2.5 py-1 text-[10.5px] font-extrabold text-sky-100">
+                  <span>{babyStamp.badgeTitle}</span>
+                  {babyStamp.overCapBy > 0 && (
+                    <span className="font-mono-code text-fuchsia-200">
+                      (+{babyStamp.overCapBy.toLocaleString()} BST)
+                    </span>
+                  )}
+                </div>
+              )}
               <p className="text-xs leading-relaxed text-slate-200">
                 {review.summaryVerdict}
               </p>

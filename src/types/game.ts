@@ -334,6 +334,7 @@ export type BattleFormat = 'singles' | 'doubles' | 'triples';
 
 export type ChapterCategory =
   | 'story'
+  | 'romance'
   | 'puzzles'
   | 'flashbacks'
   | 'showcases'
@@ -376,7 +377,17 @@ export type CharacterId =
   | 'clandestine_tamer'
   | 'colossus_keeper'
   | 'tobias'
-  | 'ash_ketchum';
+  | 'ash_ketchum'
+  | 'cordelia_astronomer'
+  | 'mesoa_boss'
+  | 'poketopia_croupier'
+  | 'ranger_commander'
+  | 'aeos_geneticist'
+  | 'kemetia_keeper'
+  | 'e4_ransei'
+  | 'e4_ferrum'
+  | 'e4_veridia'
+  | 'e4_kalos';
 
 export type BattleDifficultyMode = 'baby' | 'standard' | 'kaizo' | 'nightmare';
 
@@ -551,6 +562,8 @@ export interface PuzzleConditions {
     | 'electricterrain'
     | 'mistyterrain'
     | 'psychicterrain';
+  /** Activates Trick Room immediately on Turn 0 (e.g. Cordelia Astronomer's Reloj de los Andes). */
+  trickRoom?: boolean;
   sideConditions?: { p1?: string[]; p2?: string[] };
   pokemonModifiers?: PuzzlePokemonModifier[];
   /** Optional custom log announcement when Turn 0 conditions activate. */
@@ -627,12 +640,19 @@ export interface ResolvedBattleConfig {
   /** Selected or randomized NPC team variant ID. */
   selectedVariantId?: string;
   selectedVariantLabel?: string;
-  /** Romance Social Link battle metadata (Rank 2 Tag 2v2 or Rank 3 Unfair Rematch). */
+  /** Romance Social Link battle metadata (Rank 1 Encounter Duel, Rank 2 Tag 2v2, or Rank 3 Unfair Rematch). */
   romanceMeta?: {
     npcId: CharacterId;
-    targetRank: 2 | 3;
-    mode: 'tag-2v2' | 'unfair-rematch';
+    targetRank: 1 | 2 | 3;
+    mode: 'encounter-duel' | 'tag-2v2' | 'unfair-rematch';
     partnerLabel?: string;
+  };
+  /** Populated when Baby Mode or Dev Mode automatically fell back from a strict official format to NatDex Custom. */
+  babyModeFormatFallback?: {
+    originalFormatId: SupportedFormatId;
+    originalFormatLabel: string;
+    reason: string;
+    triggeredBy: 'baby' | 'dev';
   };
   /** Rank 2 Romance Anti-Diablo scouting alerts revealed in Teambuilder. */
   diabloScoutingAlerts?: string[];

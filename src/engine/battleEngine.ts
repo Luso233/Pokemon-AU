@@ -749,6 +749,11 @@ export class ShowdownBattleController {
       battle.field.setTerrain(puzzle.terrain, sourceMon);
     }
 
+    if (puzzle.trickRoom && sourceMon) {
+      battle.field.addPseudoWeather('trickroom', sourceMon);
+      this.state.trickRoomTurnsLeft = 5;
+    }
+
     if (puzzle.sideConditions?.p1 && sourceMon) {
       for (const cond of puzzle.sideConditions.p1) {
         battle.p1.addSideCondition(cond, sourceMon);

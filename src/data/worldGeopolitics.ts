@@ -1,3 +1,5 @@
+import { buildRomanceMapLocations } from './regionalRomanceBlueprints';
+
 export type GeopoliticalFactionKind =
   | 'imperial_core'
   | 'imperial_colony'
@@ -553,7 +555,7 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
     center: [-53.0, -9.0],
     labelCoords: [-52.0, -10.5],
     focusZoom: 2.7,
-    statusTag: 'Rumor Mortal para la CRU · Próximo Arco',
+    statusTag: 'Selva Viva · Arco de Iara de Veridia (3 Caps)',
     loreSummary:
       'El pulmón indomable del sur: la CRU intentó talar y colonizar Veridia tres veces y las tres veces la selva se tragó enteras sus expediciones. En su corazón sobrevive el rumor más peligroso para Galar: la existencia de Mew, capaz de destruir para siempre el monopolio genético del Último Ditto.',
     keyResource: 'El mito viviente de Mew y biodiversidad selvática inviolada',
@@ -580,7 +582,7 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
     center: [-95.0, 39.0],
     labelCoords: [-98.0, 39.5],
     focusZoom: 2.8,
-    statusTag: 'En Guerra Civil contra Aura (Orre) · Próximo Arco',
+    statusTag: 'Guerra Civil vs. Aura · Arco de El Pelirrojo (3 Caps)',
     loreSummary:
       'El «Piltover» del planeta: potencia industrial independiente anclada en la Costa Este y la Academia Arándano que se negó a comprar licencias a la CRU. Sin embargo, para competir con Galar explotó sin piedad a su oeste desértico, Aura (Orre), desatando una brutal guerra civil con Pokémon Oscuros.',
     keyResource: 'Biodomos artificiales (Academia Arándano) y circuito profesional libre',
@@ -607,7 +609,7 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
     center: [-96.0, 57.5],
     labelCoords: [-102.0, 59.0],
     focusZoom: 2.4,
-    statusTag: 'Guarnición Septentrional · Próximo Arco',
+    statusTag: 'Fuerte Helado CRU · Operación Borelia (Tag 2v2)',
     loreSummary:
       'Territorio helado al norte de Teselia bajo control directo de virreyes leales a Galar y a la CRU. Sostiene un cerco militar y aduanero permanente sobre las rutas árticas y la frontera norte teseliana.',
     keyResource: 'Rutas boreales, reservas de Hielo y acuartelamientos virreinales',
@@ -640,7 +642,7 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
     center: [62.0, 57.0],
     labelCoords: [65.0, 61.5],
     focusZoom: 2.1,
-    statusTag: 'Contención Terrestre frente a Galar · Próximo Arco',
+    statusTag: 'Enclave Ferrum · Arco de General Viktoria (3 Caps)',
     loreSummary:
       'Potencia industrial, fría y blindada que luchó en las Guerras de Extinción y hoy contiene por tierra cualquier ambición continental de Galar y la CRU. Sus doctrinas de Acero, Hielo y los enclaves de Ferrum no toleran debilidades.',
     keyResource: 'Industria pesada de Acero/Hielo, Ferrum y ferrocarriles blindados',
@@ -671,7 +673,7 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
     center: [12.0, 7.0],
     labelCoords: [8.0, 12.0],
     focusZoom: 2.5,
-    statusTag: 'Frontera Libre frente a Kemetia · Próximo Arco',
+    statusTag: 'Frontera Libre · Defensa de Kora con Amina (Tag 2v2)',
     loreSummary:
       'Los reinos libres que lograron frenar el avance de la CRU en el oeste y centro continental. Desconfían a muerte de cualquier acento de Wyndon; ganarse su respeto siendo un niño de la realeza de Galar será una de las pruebas más duras del exilio.',
     keyResource: 'Santuarios indómitos y alianzas libres contra la CRU',
@@ -698,7 +700,7 @@ export const WORLD_BLOCS: WorldBlocDefinition[] = [
     center: [105.0, 35.5],
     labelCoords: [104.0, 36.5],
     focusZoom: 2.75,
-    statusTag: 'Contrapeso Mundial de Galar · Próximo Arco',
+    statusTag: 'Reino de Ransei · Arco de Lady Nobuna (3 Caps)',
     loreSummary:
       'Coloso elegante y milenario que jamás cayó ante Galar ni la CRU. Tierra lejana al este de Paldea de donde provienen las Cuatro Ruinas (Chien-Pao, Chi-Yu, Ting-Lu, Wo-Chien), las montañas marciales de Kubfu/Urshifu y el reino ermitaño de Ransei.',
     keyResource: 'Artes marciales antiguas y sellos de las Cuatro Ruinas',
@@ -922,6 +924,7 @@ export const CHAPTER_MAP_LOCATIONS: Record<string, ChapterMapLocation> = {
     originArcFrom: [-0.25, 51.55],
     originArcLabel: 'Enlace Holográfico desde Wyndon',
   },
+  ...buildRomanceMapLocations(),
 };
 
 /** Subtle regional micro-labels rendered when zoomed in (including Islas Bruma Imperial Base!). */

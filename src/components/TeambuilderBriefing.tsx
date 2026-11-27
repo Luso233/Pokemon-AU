@@ -39,6 +39,7 @@ import {
   getFormatGeneration,
   getSpeciesKey,
 } from '../engine/learnsetService';
+import { applyBabyOrDevNatDexFallback } from '../engine/formatFallback';
 import {
   applyChapterProgressionToPaste,
   applyShinySlotsToPaste,
@@ -392,8 +393,19 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
           ? rivalPaste
           : config.rivalShowdownPaste,
     };
-    const finalWithNpc = applyNpcRunModifiers(
+    // ONLY in Baby Mode or Dev Mode: if the player's paste fails strict format validation
+    // (e.g. Eternatus-Eternamax or Mega-Rayquaza on Monotype / VGC / 1v1 / Gen 1 / Triples),
+    // automatically fall back to our master NatDex Custom format!
+    const formatSafeConfig = applyBabyOrDevNatDexFallback(
       baseWithPlayer,
+      playerPasteToUse,
+      {
+        difficultyMode,
+        devModeEnabled: profile.devModeEnabled,
+      }
+    );
+    const finalWithNpc = applyNpcRunModifiers(
+      formatSafeConfig,
       difficultyMode,
       selectedVariantId
     );
@@ -674,7 +686,7 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                           : '🧪 Dev Mode · Paste Showdown On-The-Spot'}
                       </p>
                       <p className="text-[10.5px] text-slate-300">
-                        Trae el equipo que se te dé la gana directo desde el portapapeles en formato Pokémon Showdown y arranca el capítulo al instante.
+                        Trae el equipo que se te dé la gana directo desde el portapapeles en formato Pokémon Showdown y arranca al instante — con <strong>fallback automático a NatDex Todo Vale</strong> si rompe Monotype, VGC, 1v1 o Gen 1/6.
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-1.5">

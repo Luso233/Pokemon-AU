@@ -243,283 +243,597 @@ export const ROMANCE_ROSTER: RomanceNpcDefinition[] = [
       'Tras vencer a tu hermano bastardo y superar incluso a Mega-Rayquaza, tu maestra deposita su capa sobre tus hombros y deja caer la distancia formal. El alumno superó a la soberana —y juntos reescriben el destino de Galar.',
   },
 
-  /* ===================== BATCH 2 — 5 WAIFUS & HUSBANDOS CON ACES ROMPE-REGLAS + KEMETIA (6/13) ===================== */
+  /* ===================== BATCH 2 — 6 ROMANCEABLES DE LA RUTA DEL EXILIO (TODOS JUGABLES · 3 CAPÍTULOS) ===================== */
   {
     id: 'cordelia_astronomer',
+    charId: 'cordelia_astronomer',
     name: 'El Astrónomo del Fin del Mundo',
     nickname: 'Husbando · Cordelia',
     title: 'Noble Arruinado · Observatorio frente a Islas Bruma',
     batch: 2,
     roleTrack: 'exile-8',
-    roleBadge: 'Batch 2 · Sello 3/8 · Husbando (Próximamente)',
-    playableNow: false,
+    roleBadge: 'Batch 2 · Sello 3/8 · Cordelia (3 Caps)',
+    playableNow: true,
     homeBlocId: 'andes_plata',
     gimmickTag: 'Trick Room Pesado (Ursaluna · Hatterene · Torkoal · Kingambit)',
     bossAceRule: {
       aceSpecies: 'Ursaluna (Agallas)',
       ruleName: 'Reloj de los Andes',
       ruleDetail:
-        'Espacio Raro permanente desde Turno 0 (imposible de quitar) y su Ursaluna entra ya quemado para activar Agallas sin sufrir daño de quemadura al final del turno.',
+        'Espacio Raro activo desde Turno 0 y su Ursaluna ★ (Nv. 108) entra ya quemado con +1 Ataque para activar Agallas desde el primer segundo.',
     },
     bio: 'Noble arruinado, estoico, con ojeras crónicas y humor seco; viste abrigo andino-militar oscuro, monóculo astrolabio de latón y un reloj roto. Odia a Galar por la ocupación de las Islas Bruma frente a su costa.',
-    rank1PerkTitle: 'Descanso del Observatorio (+25% PS entre capítulos)',
-    rank1PerkDetail: 'Desbloquea descanso de campamento: cura 25% de PS a todo tu equipo una vez entre capítulos.',
+    rank1PerkTitle: 'Descanso del Observatorio (-10% Curación + Duelo Austral)',
+    rank1PerkDetail: 'Reduce el costo de curación en Campamento y desbloquea su ruta de cooperación en el Cono Austral.',
     rank2BattleTitle: 'Tag 2v2: Asedio Naval de las Islas Bruma',
-    rank2PerkTitle: 'Efemérides de Velocidad',
-    rank2PerkDetail: 'Revela los umbrales de velocidad exactos y objetos de Trick Room del enemigo.',
-    rank3BattleTitle: 'Rematch Injusta: Reloj de los Andes',
-    rank3PerkTitle: 'Casa: Ursaluna · Hatterene · Torkoal',
-    rank3PerkDetail: 'Núcleo demoledor de Trick Room para tu Casa PC.',
-    housePokemon: [],
+    rank2PerkTitle: 'Efemérides de Velocidad (Scouting Anti-Diablo)',
+    rank2PerkDetail: 'Revela amenazas de velocidad y objetos ocultos de modo Diablo en el Teambuilder.',
+    rank3BattleTitle: 'Revancha Cap Alta: Reloj de los Andes (Nv. 108)',
+    rank3PerkTitle: 'Casa PC: Ursaluna · Hatterene · Torkoal',
+    rank3PerkDetail: 'Núcleo demoledor de Trick Room para tu Casa PC + Ending Romántico.',
+    housePokemon: [
+      {
+        species: 'Ursaluna',
+        item: 'Flame Orb',
+        ability: 'Guts',
+        nature: 'Brave',
+        teraType: 'Normal',
+        moves: ['Facade', 'Headlong Rush', 'Drain Punch', 'Protect'],
+        shiny: false,
+      },
+      {
+        species: 'Hatterene',
+        item: 'Life Orb',
+        ability: 'Magic Bounce',
+        nature: 'Quiet',
+        teraType: 'Fire',
+        moves: ['Trick Room', 'Dazzling Gleam', 'Psychic', 'Mystical Fire'],
+        shiny: false,
+      },
+      {
+        species: 'Torkoal',
+        item: 'Charcoal',
+        ability: 'Drought',
+        nature: 'Quiet',
+        teraType: 'Fire',
+        moves: ['Eruption', 'Heat Wave', 'Earth Power', 'Protect'],
+        shiny: false,
+      },
+    ],
     endingTitle: 'Final Romántico: El Reloj Vuelve a Girar',
     endingSummary: 'Las Islas Bruma caen y contemplan juntos un cielo austral sin acorazados imperiales.',
   },
   {
     id: 'mesoa_boss',
+    charId: 'mesoa_boss',
     name: 'La Jefa del Mercado Negro',
     nickname: 'Waifu · Mesoa',
     title: 'Reina del Contrabando · Cárteles de Crianza de Mesoa',
     batch: 2,
     roleTrack: 'exile-8',
-    roleBadge: 'Batch 2 · Sello 4/8 · Waifu (Próximamente)',
-    playableNow: false,
+    roleBadge: 'Batch 2 · Sello 4/8 · Mesoa (3 Caps)',
+    playableNow: true,
     homeBlocId: 'aztlan_caribe',
     gimmickTag: 'Abuso de Objetos & Velocidad (Unburden · Population Bomb)',
     bossAceRule: {
       aceSpecies: 'Hawlucha (Liviano)',
       ruleName: 'Contrabando Perfecto',
       ruleDetail:
-        'Su Hawlucha entra en Turno 1 con Liviano (x2 Velocidad) ya activo sin haber consumido su Life Orb, golpeando además con Acrobatics a 110 BP base.',
+        'Su Hawlucha ★ (Nv. 108) entra en Turno 0 con +2 Velocidad sin haber perdido su Life Orb, arrasando con Close Combat y Acrobatics.',
     },
     bio: 'Carismática, coqueta, despiadada y pragmática; lleva chaqueta de cuero bordada con oro táctico y una bandolera de Poké Balls pirateadas sin sello de la CRU. Te ayuda porque un príncipe fugitivo desestabiliza al Imperio.',
-    rank1PerkTitle: 'Mercado Negro (Impuesto de Bajas 15% → 5% + Objetos Choice)',
+    rank1PerkTitle: 'Mercado Negro (Impuesto de Bajas 15% → 5%)',
     rank1PerkDetail:
-      'Reduce el Impuesto de Reposición de bajas Nuzlocke del 15% al 5% (95% de reembolso) y desbloquea objetos competitivos premium tempranos.',
+      'Reduce el Impuesto de Reposición de bajas Nuzlocke del 15% al 5% (95% de reembolso) desde Rango 1.',
     rank2BattleTitle: 'Tag 2v2: Redada de la CRU en el Puerto de Mesoa',
-    rank2PerkTitle: 'Aduana Fantasma',
-    rank2PerkDetail: 'Revela todos los objetos equipados del jefe y sus sinergias Multi-Hit.',
-    rank3BattleTitle: 'Rematch Injusta: Contrabando Perfecto',
-    rank3PerkTitle: 'Casa: Hawlucha · Maushold · Sneasler',
-    rank3PerkDetail: 'Equipo relámpago de Mesoa para romper jefes lentos.',
-    housePokemon: [],
+    rank2PerkTitle: 'Aduana Fantasma (Scouting Anti-Diablo)',
+    rank2PerkDetail: 'Revela todos los objetos equipados del jefe y sus trampas Diablo.',
+    rank3BattleTitle: 'Revancha Cap Alta: Contrabando Perfecto (Nv. 108)',
+    rank3PerkTitle: 'Casa PC: Hawlucha · Maushold · Sneasler',
+    rank3PerkDetail: 'Equipo relámpago de Mesoa para romper jefes lentos + Ending Romántico.',
+    housePokemon: [
+      {
+        species: 'Hawlucha',
+        item: 'Focus Sash',
+        ability: 'Unburden',
+        nature: 'Adamant',
+        teraType: 'Flying',
+        moves: ['Acrobatics', 'Close Combat', 'Swords Dance', 'Protect'],
+        shiny: false,
+      },
+      {
+        species: 'Maushold',
+        item: 'Wide Lens',
+        ability: 'Technician',
+        nature: 'Jolly',
+        teraType: 'Ghost',
+        moves: ['Population Bomb', 'Follow Me', 'Encore', 'Protect'],
+        shiny: false,
+      },
+      {
+        species: 'Sneasler',
+        item: 'Focus Sash',
+        ability: 'Unburden',
+        nature: 'Jolly',
+        teraType: 'Dark',
+        moves: ['Dire Claw', 'Close Combat', 'Fake Out', 'Protect'],
+        shiny: false,
+      },
+    ],
     endingTitle: 'Final Romántico: Mares Sin Sello Imperial',
     endingSummary: 'Transforman las antiguas redes clandestinas de Mesoa en rutas libres del monopolio.',
   },
   {
     id: 'poketopia_croupier',
+    charId: 'poketopia_croupier',
     name: 'La Crupier de Sangre',
     nickname: 'Waifu · Pokétopia',
     title: 'Anfitriona de Apuestas · Coliseo de la CRU (Pokétopia)',
     batch: 2,
     roleTrack: 'exile-8',
-    roleBadge: 'Batch 2 · Sello 5/8 · Waifu (Próximamente)',
-    playableNow: false,
+    roleBadge: 'Batch 2 · Sello 5/8 · Pokétopia (3 Caps)',
+    playableNow: true,
     homeBlocId: 'aztlan_caribe',
-    gimmickTag: 'RNG Trucado (100% Críticos Sniper · Precisión Infinita)',
+    gimmickTag: 'RNG Trucado (100% Críticos Sniper · Lluvia VIP)',
     bossAceRule: {
       aceSpecies: 'Kingdra (Francotirador)',
       ruleName: 'La Casa Siempre Gana',
       ruleDetail:
-        'Foco Energía permanente (100% golpes críticos x2.25 con Francotirador, ignorando bajones de Draco Meteor) y precisión perfecta en Hydro Pump, Draco Meteor y Hurricane.',
+        'Lluvia desde Turno 0 y Kingdra ★ (Nv. 108) entra con Foco Energía activo (100% críticos x2.25 con Francotirador ignorando bajones de Draco Meteor).',
     },
     bio: 'Elegante, sádica, juguetona y adicta a la adrenalina; viste vestido negro de gala con guantes carmesí y naipes metálicos en el cabello platinado. Maneja las apuestas clandestinas de Pokétopia y te llama su «ficha favorita».',
-    rank1PerkTitle: 'Apuestas de Combate (x2 PokéCoronas por Capítulo)',
-    rank1PerkDetail: 'Duplica las PokéCoronas ganadas en combate para costear pociones y bayas en modo Ironman.',
+    rank1PerkTitle: 'Apuestas de Combate (+25% PokéCoronas por Capítulo)',
+    rank1PerkDetail: 'Aumenta tus PokéCoronas ganadas en combate para costear refuerzos y bayas.',
     rank2BattleTitle: 'Tag 2v2: Mesa VIP de los Accionistas de la CRU',
-    rank2PerkTitle: 'Cartas Marcadas',
-    rank2PerkDetail: 'Alerta de golpes críticos, Serene Grace y sets de alta varianza en Diablo.',
-    rank3BattleTitle: 'Rematch Injusta: La Casa Siempre Gana',
-    rank3PerkTitle: 'Casa: Kingdra · Meowscarada · Togekiss',
-    rank3PerkDetail: 'Especialistas en críticos garantizados para atravesar muros defensivos.',
-    housePokemon: [],
+    rank2PerkTitle: 'Cartas Marcadas (Scouting Anti-Diablo)',
+    rank2PerkDetail: 'Alerta de críticos, objetos ocultos y sets de alta varianza en Diablo.',
+    rank3BattleTitle: 'Revancha Cap Alta: La Casa Siempre Gana (Nv. 108)',
+    rank3PerkTitle: 'Casa PC: Kingdra · Meowscarada · Togekiss',
+    rank3PerkDetail: 'Especialistas en críticos garantizados para atravesar muros defensivos + Ending Romántico.',
+    housePokemon: [
+      {
+        species: 'Kingdra',
+        item: 'Scope Lens',
+        ability: 'Sniper',
+        nature: 'Modest',
+        teraType: 'Water',
+        moves: ['Draco Meteor', 'Hydro Pump', 'Focus Energy', 'Protect'],
+        shiny: false,
+      },
+      {
+        species: 'Meowscarada',
+        item: 'Focus Sash',
+        ability: 'Protean',
+        nature: 'Jolly',
+        teraType: 'Grass',
+        moves: ['Flower Trick', 'Knock Off', 'Sucker Punch', 'Protect'],
+        shiny: false,
+      },
+      {
+        species: 'Togekiss',
+        item: 'Leftovers',
+        ability: 'Serene Grace',
+        nature: 'Timid',
+        teraType: 'Steel',
+        moves: ['Air Slash', 'Dazzling Gleam', 'Follow Me', 'Tailwind'],
+        shiny: false,
+      },
+    ],
     endingTitle: 'Final Romántico: Todo al Rojo',
     endingSummary: 'Banca rota para los oligarcas de la CRU; ella apuesta su última ficha por un futuro a tu lado.',
   },
   {
     id: 'ranger_commander',
+    charId: 'ranger_commander',
     name: 'El Comandante Ranger',
     nickname: 'Husbando · Fiore / Oblivia',
-    title: 'Líder Guerrillero · Unión Ranger (Ecoterrorista según la CRU)',
+    title: 'Líder Guerrillero · Unión Ranger (Confederación Tohjo)',
     batch: 2,
     roleTrack: 'exile-8',
-    roleBadge: 'Batch 2 · Sello 6/8 · Husbando (Próximamente)',
-    playableNow: false,
+    roleBadge: 'Batch 2 · Sello 6/8 · Unión Ranger (3 Caps)',
+    playableNow: true,
     homeBlocId: 'poke_japan',
     gimmickTag: 'VoltTurn + Héroe Solitario (Palafin-Hero · Incineroar · Rillaboom)',
     bossAceRule: {
       aceSpecies: 'Palafin-Hero (Cambio Heroico)',
       ruleName: 'El Héroe Nunca Huye',
       ruleDetail:
-        'Por su vínculo puro sin Poké Balls, Palafin entra directo en Forma Heroica (650 BST) en Turno 1 sin cambiar, y su Jet Punch gana potencia extra por debajo del 50% de PS.',
+        'Por su vínculo puro sin Poké Balls, su Palafin-Hero ★ (Nv. 108) entra directamente en Forma Heroica (650 BST) en Turno 1 sin tener que retirarse.',
     },
     bio: 'Idealista, intenso y protector; viste uniforme Ranger desgastado, capa de camuflaje selvático y un Capturador modificado brillando en azul. Libera Pokémon de las fábricas de la CRU y al principio te odia por tu apellido.',
-    rank1PerkTitle: 'Rescate de Campo (Paquete de Curación Ranger)',
-    rank1PerkDetail: 'Una vez por capítulo, si un compañero queda a 1 PS o con estado grave, sus Rangers entregan curación gratuita.',
+    rank1PerkTitle: 'Rescate de Campo (+1 PP Pasivo + Cura Ranger)',
+    rank1PerkDetail: 'Sus Rangers reponen PP tras cada batalla y abaratan tus suministros en Campamento.',
     rank2BattleTitle: 'Tag 2v2: Liberación del Carguero de Isla Æos',
-    rank2PerkTitle: 'Red de Vigías Ranger',
-    rank2PerkDetail: 'Revela habilidades y patrones de pivote VoltTurn rivales desde Turno 0.',
-    rank3BattleTitle: 'Rematch Injusta: El Héroe Nunca Huye',
-    rank3PerkTitle: 'Casa: Palafin · Incineroar · Rotom-Wash',
-    rank3PerkDetail: 'Núcleo VoltTurn + prioridad heroica para tu Casa PC.',
-    housePokemon: [],
+    rank2PerkTitle: 'Red de Vigías Ranger (Scouting Anti-Diablo)',
+    rank2PerkDetail: 'Revela amenazas, objetos y patrones de pivote VoltTurn rivales desde el briefing.',
+    rank3BattleTitle: 'Revancha Cap Alta: El Héroe Nunca Huye (Nv. 108)',
+    rank3PerkTitle: 'Casa PC: Palafin · Incineroar · Rotom-Wash',
+    rank3PerkDetail: 'Núcleo VoltTurn + prioridad heroica para tu Casa PC + Ending Romántico.',
+    housePokemon: [
+      {
+        species: 'Palafin',
+        item: 'Mystic Water',
+        ability: 'Zero to Hero',
+        nature: 'Adamant',
+        teraType: 'Water',
+        moves: ['Jet Punch', 'Wave Crash', 'Flip Turn', 'Protect'],
+        shiny: false,
+      },
+      {
+        species: 'Incineroar',
+        item: 'Sitrus Berry',
+        ability: 'Intimidate',
+        nature: 'Careful',
+        teraType: 'Ghost',
+        moves: ['Fake Out', 'Flare Blitz', 'Knock Off', 'Parting Shot'],
+        shiny: false,
+      },
+      {
+        species: 'Rotom-Wash',
+        item: 'Leftovers',
+        ability: 'Levitate',
+        nature: 'Modest',
+        teraType: 'Grass',
+        moves: ['Hydro Pump', 'Volt Switch', 'Will-O-Wisp', 'Protect'],
+        shiny: false,
+      },
+    ],
     endingTitle: 'Final Romántico: Cielos Sin Jaulas',
     endingSummary: 'Abolen el monopolio de las cápsulas de la CRU y reconstruyen el mundo sobre el vínculo libre.',
   },
   {
     id: 'aeos_geneticist',
+    charId: 'aeos_geneticist',
     name: 'La Genetista Renegada',
     nickname: 'Waifu · Isla Æos',
     title: 'Ex-Científica del Último Ditto · Fugitiva del Black Site Æos',
     batch: 2,
     roleTrack: 'exile-8',
-    roleBadge: 'Batch 2 · Sello 7/8 · Waifu (Próximamente)',
-    playableNow: false,
+    roleBadge: 'Batch 2 · Sello 7/8 · Isla Æos (3 Caps)',
+    playableNow: true,
     homeBlocId: 'poke_india',
     gimmickTag: 'Clonación, Ilusión y Mutatipo (Imposter · Illusion · Protean)',
     bossAceRule: {
       aceSpecies: 'Ditto (Impostor)',
       ruleName: 'El Clon Perfecto',
       ruleDetail:
-        'Al copiarte a tu mejor Pokémon, su Ditto NO copia los 48 PS base: conserva una barra de vida masiva de jefe (Base 150 HP) y entra con +1 en la estadística más alta copiada.',
+        'Campo Eléctrico Æos desde Turno 0 y su Ditto ★ (Nv. 112 · Choice Scarf) entra sobrenivelado con salud masiva para voltear tus propios carries contra ti.',
     },
     bio: 'Genia excéntrica, obsesiva y sin filtros sociales; lleva bata manchada de reactivos, lentes holográficos y viales de ADN brillando en el cinturón. Mantuvo vivo al Último Ditto hasta descubrir un horror en Isla Æos y escapar.',
-    rank1PerkTitle: 'Clonación de Emergencia (1 Revivir Nuzlocke o Clonar Objeto)',
-    rank1PerkDetail: 'En Ultra Nuzlocke Diablo permite revivir a 1 Pokémon caído una sola vez en toda la run o clonar un objeto único perdido.',
+    rank1PerkTitle: 'Escáner de ADN Æos (Scouting Anti-Diablo)',
+    rank1PerkDetail: 'Analiza el genoma de los jefes y revela sets sorpresa de modo Diablo desde Rango 1.',
     rank2BattleTitle: 'Tag 2v2: Fuga del Laboratorio Subterráneo de Isla Æos',
-    rank2PerkTitle: 'Escáner de ADN Æos',
-    rank2PerkDetail: 'Revela EVs exactos, Teratipos ocultos y modificaciones ilegales de jefes.',
-    rank3BattleTitle: 'Rematch Injusta: El Clon Perfecto',
-    rank3PerkTitle: 'Casa: Ditto · Greninja · Porygon-Z',
-    rank3PerkDetail: 'Maestros de copia y cobertura adaptable en tu Casa PC.',
-    housePokemon: [],
+    rank2PerkTitle: 'Viales de Síntesis (Cura de Emergencia)',
+    rank2PerkDetail: 'Aporta suministros experimentales de recuperación tras cada batalla.',
+    rank3BattleTitle: 'Revancha Cap Alta: El Clon Perfecto (Nv. 112)',
+    rank3PerkTitle: 'Casa PC: Ditto · Greninja · Porygon-Z',
+    rank3PerkDetail: 'Maestros de copia y cobertura adaptable en tu Casa PC + Ending Romántico.',
+    housePokemon: [
+      {
+        species: 'Ditto',
+        item: 'Choice Scarf',
+        ability: 'Imposter',
+        nature: 'Jolly',
+        teraType: 'Ghost',
+        moves: ['Transform'],
+        shiny: false,
+      },
+      {
+        species: 'Greninja',
+        item: 'Life Orb',
+        ability: 'Protean',
+        nature: 'Timid',
+        teraType: 'Water',
+        moves: ['Hydro Pump', 'Dark Pulse', 'Ice Beam', 'Protect'],
+        shiny: false,
+      },
+      {
+        species: 'Porygon-Z',
+        item: 'Choice Specs',
+        ability: 'Adaptability',
+        nature: 'Timid',
+        teraType: 'Normal',
+        moves: ['Tri Attack', 'Shadow Ball', 'Ice Beam', 'Hyper Beam'],
+        shiny: false,
+      },
+    ],
     endingTitle: 'Final Romántico: Código Sin Dueño',
     endingSummary: 'Publican los archivos secretos de Isla Æos y ponen fin para siempre al monopolio genético de la CRU.',
   },
   {
     id: 'kemetia_keeper',
+    charId: 'kemetia_keeper',
     name: 'Amina del Gran Rift',
-    nickname: 'Waifu · Kemetia',
-    title: 'Custodia de Especies Puras · Corredor de Kemetia',
+    nickname: 'Waifu · Kemetia & Kora',
+    title: 'Custodia de Especies Puras · Kemetia y Reinos Libres de Kora',
     batch: 2,
     roleTrack: 'exile-8',
-    roleBadge: 'Batch 2 · Sello 8/8 · Waifu (Próximamente)',
-    playableNow: false,
+    roleBadge: 'Batch 2 · Sello 8/8 · Kemetia/Kora (3 Caps)',
+    playableNow: true,
     homeBlocId: 'poke_africa',
     gimmickTag: 'Vínculo Puro y Terreno Ancestral (Farigiraf · Hippowdon · Pyroar)',
     bossAceRule: {
       aceSpecies: 'Farigiraf (Cola Armadura)',
       ruleName: 'Eco del Primer Vínculo',
       ruleDetail:
-        'Proyecta Campo Psíquico ancestral en Turno 0 y bloquea cualquier prioridad mientras fortalece los ataques de manada sin clonar.',
+        'Campo Psíquico ancestral desde Turno 0 y Farigiraf ★ (Nv. 108) con +1 Defensa Especial bloqueando toda prioridad rival.',
     },
-    bio: 'Protectora de las últimas manadas salvajes no clonadas de Kemetia. Desprecia las vallas de la CRU, pero reconoce en ti a un heredero dispuesto a escuchar a los pueblos desplazados por el apellido de su padre.',
-    rank1PerkTitle: 'Botánica del Rift (Cosecha x2 en Huerto de Bayas)',
-    rank1PerkDetail: 'Duplica la velocidad de maduración de tus bayas en el Campamento Ironman.',
-    rank2BattleTitle: 'Tag 2v2: Defensa de la Reserva del Rift contra la CRU',
-    rank2PerkTitle: 'Presagio Ancestral',
+    bio: 'Protectora de las últimas manadas salvajes no clonadas de Kemetia y puente diplomático con los Reinos Libres de Kora. Desprecia las vallas de la CRU, pero reconoce tu valor cuando bajas al polvo.',
+    rank1PerkTitle: 'Botánica del Rift (+1 Parcela de Huerto)',
+    rank1PerkDetail: 'Expande tu Huerto de Bayas en el Campamento Ironman con semillas puras del Rift.',
+    rank2BattleTitle: 'Tag 2v2: Defensa de los Reinos Libres de Kora',
+    rank2PerkTitle: 'Presagio Ancestral (Scouting Anti-Diablo)',
     rank2PerkDetail: 'Alerta sobre golpes de área y trampas climáticas en modo Diablo.',
-    rank3BattleTitle: 'Rematch Injusta: Rugido del Mediodía',
-    rank3PerkTitle: 'Casa: Farigiraf · Hippowdon · Lucario',
-    rank3PerkDetail: 'Linajes puros sin clonar listos para tu Casa PC.',
-    housePokemon: [],
+    rank3BattleTitle: 'Revancha Cap Alta: Rugido del Mediodía (Nv. 108)',
+    rank3PerkTitle: 'Casa PC: Farigiraf · Hippowdon · Lucario',
+    rank3PerkDetail: 'Linajes puros sin clonar listos para tu Casa PC + Ending Romántico.',
+    housePokemon: [
+      {
+        species: 'Farigiraf',
+        item: 'Throat Spray',
+        ability: 'Armor Tail',
+        nature: 'Modest',
+        teraType: 'Fairy',
+        moves: ['Hyper Voice', 'Psychic', 'Trick Room', 'Protect'],
+        shiny: false,
+      },
+      {
+        species: 'Hippowdon',
+        item: 'Rocky Helmet',
+        ability: 'Sand Stream',
+        nature: 'Impish',
+        teraType: 'Steel',
+        moves: ['Earthquake', 'Yawn', 'Slack Off', 'Protect'],
+        shiny: false,
+      },
+      {
+        species: 'Lucario',
+        item: 'Focus Sash',
+        ability: 'Inner Focus',
+        nature: 'Jolly',
+        teraType: 'Normal',
+        moves: ['Close Combat', 'Extreme Speed', 'Meteor Mash', 'Protect'],
+        shiny: false,
+      },
+    ],
     endingTitle: 'Final Romántico: Raíces del Primer Vínculo',
-    endingSummary: 'Cae el cerco de la CRU sobre Kemetia y la fauna libre vuelve a recorrer el valle.',
+    endingSummary: 'Cae el cerco de la CRU sobre Kemetia y Kora, y la fauna libre vuelve a recorrer el valle.',
   },
 
-  /* ===================== BATCH 3 — ELITE FOUR ROADMAP (4/5 ÉLITE + CAMPEONA) ===================== */
+  /* ===================== BATCH 3 — ALTO MANDO (4/4 JUGABLES · 3 CAPÍTULOS CADA UNO) ===================== */
   {
     id: 'e4_ransei',
+    charId: 'e4_ransei',
     name: 'Lady Nobuna de Ransei',
     nickname: 'Alto Mando 1/4 · Shentai',
     title: 'Señora de la Guerra · Reino Ermitaño de Ransei (Shentai)',
     batch: 3,
     roleTrack: 'elite-4',
-    roleBadge: 'Batch 3 · Alto Mando 1/4 (Próximamente)',
-    playableNow: false,
+    roleBadge: 'Batch 3 · Alto Mando 1/4 · Shentai (3 Caps)',
+    playableNow: true,
     homeBlocId: 'poke_china',
     gimmickTag: 'Vínculo Sin Cápsulas · Cuatro Ruinas',
+    bossAceRule: {
+      aceSpecies: 'Chien-Pao ★ (Espada Debacle)',
+      ruleName: 'Sello de las Cuatro Ruinas',
+      ruleDetail:
+        'Reflejo ancestral desde Turno 0 y comando simultáneo de Chien-Pao ★ (Nv. 110), Chi-Yu, Ting-Lu y Wo-Chien.',
+    },
     bio: 'Comandante de las fortalezas montañosas de Ransei dentro de Shentai que jamás usó una Poké Ball y evalúa si eres digno de derrocar a tu hermano bastardo.',
-    rank1PerkTitle: 'Disciplina de Ransei',
-    rank1PerkDetail: 'Aumenta tolerancia de supervivencia y bonificaciones tácticas.',
+    rank1PerkTitle: 'Disciplina de Ransei (Scouting + 10% PC)',
+    rank1PerkDetail: 'Activa inteligencia de batalla oriental y mejora recompensas de victoria.',
     rank2BattleTitle: 'Tag 2v2: Asedio de las Cuatro Ruinas',
     rank2PerkTitle: 'Ojo de Estratega',
-    rank2PerkDetail: 'Scouting total de spreads y velocidades Diablo.',
-    rank3BattleTitle: 'Rematch Injusta: Trono de las Nubes',
-    rank3PerkTitle: 'Casa: Chien-Pao · Chi-Yu · Kingambit',
-    rank3PerkDetail: 'Refuerzos legendarios de Endgame.',
-    housePokemon: [],
+    rank2PerkDetail: 'Scouting total de spreads y velocidades Diablo en Teambuilder.',
+    rank3BattleTitle: 'Revancha Cap Alta: Trono de las Nubes (Nv. 110)',
+    rank3PerkTitle: 'Casa PC: Chien-Pao · Chi-Yu · Ting-Lu',
+    rank3PerkDetail: 'Refuerzos legendarios de Endgame de Shentai + Ending Romántico.',
+    housePokemon: [
+      {
+        species: 'Chien-Pao',
+        item: 'Focus Sash',
+        ability: 'Sword of Ruin',
+        nature: 'Jolly',
+        teraType: 'Dark',
+        moves: ['Icicle Crash', 'Sucker Punch', 'Sacred Sword', 'Protect'],
+        shiny: false,
+      },
+      {
+        species: 'Chi-Yu',
+        item: 'Choice Scarf',
+        ability: 'Beads of Ruin',
+        nature: 'Timid',
+        teraType: 'Fire',
+        moves: ['Heat Wave', 'Dark Pulse', 'Overheat', 'Snarl'],
+        shiny: false,
+      },
+      {
+        species: 'Ting-Lu',
+        item: 'Assault Vest',
+        ability: 'Vessel of Ruin',
+        nature: 'Careful',
+        teraType: 'Poison',
+        moves: ['Stomping Tantrum', 'Ruination', 'Heavy Slam', 'Snarl'],
+        shiny: false,
+      },
+    ],
     endingTitle: 'Final Romántico: Alianza de Dos Dinastías',
     endingSummary: 'Ransei abre sus puertas por primera vez en siglos.',
   },
   {
     id: 'e4_ferrum',
+    charId: 'e4_ferrum',
     name: 'General Viktoria de Ferrum',
-    nickname: 'Alto Mando 2/4 · Kovaria',
-    title: 'Mariscal de Sinergia · Complejo Ferrum (Kovaria)',
+    nickname: 'Alto Mando 2/4 · Kovaria & Borelia',
+    title: 'Mariscal de Sinergia · Complejo Ferrum (Kovaria / Borelia)',
     batch: 3,
     roleTrack: 'elite-4',
-    roleBadge: 'Batch 3 · Alto Mando 2/4 (Próximamente)',
-    playableNow: false,
+    roleBadge: 'Batch 3 · Alto Mando 2/4 · Kovaria (3 Caps)',
+    playableNow: true,
     homeBlocId: 'northern_steppe',
     gimmickTag: 'Sinergia Cuerpo a Cuerpo · Acero & Hielo Blindado',
-    bio: 'Veterana de los campos de Ferrum en Kovaria capaz de igualar el impacto físico de sus Pokémon mediante Piedras de Sinergia.',
-    rank1PerkTitle: 'Forja de Ferrum',
-    rank1PerkDetail: 'Desbloquea equipamiento defensivo de élite en Campamento.',
-    rank2BattleTitle: 'Tag 2v2: Ruptura del Muro de Kovaria',
-    rank2PerkTitle: 'Lectura de Impacto',
-    rank2PerkDetail: 'Avisa amenazas de prioridad y OHKO físico.',
-    rank3BattleTitle: 'Rematch Injusta: Duelo de Sinergia Pura',
-    rank3PerkTitle: 'Casa: Archaludon · Scizor · Annihilape',
-    rank3PerkDetail: 'Titanes de acero y lucha para modo Diablo.',
-    housePokemon: [],
+    bossAceRule: {
+      aceSpecies: 'Archaludon ★ (Firmeza)',
+      ruleName: 'Velo de Sinergia Boreal',
+      ruleDetail:
+        'Nieve + Velo Aurora desde Turno 0 respaldando a Archaludon ★ (Nv. 110), Baxcalibur y Scizor blindados.',
+    },
+    bio: 'Veterana de los campos de Ferrum en Kovaria capaz de igualar el impacto físico de sus Pokémon mediante Piedras de Sinergia, liderando incursiones hasta el hielo de Borelia.',
+    rank1PerkTitle: 'Forja de Ferrum (-10% Curación Campamento)',
+    rank1PerkDetail: 'Abarata tu logística médica en campañas largas de Ironman.',
+    rank2BattleTitle: 'Tag 2v2: Ruptura del Bloqueo Helado de Borelia',
+    rank2PerkTitle: 'Lectura de Impacto (Scouting Anti-Diablo)',
+    rank2PerkDetail: 'Avisa amenazas de prioridad y OHKO físico en modo Diablo.',
+    rank3BattleTitle: 'Revancha Cap Alta: Duelo de Sinergia Pura (Nv. 110)',
+    rank3PerkTitle: 'Casa PC: Archaludon · Scizor · Annihilape',
+    rank3PerkDetail: 'Titanes de acero y lucha para modo Diablo + Ending Romántico.',
+    housePokemon: [
+      {
+        species: 'Archaludon',
+        item: 'Assault Vest',
+        ability: 'Stamina',
+        nature: 'Modest',
+        teraType: 'Fairy',
+        moves: ['Flash Cannon', 'Draco Meteor', 'Body Press', 'Electro Shot'],
+        shiny: false,
+      },
+      {
+        species: 'Scizor',
+        item: 'Choice Band',
+        ability: 'Technician',
+        nature: 'Adamant',
+        teraType: 'Steel',
+        moves: ['Bullet Punch', 'U-turn', 'Close Combat', 'Knock Off'],
+        shiny: false,
+      },
+      {
+        species: 'Annihilape',
+        item: 'Leftovers',
+        ability: 'Defiant',
+        nature: 'Careful',
+        teraType: 'Water',
+        moves: ['Rage Fist', 'Drain Punch', 'Bulk Up', 'Protect'],
+        shiny: false,
+      },
+    ],
     endingTitle: 'Final Romántico: Acero Templado Juntos',
-    endingSummary: 'Kovaria y el nuevo Galar firman un pacto histórico de paz.',
+    endingSummary: 'Kovaria, Borelia y el nuevo Galar firman un pacto histórico de paz.',
   },
   {
     id: 'e4_veridia',
+    charId: 'e4_veridia',
     name: 'Iara de Veridia',
     nickname: 'Alto Mando 3/4 · Veridia',
     title: 'Custodia del Mito de Mew · Selva de Veridia',
     batch: 3,
     roleTrack: 'elite-4',
-    roleBadge: 'Batch 3 · Alto Mando 3/4 (Próximamente)',
-    playableNow: false,
+    roleBadge: 'Batch 3 · Alto Mando 3/4 · Veridia (3 Caps)',
+    playableNow: true,
     homeBlocId: 'amazonia_veracruz',
-    gimmickTag: 'Corazón de la Selva · El Secreto de Mew',
+    gimmickTag: 'Corazón de la Selva · Campo de Hierba & Mew',
+    bossAceRule: {
+      aceSpecies: 'Mew ★ (Sincronía)',
+      ruleName: 'Corazón Vivo de Veridia',
+      ruleDetail:
+        'Campo de Hierba desde Turno 0 y Mew ★ (Nv. 110) entra con +1 en todas sus estadísticas listo para juzgar al heredero.',
+    },
     bio: 'Guardiana de la Selva de Veridia que vio hundirse tres expediciones de la CRU. Ella decide si el heredero de Galar merece conocer la verdad sobre Mew.',
-    rank1PerkTitle: 'Elixir de Veridia',
-    rank1PerkDetail: 'Cura estados y otorga bayas raras tras cada misión.',
+    rank1PerkTitle: 'Elixir de Veridia (+1 Parcela + +1 PP Pasivo)',
+    rank1PerkDetail: 'Nutre tu Huerto de Bayas y regenera energía tras cada misión.',
     rank2BattleTitle: 'Tag 2v2: Expedición Clandestina de la CRU',
-    rank2PerkTitle: 'Eco Genético',
+    rank2PerkTitle: 'Eco Genético (Scouting Anti-Diablo)',
     rank2PerkDetail: 'Scouting total contra clones y jefes modificados.',
-    rank3BattleTitle: 'Rematch Injusta: Juicio del Corazón Verde',
-    rank3PerkTitle: 'Casa: Rillaboom · Ogerpon · Mew',
-    rank3PerkDetail: 'Refuerzos míticos de Veridia para Endgame.',
-    housePokemon: [],
+    rank3BattleTitle: 'Revancha Cap Alta: Juicio del Corazón Verde (Nv. 110)',
+    rank3PerkTitle: 'Casa PC: Rillaboom · Ogerpon-Wellspring · Mew',
+    rank3PerkDetail: 'Refuerzos míticos de Veridia para Endgame + Ending Romántico.',
+    housePokemon: [
+      {
+        species: 'Rillaboom',
+        item: 'Assault Vest',
+        ability: 'Grassy Surge',
+        nature: 'Adamant',
+        teraType: 'Fire',
+        moves: ['Fake Out', 'Grassy Glide', 'Wood Hammer', 'U-turn'],
+        shiny: false,
+      },
+      {
+        species: 'Ogerpon-Wellspring',
+        item: 'Wellspring Mask',
+        ability: 'Water Absorb',
+        nature: 'Jolly',
+        teraType: 'Water',
+        moves: ['Ivy Cudgel', 'Horn Leech', 'Follow Me', 'Spiky Shield'],
+        shiny: false,
+      },
+      {
+        species: 'Mew',
+        item: 'Leftovers',
+        ability: 'Synchronize',
+        nature: 'Timid',
+        teraType: 'Fairy',
+        moves: ['Psychic', 'Dazzling Gleam', 'Nasty Plot', 'Protect'],
+        shiny: false,
+      },
+    ],
     endingTitle: 'Final Romántico: El Fin del Monopolio Ditto',
     endingSummary: 'La vida silvestre renace más allá de cualquier laboratorio de Wyndon.',
   },
   {
     id: 'e4_kalos',
+    charId: 'e4_kalos',
     name: 'Céline de Luminalia',
     nickname: 'Alto Mando 4/4 · Kalos',
     title: 'Comandante Insurgente · Megaevolución Prohibida (Kalos)',
     batch: 3,
     roleTrack: 'elite-4',
-    roleBadge: 'Batch 3 · Alto Mando 4/4 (Próximamente)',
-    playableNow: false,
+    roleBadge: 'Batch 3 · Alto Mando 4/4 · Kalos (3 Caps)',
+    playableNow: true,
     homeBlocId: 'kalos',
     gimmickTag: 'Megaevolución Clandestina · Resistencia de Luminalia',
+    bossAceRule: {
+      aceSpecies: 'Gardevoir-Mega ★ (Piel Feérica)',
+      ruleName: 'Vals de la Megaevolución',
+      ruleDetail:
+        'Campo de Niebla desde Turno 0 e inmunidad a estados alterados mientras Gardevoir-Mega ★ (Nv. 110) desata Vozarrón Feérico.',
+    },
     bio: 'Líder clandestina de la resistencia de Kalos que conserva Megapiedras prohibidas por la CRU y desafía la supremacía Gigamax desde el otro lado del canal.',
-    rank1PerkTitle: 'Red de Luminalia',
-    rank1PerkDetail: 'Descuentos en Megapiedras y objetos especiales.',
-    rank2BattleTitle: 'Tag 2v2: Liberación del Canal',
-    rank2PerkTitle: 'Espionaje de la Corte',
-    rank2PerkDetail: 'Revela los planes scripteados del rival desde Turno 0.',
-    rank3BattleTitle: 'Rematch Injusta: Vals de la Megaevolución',
-    rank3PerkTitle: 'Casa: Gardevoir-Mega · Aegislash · Greninja',
-    rank3PerkDetail: 'Élite de Kalos lista para la batalla final.',
-    housePokemon: [],
+    rank1PerkTitle: 'Red de Luminalia (Tutoría Libre + +15% PC)',
+    rank1PerkDetail: 'Conecta el circuito clandestino de Kalos para financiar tu campaña.',
+    rank2BattleTitle: 'Tag 2v2: Liberación del Canal de Kalos',
+    rank2PerkTitle: 'Espionaje de la Corte (Scouting Anti-Diablo)',
+    rank2PerkDetail: 'Revela planes y trampas ocultas del rival desde el Teambuilder.',
+    rank3BattleTitle: 'Revancha Cap Alta: Vals de la Megaevolución (Nv. 110)',
+    rank3PerkTitle: 'Casa PC: Gardevoir-Mega · Aegislash · Greninja',
+    rank3PerkDetail: 'Élite de Kalos lista para la batalla final + Ending Romántico.',
+    housePokemon: [
+      {
+        species: 'Gardevoir-Mega',
+        item: 'Gardevoirite',
+        ability: 'Pixilate',
+        nature: 'Timid',
+        teraType: 'Fairy',
+        moves: ['Hyper Voice', 'Psychic', 'Mystical Fire', 'Protect'],
+        shiny: false,
+      },
+      {
+        species: 'Aegislash',
+        item: 'Leftovers',
+        ability: 'Stance Change',
+        nature: 'Quiet',
+        teraType: 'Fairy',
+        moves: ['Shadow Ball', 'Flash Cannon', 'Wide Guard', "King's Shield"],
+        shiny: false,
+      },
+      {
+        species: 'Greninja',
+        item: 'Focus Sash',
+        ability: 'Protean',
+        nature: 'Timid',
+        teraType: 'Water',
+        moves: ['Hydro Pump', 'Dark Pulse', 'Ice Beam', 'Protect'],
+        shiny: false,
+      },
+    ],
     endingTitle: 'Final Romántico: Luces sobre el Canal',
     endingSummary: 'Galar y Kalos se estrechan la mano como naciones libres.',
   },
@@ -556,22 +870,58 @@ export function computeActiveSocialLinkPerks(profile: PlayerSaveProfile): {
   activeEndingNpc: RomanceNpcDefinition | null;
 } {
   const links = profile.socialLinks ?? {};
-  const assassinRank = links.assassin?.rank ?? 0;
-  const duelistRank = links.court_duelist?.rank ?? 0;
-  const championRank = links.champion?.rank ?? 0;
-  const mesoaRank = links.mesoa_boss?.rank ?? 0;
+  const rankOf = (id: string) => links[id]?.rank ?? 0;
+  const assassinRank = rankOf('assassin');
+  const duelistRank = rankOf('court_duelist');
+  const championRank = rankOf('champion');
+  const mesoaRank = rankOf('mesoa_boss');
+  const cordeliaRank = rankOf('cordelia_astronomer');
+  const croupierRank = rankOf('poketopia_croupier');
+  const rangerRank = rankOf('ranger_commander');
+  const aeosRank = rankOf('aeos_geneticist');
+  const kemetiaRank = rankOf('kemetia_keeper');
+  const ranseiRank = rankOf('e4_ransei');
+  const ferrumRank = rankOf('e4_ferrum');
+  const veridiaRank = rankOf('e4_veridia');
+  const kalosRank = rankOf('e4_kalos');
 
-  // Pilar 1: Información (El Pelirrojo R1!)
+  // Pilar 1: Información (El Pelirrojo R1, Æos/Ransei R1, o cualquier aliado R2!)
   const hasAntiDiabloScouting =
-    assassinRank >= 1 || duelistRank >= 2 || championRank >= 2;
-  // Pilar 2: Recursos/Bayas (La Duelista R1!)
-  const campHealDiscountPct = duelistRank >= 1 ? 35 : 0;
-  const maxBerryPlots = 2 + (assassinRank >= 1 ? 1 : 0) + (duelistRank >= 1 ? 2 : 0);
-  const passivePpRegen = duelistRank >= 1 ? 2 : 0;
-  // Pilar 3: Entrenamiento & Poder (La Campeona R1!)
-  const hasFreeTutoringPerk = championRank >= 1;
-  const victoryCoinMultiplier = championRank >= 1 ? 1.3 : 1.0;
-  const hasFreeEmergencyHealPerk = championRank >= 1;
+    assassinRank >= 1 ||
+    aeosRank >= 1 ||
+    ranseiRank >= 1 ||
+    ROMANCE_ROSTER.some((n) => rankOf(n.id) >= 2);
+  // Pilar 2: Recursos/Bayas (La Duelista R1 + extras de Cordelia/Ferrum/Kemetia/Veridia/Ranger)
+  const campHealDiscountPct = Math.min(
+    65,
+    (duelistRank >= 1 ? 35 : 0) +
+      (cordeliaRank >= 1 ? 10 : 0) +
+      (ferrumRank >= 1 ? 10 : 0)
+  );
+  const maxBerryPlots = Math.min(
+    8,
+    2 +
+      (assassinRank >= 1 ? 1 : 0) +
+      (duelistRank >= 1 ? 2 : 0) +
+      (kemetiaRank >= 1 ? 1 : 0) +
+      (veridiaRank >= 1 ? 1 : 0)
+  );
+  const passivePpRegen =
+    (duelistRank >= 1 ? 2 : 0) +
+    (rangerRank >= 1 ? 1 : 0) +
+    (veridiaRank >= 1 ? 1 : 0);
+  // Pilar 3: Entrenamiento & Poder (La Campeona R1 + Crupier/Ransei/Kalos)
+  const hasFreeTutoringPerk = championRank >= 1 || kalosRank >= 1;
+  const victoryCoinMultiplier = Number(
+    (
+      1.0 +
+      (championRank >= 1 ? 0.3 : 0) +
+      (croupierRank >= 1 ? 0.25 : 0) +
+      (ranseiRank >= 1 ? 0.1 : 0) +
+      (kalosRank >= 1 ? 0.15 : 0)
+    ).toFixed(2)
+  );
+  const hasFreeEmergencyHealPerk = championRank >= 1 || aeosRank >= 2;
   // Mesoa Contraband Tax Reduction (15% -> 5%)
   const casualtyTaxRate = mesoaRank >= 1 ? 0.05 : 0.15;
 
@@ -581,7 +931,7 @@ export function computeActiveSocialLinkPerks(profile: PlayerSaveProfile): {
   let maxedPlayableCount = 0;
 
   for (const npc of PLAYABLE_ROMANCE_NPCS) {
-    const rank = links[npc.id]?.rank ?? 0;
+    const rank = rankOf(npc.id);
     if (rank >= 3) {
       maxedPlayableCount += 1;
       for (const mon of npc.housePokemon) {
@@ -595,8 +945,12 @@ export function computeActiveSocialLinkPerks(profile: PlayerSaveProfile): {
   }
 
   const totalPlayableCount = PLAYABLE_ROMANCE_NPCS.length;
-  const isHaremUnlocked =
+  const batch1Ids = ROMANCE_ROSTER.filter((n) => n.batch === 1).map((n) => n.id);
+  const isBatch1Harem =
+    batch1Ids.length > 0 && batch1Ids.every((id) => rankOf(id) >= 3);
+  const isFullRosterHarem =
     totalPlayableCount > 0 && maxedPlayableCount === totalPlayableCount;
+  const isHaremUnlocked = isBatch1Harem || isFullRosterHarem;
 
   const firstNpc = profile.firstRomanceMaxedId
     ? getRomanceNpcById(profile.firstRomanceMaxedId) ?? null

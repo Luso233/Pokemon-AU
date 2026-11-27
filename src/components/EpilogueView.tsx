@@ -21,6 +21,7 @@ import {
 import { CHAPTERS } from '../data/chapters';
 import { CURRENCY_NAME, DIFFICULTY_META } from '../data/economyCatalog';
 import { computeActiveSocialLinkPerks } from '../data/socialLinksCatalog';
+import { evaluateBabyModeComedyStamp } from '../engine/formatFallback';
 import {
   buildDefeatTweetText,
   buildRunDeathSummary,
@@ -80,6 +81,10 @@ export const EpilogueView: React.FC<EpilogueViewProps> = ({
   const [copiedTweet, setCopiedTweet] = useState(false);
   const isVersus = Boolean(config.isVersusMatch);
   const isPrologueCh1 = chapter.id === 'ch1-wyndon-chase';
+  const babyStamp = useMemo(
+    () => (isVersus ? null : evaluateBabyModeComedyStamp(config, profile, won)),
+    [isVersus, config, profile, won]
+  );
 
   const effectiveDeathSummary = useMemo<RunDeathSummary | null>(() => {
     if (won || isVersus) return null;
@@ -181,6 +186,46 @@ export const EpilogueView: React.FC<EpilogueViewProps> = ({
           ))}
         </div>
 
+        {/* Baby Mode Self-Aware Comedic Certification Stamp */}
+        {babyStamp && (
+          <div
+            className={`mb-5 rounded-2xl border-2 border-dashed p-4 shadow-lg ${
+              babyStamp.tier === 'baby-loss'
+                ? 'border-pink-400/55 bg-gradient-to-r from-pink-950/60 via-slate-950/90 to-rose-950/60'
+                : babyStamp.overCapBy > 0 || babyStamp.brokeOfficialFormat
+                  ? 'border-sky-300/75 bg-gradient-to-r from-sky-950/75 via-fuchsia-950/55 to-amber-950/65'
+                  : 'border-sky-400/55 bg-gradient-to-r from-sky-950/65 via-slate-950/85 to-cyan-950/55'
+            }`}
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-lg border border-sky-300/60 bg-sky-500/20 px-2.5 py-1 text-[11px] font-black uppercase tracking-wider text-sky-100 -rotate-1 shadow-sm">
+                {babyStamp.badgeTitle}
+              </span>
+              <div className="flex flex-wrap items-center gap-1.5 font-mono-code text-[10px]">
+                <span className="rounded-md border border-white/15 bg-black/45 px-2 py-0.5 font-bold text-amber-200">
+                  Equipo: {babyStamp.teamBst.toLocaleString()} BST
+                </span>
+                {babyStamp.overCapBy > 0 && (
+                  <span className="rounded-md border border-fuchsia-400/50 bg-fuchsia-500/25 px-2 py-0.5 font-extrabold text-fuchsia-100">
+                    +{babyStamp.overCapBy.toLocaleString()} BST sobre Licencia ({babyStamp.actNormalCap.toLocaleString()})
+                  </span>
+                )}
+                {babyStamp.brokeOfficialFormat && babyStamp.originalFormatLabel && (
+                  <span className="rounded-md border border-rose-400/50 bg-rose-500/25 px-2 py-0.5 font-extrabold text-rose-100">
+                    ⚡ Fallback NatDex ({babyStamp.originalFormatLabel})
+                  </span>
+                )}
+              </div>
+            </div>
+            <p className="mt-2 font-display text-sm font-extrabold text-white">
+              {babyStamp.headline}
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-sky-100/90">
+              {babyStamp.quip}
+            </p>
+          </div>
+        )}
+
         {/* Romance / Harem Ending & Ultra Nuzlocke Survival Banner */}
         {!isVersus && profile && (() => {
           const perks = computeActiveSocialLinkPerks(profile);
@@ -281,14 +326,13 @@ export const EpilogueView: React.FC<EpilogueViewProps> = ({
                   Bono Maestría Kaizo (≤2 intentos): +{reward.lowResetBonus} PC
                 </span>
               )}
-              {reward.casualtyIndemnificationCoins &&
-                reward.casualtyIndemnificationCoins > 0 && (
-                  <span className="inline-flex items-center gap-1 rounded bg-rose-500/25 px-2 py-0.5 font-extrabold text-rose-100">
-                    <Skull className="h-3 w-3" />
-                    Liquidación por Bajas ({Math.round((1 - (reward.casualtyTaxRate ?? 0.15)) * 100)}%): +
-                    {reward.casualtyIndemnificationCoins.toLocaleString()} PC
-                  </span>
-                )}
+              {(reward.casualtyIndemnificationCoins ?? 0) > 0 && (
+                <span className="inline-flex items-center gap-1 rounded bg-rose-500/25 px-2 py-0.5 font-extrabold text-rose-100">
+                  <Skull className="h-3 w-3" />
+                  Liquidación por Bajas ({Math.round((1 - (reward.casualtyTaxRate ?? 0.15)) * 100)}%): +
+                  {(reward.casualtyIndemnificationCoins ?? 0).toLocaleString()} PC
+                </span>
+              )}
             </div>
 
             {reward.casualtyBreakdown && reward.casualtyBreakdown.length > 0 && (
@@ -547,6 +591,7 @@ export const EpilogueView: React.FC<EpilogueViewProps> = ({
           <GameReviewPanel
             snapshot={battleSummary}
             config={config}
+            profile={profile}
             aiSettings={aiSettings}
             onOpenAISettings={onOpenAISettings}
           />

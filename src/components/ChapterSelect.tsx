@@ -31,6 +31,10 @@ import {
   DIFFICULTY_META,
 } from '../data/economyCatalog';
 import {
+  isRomanceChapterUnlocked,
+  ROMANCE_CHAPTERS,
+} from '../data/romanceChapters';
+import {
   CAMPAIGN_ROUTE_ORDER,
   CHAPTER_MAP_LOCATIONS,
 } from '../data/worldGeopolitics';
@@ -68,6 +72,7 @@ const CATEGORY_META: Array<{
   icon: React.FC<{ className?: string }>;
 }> = [
   { id: 'story', label: 'Historia', icon: BookOpen },
+  { id: 'romance', label: 'Vínculos y Regiones', icon: Heart },
   { id: 'puzzles', label: 'Puzzles', icon: Puzzle },
   { id: 'flashbacks', label: 'Flashbacks', icon: History },
   { id: 'showcases', label: 'Competitivo', icon: Trophy },
@@ -76,6 +81,19 @@ const CATEGORY_META: Array<{
   { id: 'archive', label: 'Archivo', icon: Archive },
   { id: 'anime', label: 'Anime', icon: Sparkles },
 ];
+
+const ALL_SELECTABLE_CHAPTERS: ChapterDefinition[] = [
+  ...CHAPTERS,
+  ...ROMANCE_CHAPTERS,
+];
+
+function parseRomanceChapterMeta(
+  chapterId: string
+): { npcId: string; rank: 1 | 2 | 3 } | null {
+  const m = /^romance-(.+)-r([123])$/.exec(chapterId);
+  if (!m) return null;
+  return { npcId: m[1], rank: Number(m[2]) as 1 | 2 | 3 };
+}
 
 function getAccentStyles(accent: string) {
   switch (accent) {
@@ -174,6 +192,15 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
     for (const ch of CHAPTERS) {
       if (isChapterUnlocked(profile, ch.id)) set.add(ch.id);
     }
+    for (const ch of ROMANCE_CHAPTERS) {
+      const parsed = parseRomanceChapterMeta(ch.id);
+      if (
+        parsed &&
+        isRomanceChapterUnlocked(profile, parsed.npcId, parsed.rank)
+      ) {
+        set.add(ch.id);
+      }
+    }
     return set;
   }, [profile]);
 
@@ -182,8 +209,13 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
     for (const [id, p] of Object.entries(progress)) {
       if (p?.completed) set.add(id);
     }
+    for (const [npcId, link] of Object.entries(profile.socialLinks ?? {})) {
+      if (link.r1Done || link.rank >= 1) set.add(`romance-${npcId}-r1`);
+      if (link.r2Done || link.rank >= 2) set.add(`romance-${npcId}-r2`);
+      if (link.r3Done || link.rank >= 3) set.add(`romance-${npcId}-r3`);
+    }
     return set;
-  }, [progress]);
+  }, [progress, profile.socialLinks]);
 
   // First unlocked & uncompleted chapter along the canonical Exile Campaign Route
   const nextObjectiveChapterId = useMemo(() => {
@@ -201,7 +233,7 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
   }, [unlockedChapterIds, completedChapterIds]);
 
   const handleFocusChapterCard = (chapterId: string) => {
-    setActiveFilter('all');
+    setActiveFilter(chapterId.startsWith('romance-') ? 'romance' : 'all');
     setTeamModeFilter('all');
     setFocusedCardId(chapterId);
     setHoveredChapterId(chapterId);
@@ -217,12 +249,16 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
   };
 
   const visibleSections = useMemo(() => {
-    return CATEGORY_META.filter(
-      (sec) => activeFilter === 'all' || sec.id === activeFilter
-    )
+    return CATEGORY_META.filter((sec) => {
+      if (activeFilter === 'all') {
+        // Keep the default Campaign overview clean (16 core chapters); click "Vínculos y Regiones" to browse all 39 regional romance chapters!
+        return sec.id !== 'romance';
+      }
+      return sec.id === activeFilter;
+    })
       .map((sec) => ({
         ...sec,
-        chapters: CHAPTERS.filter(
+        chapters: (sec.id === 'romance' ? ROMANCE_CHAPTERS : CHAPTERS).filter(
           (ch) =>
             ch.category === sec.id &&
             (teamModeFilter === 'all' || resolveMode(ch) === teamModeFilter)
@@ -363,7 +399,7 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
           {/* Sticky Interactive Civilization Map */}
           <div className="xl:sticky xl:top-4 xl:col-span-6">
             <WorldWarMap
-              chapters={CHAPTERS}
+              chapters={ALL_SELECTABLE_CHAPTERS}
               hoveredChapterId={hoveredChapterId}
               nextObjectiveChapterId={nextObjectiveChapterId}
               onHoverChapterPin={setHoveredChapterId}
@@ -386,19 +422,27 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
                     : 'border-slate-800 bg-slate-900/70 text-slate-400 hover:border-slate-700 hover:text-slate-200'
                 }`}
               >
-                Todos ({CHAPTERS.length})
+                Campaña Base ({CHAPTERS.length})
               </button>
               {CATEGORY_META.map((cat) => {
                 const Icon = cat.icon;
-                const count = CHAPTERS.filter((c) => c.category === cat.id).length;
+                const count =
+                  cat.id === 'romance'
+                    ? ROMANCE_CHAPTERS.length
+                    : CHAPTERS.filter((c) => c.category === cat.id).length;
+                const isRomTab = cat.id === 'romance';
                 return (
                   <button
                     key={cat.id}
                     onClick={() => setActiveFilter(cat.id)}
                     className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition cursor-pointer ${
                       activeFilter === cat.id
-                        ? 'border-amber-400 bg-amber-500/20 text-amber-200'
-                        : 'border-slate-800 bg-slate-900/70 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                        ? isRomTab
+                          ? 'border-fuchsia-400 bg-fuchsia-500/25 text-fuchsia-100'
+                          : 'border-amber-400 bg-amber-500/20 text-amber-200'
+                        : isRomTab
+                          ? 'border-fuchsia-500/35 bg-fuchsia-950/35 text-fuchsia-200 hover:border-fuchsia-400/65'
+                          : 'border-slate-800 bg-slate-900/70 text-slate-400 hover:border-slate-700 hover:text-slate-200'
                     }`}
                   >
                     <Icon className="h-3.5 w-3.5" />
@@ -631,7 +675,12 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
                                 ) : !unlocked ? (
                                   <span className="inline-flex items-center gap-1 text-slate-400">
                                     <Lock className="h-3 w-3 text-rose-400" />
-                                    {unlockRule?.requirementLabel ?? 'Bloqueado'}
+                                    {unlockRule?.requirementLabel ??
+                                      (chapter.id.endsWith('-r2')
+                                        ? 'Completa primero su Cap. 1 (Duelo R1)'
+                                        : chapter.id.endsWith('-r3')
+                                          ? 'Completa primero su Cap. 2 (Amigos Tag 2v2)'
+                                          : 'Bloqueado')}
                                   </span>
                                 ) : (
                                   <span className="text-slate-500">

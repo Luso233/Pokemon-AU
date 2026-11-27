@@ -42,10 +42,7 @@ interface SocialLinksCampModalProps {
   open: boolean;
   onClose: () => void;
   profile: PlayerSaveProfile;
-  onStartRomanceRank: (
-    npcId: 'assassin' | 'court_duelist' | 'champion',
-    targetRank: 1 | 2 | 3
-  ) => void;
+  onStartRomanceRank: (npcId: string, targetRank: 1 | 2 | 3) => void;
   onToggleRunModifiers: (patch: {
     ironmanMode?: boolean;
     nuzlockePermadeath?: boolean;
@@ -198,25 +195,22 @@ export const SocialLinksCampModal: React.FC<SocialLinksCampModalProps> = ({
             }`}
           >
             <div className="flex items-center justify-between font-bold text-emerald-200">
-              <span>R1 · Confianza (VN)</span>
+              <span>Cap. 1 · Duelo de Encuentro</span>
               {prog.rank >= 1 && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />}
             </div>
             <p className="mt-1 font-semibold text-white">{npc.rank1PerkTitle}</p>
             <p className="mt-0.5 text-[10px] text-slate-400">{npc.rank1PerkDetail}</p>
-            {npc.playableNow && npc.charId && (
+            {npc.playableNow && (
               <button
                 type="button"
                 onClick={() => {
                   onClose();
-                  onStartRomanceRank(
-                    npc.charId as 'assassin' | 'court_duelist' | 'champion',
-                    1
-                  );
+                  onStartRomanceRank(npc.id, 1);
                 }}
                 className="mt-2 inline-flex w-full items-center justify-center gap-1 rounded-lg bg-emerald-500/20 px-2 py-1 text-[10px] font-extrabold text-emerald-200 hover:bg-emerald-500/30 cursor-pointer"
               >
                 <Play className="h-2.5 w-2.5 fill-current" />
-                {prog.rank >= 1 ? 'Ver escena R1' : 'Jugar Evento R1'}
+                {prog.rank >= 1 ? 'Repetir Duelo R1' : 'Jugar Duelo R1'}
               </button>
             )}
           </div>
@@ -230,29 +224,26 @@ export const SocialLinksCampModal: React.FC<SocialLinksCampModalProps> = ({
             }`}
           >
             <div className="flex items-center justify-between font-bold text-sky-200">
-              <span>R2 · Tag 2v2 (3+3)</span>
+              <span>Cap. 2 · Amigos Tag 2v2</span>
               {prog.rank >= 2 && <CheckCircle2 className="h-3.5 w-3.5 text-sky-400" />}
             </div>
             <p className="mt-1 font-semibold text-white">{npc.rank2PerkTitle}</p>
             <p className="mt-0.5 text-[10px] text-slate-400">{npc.rank2PerkDetail}</p>
-            {npc.playableNow && npc.charId && (
+            {npc.playableNow && (
               <button
                 type="button"
                 disabled={prog.rank < 1 && !profile.devModeEnabled}
                 onClick={() => {
                   onClose();
-                  onStartRomanceRank(
-                    npc.charId as 'assassin' | 'court_duelist' | 'champion',
-                    2
-                  );
+                  onStartRomanceRank(npc.id, 2);
                 }}
                 className="mt-2 inline-flex w-full items-center justify-center gap-1 rounded-lg bg-sky-500/20 px-2 py-1 text-[10px] font-extrabold text-sky-200 hover:bg-sky-500/30 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
               >
                 <Users className="h-2.5 w-2.5" />
                 {prog.rank >= 2
-                  ? 'Repetir Tag 2v2'
+                  ? 'Repetir Amigos 2v2'
                   : prog.rank >= 1 || profile.devModeEnabled
-                    ? 'Pelear Tag 2v2'
+                    ? 'Pelear Amigos 2v2'
                     : 'Requiere R1'}
               </button>
             )}
@@ -267,29 +258,26 @@ export const SocialLinksCampModal: React.FC<SocialLinksCampModalProps> = ({
             }`}
           >
             <div className="flex items-center justify-between font-bold text-rose-200">
-              <span>R3 · Rematch Injusta</span>
+              <span>Cap. 3 · Revancha Cap Alta</span>
               {prog.rank >= 3 && <Crown className="h-3.5 w-3.5 text-amber-300" />}
             </div>
             <p className="mt-1 font-semibold text-white">{npc.rank3PerkTitle}</p>
             <p className="mt-0.5 text-[10px] text-slate-400">{npc.rank3PerkDetail}</p>
-            {npc.playableNow && npc.charId && (
+            {npc.playableNow && (
               <button
                 type="button"
                 disabled={prog.rank < 2 && !profile.devModeEnabled}
                 onClick={() => {
                   onClose();
-                  onStartRomanceRank(
-                    npc.charId as 'assassin' | 'court_duelist' | 'champion',
-                    3
-                  );
+                  onStartRomanceRank(npc.id, 3);
                 }}
                 className="mt-2 inline-flex w-full items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-rose-500/30 to-fuchsia-500/30 px-2 py-1 text-[10px] font-extrabold text-rose-100 hover:brightness-125 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
               >
                 <Swords className="h-2.5 w-2.5" />
                 {prog.rank >= 3
-                  ? 'Repetir Rematch'
+                  ? 'Repetir Revancha R3'
                   : prog.rank >= 2 || profile.devModeEnabled
-                    ? 'Aceptar Rematch'
+                    ? 'Aceptar Revancha R3'
                     : 'Requiere R2'}
               </button>
             )}
@@ -426,9 +414,9 @@ export const SocialLinksCampModal: React.FC<SocialLinksCampModalProps> = ({
               <div className="flex flex-wrap items-center gap-1.5">
                 {(
                   [
-                    { id: 'all', label: 'Todos (13)' },
-                    { id: 1, label: 'Batch 1 · Jugables Hoy (3)' },
-                    { id: 2, label: 'Batch 2 · Ruta del Exilio (6)' },
+                    { id: 'all', label: 'Todos (13 · 39 Caps)' },
+                    { id: 1, label: 'Batch 1 · Pilares (3)' },
+                    { id: 2, label: 'Batch 2 · Exilio Regional (6)' },
                     { id: 3, label: 'Batch 3 · Alto Mando (4)' },
                   ] as const
                 ).map((b) => (
@@ -692,7 +680,7 @@ export const SocialLinksCampModal: React.FC<SocialLinksCampModalProps> = ({
 
                 {perks.unlockedHousePokemon.length === 0 ? (
                   <p className="rounded-xl border border-dashed border-slate-700 bg-slate-950/60 px-4 py-4 text-xs text-slate-400">
-                    Aún no has completado ninguna Rematch Injusta (Rango 3). Sube a Rango 3 con <strong>El Pelirrojo</strong>, <strong>La Duelista</strong> o <strong>La Campeona</strong> para desbloquear sus Pokémon aquí.
+                    Aún no has completado ninguna Revancha de Cap Alta (Rango 3). Sube a Rango 3 con cualquiera de los <strong>13 aliados romanceables</strong> del mundo para desbloquear sus 3 Pokémon élite aquí.
                   </p>
                 ) : (
                   <div className="grid gap-2.5 sm:grid-cols-3">

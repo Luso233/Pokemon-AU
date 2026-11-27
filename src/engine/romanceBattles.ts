@@ -1,9 +1,93 @@
 import {
   CAMPAIGN_DOUBLES_FORMAT_ID,
+  type CharacterId,
   type ResolvedBattleConfig,
   type StoryFlags,
 } from '../types/game';
+import { REGIONAL_ROMANCE_BLUEPRINTS } from '../data/regionalRomanceBlueprints';
+import { getRomanceNpcById } from '../data/socialLinksCatalog';
 import { buildShowdownPaste, type ShowdownSetBlock } from './teamBuilderTree';
+
+function buildPrinceSquadForLevel(levelCap: number): ShowdownSetBlock[] {
+  const safeCap = Math.max(50, Math.min(100, levelCap));
+  return buildPrinceFullSquad().map((s) => ({ ...s, level: safeCap }));
+}
+
+/* ===================== RANK 1: ENCOUNTER DUELS (ALL 13 ROMANCEABLES · EXPLORE EACH REGION!) ===================== */
+
+export function resolveRomanceEncounterDuel(
+  npcId: string,
+  flags: StoryFlags = {}
+): ResolvedBattleConfig {
+  const bp = REGIONAL_ROMANCE_BLUEPRINTS[npcId];
+  const npc = getRomanceNpcById(npcId);
+  if (!bp || !npc) {
+    throw new Error(`Unknown romance NPC for R1 Encounter Duel: ${npcId}`);
+  }
+  const rivalCharId: CharacterId = (npc.charId ?? bp.npcId) as CharacterId;
+  const playerSquad = buildPrinceSquadForLevel(bp.r1.levelCap);
+  const leadSpecies = bp.r1.rivalSets[0]?.species;
+  const leadMove = bp.r1.rivalSets[0]?.moves[0];
+
+  return {
+    chapterId: `romance-${npcId}-r1`,
+    format: 'doubles',
+    formatId: CAMPAIGN_DOUBLES_FORMAT_ID,
+    formatLabel: `Duelo Regional · Nv. ${bp.r1.levelCap}`,
+    reserveAsLastAceSpecies: bp.r1.rivalSets[bp.r1.rivalSets.length - 1]?.species,
+    playerName: 'Príncipe Heredero',
+    playerCharId: 'prince',
+    rivalName: npc.name,
+    rivalTitle: `Encuentro Regional · ${bp.regionShort}`,
+    rivalCharId,
+    arenaTheme: bp.arenaTheme,
+    playerTeamSummary: `Tu Escuadrón (Nv. ${bp.r1.levelCap} · Campaña NatDex)`,
+    rivalTeamSummary: `${npc.name} · ${bp.r1.rivalSets.map((s) => s.species).join(', ')} (Cap Nv. ${bp.r1.levelCap})`,
+    playerShowdownPaste: buildShowdownPaste(playerSquad),
+    rivalShowdownPaste: buildShowdownPaste(bp.r1.rivalSets),
+    rivalIntel: {
+      visibleSpeciesCount: 3,
+      totalSlots: bp.r1.rivalSets.length,
+      intelLabel: `Duelo de Encuentro · ${bp.regionShort}`,
+      intelNote: `Conoce a ${npc.name} en ${bp.r1.locationName}. Ganar sube tu vínculo a Rango 1 (${npc.rank1PerkTitle}) y desbloquea fauna local de ${bp.regionShort}.`,
+      levelCap: bp.r1.levelCap,
+      hasBossAce: true,
+      bossAceWarning: `As de Encuentro: ${bp.r1.rivalSets[bp.r1.rivalSets.length - 1]?.species} (Nv. ${bp.r1.levelCap}) — ${npc.gimmickTag}.`,
+    },
+    romanceMeta: {
+      npcId: rivalCharId,
+      targetRank: 1,
+      mode: 'encounter-duel',
+      partnerLabel: npc.name,
+    },
+    scriptedEnemyRules:
+      leadSpecies && leadMove
+        ? [
+            {
+              id: `rom-${npcId}-r1-t1`,
+              turn: 1,
+              actorSpecies: leadSpecies,
+              forceMoveId: leadMove.toLowerCase().replace(/[^a-z0-9]/g, ''),
+              once: true,
+              description: `Encuentro R1 (${npc.name}): apertura característica en ${bp.regionShort}.`,
+              tauntLine: bp.r1.t1Taunt,
+            },
+          ]
+        : [],
+    traces: [
+      {
+        id: `encounter-${npcId}`,
+        category: 'rival-team',
+        choiceLabel: `Exploración y Duelo en ${bp.regionShort}`,
+        flagKey: 'romance_r1',
+        flagValue: npcId,
+        effectTitle: `Desbloquea Rango 1: ${npc.rank1PerkTitle}`,
+        effectDetail: `Además abre el Capítulo 2 (Amigos Tag 2v2) con ${npc.name} y fauna regional.`,
+      },
+    ],
+    flags,
+  };
+}
 
 function buildPrinceCoreTrio(): ShowdownSetBlock[] {
   return [
@@ -99,10 +183,76 @@ function interleaveTagTeam(
 /* ===================== RANK 2: 2v2 TAG-TEAM BATTLES (3 YOURS + 3 PARTNER VS 6 ENEMIES) ===================== */
 
 export function resolveRomanceTagBattle(
-  npcId: 'assassin' | 'court_duelist' | 'champion',
+  npcId: string,
   flags: StoryFlags = {}
 ): ResolvedBattleConfig {
   const princeTrio = buildPrinceCoreTrio();
+
+  if (npcId !== 'assassin' && npcId !== 'court_duelist' && npcId !== 'champion') {
+    const bp = REGIONAL_ROMANCE_BLUEPRINTS[npcId];
+    const npc = getRomanceNpcById(npcId);
+    if (!bp || !npc || !bp.r2.partnerTrio || !bp.r2.enemySquad) {
+      throw new Error(`Unknown romance NPC for R2 Tag 2v2: ${npcId}`);
+    }
+    const partnerCharId: CharacterId = (npc.charId ?? bp.npcId) as CharacterId;
+    return {
+      chapterId: `romance-${npcId}-r2`,
+      format: 'doubles',
+      formatId: CAMPAIGN_DOUBLES_FORMAT_ID,
+      formatLabel: `Amigos Tag 2v2 · ${bp.regionShort}`,
+      playerName: `Príncipe + ${npc.name}`,
+      playerCharId: 'prince',
+      rivalName: bp.r2.antagonistName,
+      rivalTitle: bp.r2.antagonistTitle,
+      rivalCharId: bp.r2.antagonistCharId,
+      arenaTheme: bp.arenaTheme,
+      playerTeamSummary: `Tu Trío + Aliados de ${npc.name} (${bp.r2.partnerTrio.map((p) => p.species).join(' / ')})`,
+      rivalTeamSummary: `${bp.r2.antagonistName} (${bp.r2.enemySquad.map((e) => e.species).join(', ')})`,
+      playerShowdownPaste: buildShowdownPaste(
+        interleaveTagTeam(princeTrio, bp.r2.partnerTrio)
+      ),
+      rivalShowdownPaste: buildShowdownPaste(bp.r2.enemySquad),
+      rivalIntel: {
+        visibleSpeciesCount: 4,
+        totalSlots: bp.r2.enemySquad.length,
+        intelLabel: `Tag 2v2 Amigos · ${bp.r2.locationName}`,
+        intelNote: `Peleas hombro con hombro con ${npc.name} (3 tuyos + 3 suyos vs 6 enemigos regionales). Ganar sube a Rango 2 (${npc.rank2PerkTitle}) y desbloquea la Revancha de Cap Alto.`,
+        levelCap: 100,
+        hasBossAce: false,
+      },
+      romanceMeta: {
+        npcId: partnerCharId,
+        targetRank: 2,
+        mode: 'tag-2v2',
+        partnerLabel: npc.name,
+      },
+      scriptedEnemyRules: bp.r2.t1Rule
+        ? [
+            {
+              id: `rom-${npcId}-r2-t1`,
+              turn: 1,
+              actorSpecies: bp.r2.t1Rule.actorSpecies,
+              forceMoveId: bp.r2.t1Rule.forceMoveId,
+              once: true,
+              description: `Tag 2v2 (${bp.regionShort}) T1: apertura coordinada rival.`,
+              tauntLine: bp.r2.t1Rule.tauntLine,
+            },
+          ]
+        : [],
+      traces: [
+        {
+          id: `tag-${npcId}`,
+          category: 'player-roster',
+          choiceLabel: `Alianza Tag 2v2 con ${npc.name}`,
+          flagKey: 'romance_partner',
+          flagValue: npcId,
+          effectTitle: `3 Pokémon tuyos + 3 aliados de ${npc.name}`,
+          effectDetail: `Ganar sube su Afinidad a Rango 2 y abre su Revancha con Level Cap Alta (Nv. ${bp.r3.levelCap}+).`,
+        },
+      ],
+      flags,
+    };
+  }
 
   if (npcId === 'assassin') {
     // El Pelirrojo: Pure Edgy offensive trio (Dark/Ghost/Steel) — you cover his Fairy/Fighting holes while he sweeps!
@@ -587,13 +737,85 @@ export function resolveRomanceTagBattle(
   };
 }
 
-/* ===================== RANK 3: UNFAIR REMATCHES (HIGH RISK / HOUSE PC + ROMANTIC ENDING!) ===================== */
+/* ===================== RANK 3: UNFAIR REMATCHES (HIGH LEVEL CAP + BOSS ACE RULE + HOUSE PC!) ===================== */
 
 export function resolveRomanceRematchBattle(
-  npcId: 'assassin' | 'court_duelist' | 'champion',
+  npcId: string,
   flags: StoryFlags = {}
 ): ResolvedBattleConfig {
   const playerSquad = buildPrinceFullSquad();
+
+  if (npcId !== 'assassin' && npcId !== 'court_duelist' && npcId !== 'champion') {
+    const bp = REGIONAL_ROMANCE_BLUEPRINTS[npcId];
+    const npc = getRomanceNpcById(npcId);
+    if (!bp || !npc || !bp.r3.rivalSquad) {
+      throw new Error(`Unknown romance NPC for R3 High-Cap Rematch: ${npcId}`);
+    }
+    const rivalCharId: CharacterId = (npc.charId ?? bp.npcId) as CharacterId;
+    const maxLvl = Math.max(...bp.r3.rivalSquad.map((s) => s.level ?? bp.r3.levelCap));
+    const leadSpecies = bp.r3.rivalSquad[0]?.species;
+    const leadMove = bp.r3.rivalSquad[0]?.moves[0];
+
+    return {
+      chapterId: `romance-${npcId}-r3`,
+      format: 'doubles',
+      formatId: CAMPAIGN_DOUBLES_FORMAT_ID,
+      formatLabel: `Revancha Cap Alta · Nv. ${maxLvl}`,
+      reserveAsLastAceSpecies: bp.r3.aceSpecies,
+      playerName: 'Príncipe Heredero',
+      playerCharId: 'prince',
+      rivalName: npc.name,
+      rivalTitle: `Revancha Definitiva R3 · ${bp.regionShort} (Cap Nv. ${maxLvl})`,
+      rivalCharId,
+      arenaTheme: bp.arenaTheme,
+      playerTeamSummary: 'Tu Escuadrón Completo (6 Pokémon · NatDex)',
+      rivalTeamSummary: `${npc.name} al Límite (${bp.r3.rivalSquad.map((s) => `${s.species} Nv.${s.level}`).join(', ')})`,
+      playerShowdownPaste: buildShowdownPaste(playerSquad),
+      rivalShowdownPaste: buildShowdownPaste(bp.r3.rivalSquad),
+      rivalIntel: {
+        visibleSpeciesCount: 2,
+        totalSlots: bp.r3.rivalSquad.length,
+        intelLabel: `Revancha Cap Alta · ${npc.bossAceRule?.ruleName ?? bp.regionShort}`,
+        intelNote: `${npc.bossAceRule?.ruleDetail ?? bp.r3.theaterNote} Ganar añade sus 3 Pokémon élite a tu Casa PC y desbloquea su Final Romántico.`,
+        levelCap: bp.r3.levelCap,
+        hasBossAce: true,
+        bossAceWarning: `${npc.bossAceRule?.aceSpecies ?? bp.r3.aceSpecies} (Nv. ${maxLvl}) — ${npc.bossAceRule?.ruleName ?? 'Jefe Regional'}.`,
+      },
+      puzzleConditions: bp.r3.puzzleConditions,
+      romanceMeta: {
+        npcId: rivalCharId,
+        targetRank: 3,
+        mode: 'unfair-rematch',
+        partnerLabel: npc.name,
+      },
+      scriptedEnemyRules:
+        leadSpecies && leadMove
+          ? [
+              {
+                id: `rom-${npcId}-r3-t1`,
+                turn: 1,
+                actorSpecies: leadSpecies,
+                forceMoveId: leadMove.toLowerCase().replace(/[^a-z0-9]/g, ''),
+                once: true,
+                description: `Revancha R3 (${npc.name}): presión de apertura con Level Cap Alto.`,
+                tauntLine: bp.r3.t1Taunt,
+              },
+            ]
+          : [],
+      traces: [
+        {
+          id: `rematch-${npcId}`,
+          category: 'rival-team',
+          choiceLabel: `Revancha Cap Alta contra ${npc.name}`,
+          flagKey: 'romance_r3',
+          flagValue: npcId,
+          effectTitle: `Casa PC R3: ${npc.rank3PerkTitle}`,
+          effectDetail: `Nivel máximo enemigo Nv. ${maxLvl} con regla especial ${npc.bossAceRule?.ruleName ?? 'de jefe'}.`,
+        },
+      ],
+      flags,
+    };
+  }
 
   if (npcId === 'assassin') {
     // El Pelirrojo R3: Peak Edgy Powerhouses (Kingambit, Chien-Pao, Dragapult, Ceruledge, Zoroark-Hisui, Hydreigon)!

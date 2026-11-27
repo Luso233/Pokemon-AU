@@ -127,9 +127,6 @@ export default function App() {
   const [accountModalOpen, setAccountModalOpen] = useState(false);
   const [devModalOpen, setDevModalOpen] = useState(false);
   const [campModalOpen, setCampModalOpen] = useState(false);
-  const [pendingRomanceR1NpcId, setPendingRomanceR1NpcId] = useState<
-    string | null
-  >(null);
 
   const [aiSettings, setAiSettings] = useState<AISettings>(() =>
     loadAISettings()
@@ -225,7 +222,6 @@ export default function App() {
     chapter: ChapterDefinition,
     overrideVnMode?: VnPacingMode
   ) => {
-    setPendingRomanceR1NpcId(null);
     setActiveChapter(chapter);
     setResolvedConfig(null);
     setSuspendedInkState(null);
@@ -352,29 +348,15 @@ export default function App() {
   };
 
   const handleStartRomanceRank = (
-    npcId: 'assassin' | 'court_duelist' | 'champion',
+    npcId: string,
     targetRank: 1 | 2 | 3
   ) => {
     const ch = buildRomanceChapterDefinition(npcId, targetRank);
-    setActiveChapter(ch);
-    setResolvedConfig(null);
-    setSuspendedInkState(null);
-    setPersistedPartyState(null);
-    setPendingRomanceR1NpcId(targetRank === 1 ? npcId : null);
-    setScreen('vn');
+    startChapter(ch);
   };
 
   const handleFinishVN = (flags: StoryFlags) => {
     setSuspendedInkState(null);
-    // Rank 1 Romance scenes are VN-only (no combat): award Rank 1 & return to Camp/Vínculos!
-    if (pendingRomanceR1NpcId) {
-      const doneNpc = pendingRomanceR1NpcId;
-      setPendingRomanceR1NpcId(null);
-      setProfile((prev) => completeRomanceRank(prev, doneNpc, 1));
-      setScreen('chapters');
-      setCampModalOpen(true);
-      return;
-    }
     const rawConfig = activeChapter.resolveBattleConfig(flags);
     const npcDef = getNpcDefinition(rawConfig.rivalCharId);
     const config: ResolvedBattleConfig = {

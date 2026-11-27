@@ -10,6 +10,7 @@ import {
   Crosshair,
   Eye,
   Globe2,
+  Heart,
   Layers,
   Lock,
   MapPin,
@@ -139,6 +140,7 @@ export const WorldWarMap: React.FC<WorldWarMapProps> = ({
   const [lens, setLens] = useState<MapLensMode>('regions');
   const [showRoutes, setShowRoutes] = useState<boolean>(true);
   const [showDarkAtlas, setShowDarkAtlas] = useState<boolean>(true);
+  const [showRomancePins, setShowRomancePins] = useState<boolean>(true);
   const [showChronicle, setShowChronicle] = useState<boolean>(false);
   const [selectedBlocId, setSelectedBlocId] = useState<WorldBlocId | null>(null);
   const [selectedDarkId, setSelectedDarkId] =
@@ -273,6 +275,7 @@ export const WorldWarMap: React.FC<WorldWarMapProps> = ({
 
   const projectedMissions = useMemo(() => {
     return chapters
+      .filter((ch) => showRomancePins || ch.category !== 'romance')
       .map((ch) => {
         const loc = CHAPTER_MAP_LOCATIONS[ch.id];
         if (!loc) return null;
@@ -290,11 +293,13 @@ export const WorldWarMap: React.FC<WorldWarMapProps> = ({
           completed: completedChapterIds.has(ch.id),
           isNextObjective: nextObjectiveChapterId === ch.id,
           isOptional: ch.category !== 'story',
+          isRomance: ch.category === 'romance',
         };
       })
       .filter((x): x is NonNullable<typeof x> => x !== null);
   }, [
     chapters,
+    showRomancePins,
     geoBundle,
     unlockedChapterIds,
     completedChapterIds,
@@ -518,6 +523,20 @@ export const WorldWarMap: React.FC<WorldWarMapProps> = ({
               Imperio vs. Mundo
             </button>
           </div>
+
+          <button
+            type="button"
+            title="Mostrar u ocultar capítulos regionales de Vínculos (13 NPCs · 39 misiones en todos los continentes)"
+            onClick={() => setShowRomancePins((v) => !v)}
+            className={`inline-flex items-center gap-1 rounded-xl border px-2 py-1 text-[10px] font-bold transition cursor-pointer ${
+              showRomancePins
+                ? 'border-pink-400/55 bg-pink-500/20 text-pink-200'
+                : 'border-slate-800 bg-slate-900/90 text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Heart className="h-3 w-3" />
+            Vínculos
+          </button>
 
           <button
             type="button"
@@ -1320,10 +1339,22 @@ export const WorldWarMap: React.FC<WorldWarMapProps> = ({
                         </>
                       )}
 
-                      {/* STATE 4: Unlocked Optional / Side Encounter — Diamond Marker */}
+                      {/* STATE 4: Unlocked Optional / Regional Romance — Diamond Marker */}
                       {!m.isNextObjective && !m.completed && m.unlocked && (
                         <>
-                          {m.isOptional ? (
+                          {m.isRomance ? (
+                            <rect
+                              x={isHovered ? -4.2 : -3.4}
+                              y={isHovered ? -4.2 : -3.4}
+                              width={isHovered ? 8.4 : 6.8}
+                              height={isHovered ? 8.4 : 6.8}
+                              rx="1"
+                              transform="rotate(45)"
+                              fill={isHovered ? '#fde047' : '#f472b6'}
+                              stroke="#020617"
+                              strokeWidth="1.2"
+                            />
+                          ) : m.isOptional ? (
                             <rect
                               x={isHovered ? -4.2 : -3.4}
                               y={isHovered ? -4.2 : -3.4}
@@ -1464,6 +1495,9 @@ export const WorldWarMap: React.FC<WorldWarMapProps> = ({
                 </span>
                 <span className="inline-flex items-center gap-1 text-sky-300">
                   ◇ Opcional
+                </span>
+                <span className="inline-flex items-center gap-1 text-pink-300">
+                  ♥ Vínculo
                 </span>
                 <span className="inline-flex items-center gap-1 text-slate-400">
                   🔒 Bloqueada

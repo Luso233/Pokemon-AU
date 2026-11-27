@@ -101,9 +101,15 @@ import {
   ROMANCE_ROSTER,
 } from '../src/data/socialLinksCatalog';
 import {
+  resolveRomanceEncounterDuel,
   resolveRomanceRematchBattle,
   resolveRomanceTagBattle,
 } from '../src/engine/romanceBattles';
+import {
+  applyBabyOrDevNatDexFallback,
+  evaluateBabyModeComedyStamp,
+} from '../src/engine/formatFallback';
+import { REGIONAL_ROMANCE_BLUEPRINTS } from '../src/data/regionalRomanceBlueprints';
 import {
   BLOC_BY_ID,
   CHAPTER_MAP_LOCATIONS,
@@ -2503,7 +2509,251 @@ Adamant Nature
     `  OK: Showdown Editor (Solarius M · 508-clamped EVs · IVs · L100 HP=384/Atk=350), Release Guard, Saved Teams Library, Nuzlocke Forensic Death Log, Dev Living Dex (+${ldexRes.addedCount} -> ${ldexRes.totalLiving}), Indexed Search (${fastFighters.length} Fighting+CC+Spe>=110), Shop Strats (Fast Tailwind <=1000 PC: ${fastBudgetTailwind[0]} Spe ${getIndexedSpeciesMeta(fastBudgetTailwind[0]).baseStats.spe}; Top Def Wide Guard: ${tankyWideGuard[0]} Def ${getIndexedSpeciesMeta(tankyWideGuard[0]).baseStats.def}) & Solo 1-Pokémon Doubles Paste (Falinks) ALL VERIFIED!`
   );
 
-  console.log('\nALL 26 ENGINE, MAP, ROMANCE, POKÉROGUE RUN, DOUBLE-ZOROARK, SMOGON ECONOMY, NATDEX & SHOWDOWN TEAMBUILDER SUITES PASSED!');
+  console.log('\n=== 27. Baby Mode Auto-NatDex Fallback (Eternatus-Eternamax), Sello Cómico & 39 Capítulos Regionales Romanceables (18/18 Bloques) ===');
+
+  // 1) Baby Mode automatic NatDex fallback on strict official formats (Monotype + VGC) with Eternatus-Eternamax!
+  const eternamaxPaste = `Eternatus-Eternamax @ Leftovers
+Ability: Pressure
+Level: 100
+Tera Type: Poison
+EVs: 252 HP / 252 SpA / 4 Spe
+Modest Nature
+IVs: 0 Atk
+- Dynamax Cannon
+- Sludge Bomb
+- Flamethrower
+- Recover`;
+
+  const ch2MonotypeBase = resolveChapter2MonotypeBattle({});
+  // Outside Baby/Dev Mode: official format MUST stay strictly untouched!
+  const untouchedMono = applyBabyOrDevNatDexFallback(ch2MonotypeBase, eternamaxPaste, {
+    difficultyMode: 'kaizo',
+    devModeEnabled: false,
+  });
+  if (untouchedMono.formatId !== 'gen9monotype' || untouchedMono.babyModeFormatFallback) {
+    throw new Error(`Expected Monotype to remain untouched outside Baby/Dev Mode, got ${untouchedMono.formatId}`);
+  }
+  // Inside Baby Mode: automatically falls back to NatDex Custom AND runs live in @pkmn/sim!
+  const babyMonoFallback = applyNpcRunModifiers(
+    applyBabyOrDevNatDexFallback(
+      { ...ch2MonotypeBase, playerShowdownPaste: eternamaxPaste },
+      eternamaxPaste,
+      { difficultyMode: 'baby', devModeEnabled: false }
+    ),
+    'baby',
+    'canonical'
+  );
+  if (
+    babyMonoFallback.formatId !== 'gen9customgame@@@NatDex Mod' ||
+    !babyMonoFallback.babyModeFormatFallback ||
+    babyMonoFallback.interactiveTeamPreview !== false
+  ) {
+    throw new Error(`Expected Baby Mode Monotype fallback to gen9customgame@@@NatDex Mod, got ${babyMonoFallback.formatId}`);
+  }
+  const { turn1Snap: etMonoT1, finalSnap: etMonoFinal } = await runFullSimMatch(
+    'Baby Mode Auto-NatDex Fallback — Eternatus-Eternamax vs Monotype',
+    babyMonoFallback,
+    { maxTurns: 25 }
+  );
+  if (!etMonoT1 || etMonoT1.p1.active[0]?.species !== 'Eternatus-Eternamax') {
+    throw new Error(`Expected Eternatus-Eternamax active T1 after Baby Mode Monotype fallback, got ${etMonoT1?.p1.active[0]?.species}`);
+  }
+
+  // Also test VGC 2024 Reg G fallback with Eternatus-Eternamax!
+  const vgcBase = resolveVgcWorlds2024Battle({});
+  const babyVgcFallback = applyBabyOrDevNatDexFallback(
+    { ...vgcBase, playerShowdownPaste: eternamaxPaste },
+    eternamaxPaste,
+    { difficultyMode: 'baby', devModeEnabled: false }
+  );
+  if (
+    babyVgcFallback.formatId !== 'gen9doublescustomgame@@@NatDex Mod' ||
+    !babyVgcFallback.babyModeFormatFallback
+  ) {
+    throw new Error(`Expected Baby Mode VGC fallback to NatDex Doubles, got ${babyVgcFallback.formatId}`);
+  }
+
+  // 2) Baby Mode Comedic Stamp + Game Review snark!
+  const act1Prof = createDefaultProfile('BabyTester', 'baby@galar.com');
+  const uberSixPaste = [
+    eternamaxPaste,
+    'Rayquaza-Mega @ Life Orb\nAbility: Delta Stream\nLevel: 100\nJolly Nature\n- Dragon Ascent\n- Extreme Speed\n- V-create\n- Protect',
+    'Arceus @ Silk Scarf\nAbility: Multitype\nLevel: 100\nAdamant Nature\n- Extreme Speed\n- Earthquake\n- Shadow Claw\n- Recover',
+    'Miraidon @ Choice Specs\nAbility: Hadron Engine\nLevel: 100\nTimid Nature\n- Electro Drift\n- Draco Meteor\n- Dazzling Gleam\n- Volt Switch',
+    'Koraidon @ Choice Scarf\nAbility: Orichalcum Pulse\nLevel: 100\nJolly Nature\n- Collision Course\n- Flare Blitz\n- Dragon Claw\n- U-turn',
+    'Calyrex-Shadow @ Focus Sash\nAbility: As One (Spectrier)\nLevel: 100\nTimid Nature\n- Astral Barrage\n- Psychic\n- Draining Kiss\n- Protect',
+  ].join('\n\n');
+  const stampInter = evaluateBabyModeComedyStamp(
+    { ...babyMonoFallback, playerShowdownPaste: uberSixPaste },
+    act1Prof,
+    true
+  );
+  const stampPowerAbuse = evaluateBabyModeComedyStamp(
+    {
+      ...resolveChapter1ChaseBattle({}),
+      difficultyMode: 'baby',
+      playerShowdownPaste: uberSixPaste,
+    },
+    act1Prof,
+    true
+  );
+  const stampCozy = evaluateBabyModeComedyStamp(
+    {
+      ...resolveChapter1ChaseBattle({}),
+      difficultyMode: 'baby',
+      playerShowdownPaste: 'Pikachu @ Light Ball\nAbility: Static\nLevel: 100\nTimid Nature\n- Thunderbolt',
+    },
+    act1Prof,
+    true
+  );
+  const stampNoneInKaizo = evaluateBabyModeComedyStamp(
+    { ...resolveChapter1ChaseBattle({}), difficultyMode: 'kaizo' },
+    act1Prof,
+    true
+  );
+  if (
+    stampInter?.tier !== 'interdimensional' ||
+    !stampInter.badgeTitle.includes('BABY MODE') ||
+    stampPowerAbuse?.tier !== 'power-abuse' ||
+    stampPowerAbuse.overCapBy <= 1000 ||
+    stampCozy?.tier !== 'cozy-win' ||
+    stampNoneInKaizo !== null
+  ) {
+    throw new Error(
+      `Baby Mode Comedy Stamp tiers failed: inter=${stampInter?.tier}, abuse=${stampPowerAbuse?.tier}/+${stampPowerAbuse?.overCapBy}, cozy=${stampCozy?.tier}, kaizo=${String(stampNoneInKaizo)}`
+    );
+  }
+  const babyReview = await generatePostGameReview(
+    etMonoFinal,
+    babyMonoFallback,
+    getDefaultAISettings()
+  );
+  if (!babyReview.summaryVerdict.includes('Baby Mode')) {
+    throw new Error(`Expected Baby Mode comedy stamp inside Game Review verdict, got: ${babyReview.summaryVerdict}`);
+  }
+
+  // 3) ALL 13 Romanceables × 3 Chapters (R1 Duelo / R2 Amigos Tag 2v2 / R3 Revancha Cap Alta) = 39 Playable Chapters across ALL 18/18 World Blocs!
+  if (Object.keys(REGIONAL_ROMANCE_BLUEPRINTS).length !== 13) {
+    throw new Error(`Expected 13 regional romance blueprints, got ${Object.keys(REGIONAL_ROMANCE_BLUEPRINTS).length}`);
+  }
+  const coveredBlocs = new Set<string>();
+  for (const loc of Object.values(CHAPTER_MAP_LOCATIONS)) {
+    coveredBlocs.add(loc.blocId);
+  }
+  for (const bloc of WORLD_BLOCS) {
+    if (!coveredBlocs.has(bloc.id)) {
+      throw new Error(`World Bloc '${bloc.id}' (${bloc.name}) STILL has 0 mapped playable chapters!`);
+    }
+  }
+
+  let validatedRomanceBattles = 0;
+  for (const npc of ROMANCE_ROSTER) {
+    if (!npc.playableNow || !npc.charId || npc.housePokemon.length !== 3) {
+      throw new Error(`Expected romance NPC '${npc.id}' playable with charId & 3 housePokemon, got playable=${npc.playableNow}, house=${npc.housePokemon.length}`);
+    }
+    const r1Cfg = resolveRomanceEncounterDuel(npc.id);
+    const r2Cfg = resolveRomanceTagBattle(npc.id);
+    const r3Cfg = resolveRomanceRematchBattle(npc.id);
+    for (const [rankIdx, cfg] of [r1Cfg, r2Cfg, r3Cfg].entries()) {
+      const p1 = Teams.import(cfg.playerShowdownPaste);
+      const p2 = Teams.import(cfg.rivalShowdownPaste);
+      if (!p1?.length || !p2?.length) {
+        throw new Error(`Invalid Showdown paste for romance ${npc.id} R${rankIdx + 1}`);
+      }
+      if (!CHAPTER_MAP_LOCATIONS[`romance-${npc.id}-r${rankIdx + 1}`]) {
+        throw new Error(`Missing CHAPTER_MAP_LOCATIONS for romance-${npc.id}-r${rankIdx + 1}`);
+      }
+      validatedRomanceBattles++;
+    }
+    if (npc.id !== 'court_duelist') {
+      const r3MaxLvl = Math.max(
+        ...(Teams.import(r3Cfg.rivalShowdownPaste) ?? []).map((s) => s.level || 100)
+      );
+      if (r3MaxLvl < 106 || r3MaxLvl <= r1Cfg.rivalIntel.levelCap) {
+        throw new Error(`Expected ${npc.id} R3 rematch max level (${r3MaxLvl}) >= 106 and > R1 cap (${r1Cfg.rivalIntel.levelCap})`);
+      }
+    }
+  }
+
+  // 4) Run live @pkmn/sim battles for new regional romance chapters & verify Boss Ace Rules!
+  // 4a) Cordelia Astronomer R1 Encounter Duel + R3 Reloj de los Andes (Turn-0 Trick Room + burned Ursaluna ★ Nv. 108!)
+  const cordR1 = resolveRomanceEncounterDuel('cordelia_astronomer');
+  await runFullSimMatch('Romance R1 — El Astrónomo (Cordelia)', cordR1, { maxTurns: 35 });
+
+  const cordR3 = resolveRomanceRematchBattle('cordelia_astronomer');
+  const { turn1Snap: cordR3T1 } = await runFullSimMatch(
+    'Romance R3 — Reloj de los Andes (Trick Room T0 + Burned Ursaluna Nv.108)',
+    cordR3,
+    { maxTurns: 35 }
+  );
+  const ursaActive = cordR3T1?.p2.active.find((m) => m?.species === 'Ursaluna');
+  if (!cordR3T1?.trickRoomTurnsLeft || !ursaActive || ursaActive.status !== 'brn' || ursaActive.level !== 108) {
+    throw new Error(
+      `Expected Cordelia R3 Turn-0 Trick Room + Burned Ursaluna Lv.108, got TR=${cordR3T1?.trickRoomTurnsLeft}, ursa=${JSON.stringify(ursaActive)}`
+    );
+  }
+
+  // 4b) Tierra de Kora (Amina R2 Tag 2v2) & Borelia (General Viktoria R2 Tag 2v2)
+  const koraTag = resolveRomanceTagBattle('kemetia_keeper');
+  const { turn1Snap: koraT1 } = await runFullSimMatch(
+    'Romance R2 Tag 2v2 — Tierra de Kora (Amina)',
+    koraTag,
+    { maxTurns: 35 }
+  );
+  if (!koraT1?.p1.active[1]?.name.includes('[Aliada]')) {
+    throw new Error(`Expected Amina [Aliada] in Slot 2 for Kora Tag 2v2!`);
+  }
+  const boreliaTag = resolveRomanceTagBattle('e4_ferrum');
+  await runFullSimMatch('Romance R2 Tag 2v2 — Borelia (General Viktoria)', boreliaTag, {
+    maxTurns: 35,
+  });
+
+  // 4c) Pokétopia Crupier R3 (Rain + Focus Energy Kingdra Nv. 108), Ranger R3 (Palafin-Hero Nv. 108), Veridia R3 (Mew Nv. 110 + Grassy Terrain), Kalos R3 (Gardevoir-Mega Nv. 110)
+  const croupierR3 = resolveRomanceRematchBattle('poketopia_croupier');
+  const { turn1Snap: croupierT1 } = await runFullSimMatch(
+    'Romance R3 — Pokétopia Crupier (Kingdra Focus Energy + Rain)',
+    croupierR3,
+    { maxTurns: 35 }
+  );
+  if (!croupierT1?.weather.includes('Lluvia')) {
+    throw new Error(`Expected Rain T0 in Pokétopia Crupier R3, got '${croupierT1?.weather}'`);
+  }
+
+  const rangerR3 = resolveRomanceRematchBattle('ranger_commander');
+  const { turn1Snap: rangerT1 } = await runFullSimMatch(
+    'Romance R3 — Comandante Ranger (Palafin-Hero Nv.108)',
+    rangerR3,
+    { maxTurns: 35 }
+  );
+  if (!rangerT1?.p2.active.some((m) => m?.species === 'Palafin-Hero')) {
+    throw new Error(`Expected Palafin-Hero active T1 in Ranger R3!`);
+  }
+
+  const veridiaR3 = resolveRomanceRematchBattle('e4_veridia');
+  const { turn1Snap: veridiaT1 } = await runFullSimMatch(
+    'Romance R3 — Iara de Veridia (Mew Nv.110 + Grassy Terrain)',
+    veridiaR3,
+    { maxTurns: 35 }
+  );
+  if (!veridiaT1?.terrain.includes('Hierba') || !veridiaT1.p2.active.some((m) => m?.species === 'Mew')) {
+    throw new Error(`Expected Grassy Terrain + Mew active T1 in Veridia R3!`);
+  }
+
+  const kalosR3 = resolveRomanceRematchBattle('e4_kalos');
+  const { turn1Snap: kalosT1 } = await runFullSimMatch(
+    'Romance R3 — Céline de Luminalia (Gardevoir-Mega Nv.110)',
+    kalosR3,
+    { maxTurns: 35 }
+  );
+  if (!kalosT1?.p2.active.some((m) => m?.species === 'Gardevoir-Mega')) {
+    throw new Error(`Expected Gardevoir-Mega active T1 in Kalos R3!`);
+  }
+
+  console.log(
+    `  OK: Baby Mode Auto-NatDex Fallback (Eternatus-Eternamax vs Monotype & VGC), Comedy Stamp (4 Tiers + Game Review), & ALL ${validatedRomanceBattles} Regional Romance Battles (13 NPCs × 3 Chapters covering ${coveredBlocs.size}/${WORLD_BLOCS.length} World Blocs incl. Cordelia TR+Burned Ursaluna, Kora, Borelia, Pokétopia Sniper, Ranger Palafin-Hero, Veridia Mew & Kalos Mega-Gardevoir) ALL VERIFIED!`
+  );
+
+  console.log('\nALL 27 ENGINE, MAP, ROMANCE, POKÉROGUE RUN, DOUBLE-ZOROARK, SMOGON ECONOMY, NATDEX, BABY MODE & REGIONAL ROMANCE SUITES PASSED!');
 }
 
 let allSuitesCompleted = false;

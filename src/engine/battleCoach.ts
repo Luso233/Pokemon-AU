@@ -248,13 +248,27 @@ function buildHeuristicPostGameReview(
     Math.min(96, (won ? 82 : 64) + good * 4 - blunders * 14 - inaccuracies * 6)
   );
 
+  const isBabyMode = config.difficultyMode === 'baby';
+  const brokeFmt = config.babyModeFormatFallback;
+  const babySuffix = isBabyMode
+    ? won
+      ? brokeFmt
+        ? ` 🍼 Victoria certificada en Baby Mode — Abuso de poder confirmado (rompiste ${brokeFmt.originalFormatLabel} con fallback NatDex).`
+        : ` 🍼 Victoria certificada en Baby Mode — Abuso de poder confirmado contra IA distraída.`
+      : ` 🍼 Nota del Coach: caer en Baby Mode es secreto de Estado, borramos la cinta.`
+    : '';
+
   return {
     source: 'heuristic',
-    modelLabel: 'Game Review Local (0 tokens)',
+    modelLabel: isBabyMode
+      ? 'Game Review Local · Sello Baby Mode 🍼'
+      : 'Game Review Local (0 tokens)',
     playerAccuracy: accuracy,
-    summaryVerdict: won
-      ? `Victoria sólida en ${snapshot.turn} turnos (${config.playerName} vs. ${config.rivalName}).`
-      : `Derrota en ${snapshot.turn} turnos — los turnos de doble caída y control de velocidad marcaron la diferencia.`,
+    summaryVerdict:
+      (won
+        ? `Victoria sólida en ${snapshot.turn} turnos (${config.playerName} vs. ${config.rivalName}).`
+        : `Derrota en ${snapshot.turn} turnos — los turnos de doble caída y control de velocidad marcaron la diferencia.`) +
+      babySuffix,
     counts: {
       brilliant: won && blunders === 0 ? 1 : 0,
       good: Math.max(1, good),
