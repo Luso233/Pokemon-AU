@@ -256,26 +256,26 @@ export const VisualNovelView: React.FC<VisualNovelViewProps> = ({
       <SceneBackdrop theme={bg} />
 
       {/* Top HUD Bar */}
-      <header className="relative z-20 flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-slate-950/75 px-5 py-3 backdrop-blur-md">
-        <div className="flex items-center gap-3">
+      <header className="relative z-20 flex flex-wrap items-center justify-between gap-2 border-b border-white/10 bg-slate-950/75 px-3 py-2 backdrop-blur-md sm:px-5 sm:py-3">
+        <div className="flex min-w-0 items-center gap-2.5">
           <button
             onClick={onExitToChapters}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700/80 bg-slate-900/80 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:border-amber-400/50 hover:text-white cursor-pointer"
+            className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-slate-700/80 bg-slate-900/80 px-2.5 py-1.5 text-xs font-semibold text-slate-300 transition hover:border-amber-400/50 hover:text-white cursor-pointer"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            Capítulos
+            <span className="hidden sm:inline">Capítulos</span>
           </button>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-300">
-              {chapter.number} · NOVELA VISUAL (INKJS)
+          <div className="min-w-0">
+            <p className="text-[9.5px] font-bold uppercase tracking-[0.18em] text-amber-300">
+              {chapter.number}
             </p>
-            <h1 className="font-display text-sm font-bold text-white sm:text-base">
+            <h1 className="truncate font-display text-sm font-bold text-white sm:text-base">
               {chapter.title}
             </h1>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
           <button
             type="button"
             onClick={() => {
@@ -287,35 +287,35 @@ export const VisualNovelView: React.FC<VisualNovelViewProps> = ({
                 setTypedLen(jumped.currentLine?.text.length ?? 0);
               }
             }}
-            className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition cursor-pointer ${
+            className={`inline-flex items-center gap-1 rounded-xl border px-2.5 py-1.5 text-[11px] font-bold transition cursor-pointer ${
               fastToDecision
                 ? 'border-amber-400/70 bg-amber-500/20 text-amber-200'
                 : 'border-slate-700/80 bg-slate-900/80 text-slate-300 hover:border-amber-400/40'
             }`}
           >
             <GitBranch className="h-3.5 w-3.5" />
-            {fastToDecision ? '⚡ Solo Decisiones: ON' : 'Solo Decisiones'}
+            <span>{fastToDecision ? '⚡ Decisiones' : 'Decisiones'}</span>
           </button>
 
           <button
             type="button"
             onClick={handleSkipStraightToBattle}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-rose-400/50 bg-rose-500/15 px-3 py-1.5 text-xs font-bold text-rose-200 transition hover:bg-rose-500/25 cursor-pointer"
+            className="inline-flex items-center gap-1 rounded-xl border border-rose-400/50 bg-rose-500/15 px-2.5 py-1.5 text-[11px] font-bold text-rose-200 transition hover:bg-rose-500/25 cursor-pointer"
           >
             <Swords className="h-3.5 w-3.5" />
-            Saltar al Combate
+            <span>Al Combate</span>
           </button>
 
           <button
             onClick={() => setShowFlags((v) => !v)}
-            className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
+            className={`hidden items-center gap-1 rounded-xl border px-2.5 py-1.5 text-[11px] font-semibold transition sm:inline-flex cursor-pointer ${
               showFlags
                 ? 'border-sky-400/60 bg-sky-500/20 text-sky-200'
                 : 'border-slate-700/80 bg-slate-900/80 text-slate-300 hover:border-sky-400/40'
             }`}
           >
             <Code2 className="h-3.5 w-3.5" />
-            Variables Ink ({flagEntries.length})
+            Ink ({flagEntries.length})
           </button>
 
           <button

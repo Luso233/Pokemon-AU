@@ -8,7 +8,6 @@ import {
   Coins,
   Filter,
   Gamepad2,
-  Scale,
   Search,
   Shield,
   ShoppingBag,
@@ -18,7 +17,6 @@ import {
   X,
 } from 'lucide-react';
 import {
-  CURRENCY_NAME,
   CURRENCY_SHORT,
   MAX_SHINY_CHARMS,
   SHINY_CHARM_PRICE,
@@ -42,6 +40,7 @@ import {
   type ShowdownSortKey,
 } from '../engine/showdownSearchIndex';
 import type { PlayerSaveProfile } from '../types/game';
+import { HelpTip } from './HelpTip';
 import { PokemonIcon, PokemonSprite } from './PokemonSprite';
 
 interface ShopViewProps {
@@ -289,59 +288,70 @@ export const ShopView: React.FC<ShopViewProps> = ({
   };
 
   return (
-    <div className="relative min-h-screen bg-[#060a14] text-slate-100">
+    <div className="relative min-h-screen overflow-x-hidden bg-[#060a14] text-slate-100">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -top-28 left-1/3 h-96 w-[38rem] rounded-full bg-amber-500/12 blur-[120px]" />
         <div className="absolute bottom-0 right-1/4 h-96 w-[34rem] rounded-full bg-fuchsia-600/10 blur-[120px]" />
       </div>
 
-      <div className="relative z-10 mx-auto max-w-6xl px-5 py-7">
-        {/* Header */}
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-slate-800/80 pb-5">
-          <div className="flex items-center gap-3.5">
+      <div className="relative z-10 mx-auto max-w-6xl px-3 py-4 sm:px-5 sm:py-6">
+        {/* Compact Responsive Header */}
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2.5 border-b border-slate-800/80 pb-3.5">
+          <div className="flex min-w-0 items-center gap-2.5">
             <button
               onClick={onBackHome}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-2 text-xs font-semibold text-slate-300 transition hover:border-amber-400/50 hover:text-white cursor-pointer"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-300 transition hover:border-amber-400/50 hover:text-white cursor-pointer"
             >
               <ArrowLeft className="h-4 w-4" />
-              Inicio
+              <span className="hidden sm:inline">Inicio</span>
             </button>
-            <div>
-              <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.2em] text-amber-300">
-                <ShoppingBag className="h-3.5 w-3.5" />
-                Mercado Real de Wyndon
-              </p>
-              <h1 className="font-display text-2xl font-extrabold text-white sm:text-3xl">
-                Tienda &amp; Amuletos Variocolor
+            <div className="flex min-w-0 items-center gap-1.5">
+              <ShoppingBag className="h-4 w-4 shrink-0 text-amber-400" />
+              <h1 className="truncate font-display text-lg font-extrabold text-white sm:text-2xl">
+                Tienda
               </h1>
+              <HelpTip title="Economía Smogon & Reglas" badge="Fórmula">
+                <p>
+                  <code className="rounded bg-slate-950 px-1.5 py-0.5 text-amber-200">
+                    Precio = ⌊BST × Tier Smogon⌋ + Impuesto Habilidad
+                  </code>
+                </p>
+                <p>
+                  Filtra por movimientos aprendibles (Fake Out, Wide Guard, Tailwind), Tipo, Habilidad o stats (ej. <code>spe&gt;=110</code>) y ordena tocando cualquier columna.
+                </p>
+                <p className="text-emerald-300">
+                  💀 En Nuzlocke, ganar un combate con bajas reembolsa el{' '}
+                  <strong>{Math.round((1 - perks.casualtyTaxRate) * 100)}%</strong> de su valor (impuesto: {Math.round(perks.casualtyTaxRate * 100)}%).
+                </p>
+                <p className="text-sky-300">
+                  ⚖️ {bstLicense.shortLabel}: {bstLicense.nextActUnlockHint}
+                </p>
+              </HelpTip>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
-            <div className="inline-flex items-center gap-2 rounded-xl border border-amber-400/45 bg-amber-500/15 px-3.5 py-2 text-xs font-extrabold text-amber-200 shadow-lg shadow-amber-500/10">
-              <Coins className="h-4 w-4 text-amber-400" />
-              <span className="font-mono-code text-sm">
-                {profile.coins.toLocaleString()}
-              </span>
-              <span className="text-[10px] uppercase text-amber-300/80">
-                {CURRENCY_NAME}
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+            <div className="inline-flex items-center gap-1.5 rounded-xl border border-amber-400/45 bg-amber-500/15 px-2.5 py-1.5 text-xs font-extrabold text-amber-200">
+              <Coins className="h-3.5 w-3.5 text-amber-400" />
+              <span className="font-mono-code">
+                {profile.coins.toLocaleString()} {CURRENCY_SHORT}
               </span>
             </div>
 
             <button
               onClick={onOpenArcade}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-400/45 bg-emerald-500/15 px-3.5 py-2 text-xs font-bold text-emerald-200 hover:bg-emerald-500/25 cursor-pointer"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-400/45 bg-emerald-500/15 px-2.5 py-1.5 text-xs font-bold text-emerald-200 hover:bg-emerald-500/25 cursor-pointer"
             >
-              <Gamepad2 className="h-4 w-4" />
-              Farmear en Arcade
+              <Gamepad2 className="h-3.5 w-3.5" />
+              Arcade
             </button>
 
             <button
               onClick={onOpenTeamEditor}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-sky-400/45 bg-sky-500/15 px-3.5 py-2 text-xs font-bold text-sky-200 hover:bg-sky-500/25 cursor-pointer"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-sky-400/45 bg-sky-500/15 px-2.5 py-1.5 text-xs font-bold text-sky-200 hover:bg-sky-500/25 cursor-pointer"
             >
-              <Wrench className="h-4 w-4" />
-              Editor de Equipo
+              <Wrench className="h-3.5 w-3.5" />
+              Cajas PC
             </button>
           </div>
         </div>
@@ -349,7 +359,7 @@ export const ShopView: React.FC<ShopViewProps> = ({
         {/* Feedback Toast */}
         {toast && (
           <div
-            className={`mb-5 flex items-center justify-between rounded-2xl border px-4 py-3 text-xs font-semibold ${
+            className={`mb-4 flex items-center justify-between gap-2 rounded-2xl border px-3.5 py-2.5 text-xs font-semibold ${
               toast.tone === 'ok'
                 ? 'border-emerald-400/40 bg-emerald-500/15 text-emerald-200'
                 : 'border-rose-500/40 bg-rose-500/15 text-rose-200'
@@ -359,22 +369,22 @@ export const ShopView: React.FC<ShopViewProps> = ({
             <button
               type="button"
               onClick={() => setToast(null)}
-              className="text-[11px] opacity-75 hover:opacity-100 cursor-pointer"
+              className="shrink-0 text-[11px] opacity-75 hover:opacity-100 cursor-pointer"
             >
-              Cerrar
+              ✕
             </button>
           </div>
         )}
 
         {/* Tabs */}
-        <div className="mb-6 flex flex-wrap gap-2">
+        <div className="mb-4 flex flex-wrap gap-1.5 sm:gap-2">
           {(
             [
               {
                 id: 'pokemon',
                 label: fullAgDexActive
-                  ? `Pokédex Nacional AG (${totalWorldSpeciesCount})`
-                  : `Pokédex de Compra (${profile.unlockedPokedex.length}/${totalWorldSpeciesCount})`,
+                  ? `Pokédex AG (${totalWorldSpeciesCount})`
+                  : `Pokémon (${profile.unlockedPokedex.length}/${totalWorldSpeciesCount})`,
                 icon: Shield,
               },
               {
@@ -384,7 +394,7 @@ export const ShopView: React.FC<ShopViewProps> = ({
               },
               {
                 id: 'shiny',
-                label: `Shiny Charms (${profile.inventory.shinyCharms}/${MAX_SHINY_CHARMS})`,
+                label: `Shiny (${profile.inventory.shinyCharms}/${MAX_SHINY_CHARMS})`,
                 icon: Sparkles,
               },
             ] as const
@@ -395,15 +405,15 @@ export const ShopView: React.FC<ShopViewProps> = ({
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
-                className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-xs font-bold transition cursor-pointer ${
+                className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition cursor-pointer ${
                   active
                     ? t.id === 'shiny'
-                      ? 'border-fuchsia-400 bg-fuchsia-500/20 text-fuchsia-200 shadow-lg shadow-fuchsia-500/15'
+                      ? 'border-fuchsia-400 bg-fuchsia-500/20 text-fuchsia-200'
                       : 'border-amber-400 bg-amber-500/20 text-amber-200'
                     : 'border-slate-800 bg-slate-900/75 text-slate-400 hover:border-slate-700 hover:text-slate-200'
                 }`}
               >
-                <Icon className="h-4 w-4" />
+                <Icon className="h-3.5 w-3.5" />
                 {t.label}
               </button>
             );
@@ -412,49 +422,34 @@ export const ShopView: React.FC<ShopViewProps> = ({
 
         {/* TAB 1: SHOWDOWN-STYLE TACTICAL BLACK MARKET POKÉDEX */}
         {tab === 'pokemon' && (
-          <div className="space-y-4">
-            {/* Economic Formula + Imperial BST License + Nuzlocke Refund Banner */}
-            <div className="grid gap-3 rounded-2xl border border-amber-400/30 bg-slate-900/85 p-4 lg:grid-cols-12">
-              <div className="space-y-1 lg:col-span-7">
-                <p className="flex items-center gap-1.5 text-xs font-extrabold text-amber-200">
-                  <Scale className="h-4 w-4 text-amber-400" />
-                  Mercado Estratégico · Economía Smogon + Buscador Showdown
-                </p>
-                <p className="text-[11px] leading-relaxed text-slate-300">
-                  <code className="rounded bg-slate-950 px-1.5 py-0.5 text-amber-200">
-                    Precio = ⌊BST × Tier Smogon⌋ + Impuesto Habilidad
-                  </code>{' '}
-                  · Filtra por <strong>movimientos aprendibles</strong> (ej. Fake Out, Wide Guard, Tailwind), <strong>Tipo</strong>, <strong>Habilidad</strong> u ordena por <strong>Spe / Atk / SpA / Def / SpD / HP</strong> para planear tu siguiente combate.
-                </p>
-                <p className="text-[10.5px] text-emerald-300/90">
-                  💀 En Nuzlocke, ganar un combate con bajas permanentes reembolsa el{' '}
-                  <strong>{Math.round((1 - perks.casualtyTaxRate) * 100)}%</strong> de su valor de tienda (impuesto de reposición: {Math.round(perks.casualtyTaxRate * 100)}%).
-                </p>
+          <div className="space-y-3">
+            {/* Compact Status Badges Strip (Replaces verbose formula wall) */}
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-800 bg-slate-900/80 px-3.5 py-2 text-[11px]">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-lg border border-sky-400/35 bg-sky-500/15 px-2 py-0.5 font-extrabold text-sky-200">
+                  {bstLicense.shortLabel}
+                </span>
+                <span
+                  className={`font-mono-code font-extrabold ${
+                    bstLicense.isOverCap ? 'text-rose-300' : 'text-emerald-300'
+                  }`}
+                >
+                  BST: {bstLicense.currentPartyBst}
+                  {bstLicense.maxTeamBst !== null ? `/${bstLicense.maxTeamBst}` : '/∞'}
+                </span>
+                <span className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
+                  💀 Reembolso {Math.round((1 - perks.casualtyTaxRate) * 100)}%
+                </span>
               </div>
-              <div className="flex flex-col justify-center rounded-xl border border-sky-400/30 bg-slate-950/80 p-3 lg:col-span-5">
-                <div className="flex items-center justify-between gap-2 text-[11px] font-extrabold">
-                  <span className="text-sky-200">{bstLicense.shortLabel}</span>
-                  <span
-                    className={`font-mono-code ${
-                      bstLicense.isOverCap ? 'text-rose-300' : 'text-emerald-300'
-                    }`}
-                  >
-                    Equipo: {bstLicense.currentPartyBst}
-                    {bstLicense.maxTeamBst !== null
-                      ? ` / ${bstLicense.maxTeamBst} BST`
-                      : ' BST'}
-                  </span>
-                </div>
-                <p className="mt-1 text-[10px] text-slate-400">
-                  {bstLicense.nextActUnlockHint}
-                </p>
-              </div>
+              <span className="font-mono-code text-[10px] text-slate-400">
+                {Math.min(visibleLimit, filteredShopSpecies.length)} / {filteredShopSpecies.length} spp
+              </span>
             </div>
 
             {/* SHOWDOWN-STYLE INDEXED SEARCH + AUTOCOMPLETE CHIPS + TACTICAL SHORTCUTS */}
-            <div className="space-y-2.5 rounded-2xl border border-slate-800 bg-slate-900/75 p-3.5">
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="relative min-w-[240px] flex-1">
+            <div className="space-y-2.5 rounded-2xl border border-slate-800 bg-slate-900/75 p-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <div className="relative flex-1">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-amber-300" />
                   <input
                     type="text"
@@ -463,8 +458,8 @@ export const ShopView: React.FC<ShopViewProps> = ({
                       setPokeSearch(e.target.value);
                       setVisibleLimit(SHOP_PAGE_SIZE);
                     }}
-                    placeholder="Buscador Showdown: movimiento aprendible (Wide Guard, Fake Out), tipo (Steel), habilidad (Intimidate) o stat (spe>=110, def>=100)..."
-                    className="w-full rounded-xl border border-slate-700 bg-slate-950 py-2 pl-9 pr-20 text-xs text-white placeholder-slate-500 focus:border-amber-400 focus:outline-none"
+                    placeholder="Pokémon, movimiento (Fake Out), tipo, habilidad o spe>=110..."
+                    className="w-full rounded-xl border border-slate-700 bg-slate-950 py-2 pl-9 pr-16 text-xs text-white placeholder-slate-500 focus:border-amber-400 focus:outline-none"
                   />
                   {(pokeSearch ||
                     activeFilters.length > 0 ||
@@ -487,17 +482,17 @@ export const ShopView: React.FC<ShopViewProps> = ({
                     setSortBy(e.target.value as ShowdownSortKey);
                     setVisibleLimit(SHOP_PAGE_SIZE);
                   }}
-                  className="rounded-xl border border-slate-700 bg-slate-950 px-2.5 py-2 text-[11px] font-bold text-slate-200 focus:border-amber-400 focus:outline-none"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-2.5 py-2 text-[11px] font-bold text-slate-200 focus:border-amber-400 focus:outline-none sm:w-auto"
                 >
-                  <option value="price-asc">Precio ↑ (Más baratos)</option>
-                  <option value="price-desc">Precio ↓ (Más caros)</option>
-                  <option value="spe">Velocidad (Spe ↓ · Outspeed)</option>
-                  <option value="atk">Ataque Físico (Atk ↓)</option>
-                  <option value="spa">Ataque Especial (SpA ↓)</option>
-                  <option value="hp">Vida (HP ↓ · Tanques)</option>
-                  <option value="def">Defensa Física (Def ↓)</option>
-                  <option value="spd">Defensa Especial (SpD ↓)</option>
-                  <option value="bst">BST ↓ (Más fuertes)</option>
+                  <option value="price-asc">Precio ↑</option>
+                  <option value="price-desc">Precio ↓</option>
+                  <option value="spe">Velocidad (Spe ↓)</option>
+                  <option value="atk">Ataque (Atk ↓)</option>
+                  <option value="spa">At. Esp. (SpA ↓)</option>
+                  <option value="hp">Vida (HP ↓)</option>
+                  <option value="def">Defensa (Def ↓)</option>
+                  <option value="spd">Def. Esp. (SpD ↓)</option>
+                  <option value="bst">BST ↓</option>
                   <option value="name">Nombre A–Z</option>
                 </select>
               </div>
@@ -712,26 +707,8 @@ export const ShopView: React.FC<ShopViewProps> = ({
               </div>
             </div>
 
-            {/* Results Counter */}
-            <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-[11px] text-slate-400">
-              <span>
-                Mostrando{' '}
-                <strong className="text-white">
-                  {Math.min(visibleLimit, filteredShopSpecies.length)}
-                </strong>{' '}
-                de{' '}
-                <strong className="text-amber-200">
-                  {filteredShopSpecies.length}
-                </strong>{' '}
-                especies disponibles · Haz clic en cualquier columna de estadística para ordenar
-              </span>
-              <span className="font-mono-code text-[10px] text-slate-500">
-                Catálogo total: {rawShopSpecies.length} especies
-              </span>
-            </div>
-
-            {/* SHOWDOWN-STYLE TACTICAL TABLE */}
-            <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/75">
+            {/* SHOWDOWN-STYLE TACTICAL TABLE (Responsive Cards on Mobile + 12-Col Table on Desktop) */}
+            <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/75">
               {/* Clickable Column Header Row (Showdown Teambuilder Layout!) */}
               <div className="hidden grid-cols-12 items-center gap-2 border-b border-slate-800 bg-slate-950/90 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 lg:grid">
                 <div className="col-span-4 flex items-center gap-2">
@@ -845,7 +822,7 @@ export const ShopView: React.FC<ShopViewProps> = ({
                         </div>
 
                         {/* Col 7-10: Showdown Base Stats Grid (HP / Atk / Def / SpA / SpD / Spe / BST) */}
-                        <div className="grid grid-cols-7 gap-1 rounded-xl bg-slate-950/60 px-2 py-1 text-center font-mono-code text-[11px] lg:col-span-4 lg:bg-transparent lg:px-0 lg:py-0">
+                        <div className="grid grid-cols-7 gap-0.5 rounded-xl bg-slate-950/60 px-1.5 py-1 text-center font-mono-code text-[10.5px] sm:gap-1 sm:px-2 sm:text-[11px] lg:col-span-4 lg:bg-transparent lg:px-0 lg:py-0">
                           {(
                             [
                               ['hp', bs.hp, 'HP'],
@@ -1024,24 +1001,23 @@ export const ShopView: React.FC<ShopViewProps> = ({
 
         {/* TAB 3: SHINY CHARMS (ENDGAME PRESTIGE — MAX 6) */}
         {tab === 'shiny' && (
-          <div className="rounded-3xl border border-fuchsia-400/45 bg-gradient-to-br from-fuchsia-950/40 via-slate-950 to-amber-950/30 p-6 shadow-2xl">
+          <div className="rounded-3xl border border-fuchsia-400/45 bg-gradient-to-br from-fuchsia-950/40 via-slate-950 to-amber-950/30 p-4 shadow-2xl sm:p-6">
             <div className="grid items-center gap-6 lg:grid-cols-12">
               <div className="lg:col-span-7">
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-fuchsia-400/45 bg-fuchsia-500/20 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider text-fuchsia-200">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  Endgame de Prestigio · Máximo {MAX_SHINY_CHARMS}
-                </span>
-                <h2 className="font-display mt-3 text-3xl font-extrabold text-white">
-                  Amuleto Variocolor (Shiny Charm)
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-fuchsia-400/45 bg-fuchsia-500/20 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider text-fuchsia-200">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Máx. {MAX_SHINY_CHARMS} Amuletos
+                  </span>
+                  <HelpTip title="Amuleto Variocolor (Shiny Charm)" badge="Prestigio">
+                    <p>
+                      Cada Amuleto desbloquea el modo <strong>✨ Shiny</strong> para 1 slot de tu equipo (en tus Cajas PC o en capítulos narrativos). Con los 6 amuletos, todo tu equipo brilla con sprites animados en combate.
+                    </p>
+                  </HelpTip>
+                </div>
+                <h2 className="font-display mt-2.5 text-2xl font-extrabold text-white sm:text-3xl">
+                  Amuleto Variocolor
                 </h2>
-                <p className="mt-2 text-sm leading-relaxed text-slate-300">
-                  Cada <strong>Amuleto Variocolor</strong> desbloquea el modo{' '}
-                  <span className="font-bold text-amber-200">✨ Shiny</span> para{' '}
-                  <strong>1 slot completo</strong> de tu equipo (tanto en tu
-                  Equipo Personalizado como en cualquier capítulo canónico desde
-                  el Briefing). Con 6 Amuletos, ¡todo tu equipo brilla en{' '}
-                  <code>@pkmn/sim</code> y sprites animados!
-                </p>
 
                 {/* 6 Prestige Charm Slots */}
                 <div className="mt-5 grid grid-cols-3 gap-2.5 sm:grid-cols-6">

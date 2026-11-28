@@ -43,6 +43,7 @@ import type {
   VnPacingMode,
 } from '../types/game';
 import { CharacterPortrait } from './CharacterPortrait';
+import { HelpTip } from './HelpTip';
 
 export interface NewRunLaunchOptions {
   runName: string;
@@ -414,15 +415,23 @@ export const HomePage: React.FC<HomePageProps> = ({
           {/* LEFT 8 COLS: Context-dependent Panel (Active Run Card / New Game / Load Game / Run History) */}
           <div className="lg:col-span-8">
             {panel === 'new-game' ? (
-              <div className="pokerogue-box rounded-2xl p-5">
-                <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b-2 border-[#d9462f]/50 pb-3">
-                  <div>
-                    <h2 className="font-pixel text-sm text-amber-300 sm:text-base">
-                      ▶ NUEVA PARTIDA · CONFIGURACIÓN DE RUN
+              <div className="pokerogue-box rounded-2xl p-3.5 sm:p-5">
+                <div className="mb-3.5 flex flex-wrap items-center justify-between gap-2 border-b-2 border-[#d9462f]/50 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <h2 className="font-pixel text-xs text-amber-300 sm:text-base">
+                      ▶ NUEVA PARTIDA
                     </h2>
-                    <p className="mt-0.5 text-xs text-slate-300">
-                      Arranca el Prólogo / Capítulo 01 y al terminarlo se abre el Mapa de Capítulos.
-                    </p>
+                    <HelpTip title="Configuración de Nueva Run" size="xs">
+                      <p>
+                        <strong>Baby Mode:</strong> sin Cap BST, IA relajada y Paste Showdown libre.
+                      </p>
+                      <p>
+                        <strong>Ironman:</strong> PS, estados y PP persisten entre capítulos (cúrate en Campamento o con Bayas).
+                      </p>
+                      <p>
+                        <strong>Nuzlocke:</strong> Pokémon debilitado va al Cementerio permanente 💀. Si te quedas con 0 vivos, muere la run.
+                      </p>
+                    </HelpTip>
                   </div>
                   <button
                     type="button"
@@ -518,9 +527,9 @@ export const HomePage: React.FC<HomePageProps> = ({
                   {/* 2. 4-Tier Difficulty Setting */}
                   <div>
                     <p className="font-pixel mb-1.5 text-[10px] text-amber-300">
-                      2. DIFICULTAD DE COMBATE
+                      2. DIFICULTAD
                     </p>
-                    <div className="grid gap-2 sm:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                       {DIFFICULTY_ORDER.map((diffId) => {
                         const meta = DIFFICULTY_META[diffId];
                         const active = newDifficulty === diffId;
@@ -542,7 +551,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                             }`}
                           >
                             <p className="font-pixel text-[11px]">{meta.label}</p>
-                            <p className="mt-1 text-[9.5px] leading-snug opacity-85">
+                            <p className="mt-1 line-clamp-2 text-[9.5px] leading-snug opacity-80">
                               {meta.subtitle}
                             </p>
                           </button>
@@ -554,11 +563,11 @@ export const HomePage: React.FC<HomePageProps> = ({
                   {/* 3. Ironman & Nuzlocke Checkboxes */}
                   <div>
                     <p className="font-pixel mb-1.5 text-[10px] text-rose-300">
-                      3. MODIFICADORES DE SUPERVIVENCIA (CHECKS OPCIONALES)
+                      3. SUPERVIVENCIA
                     </p>
-                    <div className="grid gap-2.5 sm:grid-cols-2">
+                    <div className="grid gap-2 sm:grid-cols-2">
                       <label
-                        className={`flex cursor-pointer items-start gap-2.5 rounded-xl border-2 p-3 transition ${
+                        className={`flex cursor-pointer items-center gap-2.5 rounded-xl border-2 p-2.5 transition ${
                           newIronman
                             ? 'border-amber-400 bg-amber-500/15 text-white'
                             : 'border-slate-700/80 bg-[#151022] text-slate-300'
@@ -568,21 +577,18 @@ export const HomePage: React.FC<HomePageProps> = ({
                           type="checkbox"
                           checked={newIronman}
                           onChange={(e) => setNewIronman(e.target.checked)}
-                          className="mt-0.5 h-4 w-4 accent-amber-400"
+                          className="h-4 w-4 accent-amber-400"
                         />
-                        <div>
+                        <div className="min-w-0 flex-1">
                           <p className="flex items-center gap-1 text-xs font-extrabold">
                             <ShieldAlert className="h-3.5 w-3.5 text-amber-400" />
-                            Modo Ironman (Sin Curación Gratis)
-                          </p>
-                          <p className="mt-0.5 text-[10px] text-slate-400">
-                            PS, estados alterados y PP persisten entre capítulos. Cúrate en Campamento o con Bayas.
+                            Ironman (Sin cura gratis)
                           </p>
                         </div>
                       </label>
 
                       <label
-                        className={`flex cursor-pointer items-start gap-2.5 rounded-xl border-2 p-3 transition ${
+                        className={`flex cursor-pointer items-center gap-2.5 rounded-xl border-2 p-2.5 transition ${
                           newNuzlocke
                             ? 'border-rose-400 bg-rose-500/20 text-white'
                             : 'border-slate-700/80 bg-[#151022] text-slate-300'
@@ -592,15 +598,12 @@ export const HomePage: React.FC<HomePageProps> = ({
                           type="checkbox"
                           checked={newNuzlocke}
                           onChange={(e) => setNewNuzlocke(e.target.checked)}
-                          className="mt-0.5 h-4 w-4 accent-rose-500"
+                          className="h-4 w-4 accent-rose-500"
                         />
-                        <div>
+                        <div className="min-w-0 flex-1">
                           <p className="flex items-center gap-1 text-xs font-extrabold">
                             <Skull className="h-3.5 w-3.5 text-rose-400" />
-                            Modo Nuzlocke (Permadeath)
-                          </p>
-                          <p className="mt-0.5 text-[10px] text-slate-400">
-                            Pokémon debilitado = Cementerio permanente 💀. Si te quedas con 0 vivos, muere la run.
+                            Nuzlocke (Permadeath 💀)
                           </p>
                         </div>
                       </label>
@@ -610,7 +613,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                   {/* 4. Ancestral Pokémon Privilege: Name Your Rival ("Gary" / Mr. Tutorial Man / El Pelirrojo) */}
                   <div className="rounded-xl border-2 border-fuchsia-500/40 bg-[#171026] p-3">
                     <div className="flex flex-wrap items-center gap-3">
-                      <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl border-2 border-rose-400/60 bg-slate-950">
+                      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl border-2 border-rose-400/60 bg-slate-950">
                         <CharacterPortrait
                           charId="assassin"
                           variant="bust"
@@ -619,12 +622,9 @@ export const HomePage: React.FC<HomePageProps> = ({
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="font-pixel text-[10px] text-fuchsia-300">
-                          4. NOMBRA A TU RIVAL (TRADICIÓN ANCESTRAL POKÉMON)
+                          4. NOMBRA A TU RIVAL
                         </p>
-                        <p className="mt-0.5 text-[10.5px] text-slate-300">
-                          Tu rival pelirrojo (Mr. Tutorial Man / Asesino / Enemies-to-Lovers). Escribe lo que quieras o elige un clásico de Gary Oak:
-                        </p>
-                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <div className="mt-1.5 flex flex-wrap items-center gap-2">
                           <input
                             type="text"
                             value={newRivalName}
@@ -632,10 +632,9 @@ export const HomePage: React.FC<HomePageProps> = ({
                             maxLength={24}
                             placeholder={DEFAULT_RIVAL_NAME}
                             aria-label="Nombre de tu rival"
-                            className="w-52 rounded-lg border-2 border-fuchsia-400/50 bg-[#0f0b1a] px-2.5 py-1.5 text-xs font-extrabold text-amber-100 focus:border-amber-400 focus:outline-none"
+                            className="w-full rounded-lg border-2 border-fuchsia-400/50 bg-[#0f0b1a] px-2.5 py-1.5 text-xs font-extrabold text-amber-100 focus:border-amber-400 focus:outline-none sm:w-52"
                           />
                           <span className="font-mono-code text-[10px] text-slate-400">
-                            Se verá como:{' '}
                             <strong className="text-fuchsia-200">
                               {sanitizeRivalName(newRivalName)}
                             </strong>

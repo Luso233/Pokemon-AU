@@ -2,7 +2,6 @@ import React from 'react';
 import {
   ArrowLeft,
   Coins,
-  ShieldAlert,
   ShoppingBag,
   Sparkles,
 } from 'lucide-react';
@@ -13,6 +12,7 @@ import type {
   PokemonStorageZone,
   SavedCampaignTeam,
 } from '../types/game';
+import { HelpTip } from './HelpTip';
 import { PcBoxManager } from './PcBoxManager';
 
 interface TeamEditorViewProps {
@@ -139,71 +139,63 @@ export const TeamEditorView: React.FC<TeamEditorViewProps> = ({
   const maxShinies = Math.min(MAX_SHINY_CHARMS, profile.inventory.shinyCharms);
 
   return (
-    <div className="min-h-screen bg-[#060a14] text-slate-100">
-      <div className="mx-auto max-w-6xl px-5 py-7">
-        {/* Header */}
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
-          <div className="flex items-center gap-3.5">
+    <div className="min-h-screen overflow-x-hidden bg-[#060a14] text-slate-100">
+      <div className="mx-auto max-w-6xl px-3 py-4 sm:px-5 sm:py-6">
+        {/* Compact Responsive Header */}
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2.5 border-b border-slate-800 pb-3.5">
+          <div className="flex min-w-0 items-center gap-2.5">
             <button
               onClick={onBackHome}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-2 text-xs font-semibold text-slate-300 transition hover:border-amber-400/50 hover:text-white cursor-pointer"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-300 transition hover:border-amber-400/50 hover:text-white cursor-pointer"
             >
               <ArrowLeft className="h-4 w-4" />
-              Inicio
+              <span className="hidden sm:inline">Inicio</span>
             </button>
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-sky-300">
-                PC de Supervivencia · Instancias Únicas · Editor Unificado (Sin MTs)
-              </p>
-              <h1 className="font-display text-2xl font-bold text-white sm:text-3xl">
-                Gestor de Cajas &amp; Equipo
-              </h1>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <h1 className="truncate font-display text-lg font-bold text-white sm:text-2xl">
+                  Cajas PC &amp; Equipo
+                </h1>
+                <HelpTip title="PC de Supervivencia" badge="Reglas">
+                  <p>
+                    Cada Pokémon es una instancia única que conserva su estado Ironman (la Caja <strong>no cura</strong>).
+                  </p>
+                  <p>
+                    Desbloquear slots de movimiento abre el learnset legal completo en <code>@pkmn/sim</code> sin MTs. También puedes abrir estas mismas Cajas directamente dentro del Briefing de combate.
+                  </p>
+                </HelpTip>
+              </div>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex items-center gap-1.5 rounded-xl border border-fuchsia-400/40 bg-fuchsia-500/15 px-3 py-2 text-xs font-bold text-fuchsia-200">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+            <button
+              type="button"
+              onClick={() => onToggleUseCustomTeam(!profile.useCustomTeamInStory)}
+              className={`rounded-xl border px-2.5 py-1.5 text-[11px] font-extrabold transition cursor-pointer ${
+                profile.useCustomTeamInStory
+                  ? 'border-emerald-400 bg-emerald-500/25 text-emerald-100'
+                  : 'border-slate-700 bg-slate-900 text-slate-300 hover:border-sky-400/50'
+              }`}
+            >
+              {profile.useCustomTeamInStory ? '✓ PC en Campaña' : 'Usar PC en Campaña'}
+            </button>
+            <div className="inline-flex items-center gap-1 rounded-xl border border-fuchsia-400/40 bg-fuchsia-500/15 px-2.5 py-1.5 text-[11px] font-bold text-fuchsia-200">
               <Sparkles className="h-3.5 w-3.5 text-fuchsia-300" />
-              Shinies: {activeShinies}/{maxShinies}
+              {activeShinies}/{maxShinies}
             </div>
-            <div className="inline-flex items-center gap-1.5 rounded-xl border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-200">
+            <div className="inline-flex items-center gap-1 rounded-xl border border-amber-400/40 bg-amber-500/10 px-2.5 py-1.5 font-mono-code text-[11px] font-bold text-amber-200">
               <Coins className="h-3.5 w-3.5 text-amber-400" />
-              {profile.coins.toLocaleString()} PC
+              {profile.coins.toLocaleString()}
             </div>
             <button
               onClick={onOpenShop}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-bold text-slate-200 hover:border-amber-400/50 cursor-pointer"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-[11px] font-bold text-slate-200 hover:border-amber-400/50 cursor-pointer"
             >
               <ShoppingBag className="h-3.5 w-3.5 text-amber-300" />
               Tienda
             </button>
           </div>
-        </div>
-
-        {/* Use PC Team in Story Toggle */}
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-sky-400/30 bg-sky-500/10 px-4 py-3">
-          <div className="space-y-0.5">
-            <p className="flex items-center gap-1.5 text-xs font-extrabold text-sky-100">
-              <ShieldAlert className="h-3.5 w-3.5 text-amber-300" />
-              Tip: también puedes abrir estas mismas Cajas PC directamente dentro del Briefing de combate
-            </p>
-            <p className="text-[11px] text-slate-300">
-              Cada individuo conserva su estado Ironman (la Caja no cura) y los slots de movimiento desbloqueados abren todo el learnset legal en @pkmn/sim.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => onToggleUseCustomTeam(!profile.useCustomTeamInStory)}
-            className={`rounded-xl border px-4 py-2 text-xs font-extrabold transition cursor-pointer ${
-              profile.useCustomTeamInStory
-                ? 'border-emerald-400 bg-emerald-500/25 text-emerald-100'
-                : 'border-slate-700 bg-slate-900 text-slate-300 hover:border-sky-400/50'
-            }`}
-          >
-            {profile.useCustomTeamInStory
-              ? '✓ Usando Equipo del PC en Campaña'
-              : 'Usar Equipo del PC en Campaña'}
-          </button>
         </div>
 
         <PcBoxManager

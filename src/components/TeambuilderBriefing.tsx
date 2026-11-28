@@ -61,6 +61,7 @@ import type {
   SavedCampaignTeam,
 } from '../types/game';
 import { CharacterPortrait } from './CharacterPortrait';
+import { HelpTip } from './HelpTip';
 import { OpenTeamsheetModal } from './OpenTeamsheetModal';
 import { PcBoxManager } from './PcBoxManager';
 import { PokemonEditor } from './PokemonEditor';
@@ -266,6 +267,8 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
   const [selectedVariantId, setSelectedVariantId] = useState<string>(
     config.selectedVariantId ?? 'canonical'
   );
+  // Responsive <1024px tab switcher ("Equipo / Cajas" vs "Rival / Dificultad")
+  const [mobileBriefingTab, setMobileBriefingTab] = useState<'team' | 'rival'>('team');
 
   const socialPerks = useMemo(
     () => computeActiveSocialLinkPerks(profile),
@@ -529,32 +532,34 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-[#060a14] text-slate-100">
-      <div className="mx-auto max-w-7xl px-5 py-7">
-        {/* Header */}
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
-          <div className="flex items-center gap-3.5">
+    <div className="min-h-screen overflow-x-hidden bg-[#060a14] text-slate-100">
+      <div className="mx-auto max-w-7xl px-3 py-4 sm:px-5 sm:py-6">
+        {/* Compact Responsive Header */}
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2.5 border-b border-slate-800 pb-3.5">
+          <div className="flex min-w-0 items-center gap-2.5">
             <button
               onClick={onReplayVN}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-2 text-xs font-semibold text-slate-300 transition hover:border-amber-400/50 hover:text-white cursor-pointer"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-300 transition hover:border-amber-400/50 hover:text-white cursor-pointer"
             >
               <ArrowLeft className="h-4 w-4" />
-              Volver a la escena
+              <span className="hidden sm:inline">Escena</span>
             </button>
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-300">
-                Preparación del Escuadrón · {config.formatLabel ?? config.formatId}
-              </p>
-              <h1 className="font-display text-2xl font-bold text-white sm:text-3xl">
-                Teambuilder de Campaña
-              </h1>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <h1 className="truncate font-display text-lg font-bold text-white sm:text-2xl">
+                  Teambuilder
+                </h1>
+                <span className="rounded-md border border-amber-400/40 bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-200">
+                  {config.formatLabel ?? config.formatId}
+                </span>
+              </div>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
             <button
               onClick={onOpenShop}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-amber-400/45 bg-amber-500/15 px-3 py-2 text-xs font-extrabold text-amber-200 hover:bg-amber-500/25 cursor-pointer"
+              className="inline-flex items-center gap-1 rounded-xl border border-amber-400/45 bg-amber-500/15 px-2.5 py-1.5 text-xs font-extrabold text-amber-200 hover:bg-amber-500/25 cursor-pointer"
             >
               <Coins className="h-3.5 w-3.5 text-amber-400" />
               <span className="font-mono-code">
@@ -565,32 +570,32 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
             {onOpenCamp && (
               <button
                 onClick={onOpenCamp}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-fuchsia-400/45 bg-fuchsia-500/15 px-3 py-2 text-xs font-bold text-fuchsia-200 hover:bg-fuchsia-500/25 cursor-pointer"
+                className="inline-flex items-center gap-1 rounded-xl border border-fuchsia-400/45 bg-fuchsia-500/15 px-2.5 py-1.5 text-xs font-bold text-fuchsia-200 hover:bg-fuchsia-500/25 cursor-pointer"
               >
                 <Heart className="h-3.5 w-3.5 text-fuchsia-300" />
-                Vínculos & Campamento
+                <span>Vínculos</span>
               </button>
             )}
 
             <button
               onClick={onOpenDevMode}
-              className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition cursor-pointer ${
+              className={`inline-flex items-center gap-1 rounded-xl border px-2.5 py-1.5 text-xs font-bold transition cursor-pointer ${
                 profile.devModeEnabled
                   ? 'border-fuchsia-400/60 bg-fuchsia-500/20 text-fuchsia-200'
                   : 'border-slate-700 bg-slate-900 text-slate-300 hover:border-fuchsia-400/40'
               }`}
             >
               <Wrench className="h-3.5 w-3.5" />
-              Dev Mode
+              <span>Dev</span>
             </button>
 
             {config.openTeamsheet && (
               <button
                 onClick={() => setShowTeamsheet(true)}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-sky-400/50 bg-sky-500/20 px-3.5 py-2 text-xs font-bold text-sky-100 transition hover:bg-sky-500/30 cursor-pointer"
+                className="inline-flex items-center gap-1 rounded-xl border border-sky-400/50 bg-sky-500/20 px-2.5 py-1.5 text-xs font-bold text-sky-100 transition hover:bg-sky-500/30 cursor-pointer"
               >
                 <ClipboardList className="h-3.5 w-3.5" />
-                Open Teamsheet
+                <span>Teamsheet</span>
               </button>
             )}
           </div>
@@ -598,7 +603,7 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
 
         {notice && (
           <div
-            className={`mb-4 rounded-2xl border px-4 py-2.5 text-xs font-semibold ${
+            className={`mb-4 rounded-2xl border px-3.5 py-2 text-xs font-semibold ${
               notice.tone === 'ok'
                 ? 'border-emerald-400/40 bg-emerald-500/15 text-emerald-100'
                 : 'border-rose-400/40 bg-rose-500/15 text-rose-100'
@@ -608,16 +613,42 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
           </div>
         )}
 
+        {/* Mobile/Tablet (<1024px) Single-Column Tab Switcher */}
+        <div className="mb-4 grid grid-cols-2 gap-1.5 rounded-2xl border border-slate-800 bg-slate-900/90 p-1 lg:hidden">
+          <button
+            type="button"
+            onClick={() => setMobileBriefingTab('team')}
+            className={`rounded-xl px-3 py-2 text-xs font-extrabold transition cursor-pointer ${
+              mobileBriefingTab === 'team'
+                ? 'bg-amber-500/25 text-amber-100 ring-1 ring-amber-400/50'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            ⚔️ Equipo / Cajas ({parsedPlayer.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileBriefingTab('rival')}
+            className={`rounded-xl px-3 py-2 text-xs font-extrabold transition cursor-pointer ${
+              mobileBriefingTab === 'rival'
+                ? 'bg-rose-500/25 text-rose-100 ring-1 ring-rose-400/50'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            👁️ Rival · {DIFFICULTY_META[difficultyMode]?.shortLabel}
+          </button>
+        </div>
+
         {/* Main 12-Col Layout: Narrative Editor OR Embedded <PcBoxManager /> (Left 8) + Sticky Rival Sighting & Difficulty (Right 4) */}
-        <section className="mb-6 grid gap-6 lg:grid-cols-12 lg:items-start">
+        <section className="mb-5 grid gap-5 lg:grid-cols-12 lg:items-start">
           {/* LEFT 8 COLS */}
-          <div className="space-y-4 lg:col-span-8">
-            <div className="rounded-3xl border border-amber-400/25 bg-slate-900/80 p-5">
+          <div className={`${mobileBriefingTab === 'rival' ? 'hidden lg:block' : ''} space-y-4 lg:col-span-8`}>
+            <div className="rounded-3xl border border-amber-400/25 bg-slate-900/80 p-3.5 sm:p-5">
               {/* Top Mode Switcher Bar */}
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-3">
+              <div className="mb-3.5 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-2.5">
                   <div
-                    className={`h-11 w-11 overflow-hidden rounded-xl border bg-slate-950 p-0.5 ${
+                    className={`h-10 w-10 shrink-0 overflow-hidden rounded-xl border bg-slate-950 p-0.5 ${
                       isBabyMode ? 'border-sky-300/75 shadow shadow-sky-500/25' : 'border-amber-400/45'
                     }`}
                   >
@@ -631,19 +662,46 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                       className="h-full w-full object-cover object-top"
                     />
                   </div>
-                  <div>
-                    <h2 className="font-display text-lg font-bold text-white">
-                      {config.playerName}
-                    </h2>
-                    <p className="text-[11px] text-slate-400">
-                      {useCustomTeam && canSwapCustomTeam
-                        ? 'Cajas PC embebidas — ajusta tu equipo viendo al rival en tiempo real'
-                        : 'Escuadrón narrativo · Personaliza objetos y desbloquea slots para elegir cualquier movimiento del learnset'}
-                    </p>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <h2 className="truncate font-display text-base font-bold text-white sm:text-lg">
+                        {config.playerName}
+                      </h2>
+                      <span
+                        className={`rounded-md border px-1.5 py-0.5 text-[9.5px] font-extrabold ${
+                          effectiveTeamMode === 'campaign'
+                            ? 'border-sky-400/40 bg-sky-500/15 text-sky-200'
+                            : effectiveTeamMode === 'challenge'
+                              ? 'border-violet-400/40 bg-violet-500/15 text-violet-200'
+                              : 'border-amber-400/40 bg-amber-500/15 text-amber-200'
+                        }`}
+                      >
+                        {effectiveTeamMode === 'campaign'
+                          ? '⚔️ Campaña · NatDex'
+                          : effectiveTeamMode === 'challenge'
+                            ? '🏆 Reto · Aislado'
+                            : '🔒 Fijo · Aislado'}
+                      </span>
+                      <HelpTip title="Modo de Equipo del Capítulo" size="xs">
+                        {effectiveTeamMode === 'campaign' ? (
+                          <p>
+                            <strong>Campaña NatDex (Megas + Z + Tera):</strong> usa tus Cajas PC embebidas con el límite BST de la dificultad elegida. Aplica reglas activas de Ironman / Nuzlocke.
+                          </p>
+                        ) : effectiveTeamMode === 'challenge' ? (
+                          <p>
+                            <strong>Reto Especial ({config.formatLabel ?? config.formatId}):</strong> usa un escuadrón aislado propio de este formato competitivo — no desgasta ni elimina Pokémon de tus Cajas PC.
+                          </p>
+                        ) : (
+                          <p>
+                            <strong>Guion / Puzzle (Fijo):</strong> escuadrón narrativo cerrado y aislado de tus Cajas PC (sin permadeath ni daño persistente).
+                          </p>
+                        )}
+                      </HelpTip>
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-1.5">
                   {canSwapCustomTeam && (
                     <button
                       type="button"
@@ -653,106 +711,66 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                         setUseCustomTeam(next);
                         onToggleUseCustomTeam?.(next);
                       }}
-                      className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-extrabold transition cursor-pointer ${
+                      className={`inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-extrabold transition cursor-pointer ${
                         useCustomTeam
-                          ? 'border-sky-400 bg-sky-500/25 text-sky-100 shadow-lg shadow-sky-500/15'
+                          ? 'border-sky-400 bg-sky-500/25 text-sky-100'
                           : 'border-amber-400/45 bg-amber-500/15 text-amber-200 hover:bg-amber-500/25'
                       }`}
                     >
                       <Box className="h-3.5 w-3.5" />
                       {useCustomTeam
-                        ? '← Volver al Equipo Narrativo'
-                        : `Usar Equipo Libre (Cajas PC${
+                        ? '← Equipo Narrativo'
+                        : `Cajas PC${
                             effectiveTeamMode !== 'campaign' && profile.devModeEnabled
                               ? ' · DEV'
                               : ''
-                          })`}
+                          }`}
                     </button>
                   )}
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-semibold text-emerald-300">
                     <CheckCircle2 className="h-3.5 w-3.5" />
-                    {parsedPlayer.length} listos
+                    {parsedPlayer.length}
                   </span>
                 </div>
               </div>
 
-              {/* 3-Mode Chapter Loadout Banner */}
-              <div
-                className={`mb-4 rounded-2xl border px-3.5 py-2.5 text-xs ${
-                  effectiveTeamMode === 'campaign'
-                    ? 'border-sky-400/40 bg-sky-500/10 text-sky-100'
-                    : effectiveTeamMode === 'challenge'
-                      ? 'border-violet-400/40 bg-violet-500/10 text-violet-100'
-                      : 'border-amber-400/35 bg-slate-950/80 text-slate-300'
-                }`}
-              >
-                {effectiveTeamMode === 'campaign' ? (
-                  <p>
-                    <strong className="text-sky-200">
-                      ⚔️ Modo Campaña (NatDex · Megas + Movimientos Z + Tera):
-                    </strong>{' '}
-                    Usa tus <strong>Cajas PC embebidas</strong> viendo el Avistamiento enemigo y el límite BST de cada dificultad. Los combates de Campaña aplican tus reglas activas de Ironman / Nuzlocke.
-                  </p>
-                ) : effectiveTeamMode === 'challenge' ? (
-                  <p>
-                    <strong className="text-violet-200">
-                      🏆 Reto Especial ({config.formatLabel ?? config.formatId}):
-                    </strong>{' '}
-                    Usa un escuadrón aislado propio de este formato competitivo — <strong>no desgasta ni elimina Pokémon de tus Cajas PC</strong> en Ironman / Nuzlocke.
-                    {profile.devModeEnabled
-                      ? ' [Dev Mode activo: puedes abrir Cajas PC / Showdown para testear.]'
-                      : ''}
-                  </p>
-                ) : (
-                  <p>
-                    <strong className="text-amber-200">
-                      🔒 Guion / Puzzle (Equipo Único Fijo):
-                    </strong>{' '}
-                    Escenario con escuadrón narrativo cerrado para preservar el puzzle táctico — <strong>aislado de tus Cajas PC</strong> (sin permadeath ni daño persistente en Ironman).
-                    {profile.devModeEnabled
-                      ? ' [Dev Mode activo: puedes abrir Cajas PC / Importador Showdown para testear.]'
-                      : ''}
-                  </p>
-                )}
-              </div>
-
-              {/* BABY MODE / DEV MODE: Instant Showdown Paste & Direct Clipboard Launch Bar! */}
+              {/* BABY MODE / DEV MODE: Compact Instant Showdown Paste Bar */}
               {canQuickPasteOnSpot && (
-                <div className="mb-4 rounded-2xl border border-sky-400/45 bg-gradient-to-r from-sky-950/60 via-slate-950/90 to-fuchsia-950/40 p-3">
+                <div className="mb-3.5 rounded-2xl border border-sky-400/45 bg-gradient-to-r from-sky-950/60 via-slate-950/90 to-fuchsia-950/40 p-2.5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                      <p className="text-xs font-extrabold text-sky-200">
-                        {isBabyMode
-                          ? '👶 Baby Mode · Paste Showdown On-The-Spot'
-                          : '🧪 Dev Mode · Paste Showdown On-The-Spot'}
-                      </p>
-                      <p className="text-[10.5px] text-slate-300">
-                        Trae el equipo que se te dé la gana directo desde el portapapeles en formato Pokémon Showdown y arranca al instante — con <strong>fallback automático a NatDex Todo Vale</strong> si rompe Monotype, VGC, 1v1 o Gen 1/6.
-                      </p>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-extrabold text-sky-200">
+                        {isBabyMode ? '👶 Baby Paste' : '🧪 Dev Paste'}
+                      </span>
+                      <HelpTip title="Paste Showdown On-The-Spot" badge="Auto-NatDex" size="xs">
+                        <p>
+                          Pega cualquier equipo en formato Pokémon Showdown directo desde tu portapapeles y entra al combate al instante. Si rompe un formato estricto (Monotype, VGC, 1v1, Gen 1/6), cambia automáticamente a <strong>NatDex Todo Vale</strong>.
+                        </p>
+                      </HelpTip>
                     </div>
                     <div className="flex flex-wrap items-center gap-1.5">
                       <button
                         type="button"
                         onClick={() => void handleClipboardAction(false)}
-                        className="inline-flex items-center gap-1 rounded-xl border border-sky-400/55 bg-sky-500/20 px-3 py-1.5 text-[11px] font-extrabold text-sky-100 hover:bg-sky-500/35 cursor-pointer"
+                        className="inline-flex items-center gap-1 rounded-xl border border-sky-400/55 bg-sky-500/20 px-2.5 py-1.5 text-[11px] font-extrabold text-sky-100 hover:bg-sky-500/35 cursor-pointer"
                       >
                         <ClipboardPaste className="h-3.5 w-3.5" />
-                        Pegar del Portapapeles
+                        Pegar
                       </button>
                       <button
                         type="button"
                         onClick={() => void handleClipboardAction(true)}
-                        className="inline-flex items-center gap-1 rounded-xl bg-gradient-to-r from-sky-400 to-amber-400 px-3 py-1.5 text-[11px] font-extrabold text-slate-950 shadow-md shadow-sky-500/20 hover:brightness-110 cursor-pointer"
+                        className="inline-flex items-center gap-1 rounded-xl bg-gradient-to-r from-sky-400 to-amber-400 px-2.5 py-1.5 text-[11px] font-extrabold text-slate-950 shadow-md shadow-sky-500/20 hover:brightness-110 cursor-pointer"
                       >
                         <Zap className="h-3.5 w-3.5 fill-current" />
-                        Pegar y Jugar Ya!
+                        Pegar y Jugar
                       </button>
                       <button
                         type="button"
                         onClick={() => setShowQuickPasteBox((v) => !v)}
-                        className="rounded-xl border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-[10.5px] font-bold text-slate-300 hover:text-white cursor-pointer"
+                        className="rounded-xl border border-slate-700 bg-slate-900 px-2 py-1.5 text-[10.5px] font-bold text-slate-300 hover:text-white cursor-pointer"
                       >
-                        {showQuickPasteBox ? 'Cerrar cuadro' : 'Pegar texto manual'}
+                        {showQuickPasteBox ? '✕' : 'Manual'}
                       </button>
                     </div>
                   </div>
@@ -960,9 +978,9 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
           </div>
 
           {/* RIGHT 4 COLS (STICKY): Rival Atmosphere, Dynamic Difficulty (live BST Cap!) & Fog of War Sighting */}
-          <div className="flex flex-col justify-between rounded-3xl border border-rose-400/25 bg-slate-900/75 p-5 lg:sticky lg:top-4 lg:col-span-4">
+          <div className={`${mobileBriefingTab === 'team' ? 'hidden lg:flex' : 'flex'} flex-col justify-between rounded-3xl border border-rose-400/25 bg-slate-900/75 p-4 sm:p-5 lg:sticky lg:top-4 lg:col-span-4`}>
             <div>
-              <div className="mb-4 flex items-center gap-3">
+              <div className="mb-3 flex items-center gap-3">
                 {config.rivalProfile ? (
                   <RivalPortraitTooltip
                     profile={config.rivalProfile}
@@ -971,7 +989,7 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                   >
                     <button
                       type="button"
-                      className="h-12 w-12 overflow-hidden rounded-xl border-2 border-rose-500/60 bg-slate-950 p-0.5 transition hover:border-amber-300 cursor-help"
+                      className="h-12 w-12 shrink-0 overflow-hidden rounded-xl border-2 border-rose-500/60 bg-slate-950 p-0.5 transition hover:border-amber-300 cursor-help"
                     >
                       <CharacterPortrait
                         charId={config.rivalCharId}
@@ -981,7 +999,7 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                     </button>
                   </RivalPortraitTooltip>
                 ) : (
-                  <div className="h-12 w-12 overflow-hidden rounded-xl border border-rose-500/45 bg-slate-950 p-0.5">
+                  <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-rose-500/45 bg-slate-950 p-0.5">
                     <CharacterPortrait
                       charId={config.rivalCharId}
                       variant="bust"
@@ -989,30 +1007,27 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                     />
                   </div>
                 )}
-                <div className="min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-rose-300">
-                    Adversario
-                  </p>
-                  <h3 className="truncate font-display text-lg font-bold text-white">
-                    {config.rivalName}
-                  </h3>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="truncate font-display text-lg font-bold text-white">
+                      {config.rivalName}
+                    </h3>
+                    <HelpTip title={config.rivalName} badge={npcDef.personality.styleName} size="xs">
+                      {config.rivalProfile?.bio && <p>{config.rivalProfile.bio}</p>}
+                      <p className="text-violet-200">{npcDef.personality.directiveSummary}</p>
+                    </HelpTip>
+                  </div>
                   <p className="truncate text-[11px] text-slate-400">
                     {config.rivalTitle}
                   </p>
                 </div>
               </div>
 
-              {config.rivalProfile && (
-                <p className="mb-3 rounded-xl border border-slate-800 bg-slate-950/75 px-3.5 py-2.5 text-xs leading-relaxed text-slate-300">
-                  {config.rivalProfile.bio}
-                </p>
-              )}
-
-              {/* NPC Personality Directives & Difficulty / Variant Run Selector */}
-              <div className="mb-4 space-y-2.5 rounded-2xl border border-violet-400/25 bg-violet-950/20 p-3">
-                <div className="flex items-center justify-between gap-2">
+              {/* Difficulty / Variant Run Selector */}
+              <div className="mb-3.5 space-y-2.5 rounded-2xl border border-violet-400/25 bg-violet-950/20 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-1.5">
                   <span className="text-[10px] font-extrabold uppercase tracking-wider text-violet-200">
-                    Estilo: {npcDef.personality.styleName}
+                    {npcDef.personality.styleName}
                   </span>
                   {npcDef.socialLink?.romanceable && (
                     <span className="rounded bg-fuchsia-500/20 px-1.5 py-0.5 text-[9px] font-bold text-fuchsia-200">
@@ -1020,16 +1035,13 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                     </span>
                   )}
                 </div>
-                <p className="text-[11px] leading-relaxed text-violet-100/80">
-                  {npcDef.personality.directiveSummary}
-                </p>
 
                 {/* 4-Tier Difficulty Selector (Recalculates BST Cap LIVE!) */}
                 <div className="border-t border-white/10 pt-2">
                   <div className="mb-1.5 flex items-center justify-between gap-1">
                     <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-amber-200">
                       <Flame className="h-3 w-3 text-amber-400" />
-                      Dificultad &amp; Cap BST
+                      Dificultad
                     </p>
                     <span className="font-mono-code text-[9.5px] font-bold text-sky-300">
                       Cap:{' '}
@@ -1069,23 +1081,28 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                       );
                     })}
                   </div>
-                  <div className="mt-2 rounded-lg border border-pink-400/30 bg-pink-950/25 px-2.5 py-1.5 text-[10px] leading-snug text-pink-100/90">
+                  <div className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-pink-400/30 bg-pink-950/25 px-2.5 py-1 text-[10px]">
                     <span className="font-extrabold text-pink-200">
-                      💖 Vínculo del Heredero ({difficultyMode === 'baby' || difficultyMode === 'standard' ? 'Clásico Let\'s Go' : 'Táctico Limitado'}):
-                    </span>{' '}
-                    {difficultyMode === 'baby' || difficultyMode === 'standard'
-                      ? '22% aguante a 1 PS + 20% cura de estado en no-Oscuros.'
-                      : '1× aguante a 1 PS + 1× cura de estado por combate SOLO en Vínculo Alto (Iniciales, Casa R3, Recompensas o Purificados). Bloqueado en Pokémon Oscuros.'}
+                      💖 Vínculo: {difficultyMode === 'baby' || difficultyMode === 'standard' ? 'Clásico' : 'Táctico (1×)'}
+                    </span>
+                    <HelpTip title="Vínculo del Heredero" size="xs">
+                      <p>
+                        <strong>Baby / Normal (Clásico):</strong> 22% aguante a 1 PS + 20% cura de estado al final del turno en Pokémon no-Oscuros.
+                      </p>
+                      <p>
+                        <strong>Difícil / Tryhard (Táctico):</strong> 1× aguante a 1 PS + 1× cura de estado por combate SOLO en Vínculo Alto (Iniciales, Casa R3, Recompensas o Purificados). Bloqueado en Pokémon Oscuros.
+                      </p>
+                    </HelpTip>
                   </div>
                 </div>
 
                 {/* Rank 1 Romance Anti-Diablo Tactical Scouting (Rival Personalizado) */}
                 <div className="border-t border-white/10 pt-2">
                   {socialPerks.hasAntiDiabloScouting ? (
-                    <div className="space-y-1.5 rounded-xl border border-sky-400/35 bg-sky-950/40 p-2.5">
+                    <div className="space-y-1 rounded-xl border border-sky-400/35 bg-sky-950/40 p-2">
                       <p className="flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider text-sky-200">
                         <ShieldAlert className="h-3 w-3 text-sky-400" />
-                        Scouting Anti-Diablo ({getRivalName(profile)} R1 Activo)
+                        Scouting ({getRivalName(profile)} R1)
                       </p>
                       {scoutingAlerts.length > 0 ? (
                         scoutingAlerts.map((al, idx) => (
@@ -1097,15 +1114,20 @@ export const TeambuilderBriefing: React.FC<TeambuilderBriefingProps> = ({
                           </p>
                         ))
                       ) : (
-                        <p className="text-[10.5px] text-sky-200/80">
-                          Sin overrides ocultos en esta dificultad. Vigila el patrón de Turno 1.
+                        <p className="text-[10px] text-sky-200/80">
+                          Sin overrides ocultos en esta dificultad.
                         </p>
                       )}
                     </div>
                   ) : (
-                    <p className="text-[10px] text-slate-400">
-                      ♥ Sube a <strong>{getRivalName(profile)} a Rango 1</strong> para revelar objetos y movimientos sorpresa del modo Tryhard/Diablo.
-                    </p>
+                    <div className="flex items-center justify-between text-[10px] text-slate-400">
+                      <span>🔒 Scouting: {getRivalName(profile)} R1</span>
+                      <HelpTip title="Scouting Anti-Diablo" size="xs">
+                        <p>
+                          Sube a <strong>{getRivalName(profile)}</strong> a Rango 1 en Vínculos para revelar objetos y movimientos sorpresa del modo Tryhard/Diablo antes del combate.
+                        </p>
+                      </HelpTip>
+                    </div>
                   )}
                 </div>
 

@@ -15,6 +15,7 @@ import {
   Loader2,
   Lock,
   RefreshCw,
+  ScrollText,
   Settings2,
   Sparkles,
   Swords,
@@ -144,6 +145,8 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
   const [showPasteModal, setShowPasteModal] = useState(false);
   const [showTeamsheetModal, setShowTeamsheetModal] = useState(false);
   const [revealRivalPasteInModal, setRevealRivalPasteInModal] = useState(false);
+  // Mobile/Tablet (<1024px) collapsible Battle Log drawer so the arena & move buttons always get 100% width!
+  const [showMobileLog, setShowMobileLog] = useState(false);
 
   // On-Demand Chess.com-style Live Coach state
   const [coachAdvice, setCoachAdvice] = useState<LiveCoachAdvice | null>(null);
@@ -342,7 +345,7 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
     if (el) {
       el.scrollTop = el.scrollHeight;
     }
-  }, [snapshot?.log.length]);
+  }, [snapshot?.log.length, showMobileLog]);
 
   const handleAskCoach = async () => {
     if (!snapshot || coachLoading) return;
@@ -886,13 +889,22 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
     (_, i) => snapshot.p2.party[i] ?? null
   );
 
+  const latestLogText = useMemo(() => {
+    if (!snapshot || snapshot.log.length === 0) return '';
+    for (let i = snapshot.log.length - 1; i >= 0; i--) {
+      const entry = snapshot.log[i];
+      if (entry.kind !== 'turn' && entry.text.trim()) return entry.text;
+    }
+    return snapshot.log[snapshot.log.length - 1]?.text ?? '';
+  }, [snapshot]);
+
   return (
-    /* STRICT VIEWPORT LOCK: Outer document NEVER scrolls during battle */
-    <div className="flex h-screen max-h-screen flex-col overflow-hidden bg-[#060a14] text-slate-100">
-      {/* SWITCH-STYLE TOP BROADCAST BAR */}
-      <header className="relative z-30 flex shrink-0 items-center justify-between gap-2 border-b border-amber-400/25 bg-gradient-to-r from-[#0c1428] via-[#130d24] to-[#1f0b18] px-3 py-1.5 backdrop-blur-md">
+    /* Strict viewport lock on Desktop (`lg:`); natural `min-h-[100dvh]` on mobile/tablet so landscape never crushes sprites or move buttons! */
+    <div className="flex min-h-[100dvh] flex-col overflow-x-hidden bg-[#060a14] text-slate-100 lg:h-[100dvh] lg:max-h-[100dvh] lg:overflow-hidden">
+      {/* RESPONSIVE SWITCH-STYLE TOP BROADCAST BAR */}
+      <header className="relative z-30 flex shrink-0 flex-wrap items-center justify-between gap-1.5 border-b border-amber-400/25 bg-gradient-to-r from-[#0c1428] via-[#130d24] to-[#1f0b18] px-2.5 py-1.5 backdrop-blur-md sm:px-3">
         {/* Left Player Scoreboard Wing */}
-        <div className="flex min-w-0 items-center gap-2">
+        <div className="flex min-w-0 items-center gap-1.5">
           <ActionInfoTooltip
             title="Salir del Combate"
             description="Regresa al Selector de Capítulos (el combate actual no se guardará)."
@@ -902,12 +914,12 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
               className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-700 bg-slate-950/90 px-2 py-1 text-[11px] font-semibold text-slate-300 transition hover:border-amber-400/50 hover:text-white cursor-pointer"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
-              Salir
+              <span className="hidden sm:inline">Salir</span>
             </button>
           </ActionInfoTooltip>
 
-          <div className="hidden items-center gap-1.5 rounded-lg border border-amber-400/35 bg-amber-500/15 px-2 py-0.5 sm:flex">
-            <span className="max-w-[8rem] truncate text-[11px] font-bold text-amber-200">
+          <div className="hidden items-center gap-1.5 rounded-lg border border-amber-400/35 bg-amber-500/15 px-2 py-0.5 md:flex">
+            <span className="max-w-[7rem] truncate text-[11px] font-bold text-amber-200">
               {config.playerName}
             </span>
             <span className="font-mono-code rounded bg-slate-950/80 px-1.5 text-[10px] font-extrabold text-emerald-300">
@@ -919,18 +931,18 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
             <ActionInfoTooltip
               title={`Intento #${attemptNumber}`}
               badge="Kaizo Tracker"
-              description="Contador persistente de intentos y resets acumulados en este capítulo."
+              description="Contador persistente de intentos en este capítulo."
             >
-              <span className="font-mono-code hidden items-center gap-1 rounded-lg border border-slate-700/90 bg-slate-950/90 px-2 py-0.5 text-[10px] font-bold text-slate-300 md:inline-flex cursor-help">
+              <span className="font-mono-code hidden items-center gap-1 rounded-lg border border-slate-700/90 bg-slate-950/90 px-2 py-0.5 text-[10px] font-bold text-slate-300 lg:inline-flex cursor-help">
                 <RefreshCw className="h-2.5 w-2.5 text-amber-400" />
-                Intento #{attemptNumber}
+                #{attemptNumber}
               </span>
             </ActionInfoTooltip>
           )}
         </div>
 
-        {/* Center Switch Broadcast Pill: Format + Active Field Timers (`Rain · 5 turnos`) */}
-        <div className="flex min-w-0 items-center gap-1.5">
+        {/* Center Switch Broadcast Pill: Format + Active Field Timers */}
+        <div className="flex min-w-0 flex-wrap items-center justify-center gap-1">
           <ActionInfoTooltip
             title={snapshot.formatLabel}
             badge={snapshot.formatId}
@@ -938,7 +950,7 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
           >
             <button
               type="button"
-              className="truncate rounded-full border border-amber-400/40 bg-slate-950/90 px-3 py-1 text-[11px] font-extrabold tracking-wide text-amber-200 transition hover:border-amber-300 cursor-help"
+              className="max-w-[10rem] truncate rounded-full border border-amber-400/40 bg-slate-950/90 px-2.5 py-0.5 text-[10.5px] font-extrabold tracking-wide text-amber-200 transition hover:border-amber-300 sm:max-w-none sm:px-3 sm:py-1 sm:text-[11px] cursor-help"
             >
               {snapshot.formatLabel}
             </button>
@@ -951,17 +963,17 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
             >
               <button
                 type="button"
-                className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-bold cursor-help ${
+                className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold cursor-help ${
                   snapshot.weather.toLowerCase().includes('oscuro')
                     ? 'border-fuchsia-400/70 bg-fuchsia-950/75 text-fuchsia-100 shadow-sm shadow-fuchsia-500/30'
                     : 'border-sky-400/45 bg-sky-500/20 text-sky-100'
                 }`}
               >
                 <CloudSun className={`h-3 w-3 ${snapshot.weather.toLowerCase().includes('oscuro') ? 'text-fuchsia-300' : 'text-sky-300'}`} />
-                <span>{snapshot.weather}</span>
+                <span className="hidden sm:inline">{snapshot.weather}</span>
                 {snapshot.weatherTurnsLeft != null && (
                   <span className="font-mono-code text-amber-200">
-                    · {snapshot.weatherTurnsLeft >= 50 ? '∞' : `${snapshot.weatherTurnsLeft}t`}
+                    {snapshot.weatherTurnsLeft >= 50 ? '∞' : `${snapshot.weatherTurnsLeft}t`}
                   </span>
                 )}
               </button>
@@ -975,7 +987,7 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
             >
               <button
                 type="button"
-                className="hidden shrink-0 items-center gap-1 rounded-full border border-emerald-400/45 bg-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold text-emerald-100 sm:inline-flex cursor-help"
+                className="hidden shrink-0 items-center gap-1 rounded-full border border-emerald-400/45 bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-100 sm:inline-flex cursor-help"
               >
                 <span>{snapshot.terrain}</span>
                 {snapshot.terrainTurnsLeft != null && (
@@ -994,11 +1006,11 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
             >
               <button
                 type="button"
-                className="inline-flex shrink-0 items-center gap-1 rounded-full border border-violet-400/50 bg-violet-500/25 px-2.5 py-0.5 text-[10px] font-bold text-violet-100 cursor-help"
+                className="inline-flex shrink-0 items-center gap-1 rounded-full border border-violet-400/50 bg-violet-500/25 px-2 py-0.5 text-[10px] font-bold text-violet-100 cursor-help"
               >
-                <span>Trick Room</span>
+                <span>TR</span>
                 <span className="font-mono-code text-amber-200">
-                  · {snapshot.trickRoomTurnsLeft >= 50 ? '∞' : `${snapshot.trickRoomTurnsLeft}t`}
+                  {snapshot.trickRoomTurnsLeft >= 50 ? '∞' : `${snapshot.trickRoomTurnsLeft}t`}
                 </span>
               </button>
             </FieldEffectTooltip>
@@ -1021,13 +1033,13 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                 >
                   <button
                     type="button"
-                    className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-bold cursor-help ${badgeStyle}`}
+                    className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold cursor-help ${badgeStyle}`}
                   >
                     <Sparkles className="h-3 w-3 opacity-85" />
-                    <span>{pw.label}</span>
+                    <span className="hidden sm:inline">{pw.label}</span>
                     {pw.turnsLeft != null && (
                       <span className="font-mono-code text-amber-200">
-                        · {pw.turnsLeft >= 50 ? '∞' : `${pw.turnsLeft}t`}
+                        {pw.turnsLeft >= 50 ? '∞' : `${pw.turnsLeft}t`}
                       </span>
                     )}
                   </button>
@@ -1036,47 +1048,61 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
             })}
         </div>
 
-        {/* Right Broadcast Wing: Rival KO + Open Teamsheet + Paste + Restart */}
-        <div className="flex shrink-0 items-center gap-1.5">
+        {/* Right Broadcast Wing: Rival KO + Mobile Log Drawer Toggle + Teamsheet + Paste + AI + Restart */}
+        <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
           <ActionInfoTooltip
             title="Marcador de Rivales"
             badge={`${aliveP2} vivos`}
-            description={`Rivales debilitados: ${snapshot.koCountP2} de ${snapshot.totalP2} requeridos para ganar este formato.`}
+            description={`Rivales debilitados: ${snapshot.koCountP2} de ${snapshot.totalP2}.`}
           >
-            <div className="inline-flex items-center gap-1 rounded-lg border border-rose-400/35 bg-rose-500/15 px-2 py-1 text-[11px] font-bold text-rose-200 cursor-help">
+            <div className="inline-flex items-center gap-1 rounded-lg border border-rose-400/35 bg-rose-500/15 px-1.5 py-1 text-[10.5px] font-bold text-rose-200 sm:px-2 sm:text-[11px] cursor-help">
               <Flame className="h-3 w-3 text-rose-400" />
               <span>
-                KO {snapshot.koCountP2}/{snapshot.totalP2}
+                {snapshot.koCountP2}/{snapshot.totalP2}
               </span>
             </div>
           </ActionInfoTooltip>
+
+          {/* Mobile/Tablet (<1024px) Battle Log Drawer Toggle */}
+          <button
+            type="button"
+            onClick={() => setShowMobileLog((v) => !v)}
+            className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[10.5px] font-extrabold transition lg:hidden cursor-pointer ${
+              showMobileLog
+                ? 'border-amber-400 bg-amber-500/25 text-amber-100'
+                : 'border-amber-400/45 bg-amber-500/15 text-amber-200 hover:bg-amber-500/25'
+            }`}
+          >
+            <ScrollText className="h-3.5 w-3.5" />
+            <span>Log</span>
+          </button>
 
           {snapshot.openTeamsheet.enabled && (
             <ActionInfoTooltip
               title="Open Teamsheet Oficial"
               badge="VGC / 1v1"
-              description="Inspecciona objetos, habilidades, teratipos y movimientos de ambos equipos igual que en un torneo oficial."
+              description="Inspecciona objetos, habilidades, teratipos y movimientos de ambos equipos."
             >
               <button
                 onClick={() => setShowTeamsheetModal(true)}
-                className="inline-flex items-center gap-1 rounded-lg border border-sky-400/50 bg-sky-500/20 px-2.5 py-1 text-[11px] font-bold text-sky-100 hover:bg-sky-500/30 cursor-pointer"
+                className="inline-flex items-center gap-1 rounded-lg border border-sky-400/50 bg-sky-500/20 px-2 py-1 text-[11px] font-bold text-sky-100 hover:bg-sky-500/30 cursor-pointer"
               >
                 <ClipboardList className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Teamsheet</span>
+                <span className="hidden md:inline">Teamsheet</span>
               </button>
             </ActionInfoTooltip>
           )}
 
           <ActionInfoTooltip
             title="Showdown Paste"
-            description="Consulta el texto exacto inyectado al Teambuilder (respeta la Niebla de Guerra del rival salvo en modo Debug)."
+            description="Equipos inyectados en el simulador."
           >
             <button
               onClick={() => {
                 setRevealRivalPasteInModal(false);
                 setShowPasteModal(true);
               }}
-              className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] font-semibold text-slate-300 hover:border-sky-400/50 hover:text-white cursor-pointer"
+              className="hidden items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] font-semibold text-slate-300 hover:border-sky-400/50 hover:text-white sm:inline-flex cursor-pointer"
             >
               <Code2 className="h-3.5 w-3.5" />
               <span className="hidden md:inline">Paste</span>
@@ -1084,19 +1110,19 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
           </ActionInfoTooltip>
 
           <ActionInfoTooltip
-            title="Configuración de IA & Coach"
+            title="IA & Coach"
             badge={
               snapshot.activeRivalController === 'human'
                 ? 'Hotseat'
                 : snapshot.activeRivalController === 'llm'
-                  ? 'LLM Activo'
-                  : '0 tokens'
+                  ? 'LLM'
+                  : 'Offline'
             }
-            description="Configura Gemini u Ollama para el Coach en vivo, el Game Review o el Feature Flag del entrenador LLM."
+            description="Ajustes de Gemini u Ollama para Coach y Game Review."
           >
             <button
               onClick={onOpenAISettings}
-              className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-semibold transition cursor-pointer ${
+              className={`inline-flex items-center gap-1 rounded-lg border px-1.5 py-1 text-[11px] font-semibold transition sm:px-2 cursor-pointer ${
                 snapshot.activeRivalController === 'llm'
                   ? 'border-violet-400/50 bg-violet-500/20 text-violet-200'
                   : 'border-slate-700 bg-slate-900 text-slate-300 hover:border-amber-400/50 hover:text-white'
@@ -1114,8 +1140,8 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
           </ActionInfoTooltip>
 
           <ActionInfoTooltip
-            title="Reiniciar Combate"
-            description="Reinicia la partida desde el Team Preview o Turno 1 con los mismos equipos (suma +1 intento)."
+            title="Reiniciar"
+            description="Reinicia este combate desde Turno 1."
           >
             <button
               onClick={() => {
@@ -1130,10 +1156,10 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
         </div>
       </header>
 
-      {/* STRICT 2-COLUMN WORKSPACE (Left ~68% flex-1 | Right dedicated Log w-64/80/96) */}
-      <div className="flex min-h-0 flex-1 flex-row overflow-hidden">
+      {/* RESPONSIVE WORKSPACE: Full-width Arena on Mobile/Tablet (<1024px) + Side Log on Desktop (lg:) */}
+      <div className="relative flex min-h-0 flex-1 flex-row lg:overflow-hidden">
         {/* LEFT COLUMN */}
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-hidden p-2.5">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-1.5 p-1.5 sm:gap-2 sm:p-2.5 lg:overflow-hidden">
           {snapshot.status === 'team-preview' && activeTeamPreview ? (
             /* ================= INTERACTIVE TEAM PREVIEW OVERLAY (1v1 / VGC / Monotype / Versus) ================= */
             <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-amber-400/35 bg-slate-950 shadow-2xl">
@@ -1365,8 +1391,8 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
           ) : (
             /* ================= SWITCH-STYLE LIVE BATTLE ARENA ================= */
             <>
-              {/* 1. BATTLEFIELD STAGE (flex-1 min-h-0) */}
-              <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-amber-400/25 bg-slate-950 shadow-2xl">
+              {/* 1. BATTLEFIELD STAGE (flex-1 min-h-[250px] on mobile/landscape, min-h-0 on desktop) */}
+              <div className="relative flex min-h-[250px] flex-1 flex-col overflow-hidden rounded-2xl border border-amber-400/25 bg-slate-950 shadow-2xl sm:min-h-[280px] lg:min-h-0">
                 <SceneBackdrop theme={config.arenaTheme} className="opacity-85" />
 
                 {/* Top Arena Overlay: Turn Badge + Side Conditions with Timers + FieldEffectTooltip */}
@@ -1415,10 +1441,10 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                   </div>
                 </div>
 
-                {/* 3-Zone Stage: Switch Vertical Circle Rails + Center Sprites */}
-                <div className="relative z-10 flex min-h-0 flex-1 items-stretch justify-between gap-1.5 px-2 py-1">
-                  {/* LEFT SWITCH VERTICAL CIRCLE RAIL (Player Portrait + Circular Team Badges) */}
-                  <div className="flex w-14 shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-amber-400/15 bg-slate-950/55 py-1.5 backdrop-blur-sm xl:w-16">
+                {/* 3-Zone Stage: Switch Vertical Circle Rails (sm:+) + Center Sprites */}
+                <div className="relative z-10 flex min-h-0 flex-1 items-stretch justify-between gap-1 px-1.5 py-0.5 sm:gap-1.5 sm:px-2 sm:py-1">
+                  {/* LEFT SWITCH VERTICAL CIRCLE RAIL (Hidden on narrow mobile so sprites get full width!) */}
+                  <div className="hidden w-12 shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-amber-400/15 bg-slate-950/55 py-1.5 backdrop-blur-sm sm:flex xl:w-16">
                     <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full border-2 border-amber-400/60 bg-slate-900 p-0.5 shadow">
                       <CharacterPortrait
                         charId={config.playerCharId}
@@ -1531,8 +1557,8 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                     </div>
                   </div>
 
-                  {/* RIGHT SWITCH VERTICAL CIRCLE RAIL (Rival Portrait + Circular Fog-of-War Badges) */}
-                  <div className="flex w-14 shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-rose-500/20 bg-slate-950/55 py-1.5 backdrop-blur-sm xl:w-16">
+                  {/* RIGHT SWITCH VERTICAL CIRCLE RAIL (Hidden on narrow mobile so sprites get full width!) */}
+                  <div className="hidden w-12 shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-rose-500/20 bg-slate-950/55 py-1.5 backdrop-blur-sm sm:flex xl:w-16">
                     <RivalPortraitTooltip
                       profile={effectiveRivalProfile}
                       charId={config.rivalCharId}
@@ -1586,19 +1612,36 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                   </div>
                 </div>
 
-                {/* SWITCH BROADCAST BOTTOM ACTIVE-COMBATANTS BAR (Lv.50 Pelipper 167/167 || Miraidon 181/181) */}
-                <div className="relative z-20 grid shrink-0 grid-cols-2 gap-2 border-t border-white/10 bg-slate-950/80 px-2.5 py-1.5 backdrop-blur-md">
-                  <div className="flex min-w-0 gap-1.5">
+                {/* SWITCH BROADCAST BOTTOM ACTIVE-COMBATANTS BAR */}
+                <div className="relative z-20 grid shrink-0 grid-cols-2 gap-1.5 border-t border-white/10 bg-slate-950/80 px-2 py-1 backdrop-blur-md sm:gap-2 sm:px-2.5 sm:py-1.5">
+                  <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:gap-1.5">
                     {snapshot.p1.active.map((mon, idx) =>
                       renderSwitchHudPlate(mon, 'p1', idx)
                     )}
                   </div>
-                  <div className="flex min-w-0 gap-1.5">
+                  <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:gap-1.5">
                     {p2ActiveIndices.map((slotIdx) =>
                       renderSwitchHudPlate(snapshot.p2.active[slotIdx] ?? null, 'p2', slotIdx)
                     )}
                   </div>
                 </div>
+
+                {/* Mobile/Tablet (<1024px) Compact 1-Line Last-Event Ticker -> Tap to open Log Drawer */}
+                {latestLogText && (
+                  <button
+                    type="button"
+                    onClick={() => setShowMobileLog(true)}
+                    className="relative z-20 flex shrink-0 items-center justify-between gap-2 border-t border-amber-400/20 bg-slate-950/95 px-2.5 py-1 text-left text-[10.5px] text-slate-300 hover:text-amber-200 lg:hidden cursor-pointer"
+                  >
+                    <span className="truncate">
+                      <span className="mr-1 font-bold text-amber-300">📜</span>
+                      {latestLogText}
+                    </span>
+                    <span className="shrink-0 text-[9.5px] font-bold text-amber-300">
+                      Ver Log ▸
+                    </span>
+                  </button>
+                )}
               </div>
 
               {/* 2. COMPACT SCRIPTED TAUNT STRIP */}
@@ -2213,7 +2256,8 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                               ) : (
                                 <Brain className="h-3 w-3" />
                               )}
-                              <span>¿Qué haría el Coach?</span>
+                              <span className="sm:hidden">Coach</span>
+                              <span className="hidden sm:inline">Coach Táctico</span>
                             </button>
                           </ActionInfoTooltip>
                         )}
@@ -2273,8 +2317,8 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                       </div>
                     </div>
 
-                    {/* 4 Moves Row */}
-                    <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+                    {/* 4 Moves Row (Generous Touch Height on Mobile/Tablet!) */}
+                    <div className="grid grid-cols-2 gap-1.5 lg:grid-cols-4">
                       {currentSlot.moves.map((mv) => {
                         const zOpt = currentSlot.canZMove?.[mv.index - 1] ?? null;
                         const zModeActive = wantZMove && canZMoveNow;
@@ -2286,7 +2330,7 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                             <button
                               disabled={isDisabled}
                               onClick={() => handleMoveClick(mv)}
-                              className={`group flex w-full flex-col justify-between rounded-xl border border-l-4 px-2.5 py-2 text-left transition disabled:cursor-not-allowed disabled:opacity-35 active:scale-[0.98] cursor-pointer ${
+                              className={`group flex min-h-[50px] w-full flex-col justify-between rounded-xl border border-l-4 px-2.5 py-2 text-left transition disabled:cursor-not-allowed disabled:opacity-35 active:scale-[0.98] cursor-pointer sm:min-h-[48px] ${
                                 isZEligible
                                   ? 'border-amber-300 bg-gradient-to-br from-amber-500/25 via-slate-900 to-fuchsia-950/50 ring-1 ring-amber-300/60 hover:brightness-110'
                                   : `border-slate-700/90 bg-slate-900/95 hover:border-amber-400/70 hover:bg-slate-800/95 ${
@@ -2320,16 +2364,14 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                       })}
                     </div>
 
-                    {/* Compact Switch Strip */}
-                    <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-slate-800/80 pt-1.5">
-                      <span className="mr-1 text-[10px] font-bold uppercase tracking-wider text-sky-300/80">
+                    {/* Compact Switch Strip (Horizontally scrollable on mobile so bottom bar never overflows vertically!) */}
+                    <div className="no-scrollbar mt-1.5 flex items-center gap-1.5 overflow-x-auto border-t border-slate-800/80 pt-1.5 sm:mt-2 sm:flex-wrap sm:overflow-visible">
+                      <span className="mr-0.5 shrink-0 text-[10px] font-bold uppercase tracking-wider text-sky-300/80">
                         Cambiar:
                       </span>
                       {availableSwitches.length === 0 ? (
-                        <span className="text-[11px] text-slate-500">
-                          {currentSlot.trapped
-                            ? 'Atrapado este turno'
-                            : 'Sin banca disponible (formato 1v1 o solo activos)'}
+                        <span className="shrink-0 text-[11px] text-slate-500">
+                          {currentSlot.trapped ? 'Atrapado' : 'Sin banca'}
                         </span>
                       ) : (
                         activeParty
@@ -2359,7 +2401,7 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                                     mon.slotIndex
                                   )
                                 }
-                                className={`inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-[11px] font-semibold transition ${
+                                className={`inline-flex shrink-0 items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-semibold transition sm:py-0.5 ${
                                   canSwitch
                                     ? 'border-slate-700 bg-slate-900 text-slate-100 hover:border-sky-400/70 hover:bg-sky-500/15 cursor-pointer'
                                     : 'border-slate-800 bg-slate-950/70 text-slate-500 opacity-45 cursor-not-allowed'
@@ -2386,16 +2428,40 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
           )}
         </div>
 
-        {/* RIGHT COLUMN: Dedicated Full-Height Battle Log (Internal scroll ONLY) */}
-        <aside className="flex h-full w-64 shrink-0 flex-col border-l border-amber-400/15 bg-[#080d1a] md:w-80 lg:w-96">
+        {/* Mobile/Tablet (<1024px) Backdrop when Battle Log Drawer is Open */}
+        {showMobileLog && (
+          <div
+            onClick={() => setShowMobileLog(false)}
+            className="fixed inset-0 z-30 bg-black/65 backdrop-blur-xs lg:hidden"
+          />
+        )}
+
+        {/* RIGHT COLUMN: Dedicated Full-Height Battle Log on Desktop (lg:) | Slide-Over Drawer on Mobile/Tablet (<lg) */}
+        <aside
+          className={`${
+            showMobileLog
+              ? 'fixed inset-y-0 right-0 z-40 flex w-[86vw] max-w-sm shadow-2xl shadow-black'
+              : 'hidden'
+          } h-full shrink-0 flex-col border-l border-amber-400/20 bg-[#080d1a] lg:static lg:z-auto lg:flex lg:w-80 lg:shadow-none xl:w-96`}
+        >
           <div className="shrink-0 border-b border-slate-800/90 bg-slate-950/90 px-3.5 py-2.5">
             <div className="flex items-center justify-between gap-2">
               <span className="font-display text-xs font-bold uppercase tracking-widest text-amber-300">
                 Registro de Combate
               </span>
-              <span className="font-mono-code rounded border border-slate-700 bg-slate-900 px-1.5 py-0.5 text-[9px] text-slate-400">
-                {snapshot.formatId}
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="font-mono-code max-w-[10rem] truncate rounded border border-slate-700 bg-slate-900 px-1.5 py-0.5 text-[9px] text-slate-400">
+                  {snapshot.formatId}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowMobileLog(false)}
+                  aria-label="Cerrar Registro de Combate"
+                  className="rounded-lg border border-slate-700 bg-slate-900 p-1 text-slate-300 hover:text-white lg:hidden cursor-pointer"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </div>
             <p className="mt-0.5 truncate text-[11px] font-semibold text-slate-200">
               {config.playerName}{' '}
@@ -2506,8 +2572,8 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
 
       {/* Showdown Paste Modal */}
       {showPasteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-3xl rounded-3xl border border-amber-400/30 bg-slate-950 p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-3 backdrop-blur-sm sm:p-4">
+          <div className="max-h-[90dvh] w-full max-w-3xl overflow-y-auto rounded-3xl border border-amber-400/30 bg-slate-950 p-4 shadow-2xl sm:p-6">
             <div className="mb-4 flex items-center justify-between border-b border-slate-800 pb-3">
               <h3 className="font-display text-lg font-bold text-amber-200">
                 Equipos Inyectados ({snapshot.formatLabel})

@@ -57,6 +57,7 @@ import type {
   PokemonStorageZone,
   SavedCampaignTeam,
 } from '../types/game';
+import { HelpTip } from './HelpTip';
 import { PokemonEditor } from './PokemonEditor';
 import { PokemonIcon, PokemonSprite } from './PokemonSprite';
 
@@ -234,6 +235,8 @@ export const PcBoxManager: React.FC<PcBoxManagerProps> = ({
   const [showPasteTools, setShowPasteTools] = useState(false);
   const [importPasteText, setImportPasteText] = useState('');
   const [copiedPaste, setCopiedPaste] = useState(false);
+  // Mobile/Tablet (<1024px) single-column switcher: Equipo & Cajas vs Editor del Pokémon seleccionado
+  const [mobileSection, setMobileSection] = useState<'boxes' | 'editor'>('boxes');
 
   const emitNotice = (n: { tone: 'ok' | 'err'; text: string }) => {
     setLocalNotice(n);
@@ -523,40 +526,49 @@ export const PcBoxManager: React.FC<PcBoxManagerProps> = ({
   };
 
   return (
-    <div className="space-y-4">
-      {/* Dynamic Difficulty-Linked Imperial BST Cap Bar */}
+    <div className="space-y-3.5">
+      {/* Compact Dynamic Imperial BST Cap Strip */}
       <div
-        className={`rounded-2xl border px-4 py-3 transition ${
+        className={`rounded-2xl border px-3.5 py-2.5 transition ${
           bstLicense.isOverCap
             ? 'border-rose-500/65 bg-rose-950/40'
             : 'border-emerald-400/35 bg-emerald-950/20'
         }`}
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <p className="text-xs font-extrabold text-white">
-              ⚖️ Presupuesto BST ({bstLicense.difficultyDeltaLabel}) ·{' '}
-              <span className="text-sky-200">{bstLicense.shortLabel}</span>
-            </p>
-            <p className="mt-0.5 text-[11px] text-slate-300">
-              {bstLicense.isOverCap
-                ? `⚠️ Excedes el límite por +${bstLicense.currentPartyBst - (bstLicense.maxTeamBst ?? 0)} BST en ${DIFFICULTY_META[effectiveDiff]?.label}. Baja un titular a la Caja o mete piezas baratas (LC/PU/cheese).`
-                : bstLicense.nextActUnlockHint}
-            </p>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-xs font-extrabold text-white">
+              ⚖️ {bstLicense.shortLabel}
+            </span>
+            <span className="rounded bg-slate-900/90 px-1.5 py-0.5 text-[10px] font-bold text-sky-200">
+              {bstLicense.difficultyDeltaLabel}
+            </span>
+            <HelpTip title="Presupuesto BST Imperial" badge={bstLicense.shortLabel} size="xs">
+              <p>{bstLicense.nextActUnlockHint}</p>
+              <p>
+                Cambia de dificultad o baja un titular a la Caja si excedes el límite BST de este Acto.
+              </p>
+            </HelpTip>
+            {bstLicense.isOverCap && (
+              <span className="rounded border border-rose-400/50 bg-rose-500/20 px-1.5 py-0.5 text-[10px] font-extrabold text-rose-200">
+                +{bstLicense.currentPartyBst - (bstLicense.maxTeamBst ?? 0)} sobre límite
+              </span>
+            )}
           </div>
-          <div className="text-right">
-            <p
-              className={`font-mono-code text-sm font-extrabold ${
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={`font-mono-code text-xs font-extrabold sm:text-sm ${
                 bstLicense.isOverCap ? 'text-rose-300' : 'text-emerald-300'
               }`}
             >
-              BST Actual: {bstLicense.currentPartyBst.toLocaleString()} /{' '}
+              {bstLicense.currentPartyBst.toLocaleString()} /{' '}
               {bstLicense.maxTeamBst !== null
                 ? bstLicense.maxTeamBst.toLocaleString()
-                : '∞'}
-            </p>
+                : '∞'}{' '}
+              BST
+            </span>
             {!difficultyMode && (
-              <div className="mt-1 flex justify-end gap-1">
+              <div className="flex gap-1">
                 {DIFFICULTY_ORDER.map((d) => (
                   <button
                     key={d}
@@ -576,7 +588,7 @@ export const PcBoxManager: React.FC<PcBoxManagerProps> = ({
           </div>
         </div>
         {bstLicense.maxTeamBst !== null && (
-          <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-900">
+          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-900">
             <div
               className={`h-full transition-all ${
                 bstLicense.isOverCap ? 'bg-rose-500' : 'bg-emerald-400'
@@ -594,9 +606,37 @@ export const PcBoxManager: React.FC<PcBoxManagerProps> = ({
         )}
       </div>
 
+      {/* Mobile/Tablet (<1024px) Tab Switcher: Equipo & Cajas vs Editor */}
+      {selectedInstance && (
+        <div className="grid grid-cols-2 gap-1.5 rounded-2xl border border-slate-800 bg-slate-950/90 p-1 lg:hidden">
+          <button
+            type="button"
+            onClick={() => setMobileSection('boxes')}
+            className={`rounded-xl px-3 py-2 text-xs font-extrabold transition cursor-pointer ${
+              mobileSection === 'boxes'
+                ? 'bg-sky-500/25 text-sky-100 ring-1 ring-sky-400/50'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            📦 Equipo &amp; Cajas ({partyList.length}/6)
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileSection('editor')}
+            className={`truncate rounded-xl px-3 py-2 text-xs font-extrabold transition cursor-pointer ${
+              mobileSection === 'editor'
+                ? 'bg-amber-500/25 text-amber-100 ring-1 ring-amber-400/50'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            ✏️ {selectedInstance.nickname || selectedInstance.species}
+          </button>
+        </div>
+      )}
+
       {!embedded && localNotice && (
         <div
-          className={`rounded-xl border px-4 py-2 text-xs font-semibold ${
+          className={`rounded-xl border px-3.5 py-2 text-xs font-semibold ${
             localNotice.tone === 'ok'
               ? 'border-emerald-400/40 bg-emerald-500/15 text-emerald-200'
               : 'border-rose-500/40 bg-rose-500/15 text-rose-200'
@@ -607,16 +647,27 @@ export const PcBoxManager: React.FC<PcBoxManagerProps> = ({
       )}
 
       {/* 1. ACTIVE PARTY (6 UNIQUE INSTANCES) + SAVED TEAMS & CLIPBOARD TOOLBAR */}
-      <div className="rounded-2xl border border-amber-400/30 bg-slate-900/75 p-3.5">
+      <div className={`${mobileSection === 'editor' ? 'hidden lg:block' : ''} rounded-2xl border border-amber-400/30 bg-slate-900/75 p-3`}>
         <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
             <h3 className="font-display text-xs font-bold uppercase tracking-wider text-amber-200">
-              Equipo Activo ({partyList.length}/6 · Cláusula de Especie)
+              Equipo ({partyList.length}/6)
             </h3>
-            <span className="inline-flex items-center gap-1 text-[10px] text-slate-400">
+            <span className="inline-flex items-center gap-1 rounded bg-slate-950/90 px-1.5 py-0.5 text-[9.5px] font-bold text-slate-400">
               <ShieldAlert className="h-3 w-3 text-sky-400" />
-              La Caja NO cura
+              Sin cura
             </span>
+            <HelpTip title="Equipo Activo & Cajas PC" size="xs">
+              <p>
+                <strong>Cláusula de Especie:</strong> máx. 1 ejemplar por especie en el Equipo Activo.
+              </p>
+              <p>
+                <strong>Persistencia Ironman:</strong> guardar un Pokémon en la Caja NO cura PS, estados ni PP.
+              </p>
+              <p>
+                En <strong>Baby Mode</strong> o <strong>Dev Mode</strong> puedes pegar equipos Showdown al instante desde el portapapeles.
+              </p>
+            </HelpTip>
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5">
@@ -624,25 +675,25 @@ export const PcBoxManager: React.FC<PcBoxManagerProps> = ({
               <button
                 type="button"
                 onClick={() => setShowSavedTeams((v) => !v)}
-                className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[10.5px] font-bold transition cursor-pointer ${
+                className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[10.5px] font-bold transition cursor-pointer ${
                   showSavedTeams
                     ? 'border-amber-400 bg-amber-500/20 text-amber-100'
                     : 'border-slate-700 bg-slate-950 text-slate-200 hover:border-amber-400/50'
                 }`}
               >
                 <Bookmark className="h-3 w-3 text-amber-300" />
-                Mis Equipos ({savedTeams.length})
+                Equipos ({savedTeams.length})
               </button>
             )}
             {canImportPaste && (
               <button
                 type="button"
                 onClick={() => void handleClipboardImport()}
-                title="Lee tu portapapeles e importa un equipo en formato Pokémon Showdown al instante"
-                className="inline-flex items-center gap-1 rounded-lg border border-sky-400/50 bg-sky-500/15 px-2.5 py-1 text-[10.5px] font-extrabold text-sky-100 hover:bg-sky-500/25 cursor-pointer"
+                title="Importar equipo Showdown desde portapapeles"
+                className="inline-flex items-center gap-1 rounded-lg border border-sky-400/50 bg-sky-500/15 px-2 py-1 text-[10.5px] font-extrabold text-sky-100 hover:bg-sky-500/25 cursor-pointer"
               >
                 <ClipboardPaste className="h-3 w-3 text-sky-300" />
-                Pegar del Portapapeles
+                Pegar
               </button>
             )}
             <button
@@ -651,7 +702,7 @@ export const PcBoxManager: React.FC<PcBoxManagerProps> = ({
               className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-[10.5px] font-bold text-slate-300 hover:border-amber-400/50 hover:text-amber-200 cursor-pointer"
             >
               <Code2 className="h-3 w-3" />
-              {showPasteTools ? 'Ocultar Paste' : 'Showdown Paste'}
+              Paste
             </button>
           </div>
         </div>
@@ -972,34 +1023,36 @@ export const PcBoxManager: React.FC<PcBoxManagerProps> = ({
 
       {/* 2. UNIFIED SHOWDOWN-STYLE POKÉMON EDITOR (mode="free": Apodo, Sexo, EVs, IVs, Liberar, Learnset) */}
       {selectedInstance && (
-        <PokemonEditor
-          key={selectedInstance.uid}
-          mode="free"
-          profile={profile}
-          formatId={formatId}
-          instance={selectedInstance}
-          onMoveToBox={(uid) => {
-            const res = onMoveInstanceZone(uid, 'box');
-            emitNotice(
-              res.ok
-                ? {
-                    tone: 'ok',
-                    text: `↓ ${selectedInstance.nickname || selectedInstance.species} guardado en la Caja de Reserva (sin curar).`,
-                  }
-                : { tone: 'err', text: res.error || '' }
-            );
-          }}
-          onReleaseInstance={onReleaseInstance}
-          onEquipInstanceItem={onEquipInstanceItem}
-          onUpdateInstanceBuild={onUpdateInstanceBuild}
-          onUnlockMoveSlot={onUnlockMoveSlot}
-          onOpenShop={onOpenShop}
-          onNotice={emitNotice}
-        />
+        <div className={mobileSection === 'boxes' ? 'hidden lg:block' : ''}>
+          <PokemonEditor
+            key={selectedInstance.uid}
+            mode="free"
+            profile={profile}
+            formatId={formatId}
+            instance={selectedInstance}
+            onMoveToBox={(uid) => {
+              const res = onMoveInstanceZone(uid, 'box');
+              emitNotice(
+                res.ok
+                  ? {
+                      tone: 'ok',
+                      text: `↓ ${selectedInstance.nickname || selectedInstance.species} enviado a Reserva.`,
+                    }
+                  : { tone: 'err', text: res.error || '' }
+              );
+            }}
+            onReleaseInstance={onReleaseInstance}
+            onEquipInstanceItem={onEquipInstanceItem}
+            onUpdateInstanceBuild={onUpdateInstanceBuild}
+            onUnlockMoveSlot={onUnlockMoveSlot}
+            onOpenShop={onOpenShop}
+            onNotice={emitNotice}
+          />
+        </div>
       )}
 
       {/* 3. STORAGE TRAYS WITH SHOWDOWN-INSPIRED INDEXED SEARCH ENGINE (BOX / HOUSE R3 / GRAVEYARD + DEATH LOG / DEV AG LAB) */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/75 p-4">
+      <div className={`${mobileSection === 'editor' ? 'hidden lg:block' : ''} rounded-2xl border border-slate-800 bg-slate-900/75 p-3 sm:p-4`}>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap gap-1.5">
             <button
@@ -1113,7 +1166,7 @@ export const PcBoxManager: React.FC<PcBoxManagerProps> = ({
                 setSearchQuery(e.target.value);
                 setVisibleLimit(PAGE_SIZE);
               }}
-              placeholder="Buscador Showdown: nombre, apodo, tipo (Fighting), habilidad (Intimidate), movimiento (Fake Out), tier (Uber) o stats (spe>=100, bst<=450)..."
+              placeholder="Nombre, apodo, tipo, habilidad, movimiento o spe>=100..."
               className="w-full rounded-xl border border-slate-700 bg-slate-950 py-2 pl-9 pr-20 text-xs text-white placeholder-slate-500 focus:border-amber-400 focus:outline-none"
             />
             {(searchQuery || activeFilters.length > 0) && (
@@ -1260,10 +1313,9 @@ export const PcBoxManager: React.FC<PcBoxManagerProps> = ({
           <div className="space-y-2.5">
             {onPopulateLivingDexBox && (
               <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-400/35 bg-emerald-950/25 px-3 py-2">
-                <p className="text-[11px] font-semibold text-emerald-100">
-                  📦 <strong>Dev Living Dex:</strong> agrega 1 ejemplar de cada una de las{' '}
-                  {allAgSpecies.length} especies directo a tu Caja de Reserva.
-                </p>
+                <span className="text-[11px] font-extrabold text-emerald-200">
+                  📦 Dev Lab · {allAgSpecies.length} spp
+                </span>
                 <div className="flex flex-wrap items-center gap-1.5">
                   {onSpawnDevShadowSpecimen && (
                     <button
@@ -1275,15 +1327,15 @@ export const PcBoxManager: React.FC<PcBoxManagerProps> = ({
                           res.ok
                             ? {
                                 tone: 'ok',
-                                text: '🟣 ¡XD001 Lugia Oscuro (Shadow Aeroblast / Shadow Eclipse / Shadow Sky / Shadow Siphon) invocado en la Cámara de Purificación!',
+                                text: '🟣 ¡XD001 Lugia Oscuro invocado en Cámara XD!',
                               }
                             : { tone: 'err', text: res.error || '' }
                         );
                         setActiveZoneTab('purify');
                       }}
-                      className="inline-flex items-center gap-1 rounded-lg border border-fuchsia-400/60 bg-fuchsia-500/25 px-3 py-1 text-[10.5px] font-extrabold text-fuchsia-100 hover:bg-fuchsia-500/40 cursor-pointer"
+                      className="inline-flex items-center gap-1 rounded-lg border border-fuchsia-400/60 bg-fuchsia-500/25 px-2.5 py-1 text-[10.5px] font-extrabold text-fuchsia-100 hover:bg-fuchsia-500/40 cursor-pointer"
                     >
-                      🟣 Invocar XD001 Lugia Oscuro
+                      🟣 + XD001 Lugia
                     </button>
                   )}
                   <button
@@ -1292,11 +1344,11 @@ export const PcBoxManager: React.FC<PcBoxManagerProps> = ({
                       const res = onPopulateLivingDexBox();
                       emitNotice({
                         tone: 'ok',
-                        text: `📦 ¡Living Dex cargado! +${res.addedCount} especies agregadas a tu Caja de Reserva (Total vivos: ${res.totalLiving}).`,
+                        text: `📦 Living Dex: +${res.addedCount} especies en Reserva (Total: ${res.totalLiving}).`,
                       });
                       setActiveZoneTab('box');
                     }}
-                    className="inline-flex items-center gap-1 rounded-lg bg-emerald-500 px-3 py-1 text-[10.5px] font-extrabold text-slate-950 hover:brightness-110 cursor-pointer"
+                    className="inline-flex items-center gap-1 rounded-lg bg-emerald-500 px-2.5 py-1 text-[10.5px] font-extrabold text-slate-950 hover:brightness-110 cursor-pointer"
                   >
                     <PackagePlus className="h-3.5 w-3.5" />
                     Meter 1 de cada especie a mi Caja
@@ -1535,13 +1587,18 @@ export const PcBoxManager: React.FC<PcBoxManagerProps> = ({
                 <div className="space-y-3 rounded-2xl border border-fuchsia-400/50 bg-gradient-to-br from-fuchsia-950/55 via-slate-950/92 to-purple-950/45 p-3.5 text-xs">
                   {/* Top Chamber Header + Auto-Optimize Button */}
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div>
+                    <div className="flex items-center gap-1.5">
                       <p className="font-extrabold text-fuchsia-200">
-                        🟣 Cámara de Purificación XD (9 Anillos · Flow &amp; Tempo Horario)
+                        🟣 Cámara XD · 9 Anillos
                       </p>
-                      <p className="mt-0.5 text-[10.5px] text-slate-300">
-                        Rodea a cada Pokémon Oscuro con 4 aliados en sentido horario (<strong>Norte → Este → Sur → Oeste → Norte</strong>) con ventaja de tipo (Normal pega SE a Normal) para disparar el <strong>Tempo</strong> y romper el Sello Final de XD001 Lugia Oscuro.
-                      </p>
+                      <HelpTip title="Cámara de Purificación XD" badge="Flow & Tempo" size="xs">
+                        <p>
+                          Rodea a cada Pokémon Oscuro con 4 aliados en sentido horario (<strong>Norte → Este → Sur → Oeste → Norte</strong>) con ventaja de tipo (Normal cuenta como SE contra Normal) para maximizar <strong>Flow</strong> y <strong>Tempo</strong>.
+                        </p>
+                        <p>
+                          <strong>Sello XD001:</strong> la última barra de Lugia Oscuro (20% → 0%) exige <strong>Tempo Máximo</strong> en su Cámara.
+                        </p>
+                      </HelpTip>
                     </div>
                     {onAutoOptimizeChamber && centerShadow && (
                       <button
@@ -1789,15 +1846,12 @@ export const PcBoxManager: React.FC<PcBoxManagerProps> = ({
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <p className="inline-flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-rose-200">
                     <ScrollText className="h-3.5 w-3.5 text-rose-400" />
-                    Bitácora Forense de Caídos Nuzlocke ({deathLog.length})
+                    Bitácora de Caídos ({deathLog.length})
                   </p>
-                  <span className="text-[10px] text-rose-300/75">
-                    Oponente · Movimiento letal · Capítulo · Turno
-                  </span>
                 </div>
                 {deathLog.length === 0 ? (
                   <p className="text-[11px] text-slate-400">
-                    Sin muertes permanentes registradas en la bitácora. Cuando un compañero caiga con Permadeath activo, aquí quedarán grabadas las circunstancias exactas de su caída.
+                    Sin bajas Nuzlocke registradas.
                   </p>
                 ) : (
                   <div className="max-h-48 space-y-1.5 overflow-y-auto pr-1">

@@ -47,6 +47,7 @@ import type {
   ChapterTeamMode,
   PlayerSaveProfile,
 } from '../types/game';
+import { HelpTip } from './HelpTip';
 import { PokemonSprite } from './PokemonSprite';
 import { WorldWarMap } from './WorldWarMap';
 
@@ -182,6 +183,8 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
   const [hoveredChapterId, setHoveredChapterId] = useState<string | null>(null);
   const [focusedCardId, setFocusedCardId] = useState<string | null>(null);
   const [unlockNotice, setUnlockNotice] = useState<string | null>(null);
+  // Mobile/Tablet (<1280px) switcher between Misiones & Mapa Mundial so mobile users never scroll endlessly!
+  const [mobileHubTab, setMobileHubTab] = useState<'missions' | 'map'>('missions');
   const progress = profile.completedChapters;
   const rivalName = getRivalName(profile);
   const visibleCoreChapters = useMemo(
@@ -311,29 +314,28 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
   ]);
 
   return (
-    <div className="relative min-h-screen bg-[#060a14] text-slate-100">
+    <div className="relative min-h-screen overflow-x-hidden bg-[#060a14] text-slate-100">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -top-32 right-1/4 h-96 w-[36rem] rounded-full bg-amber-500/10 blur-[120px]" />
         <div className="absolute bottom-0 left-1/4 h-96 w-[36rem] rounded-full bg-sky-600/10 blur-[120px]" />
       </div>
 
-      <div className="relative z-10 mx-auto max-w-[1440px] px-5 py-5 sm:px-6">
-        {/* Header */}
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-3.5">
-          <div className="flex items-center gap-4">
+      <div className="relative z-10 mx-auto max-w-[1440px] px-3 py-4 sm:px-6 sm:py-5">
+        {/* Compact Responsive Header */}
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2.5 border-b border-slate-800/80 pb-3.5">
+          <div className="flex min-w-0 items-center gap-2.5">
             <button
               onClick={onBackHome}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-700/80 bg-slate-900/80 px-3.5 py-2 text-xs font-semibold text-slate-300 transition hover:border-amber-400/50 hover:text-white cursor-pointer"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-700/80 bg-slate-900/80 px-2.5 py-2 text-xs font-semibold text-slate-300 transition hover:border-amber-400/50 hover:text-white cursor-pointer"
             >
               <ArrowLeft className="h-4 w-4" />
-              Inicio
+              <span className="hidden sm:inline">Inicio</span>
             </button>
-            <div>
-              <div className="flex flex-wrap items-center gap-2 text-amber-300">
-                <Crown className="h-4 w-4" />
-                <span className="text-xs font-bold uppercase tracking-[0.2em]">
-                  Crown of Galar · {profile.runName || 'Exilio de Wyndon'} (Slot #{profile.activeSaveSlot ?? 1})
-                </span>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <h1 className="truncate font-display text-lg font-bold text-white sm:text-2xl">
+                  Capítulos
+                </h1>
                 <span
                   className={`rounded-md border px-1.5 py-0.2 text-[9.5px] font-extrabold ${activeDiffMeta.badgeClass}`}
                 >
@@ -354,97 +356,95 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
                 {profile.masteryBadgeUnlocked && (
                   <span className="inline-flex items-center gap-0.5 rounded-md border border-amber-300/70 bg-amber-500/25 px-1.5 py-0.2 text-[9.5px] font-extrabold text-amber-100">
                     <Trophy className="h-2.5 w-2.5 text-amber-300" />
-                    True Mastery
+                    Mastery
                   </span>
                 )}
                 {profile.devModeEnabled ? (
                   <span className="rounded-md border border-fuchsia-400/50 bg-fuchsia-500/20 px-1.5 py-0.2 text-[9.5px] font-extrabold text-fuchsia-200">
-                    🧪 Dev · Todo Revelado
+                    🧪 Dev
                   </span>
                 ) : hiddenTotalCount > 0 ? (
-                  <span
-                    title="Los actos futuros, postgame y Social Links regionales permanecen ocultos hasta descubrir sus regiones en la historia."
-                    className="rounded-md border border-slate-700 bg-slate-900 px-1.5 py-0.2 text-[9.5px] font-bold text-slate-400"
-                  >
-                    🗺️ {hiddenTotalCount} ocultos por descubrir
+                  <span className="inline-flex items-center gap-1 rounded-md border border-slate-700 bg-slate-900 px-1.5 py-0.2 text-[9.5px] font-bold text-slate-400">
+                    🗺️ {hiddenTotalCount} ocultos
+                    <HelpTip title="Capítulos Ocultos" size="xs">
+                      <p>
+                        Los Actos futuros, el Postgame y los Vínculos regionales se revelan automáticamente conforme la historia te lleva a cada región (o al activar Dev Mode).
+                      </p>
+                    </HelpTip>
                   </span>
                 ) : null}
               </div>
-              <h1 className="font-display text-2xl font-bold text-white sm:text-3xl">
-                Selector de Capítulos
-              </h1>
+              <p className="truncate font-mono-code text-[10px] text-slate-400">
+                {profile.runName || 'Exilio de Wyndon'} · Slot #{profile.activeSaveSlot ?? 1}
+              </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={onOpenSaveLoadModal}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-amber-400/55 bg-amber-500/20 px-3 py-2 text-xs font-extrabold text-amber-100 hover:bg-amber-500/30 cursor-pointer"
-            >
-              <Save className="h-3.5 w-3.5 text-amber-300" />
-              Guardar / Cargar
-            </button>
+          <div className="flex flex-wrap items-center gap-1.5">
             <button
               onClick={onOpenShop}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-amber-400/45 bg-amber-500/15 px-3 py-2 text-xs font-extrabold text-amber-200 hover:bg-amber-500/25 cursor-pointer"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-amber-400/45 bg-amber-500/15 px-2.5 py-1.5 text-xs font-extrabold text-amber-200 hover:bg-amber-500/25 cursor-pointer"
             >
-              <Coins className="h-3.5 w-3.5 text-amber-400" />
+              <ShoppingBag className="h-3.5 w-3.5 text-amber-300" />
               <span className="font-mono-code">
                 {profile.coins.toLocaleString()} {CURRENCY_SHORT}
               </span>
             </button>
             <button
+              onClick={onOpenTeamEditor}
+              className="inline-flex items-center gap-1 rounded-xl border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-xs font-bold text-slate-200 hover:border-sky-400/50 cursor-pointer"
+            >
+              <Wrench className="h-3.5 w-3.5 text-sky-300" />
+              <span>PC</span>
+            </button>
+            <button
+              onClick={onOpenCamp}
+              className="inline-flex items-center gap-1 rounded-xl border border-fuchsia-400/50 bg-fuchsia-500/15 px-2.5 py-1.5 text-xs font-extrabold text-fuchsia-200 hover:bg-fuchsia-500/25 cursor-pointer"
+            >
+              <Heart className="h-3.5 w-3.5 fill-fuchsia-400/60 text-fuchsia-300" />
+              <span>Vínculos</span>
+            </button>
+            <button
+              onClick={onOpenSaveLoadModal}
+              title="Guardar / Cargar Partida"
+              className="inline-flex items-center gap-1 rounded-xl border border-amber-400/45 bg-amber-500/15 px-2.5 py-1.5 text-xs font-bold text-amber-100 hover:bg-amber-500/25 cursor-pointer"
+            >
+              <Save className="h-3.5 w-3.5 text-amber-300" />
+              <span className="hidden sm:inline">Guardar</span>
+            </button>
+            <button
+              onClick={onOpenArcade}
+              className="inline-flex items-center gap-1 rounded-xl border border-emerald-400/35 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-bold text-emerald-200 hover:bg-emerald-500/20 cursor-pointer"
+            >
+              <Gamepad2 className="h-3.5 w-3.5" />
+              <span className="hidden md:inline">Arcade</span>
+            </button>
+            <button
+              onClick={onOpenVersus}
+              className="inline-flex items-center gap-1 rounded-xl border border-rose-400/45 bg-rose-500/15 px-2.5 py-1.5 text-xs font-bold text-rose-200 transition hover:bg-rose-500/25 cursor-pointer"
+            >
+              <Wand2 className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Versus</span>
+            </button>
+            <button
+              onClick={onOpenAccount}
+              title="Cuenta Nube"
+              className="inline-flex items-center gap-1 rounded-xl border border-slate-700 bg-slate-900 px-2 py-1.5 text-xs font-bold text-slate-200 hover:border-emerald-400/50 cursor-pointer"
+            >
+              <Cloud className="h-3.5 w-3.5 text-emerald-400" />
+              <span className="hidden lg:inline">Cuenta</span>
+            </button>
+            <button
               onClick={onOpenDevMode}
-              className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold cursor-pointer ${
+              title="Dev Mode"
+              className={`inline-flex items-center gap-1 rounded-xl border px-2 py-1.5 text-xs font-bold cursor-pointer ${
                 profile.devModeEnabled
                   ? 'border-fuchsia-400/60 bg-fuchsia-500/20 text-fuchsia-200'
                   : 'border-slate-700 bg-slate-900 text-slate-300 hover:border-fuchsia-400/45'
               }`}
             >
               <Wrench className="h-3.5 w-3.5 text-fuchsia-300" />
-              Dev
-            </button>
-            <button
-              onClick={onOpenCamp}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-fuchsia-400/50 bg-fuchsia-500/15 px-3 py-2 text-xs font-extrabold text-fuchsia-200 hover:bg-fuchsia-500/25 cursor-pointer"
-            >
-              <Heart className="h-3.5 w-3.5 fill-fuchsia-400/60 text-fuchsia-300" />
-              Vínculos
-            </button>
-            <button
-              onClick={onOpenShop}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-bold text-slate-200 hover:border-amber-400/50 cursor-pointer"
-            >
-              <ShoppingBag className="h-3.5 w-3.5 text-amber-300" />
-              Tienda
-            </button>
-            <button
-              onClick={onOpenTeamEditor}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-bold text-slate-200 hover:border-sky-400/50 cursor-pointer"
-            >
-              <Wrench className="h-3.5 w-3.5 text-sky-300" />
-              Cajas PC
-            </button>
-            <button
-              onClick={onOpenArcade}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-400/35 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-200 hover:bg-emerald-500/20 cursor-pointer"
-            >
-              <Gamepad2 className="h-3.5 w-3.5" />
-              Arcade
-            </button>
-            <button
-              onClick={onOpenAccount}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-bold text-slate-200 hover:border-emerald-400/50 cursor-pointer"
-            >
-              <Cloud className="h-3.5 w-3.5 text-emerald-400" />
-              Cuenta
-            </button>
-            <button
-              onClick={onOpenVersus}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-rose-400/45 bg-rose-500/15 px-3 py-2 text-xs font-bold text-rose-200 transition hover:bg-rose-500/25 cursor-pointer"
-            >
-              <Wand2 className="h-3.5 w-3.5" />
-              Versus
+              <span>Dev</span>
             </button>
           </div>
         </div>
@@ -492,16 +492,45 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
           </div>
         )}
 
+        {/* Mobile/Tablet (<1280px) Tab Switcher: Capítulos vs Atlas Mundial */}
+        <div className="mb-4 grid grid-cols-2 gap-1.5 rounded-2xl border border-slate-800 bg-slate-900/90 p-1 xl:hidden">
+          <button
+            type="button"
+            onClick={() => setMobileHubTab('missions')}
+            className={`rounded-xl px-3 py-2 text-xs font-extrabold transition cursor-pointer ${
+              mobileHubTab === 'missions'
+                ? 'bg-amber-500/25 text-amber-100 ring-1 ring-amber-400/50'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            📋 Misiones ({visibleCoreChapters.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileHubTab('map')}
+            className={`rounded-xl px-3 py-2 text-xs font-extrabold transition cursor-pointer ${
+              mobileHubTab === 'map'
+                ? 'bg-sky-500/25 text-sky-100 ring-1 ring-sky-400/50'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            🗺️ Atlas Mundial
+          </button>
+        </div>
+
         {/* Split War Room Layout: Sticky Civilization World Map (Left) + Scrollable Mission Grid (Right) */}
         <div className="grid gap-6 xl:grid-cols-12 xl:items-start">
           {/* Sticky Interactive Civilization Map */}
-          <div className="xl:sticky xl:top-4 xl:col-span-6">
+          <div className={`${mobileHubTab === 'missions' ? 'hidden xl:block' : ''} xl:sticky xl:top-4 xl:col-span-6`}>
             <WorldWarMap
               chapters={localizedAllChapters}
               hoveredChapterId={hoveredChapterId}
               nextObjectiveChapterId={nextObjectiveChapterId}
               onHoverChapterPin={setHoveredChapterId}
-              onFocusChapterCard={handleFocusChapterCard}
+              onFocusChapterCard={(id) => {
+                setMobileHubTab('missions');
+                handleFocusChapterCard(id);
+              }}
               onLaunchChapter={onSelectChapter}
               unlockedChapterIds={unlockedChapterIds}
               completedChapterIds={completedChapterIds}
@@ -509,7 +538,7 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
           </div>
 
           {/* Right Column: Category Filter Pills + Mission Cards */}
-          <div className="xl:col-span-6">
+          <div className={`${mobileHubTab === 'map' ? 'hidden xl:block' : ''} xl:col-span-6`}>
             {/* Category Filter Pills */}
             <div className="mb-6 flex flex-wrap gap-2">
               <button
@@ -551,25 +580,33 @@ export const ChapterSelect: React.FC<ChapterSelectProps> = ({
               })}
             </div>
 
-            {/* 3-Mode Loadout Filter Bar: Campaign (NatDex PC Box) vs Locked (VN/Puzzle) vs Challenge (Specialty Format) */}
-            <div className="mb-5 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-800/90 bg-slate-900/65 px-3 py-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                Modo de Equipo:
-              </span>
+            {/* 3-Mode Loadout Filter Bar */}
+            <div className="mb-4 flex flex-wrap items-center gap-1.5 rounded-2xl border border-slate-800/90 bg-slate-900/65 px-2.5 py-2">
+              <HelpTip title="Modos de Equipo" size="xs">
+                <p>
+                  <strong>⚔️ Campaña NatDex:</strong> usa tus Cajas PC (Megas + Z + Tera) con Cap BST y reglas Ironman/Nuzlocke.
+                </p>
+                <p>
+                  <strong>🔒 Guion / Puzzle:</strong> escuadrón fijo aislado (sin permadeath ni desgaste).
+                </p>
+                <p>
+                  <strong>🏆 Reto Especial:</strong> formato propio (VGC, 1v1, Monotype, Triples, Gen 1) aislado de tus Cajas PC.
+                </p>
+              </HelpTip>
               {(
                 [
                   { id: 'all', label: `Todos (${visibleCoreChapters.length})` },
                   {
                     id: 'campaign',
-                    label: `⚔️ Campaña NatDex (${campaignCount})`,
+                    label: `⚔️ Campaña (${campaignCount})`,
                   },
                   {
                     id: 'locked',
-                    label: `🔒 Guion / Puzzle (${lockedCount})`,
+                    label: `🔒 Fijo (${lockedCount})`,
                   },
                   {
                     id: 'challenge',
-                    label: `🏆 Reto Especial (${challengeCount})`,
+                    label: `🏆 Reto (${challengeCount})`,
                   },
                 ] as const
               ).map((opt) => (

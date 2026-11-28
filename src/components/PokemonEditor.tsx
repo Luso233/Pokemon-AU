@@ -40,6 +40,7 @@ import type {
   PokemonGender,
   StatSpread,
 } from '../types/game';
+import { HelpTip } from './HelpTip';
 import { PokemonSprite } from './PokemonSprite';
 
 const STAT_META: Array<{ key: keyof StatSpread; label: string }> = [
@@ -657,25 +658,37 @@ export const PokemonEditor: React.FC<PokemonEditorProps> = ({
           {mode === 'free' && instance?.isShadow && shadowUnlock && (
             <div className="rounded-2xl border border-fuchsia-400/50 bg-gradient-to-r from-fuchsia-950/60 via-slate-950/90 to-purple-950/50 p-3 text-xs">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-1.5">
                   <span className="font-extrabold text-fuchsia-200">
-                    🟣 Medidor de Corazón ({shadowUnlock.stageLabel} · {shadowUnlock.heartGauge}%)
+                    🟣 Corazón {shadowUnlock.barsClosed}/5 ({shadowUnlock.heartGauge}%)
                   </span>
                   {shadowUnlock.natureRevealed && shadowNatureProfile ? (
                     <span
                       title={shadowNatureProfile.tip}
-                      className="rounded-md border border-amber-400/45 bg-amber-500/15 px-2 py-0.5 text-[10px] font-extrabold text-amber-200"
+                      className="rounded-md border border-amber-400/45 bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-extrabold text-amber-200"
                     >
-                      Afinidad: {shadowNatureProfile.label}
+                      {shadowNatureProfile.label}
                     </span>
                   ) : (
-                    <span className="rounded-md border border-slate-700 bg-slate-900 px-2 py-0.5 text-[10px] font-bold text-slate-400">
-                      🔒 Afinidad oculta (se revela al 3/5)
+                    <span className="rounded-md border border-slate-700 bg-slate-900 px-1.5 py-0.5 text-[10px] font-bold text-slate-400">
+                      🔒 ???? (3/5)
                     </span>
                   )}
+                  <span className="rounded-md border border-fuchsia-400/40 bg-fuchsia-950/70 px-1.5 py-0.5 text-[10px] font-bold text-fuchsia-200">
+                    🔒 Sin Mega/Tera/Z
+                  </span>
+                  <HelpTip title="Pokémon Oscuro (Colosseum / XD)" badge={`${shadowUnlock.stageLabel}`}>
+                    <p>{shadowUnlock.stageHint}</p>
+                    <p>
+                      <strong>Candado de Corazón Cerrado:</strong> bloquea Mega, Tera, Movimientos Z y Vínculo del Heredero hasta purificar.
+                    </p>
+                    <p>
+                      <strong>Desbloqueos:</strong> 3/5 revela Naturaleza y afinidad; 2/5 habilita 252 EVs y los 4 slots; 1/5 habilita 508 EVs; 0% permite purificación opcional.
+                    </p>
+                  </HelpTip>
                 </div>
                 <span className="font-mono-code text-[10px] text-fuchsia-200/85">
-                  Hiper: {shadowUnlock.hyperTriggerChance}% · Desob. no-Shadow: {shadowUnlock.disobeyChance}%
+                  Hiper {shadowUnlock.hyperTriggerChance}% · Desob. {shadowUnlock.disobeyChance}%
                 </span>
               </div>
 
@@ -695,13 +708,9 @@ export const PokemonEditor: React.FC<PokemonEditorProps> = ({
                   );
                 })}
               </div>
-              <p className="mt-1.5 text-[10.5px] text-slate-300">
-                {shadowUnlock.stageHint} ·{' '}
-                <strong className="text-fuchsia-200">🔒 Corazón Cerrado:</strong> bloquea Mega, Tera, Mov. Z y Poder de la Amistad hasta purificar.
-              </p>
               {shadowUnlock.requiresMaxTempoSeal && (
-                <p className="mt-1 rounded-lg border border-amber-400/55 bg-amber-500/15 px-2.5 py-1 text-[10.5px] font-extrabold text-amber-200">
-                  ⚡ Sello Final XD001: coloca a Lugia Oscuro en la Cámara de Purificación con Tempo Máximo para romper la última barra (20% → 0%).
+                <p className="mt-1.5 rounded-lg border border-amber-400/55 bg-amber-500/15 px-2 py-1 text-[10px] font-extrabold text-amber-200">
+                  ⚡ Sello XD001 (20%): requiere Tempo Máximo en Cámara XD.
                 </p>
               )}
             </div>
@@ -905,12 +914,12 @@ export const PokemonEditor: React.FC<PokemonEditorProps> = ({
 
                 {showStatsPanel && (
                   <div className="mt-2.5 space-y-1.5">
-                    <div className="grid grid-cols-12 items-center gap-1.5 px-1 text-[9.5px] font-bold uppercase tracking-wider text-slate-500">
-                      <span className="col-span-2">Stat (Base)</span>
-                      <span className="col-span-3">Barra</span>
-                      <span className="col-span-4 text-center">EVs (0–252)</span>
-                      <span className="col-span-2 text-center">IV (0–31)</span>
-                      <span className="col-span-1 text-right">Total</span>
+                    <div className="grid grid-cols-12 items-center gap-1 px-1 text-[9.5px] font-bold uppercase tracking-wider text-slate-500 sm:gap-1.5">
+                      <span className="col-span-2">Stat</span>
+                      <span className="hidden sm:col-span-3 sm:block">Barra</span>
+                      <span className="col-span-5 text-center sm:col-span-4">EVs</span>
+                      <span className="col-span-3 text-center sm:col-span-2">IV</span>
+                      <span className="col-span-2 text-right sm:col-span-1">Tot</span>
                     </div>
                     {STAT_META.map(({ key, label }) => {
                       const baseVal = indexedMeta?.baseStats[key] ?? 80;
@@ -943,9 +952,9 @@ export const PokemonEditor: React.FC<PokemonEditorProps> = ({
                       return (
                         <div
                           key={key}
-                          className="grid grid-cols-12 items-center gap-1.5 rounded-lg bg-slate-950/70 px-1.5 py-1"
+                          className="grid grid-cols-12 items-center gap-1 rounded-lg bg-slate-950/70 px-1.5 py-1 sm:gap-1.5"
                         >
-                          <div className="col-span-2 flex items-center gap-1 text-[11px] font-bold">
+                          <div className="col-span-2 flex items-center gap-0.5 text-[10.5px] font-bold sm:gap-1 sm:text-[11px]">
                             <span
                               className={
                                 isPlus
@@ -958,11 +967,11 @@ export const PokemonEditor: React.FC<PokemonEditorProps> = ({
                               {label}
                               {isPlus ? '+' : isMinus ? '-' : ''}
                             </span>
-                            <span className="font-mono-code text-[9.5px] text-slate-500">
+                            <span className="hidden font-mono-code text-[9.5px] text-slate-500 sm:inline">
                               {baseVal}
                             </span>
                           </div>
-                          <div className="col-span-3">
+                          <div className="hidden sm:col-span-3 sm:block">
                             <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
                               <div
                                 className={`h-full transition-all ${getStatBarColor(finalVal)}`}
@@ -972,7 +981,7 @@ export const PokemonEditor: React.FC<PokemonEditorProps> = ({
                               />
                             </div>
                           </div>
-                          <div className="col-span-4 flex items-center gap-1.5">
+                          <div className="col-span-5 flex items-center gap-1 sm:col-span-4 sm:gap-1.5">
                             <input
                               type="range"
                               min={0}
@@ -981,7 +990,7 @@ export const PokemonEditor: React.FC<PokemonEditorProps> = ({
                               disabled={maxEvCap === 0}
                               value={evVal}
                               onChange={(e) => setEv(Number(e.target.value))}
-                              className="h-1.5 w-full accent-emerald-400 disabled:opacity-30 cursor-pointer"
+                              className="h-1.5 min-w-0 flex-1 accent-emerald-400 disabled:opacity-30 cursor-pointer"
                             />
                             <input
                               type="number"
@@ -990,20 +999,20 @@ export const PokemonEditor: React.FC<PokemonEditorProps> = ({
                               disabled={maxEvCap === 0}
                               value={evVal}
                               onChange={(e) => setEv(Number(e.target.value))}
-                              className="font-mono-code w-12 rounded border border-slate-700 bg-slate-900 px-1 py-0.5 text-center text-[10.5px] font-bold text-emerald-200 focus:border-emerald-400 focus:outline-none disabled:opacity-40"
+                              className="font-mono-code w-11 shrink-0 rounded border border-slate-700 bg-slate-900 px-1 py-0.5 text-center text-[10px] font-bold text-emerald-200 focus:border-emerald-400 focus:outline-none disabled:opacity-40 sm:w-12 sm:text-[10.5px]"
                             />
                           </div>
-                          <div className="col-span-2 flex justify-center">
+                          <div className="col-span-3 flex justify-center sm:col-span-2">
                             <input
                               type="number"
                               min={0}
                               max={31}
                               value={ivVal}
                               onChange={(e) => setIv(Number(e.target.value))}
-                              className="font-mono-code w-12 rounded border border-slate-700 bg-slate-900 px-1 py-0.5 text-center text-[10.5px] font-bold text-amber-200 focus:border-amber-400 focus:outline-none"
+                              className="font-mono-code w-11 rounded border border-slate-700 bg-slate-900 px-1 py-0.5 text-center text-[10px] font-bold text-amber-200 focus:border-amber-400 focus:outline-none sm:w-12 sm:text-[10.5px]"
                             />
                           </div>
-                          <span className="col-span-1 text-right font-mono-code text-[11px] font-extrabold text-white">
+                          <span className="col-span-2 text-right font-mono-code text-[11px] font-extrabold text-white sm:col-span-1">
                             {finalVal}
                           </span>
                         </div>
@@ -1022,12 +1031,15 @@ export const PokemonEditor: React.FC<PokemonEditorProps> = ({
                 {mode === 'free' ? (
                   <>
                     <Package className="h-3.5 w-3.5" />
-                    Objeto Equipado (Stock Real · Sin Clones)
+                    Objeto
+                    <span className="rounded bg-slate-800 px-1.5 py-0.2 text-[9px] font-bold normal-case text-slate-300">
+                      Stock real
+                    </span>
                   </>
                 ) : (
                   <>
                     <Backpack className="h-3.5 w-3.5" />
-                    Objeto Equipado (Inventario + Set del Capítulo)
+                    Objeto
                   </>
                 )}
               </label>
@@ -1037,7 +1049,7 @@ export const PokemonEditor: React.FC<PokemonEditorProps> = ({
                   onClick={onOpenShop}
                   className="text-[11px] font-semibold text-amber-300/80 hover:text-amber-200 cursor-pointer"
                 >
-                  + Comprar objetos en Tienda
+                  + Tienda
                 </button>
               )}
             </div>
@@ -1116,11 +1128,18 @@ export const PokemonEditor: React.FC<PokemonEditorProps> = ({
           {/* 4 Unlockable Move Slots -> FULL Legal Learnset (ZERO TMs!) */}
           <div>
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-sky-300">
-                Movimientos · Rompe candados para elegir CUALQUIER movimiento del learnset (Sin MTs)
-              </p>
-              <span className="text-[10px] font-semibold text-slate-400">
-                {legalMoves.length} movimientos legales en @pkmn/sim
+              <div className="flex items-center gap-1.5">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-sky-300">
+                  Movimientos
+                </p>
+                <HelpTip title="Slots de Movimientos" badge="Sin MTs" size="xs">
+                  <p>
+                    Romper el candado de un slot desbloquea permanentemente todo el learnset legal de {species} en <code>@pkmn/sim</code> ({legalMoves.length} movimientos) sin comprar MTs.
+                  </p>
+                </HelpTip>
+              </div>
+              <span className="font-mono-code text-[10px] font-semibold text-slate-400">
+                {legalMoves.length} legales
               </span>
             </div>
 

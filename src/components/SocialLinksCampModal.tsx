@@ -47,6 +47,7 @@ import type {
   VnPacingMode,
 } from '../types/game';
 import { CharacterPortrait } from './CharacterPortrait';
+import { HelpTip } from './HelpTip';
 import { PokemonIcon } from './PokemonSprite';
 
 interface SocialLinksCampModalProps {
@@ -464,26 +465,34 @@ export const SocialLinksCampModal: React.FC<SocialLinksCampModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/82 p-4 backdrop-blur-sm">
-      <div className="relative flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-fuchsia-400/35 bg-[#080d1b] text-slate-100 shadow-2xl">
-        {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 bg-slate-950/90 px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-fuchsia-400/50 bg-fuchsia-500/20 text-fuchsia-300">
-              <Heart className="h-5 w-5" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/82 p-2.5 backdrop-blur-sm sm:p-4">
+      <div className="relative flex max-h-[92dvh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-fuchsia-400/35 bg-[#080d1b] text-slate-100 shadow-2xl">
+        {/* Compact Responsive Header */}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 bg-slate-950/90 px-4 py-3 sm:px-6">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-fuchsia-400/50 bg-fuchsia-500/20 text-fuchsia-300">
+              <Heart className="h-4 w-4" />
             </div>
-            <div>
-              <h2 className="font-display text-lg font-bold text-white">
-                Vínculos, Campamento Ironman & Reglas Diablo
+            <div className="flex min-w-0 items-center gap-1.5">
+              <h2 className="truncate font-display text-base font-bold text-white sm:text-lg">
+                Vínculos &amp; Campamento
               </h2>
-              <p className="text-[11px] text-slate-400">
-                13 Romanceables (8 Sellos + Alto Mando + Campeona) · Huerto de Bayas · Casa de Refuerzos · Ultra Nuzlocke
-              </p>
+              <HelpTip title="Vínculos, Campamento y Finales" size="xs">
+                <p>
+                  <strong>Confesiones:</strong> puedes maxxear Rango 3 con todos sin arruinar tu final. Solo tu <strong>primera confesión</strong> define tu Ending romántico (o confiesa a los 13 para el Ending Harem).
+                </p>
+                <p>
+                  <strong>Huerto &amp; Enfermería:</strong> planta bayas por 100 PC (maduran tras 1 combate y rinden ×2) y cura daño persistente del modo Ironman.
+                </p>
+                <p>
+                  <strong>Casa R3:</strong> vencer la Revancha R3 desbloquea los Pokémon élite de cada aliado como refuerzos en tus Cajas PC.
+                </p>
+              </HelpTip>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 rounded-xl border border-amber-400/40 bg-amber-500/15 px-2.5 py-1 text-xs font-extrabold text-amber-200">
+            <span className="inline-flex items-center gap-1 rounded-xl border border-amber-400/40 bg-amber-500/15 px-2.5 py-1 font-mono-code text-xs font-extrabold text-amber-200">
               <Coins className="h-3.5 w-3.5 text-amber-400" />
               {profile.coins.toLocaleString()} {CURRENCY_SHORT}
             </span>
@@ -498,14 +507,14 @@ export const SocialLinksCampModal: React.FC<SocialLinksCampModalProps> = ({
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/90 bg-slate-950/60 px-6 py-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/90 bg-slate-950/60 px-4 py-2 sm:px-6">
           <div className="flex flex-wrap gap-1.5">
             {(
               [
-                { id: 'links', label: `Vínculos (${perks.maxedPlayableCount}/${PLAYABLE_ROMANCE_NPCS.length} R3)`, icon: Heart },
-                { id: 'camp', label: `Campamento & Huerto (${perks.maxBerryPlots} parcelas)`, icon: Sprout },
-                { id: 'house', label: `Casa de Aliados (${perks.unlockedHousePokemon.length})`, icon: Home },
-                { id: 'rules', label: 'Ironman · Nuzlocke · Diablo', icon: Flame },
+                { id: 'links', label: `Vínculos (${perks.maxedPlayableCount}/${PLAYABLE_ROMANCE_NPCS.length})`, icon: Heart },
+                { id: 'camp', label: `Campamento (${perks.maxBerryPlots})`, icon: Sprout },
+                { id: 'house', label: `Casa R3 (${perks.unlockedHousePokemon.length})`, icon: Home },
+                { id: 'rules', label: 'Reglas', icon: Flame },
               ] as const
             ).map((t) => {
               const Icon = t.icon;
@@ -514,7 +523,7 @@ export const SocialLinksCampModal: React.FC<SocialLinksCampModalProps> = ({
                   key={t.id}
                   type="button"
                   onClick={() => setTab(t.id)}
-                  className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition cursor-pointer ${
+                  className={`inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-bold transition cursor-pointer ${
                     tab === t.id
                       ? 'border-fuchsia-400 bg-fuchsia-500/20 text-fuchsia-100'
                       : 'border-slate-800 bg-slate-900 text-slate-400 hover:text-slate-200'
@@ -553,7 +562,7 @@ export const SocialLinksCampModal: React.FC<SocialLinksCampModalProps> = ({
         </div>
 
         {/* Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-3.5 sm:p-6">
           {notice && (
             <div className="mb-4 rounded-2xl border border-amber-400/45 bg-amber-500/15 px-4 py-2.5 text-xs font-semibold text-amber-100">
               {notice}
@@ -637,12 +646,9 @@ export const SocialLinksCampModal: React.FC<SocialLinksCampModalProps> = ({
               <div className="rounded-2xl border border-emerald-400/30 bg-slate-900/80 p-4">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <h3 className="font-display text-base font-bold text-white">
-                      Huerto de Bayas del Exilio ({profile.campGarden.length} parcelas)
+                    <h3 className="font-display text-sm font-bold text-white sm:text-base">
+                      Huerto de Bayas ({profile.campGarden.length})
                     </h3>
-                    <p className="text-[11px] text-slate-400">
-                      Planta semillas por 100 PC; maduran tras 1 combate y rinden x2 bayas para sobrevivir al modo Ironman.
-                    </p>
                   </div>
                   <div className="flex flex-wrap gap-2 text-xs font-bold">
                     <span className="rounded-lg border border-emerald-400/40 bg-emerald-500/15 px-2.5 py-1 text-emerald-200">
@@ -844,12 +850,9 @@ export const SocialLinksCampModal: React.FC<SocialLinksCampModalProps> = ({
               <div className="rounded-2xl border border-fuchsia-400/30 bg-slate-900/80 p-4">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <h3 className="font-display text-base font-bold text-white">
-                      Casa de Aliados — Refuerzos de Vínculo Rango 3
+                    <h3 className="font-display text-sm font-bold text-white sm:text-base">
+                      Casa de Aliados (R3)
                     </h3>
-                    <p className="text-[11px] text-slate-400">
-                      Cuando alcanzas Rango 3 venciendo la Rematch Injusta de un aliado, sus Pokémon competitivos quedan disponibles en tu Casa para reemplazar bajas del Ultra Nuzlocke.
-                    </p>
                   </div>
                   <div className="flex items-center gap-1.5 text-xs">
                     <span className="text-slate-400">Enviar a Slot:</span>
